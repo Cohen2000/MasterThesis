@@ -1,0 +1,154 @@
+# Dataset registry for the persistence census.
+# Download each file manually into --data-dir (default: ./data/), keep the
+# filename given under "file". URLs are page links; exact filenames can change,
+# so run `python census.py --peek <key>` after download to verify column layout.
+#
+# format fields:
+#   delimiter: "whitespace" or ","
+#   columns:   0-based indices of source node, target node, timestamp
+#   comment:   lines starting with any of these characters are skipped
+#   skiprows:  number of header lines to skip
+
+datasets:
+  # ---------- SocioPatterns (proximity, CC BY-NC-SA, cite their papers) ----------
+  sp_hospital:
+    label: "Hospital ward (SocioPatterns)"
+    domain: proximity
+    page_url: "https://sociopatterns.org/datasets/hospital-ward-dynamic-contact-network/"
+    file: "hospital_lyon_contacts.dat.gz"
+    format: {delimiter: whitespace, columns: {t: 0, u: 1, v: 2}, comment: "#%", skiprows: 0}
+    notes: "Cols: t i j Si Sj. 20s resolution, ~3 days."
+
+  sp_primaryschool:
+    label: "Primary school (SocioPatterns)"
+    domain: proximity
+    page_url: "https://sociopatterns.org/datasets/primary-school-temporal-network-data/"
+    file: "primaryschool.csv.gz"
+    format: {delimiter: whitespace, columns: {t: 0, u: 1, v: 2}, comment: "#%", skiprows: 0}
+    notes: "Cols: t i j Ci Cj (tab-separated). 2 days."
+
+  sp_highschool2013:
+    label: "High school 2013 (SocioPatterns)"
+    domain: proximity
+    page_url: "https://sociopatterns.org/datasets/high-school-contact-and-friendship-networks/"
+    file: "HighSchool2013_proximity_net.csv.gz"
+    format: {delimiter: whitespace, columns: {t: 0, u: 1, v: 2}, comment: "#%", skiprows: 0}
+    notes: "Cols: t i j Ci Cj. 5 days."
+
+  sp_workplace:
+    label: "Workplace InVS15 (SocioPatterns)"
+    domain: proximity
+    page_url: "https://sociopatterns.org/datasets/test/"
+    file: "workplace_InVS15_tij.dat.gz"
+    format: {delimiter: whitespace, columns: {t: 0, u: 1, v: 2}, comment: "#%", skiprows: 0}
+    notes: "Cols: t i j. ~2 weeks office building."
+
+  sp_hypertext2009:
+    label: "Hypertext 2009 conference (SocioPatterns)"
+    domain: proximity
+    page_url: "https://sociopatterns.org/datasets/hypertext-2009-dynamic-contact-network/"
+    file: "ht2009_contact_list.dat.gz"
+    format: {delimiter: whitespace, columns: {t: 0, u: 1, v: 2}, comment: "#%", skiprows: 0}
+    notes: "Cols: t i j. ~2.5 days conference."
+
+  # ---------- SNAP (timestamp is last column) ----------
+  snap_collegemsg:
+    label: "CollegeMsg (SNAP)"
+    domain: messaging
+    page_url: "https://snap.stanford.edu/data/CollegeMsg.html"
+    file: "CollegeMsg.txt.gz"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 0}
+    notes: "SRC DST UNIXTS. ~6 months."
+
+  snap_email_eu:
+    label: "email-Eu-core-temporal (SNAP)"
+    domain: email
+    page_url: "https://snap.stanford.edu/data/email-Eu-core-temporal.html"
+    file: "email-Eu-core-temporal.txt.gz"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 0}
+    notes: "SRC DST TS(seconds, rel.). ~18 months."
+
+  snap_mathoverflow:
+    label: "sx-mathoverflow (SNAP)"
+    domain: qna
+    page_url: "https://snap.stanford.edu/data/sx-mathoverflow.html"
+    file: "sx-mathoverflow.txt.gz"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 0}
+    notes: "SRC DST UNIXTS. ~7 years."
+
+  snap_bitcoin_otc:
+    label: "soc-sign-bitcoinotc (SNAP)"
+    domain: trust
+    page_url: "https://snap.stanford.edu/data/soc-sign-bitcoin-otc.html"
+    file: "soc-sign-bitcoinotc.csv.gz"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 3}, comment: "#%", skiprows: 0}
+    notes: "SOURCE,TARGET,RATING,TIME. ~5 years."
+
+  snap_wikitalk:
+    label: "wiki-talk-temporal (SNAP)"
+    domain: web
+    page_url: "https://snap.stanford.edu/data/wiki-talk-temporal.html"
+    file: "wiki-talk-temporal.txt.gz"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 0}
+    notes: "Large (~7.8M events). Run last; needs a few GB RAM."
+
+  # ---------- Network Repository (zips; '%' header lines; check cols via --peek) ----------
+  nr_radoslaw_email:
+    label: "ia-radoslaw-email (NetRepo)"
+    domain: email
+    page_url: "https://networkrepository.com/ia-radoslaw-email.php"
+    file: "ia-radoslaw-email.edges"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 3}, comment: "%#", skiprows: 0}
+    notes: "Rows: u v w t. Manufacturing company email, ~9 months."
+
+  nr_enron_employees:
+    label: "ia-enron-employees (NetRepo)"
+    domain: email
+    page_url: "https://networkrepository.com/ia-enron-employees.php"
+    file: "ia-enron-employees.edges"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 3}, comment: "%#", skiprows: 0}
+    notes: "Rows: u v w t."
+
+  nr_digg_reply:
+    label: "ia-digg-reply (NetRepo)"
+    domain: forum
+    page_url: "https://networkrepository.com/ia-digg-reply.php"
+    file: "ia-digg-reply.edges"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 3}, comment: "%#", skiprows: 0}
+    notes: "Rows: u v t (check with --peek; some NR files carry a weight column)."
+
+  # ---------- JODIE / standard TG-learning benchmarks (snap.stanford.edu/jodie) ----------
+  # Bipartite user-item interactions; the bipartite flag keeps id spaces apart.
+  # Published reoccurrence/surprise values exist for these (EdgeBank paper, TGB),
+  # so they double as an external sanity check for rho.
+  jodie_wikipedia:
+    label: "Wikipedia (JODIE)"
+    domain: web_bipartite
+    page_url: "https://snap.stanford.edu/jodie/"
+    file: "wikipedia.csv"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 1, bipartite: true}
+    notes: "user_id,item_id,timestamp,... ~1 month of page edits. Standard TG benchmark."
+
+  jodie_reddit:
+    label: "Reddit (JODIE)"
+    domain: web_bipartite
+    page_url: "https://snap.stanford.edu/jodie/"
+    file: "reddit.csv"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 1, bipartite: true}
+    notes: "user posts in subreddits, ~1 month. Standard TG benchmark."
+
+  jodie_lastfm:
+    label: "LastFM (JODIE)"
+    domain: media_bipartite
+    page_url: "https://snap.stanford.edu/jodie/"
+    file: "lastfm.csv"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 1, bipartite: true}
+    notes: "user-song plays over years; expected high-recurrence pole (cf. TGB-Seq critique)."
+
+  jodie_mooc:
+    label: "MOOC (JODIE, optional)"
+    domain: education_bipartite
+    page_url: "https://snap.stanford.edu/jodie/"
+    file: "mooc.csv"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 1, bipartite: true}
+    notes: "Optional. student-course interactions, ~1 month."
