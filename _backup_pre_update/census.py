@@ -37,7 +37,6 @@ HEADLINE_W = 5
 HEADLINE_K = 2
 W_GRID = (4, 5, 8)
 ALPHA = 0.4
-WINDOW_EPS = 1e-9       # float-boundary guard for window_index (see its docstring)
 
 
 # ----------------------------------------------------------------------------
@@ -102,39 +101,19 @@ def normalize(df: pd.DataFrame) -> pd.DataFrame:
 
 def window_index(t: np.ndarray, t_min: float, win: float, n_windows: int,
                  offset: float = 0.0) -> np.ndarray:
-    """Half-open equal windows; last window closed (clip catches t == t_max).
-
-    The + EPS guards the half-open boundary against floating-point error: an
-    event exactly on a boundary k*win can compute (k*win)/win = k - 1e-16 in
-    IEEE arithmetic, so a bare floor would drop it into window k-1. EPS is far
-    below any real timestamp spacing (data is normalized to [0, T]), and is the
-    single windowing convention shared by census, generator and walks so their
-    window assignments never diverge on a boundary-exact timestamp.
-    """
-    idx = np.floor((t - t_min + offset) / win + WINDOW_EPS).astype(np.int64)
+    """Half-open equal windows; last window closed (clip catches t == t_max)."""
+    idx = np.floor((t - t_min + offset) / win).astype(np.int64)
     return np.clip(idx, 0, n_windows - 1)
 
 
 def spans(pair: np.ndarray, widx: np.ndarray) -> np.ndarray:
-    """a_e per pair: number of distinct active windows (indicator semantics).
-
-    Name collision to avoid: "span" here is a *count* of distinct active
-    windows (possibly non-contiguous), NOT the contiguous time interval
-    [t_first, t_last] that Galimberti et al. (2018, span-cores) call a span.
-    """
+    """a_e per pair: number of distinct active windows (indicator semantics)."""
     key = pd.DataFrame({"pair": pair, "w": widx}).drop_duplicates()
     return key.groupby("pair").size().sort_index().to_numpy()
 
 
 def profile(a: np.ndarray, n_windows: int) -> dict:
-    """rho_k for k = 1..W (k = 1 is identically 1.0 by construction).
-
-    rho_k adapts the "support set" notion of Lahiri & Berger-Wolf (a subgraph
-    is persistent if present in more than a threshold number of windows; see
-    Holme & Saramaki 2012) to node pairs, normalized to a [0,1] fraction. This
-    is distinct from lifetime (t_last - t_first) and from binary future-window
-    survival (Navarro et al. 2017), neither of which counts active windows.
-    """
+    """rho_k for k = 1..W (k = 1 is identically 1.0 by construction)."""
     return {k: float(np.mean(a >= k)) for k in range(1, n_windows + 1)}
 
 
@@ -142,9 +121,8 @@ def one_step_pair_persistence(pair: np.ndarray, widx: np.ndarray,
                               n_windows: int) -> float:
     """C: P(pair active in window w+1 | active in window w), w = 0..W-2.
 
-    Pair-level variant of Nicosia et al.'s adjacent-window persistence (their
-    temporal correlation coefficient is node-averaged; Bauza Mingueza et al.
-    2023 use a network-level adjacent-snapshot Jaccard -- both coarser).
+    Pair-level variant of Nicosia et al.'s adjacent-window persistence
+    (their temporal correlation coefficient is node-averaged overlap).
     """
     act = pd.DataFrame({"pair": pair, "w": widx}).drop_duplicates()
     cur = act[act["w"] <= n_windows - 2]
@@ -167,13 +145,7 @@ def equal_event_windows(pair: np.ndarray, t: np.ndarray, n_windows: int) -> np.n
 
 def burstiness(gaps: np.ndarray) -> float:
     """Goh-Barabasi B = (sigma - mu) / (sigma + mu); -1 regular, 0 Poisson-like,
-    -> 1 extremely bursty. NaN if fewer than 2 gaps.
-
-    Caveat: B is biased low on short sequences (finite-size effect; Kim & Jo
-    2016), and B -> 1 is only reachable as the number of events grows. Per-pair
-    B (few events) is therefore a diagnostic, not an estimation target; the
-    pooled B over all gaps is the more stable summary.
-    """
+    -> 1 extremely bursty. NaN if fewer than 2 gaps."""
     if len(gaps) < 2:
         return float("nan")
     mu, sigma = float(np.mean(gaps)), float(np.std(gaps))
@@ -252,11 +224,10 @@ def census_row(df: pd.DataFrame, label: str = "") -> dict:
         if W == HEADLINE_W:
             row["rho_headline"] = prof[HEADLINE_K]
             row["mean_span_frac"] = float(np.mean(a) / W)
-            # event-weighted rho: share of all events on persistent pairs.
-            # Bridges pair-level rho to event-level recurrence (EdgeBank/TGB).
-            # Cross-check vs TGX reoccurrence (Shirzadkhani et al. 2024) is by
-            # correlation of dataset ordering, not identity (theirs is split-
-            # based, ours window-based).
+            # event-weighted rho: share of all events that lie on persistent
+            # pairs. Bridges pair-level rho to event-level recurrence numbers
+            # (EdgeBank/TGB style); high values with low rho_headline mean few
+            # recurring pairs carry most of the traffic.
             row["rho_event_weighted"] = float(sizes[a >= HEADLINE_K].sum() / sizes.sum())
             row["C_one_step"] = one_step_pair_persistence(pair, widx, W)
             # shifted grid: W+1 bins, first/last half-width

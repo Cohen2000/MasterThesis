@@ -23,28 +23,6 @@ BUDGETS = [50, 100, 200, 400, 800, 1600, 3200]
 META = ["substrate", "family", "rho_target", "rep", "hub_bias", "rho_headline"]
 
 
-def load_events(path, T: float = 1.0) -> pd.DataFrame:
-    """Load an event CSV (columns u, v, t) and rescale timestamps to [0, T].
-
-    Synthetic pilot data is already in [0, 1] with T=1, so this is a no-op
-    there. Real datasets carry absolute timestamps (e.g. Unix seconds ~1e9),
-    which the window math in walks.run_walk / summarize would otherwise clip
-    into the last window and which would trip build_index's range guard. The
-    map t -> (t - t_min) / (t_max - t_min) * T is affine and strictly
-    increasing, so it preserves event ORDER and all RELATIVE gaps exactly; only
-    the unit of step_dt changes (now in [0, T] units, not seconds), which makes
-    synthetic and real walks directly comparable. (Node-id remapping for real
-    datasets is handled upstream, not here.)
-    """
-    ev = pd.read_csv(path)
-    t = ev["t"].to_numpy(np.float64)
-    if len(t) == 0:
-        return ev
-    tmin, tmax = float(t.min()), float(t.max())
-    ev["t"] = (t - tmin) / (tmax - tmin) * T if tmax > tmin else np.zeros_like(t)
-    return ev
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--manifest", default="data_pilot/manifest.csv")

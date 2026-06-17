@@ -3,16 +3,10 @@
 
 Strategies
   time_agnostic    random walk on the collapsed graph; sees no timestamps at
-                   all. This is the TRUE negative control: identical across
-                   twins by construction, so any signal it shows is leakage.
-  time_agnostic_t  same (time-agnostic) transitions, but each traversal also
-                   observes one uniformly sampled event timestamp of that edge.
-                   This is NOT a negative control but a static-transition /
-                   temporal-observation ablation: it isolates whether merely
-                   observing edge times (without time-respecting ordering)
-                   already suffices to recover rho. (Related to "non-monotonic
-                   temporal walks", Ma et al. 2026; avoid calling it an oracle,
-                   it only ever sees real historical timestamps.)
+                   all (negative control: identical across twins by design).
+  time_agnostic_t  same transitions, but each traversal additionally observes
+                   one uniformly sampled event timestamp of that edge
+                   (baseline: 'static transitions + time features').
   time_respecting  CTDNE-style: from (node x, time tau) move along a uniformly
                    chosen incident event with t > tau; dead end -> restart.
   recency_biased   like time_respecting, but among future events the weight is
@@ -22,20 +16,12 @@ Budget accounting (fairness rule from the design):
   every log entry costs exactly 1 budget unit, both observed events ('step')
   and (re)placements ('restart', incl. the initial placement). All strategies
   are compared at identical budgets; sweep points are prefixes of one log.
-
-Feature provenance:
-  the structural summary features (unique nodes/edges, degree stats, discovery
-  rate, edge-revisit, return times) adapt the EstGraph recipe (Maurya & Liu
-  2026) from top-k lists / binned curves down to compact scalars; the temporal
-  features (window coverage, walk_rho_*, step_dt) are this work's addition.
 """
 
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
-
-from census import window_index   # shared windowing convention (boundary guard)
 
 LOG_COLS = ["kind", "node", "u", "v", "t", "dt"]  # kind: 0=restart, 1=step
 
@@ -63,14 +49,6 @@ def build_index(events: pd.DataFrame, T: float = 1.0, W: int = 5) -> TemporalGra
     u = events["u"].to_numpy(np.int64)
     v = events["v"].to_numpy(np.int64)
     t = events["t"].to_numpy(np.float64)
-    # Timestamps must already be normalized to [0, T]. Synthetic pilot data is
-    # in [0, 1] with T=1; real datasets are rescaled at load time (see
-    # load_events in run_pilot_walks.py). The window math in run_walk/summarize
-    # assumes this range, so fail loudly here instead of clipping silently.
-    assert t.size == 0 or (t.min() >= -1e-9 and t.max() <= T + 1e-9), (
-        f"event timestamps must lie in [0, T={T}]; got "
-        f"[{float(t.min()):.4g}, {float(t.max()):.4g}] -- rescale at load time"
-    )
     n = int(max(u.max(), v.max())) + 1
 
     nbr_t = [[] for _ in range(n)]
@@ -119,9 +97,6 @@ def run_walk(idx: TemporalGraphIndex, strategy: str, max_budget: int,
     dts = np.full(max_budget, np.nan)
 
     def place(i):
-        # Walk start. CTDNE (Nguyen et al. 2018) samples the initial edge from a
-        # global time-sorted distribution; under walk-limited access we instead
-        # start from a random node at a uniform time. Access-faithful deviation.
         x = int(rng.integers(idx.n_nodes))
         tau = float(rng.uniform(0.0, idx.T)) if temporal else 0.0
         kinds[i] = 0; nodes[i] = x
@@ -134,20 +109,11 @@ def run_walk(idx: TemporalGraphIndex, strategy: str, max_budget: int,
             times = idx.nbr_times[x]
             j0 = int(np.searchsorted(times, tau, side="right"))
             if j0 >= len(times):                      # temporal dead end
-                # Saramaki & Holme (2015) greedy walks terminate here; we
-                # restart so every strategy spends an identical budget.
                 x, tau = place(i); i += 1
                 continue
             if strategy == "time_respecting":
-                # CTDNE time-respecting step: next event strictly later than the
-                # arrival time tau (Nguyen et al. 2018 use strictly increasing
-                # times); searchsorted(..., "right") already enforces t > tau.
                 j = int(rng.integers(j0, len(times)))
             else:                                      # recency_biased
-                # CTDNE Eq. (6) as printed uses exp(+(t - tau)), which *grows*
-                # with the waiting time and contradicts their stated preference
-                # for a small in-between time; we use exp(-(t - tau)/scale),
-                # matching that intent (sign-corrected).
                 d = times[j0:] - tau
                 w = np.exp(-d / decay_scale)
                 w /= w.sum()
@@ -225,7 +191,7 @@ def summarize(log: pd.DataFrame, idx: TemporalGraphIndex, budget: int) -> dict:
     tvals = steps["t"].to_numpy()
     if np.isfinite(tvals).any():
         win = idx.T / idx.W
-        widx = window_index(tvals, 0.0, win, idx.W)   # shared convention
+        widx = np.minimum((tvals / win).astype(np.int64), idx.W - 1)
         ew = {}
         obs_count = {}
         for e, w in zip(edges, widx):
@@ -237,10 +203,6 @@ def summarize(log: pd.DataFrame, idx: TemporalGraphIndex, budget: int) -> dict:
         # chance to reveal a cross-window revisit at all
         ge2 = [e for e, c in obs_count.items() if c >= 2]
         feats["share_edges_multi_observed"] = len(ge2) / len(ew)
-        # walk_rho_conditional conditions on edges seen >= 2x (a recurrence can
-        # only show up on a revisit; collision principle of Hardiman-Katzir 2013
-        # / Ben-Hamou 2018). CAVEAT: no inverse-degree reweighting, so it is
-        # heuristic conditioning, not a provably unbiased estimator.
         feats["walk_rho_conditional"] = (
             len([e for e in ge2 if len(ew[e]) >= 2]) / len(ge2) if ge2 else np.nan
         )

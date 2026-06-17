@@ -16,13 +16,6 @@ Hence, across instances of one family:
 Anything that ignores time sees identical inputs -> negative control by
 construction.
 
-The family invariants {topology, per-edge counts, timestamp multiset} match the
-timestamp-shuffling reference model (P[w,t] in Gauvin et al. 2022; the RP/DCW
-null of Holme-Saramaki 2012 / Karsai et al. 2011). Because we *steer* rho rather
-than sample uniformly, this is a biased/steered surrogate, NOT a maximum-entropy
-null -- rho is the experimental knob, not a p-value against a null. The "same
-topology, different timing changes the dynamics" rationale is Scholtes (2014).
-
 rho control: a target share of edges is marked persistent (span >= 2 windows,
 small spans preferred, matching the census profiles); the rest are bursty
 (span = 1). Capacity bookkeeping keeps the per-window timestamp counts exactly
@@ -38,7 +31,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from census import HEADLINE_K, HEADLINE_W, census_row, normalize, window_index
+from census import HEADLINE_K, HEADLINE_W, census_row, normalize
 
 # census-calibrated defaults
 P_SINGLE = 0.35          # mass of single-event edges (census bulk: 0.26-0.52)
@@ -98,7 +91,7 @@ class Family:
     @property
     def window_caps(self) -> np.ndarray:
         win = self.T / self.W
-        idx = window_index(self.t_all, 0.0, win, self.W)  # shared convention
+        idx = np.minimum((self.t_all / win).astype(np.int64), self.W - 1)
         return np.bincount(idx, minlength=self.W)
 
     @property
@@ -129,12 +122,9 @@ def make_family(name: str, kind: str, n: int, seed: int,
     if timestamps == "uniform":
         t_all = np.sort(rng.uniform(0.0, T, M))
     elif timestamps == "bursty":
-        # Bursty activity on a fixed topology (Sheng et al. 2023). lognormal
-        # gaps -> clumped activity; the multiset is still drawn once per family,
-        # so the twin logic is untouched. We calibrate to the burstiness
-        # *statistic*, not a distributional family, so lognormal is just a
-        # tunable heavy tail (empirical IET laws are debated), not a claim about
-        # the true inter-event-time form.
+        # lognormal inter-event gaps -> clumped global activity; the multiset
+        # is still drawn once per family, so the twin logic is untouched.
+        # burst_sigma ~ 1.6 targets pooled burstiness around 0.5 (census range).
         gaps = rng.lognormal(0.0, burst_sigma, M)
         t = np.cumsum(gaps)
         t_all = (t - t[0]) / (t[-1] - t[0]) * T * (1.0 - 1e-9) if M > 1 \
@@ -256,7 +246,7 @@ def make_instance(fam: Family, rho_target: float, seed: int,
 
     # hand out actual timestamps per window (shuffled within window)
     win = fam.T / fam.W
-    widx_all = window_index(fam.t_all, 0.0, win, fam.W)  # shared convention
+    widx_all = np.minimum((fam.t_all / win).astype(np.int64), fam.W - 1)
     if fam.timestamps == "bursty":
         # time-sorted index pools; each (edge, window) allocation takes a
         # CONTIGUOUS run of remaining timestamps -> tight per-edge bursts,
