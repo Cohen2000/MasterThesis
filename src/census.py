@@ -302,11 +302,23 @@ def classify(df_out: pd.DataFrame) -> pd.DataFrame:
     return df_out
 
 
-def make_plots(df_out: pd.DataFrame, out_dir: Path):
+def make_plots(df_out: pd.DataFrame, out_dir: Path, profile_df: pd.DataFrame = None):
+    """Census figures, all written to out_dir.
+
+    Always: rho_distribution, rho_vs_C. With >= 3 datasets also rho_profile
+    (full k = 1..W curve per difficulty tercile, so the headline k = 2 is shown
+    as one slice) and rho_drivers (single-event share with the rho <= 1 - share
+    ceiling, plus how strongly rho correlates with single-event share vs
+    burstiness). With profile_df (long table dataset,W,k,rho over the W sweep)
+    also rho_vs_W (the window-count sweep at k=2) and rho_rank_stability (a
+    Spearman heatmap of the dataset ranking under rho(k,W) vs the headline
+    rho(2,5), over a W x threshold grid).
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    # --- original two ---
     d = df_out.sort_values("rho_headline")
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.barh(d["dataset"], d["rho_headline"])
@@ -314,6 +326,7 @@ def make_plots(df_out: pd.DataFrame, out_dir: Path):
     ax.set_title("Edge persistence across datasets")
     fig.tight_layout()
     fig.savefig(out_dir / "rho_distribution.png", dpi=150)
+    plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(5, 5))
     ax.scatter(df_out["rho_headline"], df_out["C_one_step"])
@@ -324,18 +337,176 @@ def make_plots(df_out: pd.DataFrame, out_dir: Path):
     ax.set_title("Recurrence vs. short-range stability")
     fig.tight_layout()
     fig.savefig(out_dir / "rho_vs_C.png", dpi=150)
+    plt.close(fig)
+
+    if len(df_out) < 3:
+        print("[plots] < 3 datasets: skipping profile / drivers / sweep", file=sys.stderr)
+        return
+
+    col = {"easy (high rho)": "#1d9e75", "medium": "#ba7517", "hard (low rho)": "#a32d2d"}
+    lab = {"easy (high rho)": "easy (high \u03c1)", "medium": "medium",
+           "hard (low rho)": "hard (low \u03c1)"}
+    order = ["easy (high rho)", "medium", "hard (low rho)"]
+    if "class_terciles" not in df_out.columns:   # recompute if --classify was off
+        df_out = classify(df_out.copy())
+
+    # --- persistence profile rho(k) per tercile (W = 5) ---
+    ks = [1, 2, 3, 4, 5]
+    cols = [f"rho_W5_k{k}" for k in ks]
+    fig, ax = plt.subplots(figsize=(7, 4.4))
+    for g in order:
+        dd = df_out[df_out["class_terciles"] == g]
+        if dd.empty:
+            continue
+        v = dd[cols].to_numpy(dtype=float)
+        ax.fill_between(ks, v.min(0), v.max(0), color=col[g], alpha=0.15)
+        ax.plot(ks, v.mean(0), color=col[g], lw=2, marker="o",
+                label=f"{lab[g]}  (n={len(dd)})")
+    ax.axvline(2, color="0.4", ls="--", lw=1)
+    ax.text(2.05, 0.97, "headline (k=2)", color="0.4", fontsize=9, va="top")
+    ax.set_xticks(ks)
+    ax.set_ylim(-0.02, 1.03)
+    ax.set_xlabel("k  (pair active in at least k of 5 windows)")
+    ax.set_ylabel("\u03c1  (fraction of observed pairs)")
+    ax.set_title("Persistence profile by tercile (W=5)\n"
+                 "the dashed line (k=2) is one slice of the full curve")
+    ax.legend(title="tercile (line = mean, band = min..max)", fontsize=9, title_fontsize=9)
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(out_dir / "rho_profile.png", dpi=150)
+    plt.close(fig)
+
+    # --- drivers: both candidates shown over datasets (honest contrast).
+    # left carries the rho <= 1 - share ceiling (a real bound); burstiness has none.
+    rs = float(df_out["rho_headline"].corr(df_out["share_single_event_pairs"], method="spearman"))
+    rb = float(df_out["rho_headline"].corr(df_out["burstiness_pooled"], method="spearman"))
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(11, 4.4))
+    for g in order:
+        dd = df_out[df_out["class_terciles"] == g]
+        axL.scatter(dd["share_single_event_pairs"], dd["rho_headline"],
+                    c=col[g], s=55, label=lab[g], zorder=3)
+        axR.scatter(dd["burstiness_pooled"], dd["rho_headline"], c=col[g], s=55, zorder=3)
+    xx = np.linspace(0, 1, 100)
+    axL.plot(xx, 1 - xx, color="0.4", ls="--", lw=1.2, label="ceiling  \u03c1 = 1 - share")
+
+    def mark(ax, xcol, names):
+        for name in names:
+            if (df_out["dataset"] == name).any():
+                r = df_out[df_out["dataset"] == name].iloc[0]
+                ax.annotate(name.split(" (")[0], (r[xcol], r["rho_headline"]),
+                            xytext=(5, 5), textcoords="offset points", fontsize=8)
+    mark(axL, "share_single_event_pairs", ["ia-digg-reply (NetRepo)", "ia-radoslaw-email (NetRepo)"])
+    mark(axR, "burstiness_pooled", ["ia-digg-reply (NetRepo)", "Hospital ward (SocioPatterns)"])
+
+    axL.set_xlim(0, 1.02)
+    axL.set_ylim(-0.02, 1.0)
+    axR.set_xlim(0.2, 0.8)
+    axR.set_ylim(-0.02, 1.0)
+    axL.set_xlabel("share of single-event pairs")
+    axR.set_xlabel("burstiness (pooled)")
+    axL.set_ylabel("\u03c1  (W=5, k=2)")
+    axR.set_ylabel("\u03c1  (W=5, k=2)")
+    axL.set_title(f"\u03c1 is driven by one-shot pairs  (Spearman {rs:+.2f})")
+    axR.set_title(f"\u03c1 is NOT driven by burstiness  (Spearman {rb:+.2f})")
+    axL.legend(fontsize=8, loc="upper right")
+    axL.grid(alpha=0.25)
+    axR.grid(alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(out_dir / "rho_drivers.png", dpi=150)
+    plt.close(fig)
+
+    # --- window-count sweep + rank-stability heatmap (need profile_df from main) ---
+    if profile_df is None or profile_df.empty:
+        print("[plots] no profile data: skipping rho_vs_W and rho_rank_stability",
+              file=sys.stderr)
+        return
+    g2t = dict(zip(df_out["dataset"], df_out["class_terciles"]))
+
+    # rho vs W at the headline k=2 (one line per dataset)
+    sweep = profile_df[profile_df["k"] == HEADLINE_K]
+    fig, ax = plt.subplots(figsize=(7.4, 4.6))
+    for name, sub in sweep.groupby("dataset"):
+        sub = sub.sort_values("W")
+        g = g2t.get(name, "medium")
+        ax.plot(sub["W"], sub["rho"], color=col.get(g, "#888780"),
+                lw=1.3, alpha=0.75, marker="o", markersize=3)
+    handles = [plt.Line2D([0], [0], color=col[g], lw=2, marker="o", markersize=4) for g in order]
+    ax.legend(handles, [lab[g] for g in order], title="tercile", fontsize=9, title_fontsize=9)
+    ax.set_xlabel("W  (number of windows)")
+    ax.set_ylabel("\u03c1  (k=2)")
+    ax.set_title("Edge persistence vs number of windows W\n"
+                 "\u03c1 rises as windows get finer (toward the 1 - single-pair ceiling)")
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(out_dir / "rho_vs_W.png", dpi=150)
+    plt.close(fig)
+
+    # --- rank-stability heatmap over the (W, threshold) grid ---
+    # Each cell: Spearman of the dataset ranking under rho(k, W) vs the headline
+    # rho(2, 5), across datasets. Columns are the threshold as a fraction of W
+    # (alpha = k/W); the actual count is k = max(2, round(alpha*W)), capped at W,
+    # so k=1 (trivially 1.0, zero variance) is never used. This answers whether
+    # rho(2,5) is an isolated choice or representative of a family of thresholds.
+    # Caveat: the strict corner (high alpha) is noisy because rho there is near 0
+    # for most datasets, so its low variance makes the Spearman unreliable.
+    by_wk = {(int(W), int(k)): sub.set_index("dataset")["rho"]
+             for (W, k), sub in profile_df.groupby(["W", "k"])}
+    if (HEADLINE_W, HEADLINE_K) not in by_wk:
+        print("[plots] headline (W,k) not in sweep: skipping rho_rank_stability",
+              file=sys.stderr)
+        return
+    headline = by_wk[(HEADLINE_W, HEADLINE_K)]
+    Ws = sorted({int(w) for w in profile_df["W"].unique() if w >= 4})
+    alphas = [0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0]
+    M = np.full((len(Ws), len(alphas)), np.nan)
+    for i, W in enumerate(Ws):
+        for j, al in enumerate(alphas):
+            k = min(max(HEADLINE_K, int(round(al * W))), W)
+            ser = by_wk.get((W, k))
+            if ser is not None:
+                M[i, j] = headline.corr(ser, method="spearman")
+    cmap = plt.get_cmap("viridis").copy()
+    cmap.set_bad("0.9")
+    fig, ax = plt.subplots(figsize=(7.8, 5.2))
+    im = ax.imshow(M, cmap=cmap, vmin=0.0, vmax=1.0, aspect="auto")
+    ax.set_xticks(range(len(alphas)))
+    ax.set_xticklabels([f"{a:.1f}" for a in alphas])
+    ax.set_yticks(range(len(Ws)))
+    ax.set_yticklabels(Ws)
+    ax.set_xlabel("threshold as fraction of W  (\u03b1 = k/W,  k = max(2, round(\u03b1\u00b7W)))")
+    ax.set_ylabel("W  (number of windows)")
+    ax.set_title("Rank stability of \u03c1 across thresholds\n"
+                 "cell = Spearman of the dataset ranking vs the headline \u03c1(2,5)")
+    for i in range(len(Ws)):
+        for j in range(len(alphas)):
+            v = M[i, j]
+            if np.isnan(v):
+                ax.text(j, i, "n/a", ha="center", va="center", fontsize=8, color="0.45")
+            else:
+                ax.text(j, i, f"{v:.2f}", ha="center", va="center",
+                        fontsize=8, color="white" if v < 0.55 else "black")
+    if HEADLINE_W in Ws and 0.4 in alphas:   # outline the headline cell rho(2,5)
+        ax.add_patch(plt.Rectangle((alphas.index(0.4) - 0.5, Ws.index(HEADLINE_W) - 0.5),
+                                   1, 1, fill=False, edgecolor="red", lw=2))
+    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cb.set_label("Spearman vs \u03c1(2,5)")
+    fig.tight_layout()
+    fig.savefig(out_dir / "rho_rank_stability.png", dpi=150)
+    plt.close(fig)
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--registry", default="datasets.yaml")
-    ap.add_argument("--data-dir", default="data")
-    ap.add_argument("--out", default="census_results.csv")
+    ap.add_argument("--registry", default="config/datasets.yaml")
+    ap.add_argument("--data-dir", default="data/raw")
+    ap.add_argument("--out", default="results/census/census_results_full.csv")
     ap.add_argument("--only", help="single dataset key")
     ap.add_argument("--peek", help="print first parsed rows of a dataset and exit")
     ap.add_argument("--markdown", action="store_true")
     ap.add_argument("--plots", action="store_true")
     ap.add_argument("--classify", action="store_true")
+    ap.add_argument("--w-sweep", default="2,3,4,5,6,8,10,12,16,20",
+                    help="window counts for the rho-vs-W plot (used with --plots)")
     args = ap.parse_args()
 
     reg = load_registry(Path(args.registry))
@@ -351,6 +522,8 @@ def main():
 
     keys = [args.only] if args.only else list(reg.keys())
     rows = []
+    profile_rows = []
+    w_sweep = [int(x) for x in args.w_sweep.split(",")] if args.plots else []
     for key in keys:
         spec = reg[key]
         path = data_dir / spec["file"]
@@ -364,6 +537,15 @@ def main():
         row["n_nodes"] = count_nodes(raw)
         row["domain"] = spec.get("domain", "")
         rows.append(row)
+        if args.plots:   # full rho(k) profile at each sweep W, same windowing as census_row
+            pr, tt = df["pair"].to_numpy(), df["t"].to_numpy()
+            tmin = float(tt.min())
+            span_T = float(tt.max()) - tmin
+            for W in w_sweep:
+                a = spans(pr, window_index(tt, tmin, span_T / W, W))
+                for k, r in profile(a, W).items():
+                    profile_rows.append({"dataset": spec["label"], "W": W,
+                                         "k": k, "rho": r})
 
     if not rows:
         print("No datasets found. Download files into --data-dir first.", file=sys.stderr)
@@ -379,15 +561,19 @@ def main():
     if args.classify and len(out) >= 3:
         out = classify(out)
         print(f"tercile thresholds: {out.attrs['tercile_thresholds']}", file=sys.stderr)
-    out.to_csv(args.out, index=False)
-    print(f"wrote {args.out} ({len(out)} datasets)", file=sys.stderr)
+    out_path = Path(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out.to_csv(out_path, index=False)
+    print(f"wrote {out_path} ({len(out)} datasets)", file=sys.stderr)
     if args.markdown:
-        md = Path(args.out).with_suffix(".md")
+        md = out_path.with_suffix(".md")
         md.write_text(out.round(3).to_markdown(index=False))
         print(f"wrote {md}", file=sys.stderr)
     if args.plots:
-        make_plots(out, Path(args.out).parent)
-        print("wrote rho_distribution.png, rho_vs_C.png", file=sys.stderr)
+        profile_df = pd.DataFrame(profile_rows) if profile_rows else None
+        make_plots(out, out_path.parent, profile_df)
+        print("wrote census plots: rho_distribution, rho_vs_C, rho_profile, "
+              "rho_drivers, rho_vs_W, rho_rank_stability", file=sys.stderr)
 
 
 if __name__ == "__main__":
