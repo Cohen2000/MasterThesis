@@ -231,6 +231,7 @@ def census_row(df: pd.DataFrame, label: str = "") -> dict:
         "median_iet": median_iet,
         "events_per_pair_median": float(np.median(sizes)),
         "share_single_event_pairs": float(np.mean(sizes == 1)),
+        "repeat_rate": float(np.mean(sizes > 1)),
         "burstiness_pooled": burstiness(gaps),
         "burstiness_pair_median": b_pair_median,
         "lifetime_mean": float(np.mean(lifetimes)),
@@ -495,6 +496,257 @@ def make_plots(df_out: pd.DataFrame, out_dir: Path, profile_df: pd.DataFrame = N
     plt.close(fig)
 
 
+def make_definition_plots(df_out: pd.DataFrame, out_dir: Path):
+    """Two figures comparing the persistence definitions across datasets.
+
+    definitions_agreement.png : each measure's Spearman rank correlation with
+        the headline rho(2,5) (meeting headline -- everything tracks rho except
+        the burstiness control).
+    definitions_corr.png : full 7x7 Spearman matrix grouped by conceptual axis,
+        occupancy block outlined (backup detail).
+
+    Uses only df_out (needs the repeat_rate column), so it is independent of the
+    rho-profile sweep and its early returns.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle, Patch
+
+    measures = [
+        ("rho_headline",         "\u03c1(2,5)",               "Occupancy"),
+        ("mean_span_frac",       "mean window occupancy", "Occupancy"),
+        ("rho_event_weighted",   "event-weighted \u03c1",     "Occupancy"),
+        ("C_one_step",           "next-window survival",  "Transition"),
+        ("lifetime_mean_over_T", "relationship lifetime", "Duration"),
+        ("repeat_rate",          "repeat rate",           "Repeat"),
+        ("burstiness_pooled",    "burstiness",            "Control"),
+    ]
+    measures = [m for m in measures if m[0] in df_out.columns]
+    cols = [c for c, _, _ in measures]
+    labels = [lab for _, lab, _ in measures]
+    axis_of = {lab: ax for _, lab, ax in measures}
+    sub = df_out[cols].astype(float)
+    if len(sub) < 3:
+        print("[plots] <3 datasets: skipping definition plots", file=sys.stderr)
+        return
+
+    axis_color = {"Occupancy": "#1D9E75", "Transition": "#7F77DD",
+                  "Duration": "#D85A30", "Repeat": "#378ADD", "Control": "#9c9a92"}
+
+    # --- bar chart: agreement with the headline target -----------------------
+    target = "rho_headline"
+    others = [(lab, axis_of[lab], sub[c].corr(sub[target], method="spearman"))
+              for c, lab, _ in measures if c != target]
+    others.sort(key=lambda r: r[2], reverse=True)
+    blabels = [r[0] for r in others]
+    bvals = [r[2] for r in others]
+    bcolors = [axis_color[r[1]] for r in others]
+
+    fig, ax = plt.subplots(figsize=(8.4, 4.3))
+    y = np.arange(len(blabels))[::-1]
+    ax.barh(y, bvals, color=bcolors, height=0.62)
+    for yi, v in zip(y, bvals):
+        ax.text(v + 0.015, yi, f"{v:.2f}", va="center", fontsize=10)
+    ax.set_yticks(y)
+    ax.set_yticklabels(blabels, fontsize=11)
+    ax.set_xlim(0, 1.08)
+    ax.set_xlabel(f"rank correlation with \u03c1(2,5)  ({len(sub)} datasets)", fontsize=10)
+    ax.set_title("How strongly each measure agrees with the main target \u03c1(2,5)",
+                 fontsize=12)
+    ax.spines[["top", "right"]].set_visible(False)
+    present = [r[1] for r in others]
+    handles = [Patch(facecolor=axis_color[a], label=a)
+               for a in ["Occupancy", "Transition", "Duration", "Repeat", "Control"]
+               if a in present]
+    ax.legend(handles=handles, loc="lower right", frameon=False, fontsize=9)
+    fig.tight_layout()
+    fig.savefig(out_dir / "definitions_agreement.png", dpi=150)
+    plt.close(fig)
+
+    # --- 7x7 Spearman matrix (backup) ----------------------------------------
+    corr = sub.corr(method="spearman").to_numpy()
+    n = len(labels)
+    fig, ax = plt.subplots(figsize=(8.2, 7.0))
+    im = ax.imshow(corr, cmap="RdBu_r", vmin=-1, vmax=1)
+    ax.set_xticks(range(n))
+    ax.set_yticks(range(n))
+    ax.set_xticklabels(labels, rotation=40, ha="right", fontsize=10)
+    ax.set_yticklabels(labels, fontsize=10)
+    for i in range(n):
+        for j in range(n):
+            v = corr[i, j]
+            ax.text(j, i, f"{v:.2f}", ha="center", va="center",
+                    color="white" if abs(v) > 0.6 else "black", fontsize=9)
+    n_occ = sum(1 for _, _, a in measures if a == "Occupancy")
+    if n_occ:
+        ax.add_patch(Rectangle((-0.5, -0.5), n_occ, n_occ, fill=False,
+                               edgecolor="#222", lw=2.2))
+    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cb.set_label("Spearman rank correlation", fontsize=10)
+    ax.set_title(f"How the persistence measures relate across {len(sub)} datasets\n"
+                 "boxed block = the three occupancy measures (same axis)", fontsize=12)
+    fig.tight_layout()
+    fig.savefig(out_dir / "definitions_corr.png", dpi=150)
+    plt.close(fig)
+
+
+# persistence definitions shown in the bucket/distribution figures (occupancy
+# trio first, then the three other axes). Burstiness is deliberately excluded:
+# it is a timing control, not a persistence measure, so it has no easy/med/hard
+# ordering on the persistence axis.
+_PERSIST_MEASURES = [
+    ("rho_headline",         "\u03c1(2,5)",        "Occupancy"),
+    ("mean_span_frac",       "mean\noccupancy",    "Occupancy"),
+    ("rho_event_weighted",   "event-\nweighted",   "Occupancy"),
+    ("lifetime_mean_over_T", "lifetime",           "Duration"),
+    ("C_one_step",           "survival",           "Transition"),
+    ("repeat_rate",          "repeat\nrate",       "Repeat"),
+]
+
+
+def _tercile_codes(s: pd.Series) -> np.ndarray:
+    """Easy/medium/hard codes for one measure, using the SAME tercile rule as
+    classify() (hard if <= 1/3-quantile, easy if > 2/3-quantile, else medium).
+    Returns 0 = easy, 1 = medium, 2 = hard, aligned to s's row order."""
+    q1, q2 = s.quantile([1 / 3, 2 / 3])
+    return s.apply(lambda x: 0 if x > q2 else (2 if x <= q1 else 1)).to_numpy()
+
+
+def make_bucket_plot(df_out: pd.DataFrame, out_dir: Path):
+    """Heatmap: easy/medium/hard bucket of every persistence definition for
+    every dataset (datasets x definitions), datasets sorted by rho(2,5).
+
+    Answers the meeting question 'do the other definitions split into
+    easy/med/hard like rho does, and do they agree?' in one picture: the poles
+    agree across definitions, the middle reshuffles, and repeat (different
+    construction: counts, ignores timing) is the clearest deviator. The bucket
+    rule is identical to classify(), so it is consistent with class_terciles.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import ListedColormap
+    from matplotlib.patches import Patch
+
+    spec = [m for m in _PERSIST_MEASURES if m[0] in df_out.columns]
+    if len(df_out) < 3 or len(spec) < 2:
+        print("[plots] skipping definition buckets (need >=3 datasets, >=2 measures)",
+              file=sys.stderr)
+        return
+    cols = [c for c, _, _ in spec]
+    labels = [lab for _, lab, _ in spec]
+    order = df_out.sort_values("rho_headline", ascending=False).index
+    names = df_out.loc[order, "dataset"].str.replace(r"\s*\(.*", "", regex=True).to_numpy()
+    codes = pd.DataFrame({c: _tercile_codes(df_out[c].astype(float)) for c in cols},
+                         index=df_out.index)
+    M = codes.loc[order, cols].to_numpy()
+
+    teal, gold, brick = "#2a9d8f", "#e3a81e", "#b5402f"
+    cmap = ListedColormap([teal, gold, brick])
+    letter = np.array(["E", "M", "H"])
+
+    fig, ax = plt.subplots(figsize=(1.6 + 1.0 * len(cols), 0.45 * len(order) + 1.9))
+    ax.imshow(M, cmap=cmap, aspect="auto", vmin=0, vmax=2)
+    for i in range(M.shape[0]):
+        for j in range(M.shape[1]):
+            ax.text(j, i, letter[M[i, j]], ha="center", va="center",
+                    color="black" if M[i, j] == 1 else "white",
+                    fontsize=10, fontweight="bold")
+    ax.set_xticks(range(len(labels)))
+    ax.set_xticklabels(labels, fontsize=10)
+    ax.set_yticks(range(len(names)))
+    ax.set_yticklabels(names, fontsize=9)
+    ax.xaxis.tick_top()
+    ax.set_xticks(np.arange(-0.5, len(labels), 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, len(names), 1), minor=True)
+    ax.grid(which="minor", color="white", linewidth=2.5)
+    ax.tick_params(which="minor", length=0)
+    for s in ax.spines.values():
+        s.set_visible(False)
+
+    occ = sum(1 for _, _, a in spec if a == "Occupancy")
+    if 0 < occ < len(cols):
+        ax.axvline(occ - 0.5, color="#222", linewidth=3)
+        ax.text((occ - 1) / 2.0, -1.9, "occupancy (same axis)", ha="center",
+                fontsize=9, style="italic", color="#555")
+        ax.text((occ + len(cols) - 1) / 2.0, -1.9, "other axes", ha="center",
+                fontsize=9, style="italic", color="#555")
+    ax.set_title("Easy / medium / hard buckets across all definitions\n"
+                 "sorted by \u03c1(2,5): poles agree, the middle reshuffles  "
+                 f"({len(names)} datasets)", fontsize=12, pad=60)
+    leg = [Patch(facecolor=teal, label="E = easy (high persistence)"),
+           Patch(facecolor=gold, label="M = medium"),
+           Patch(facecolor=brick, label="H = hard (low persistence)")]
+    ax.legend(handles=leg, loc="upper center", bbox_to_anchor=(0.5, -0.04),
+              ncol=3, frameon=False, fontsize=9)
+    fig.text(0.5, 0.005, "burstiness omitted: timing control, not a persistence measure",
+             ha="center", fontsize=8.2, style="italic", color="#666")
+    fig.tight_layout(rect=[0, 0.02, 1, 1])
+    fig.savefig(out_dir / "definitions_buckets.png", dpi=150)
+    plt.close(fig)
+
+
+def make_distribution_grid(df_out: pd.DataFrame, out_dir: Path):
+    """Backup figure: the value distribution of each persistence definition
+    across datasets, one panel per definition.
+
+    Datasets are kept in a FIXED rho-descending order in every panel (shared
+    axes), so each panel shows where a measure DEVIATES from the rho ordering
+    instead of re-sorting into the same-looking staircase. Bars are colored by
+    that measure's own easy/med/hard tercile (same rule as classify), tying the
+    panels back to the bucket heatmap. Useful if a supervisor asks about a
+    single definition; the heatmap stays the primary visual.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+
+    spec = [m for m in _PERSIST_MEASURES if m[0] in df_out.columns]
+    if len(df_out) < 3 or len(spec) < 2:
+        print("[plots] skipping definition distributions", file=sys.stderr)
+        return
+    order = df_out.sort_values("rho_headline", ascending=False).index
+    names = df_out.loc[order, "dataset"].str.replace(r"\s*\(.*", "", regex=True).to_numpy()
+    teal, gold, brick = "#2a9d8f", "#e3a81e", "#b5402f"
+    palette = np.array([teal, gold, brick])
+
+    n = len(spec)
+    ncols = min(3, n)
+    nrows = int(np.ceil(n / ncols))
+    xmax = max(float(df_out[c].astype(float).max()) for c, _, _ in spec) * 1.05
+    fig, axes = plt.subplots(nrows, ncols, figsize=(11, 1.2 + 2.7 * nrows),
+                             sharex=True, sharey=True)
+    axes = np.atleast_1d(axes).ravel()
+    y = np.arange(len(order))[::-1]   # top row = highest rho
+
+    for ax, (c, lab, _) in zip(axes, spec):
+        vals = df_out.loc[order, c].astype(float).to_numpy()
+        codes = pd.Series(_tercile_codes(df_out[c].astype(float)),
+                          index=df_out.index).loc[order].to_numpy()
+        ax.barh(y, vals, color=palette[codes], height=0.72)
+        ax.set_title(lab.replace("\n", " "), fontsize=10.5)
+        ax.set_xlim(0, xmax)
+        ax.spines[["top", "right"]].set_visible(False)
+    for ax in axes[n:]:
+        ax.set_visible(False)
+    for r in range(nrows):
+        a = axes[r * ncols]
+        a.set_yticks(y)
+        a.set_yticklabels(names, fontsize=8)
+
+    leg = [Patch(facecolor=teal, label="easy"), Patch(facecolor=gold, label="medium"),
+           Patch(facecolor=brick, label="hard")]
+    fig.legend(handles=leg, loc="lower center", ncol=3, frameon=False, fontsize=9.5,
+               bbox_to_anchor=(0.5, -0.01))
+    fig.suptitle("Per-definition value distribution  (datasets in fixed \u03c1 order; "
+                 "color = that measure's easy/med/hard tercile)", fontsize=12)
+    fig.tight_layout(rect=[0, 0.03, 1, 0.97])
+    fig.savefig(out_dir / "definitions_distributions.png", dpi=150)
+    plt.close(fig)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--registry", default="config/datasets.yaml")
@@ -572,8 +824,13 @@ def main():
     if args.plots:
         profile_df = pd.DataFrame(profile_rows) if profile_rows else None
         make_plots(out, out_path.parent, profile_df)
+        make_definition_plots(out, out_path.parent)
+        make_bucket_plot(out, out_path.parent)
+        make_distribution_grid(out, out_path.parent)
         print("wrote census plots: rho_distribution, rho_vs_C, rho_profile, "
-              "rho_drivers, rho_vs_W, rho_rank_stability", file=sys.stderr)
+              "rho_drivers, rho_vs_W, rho_rank_stability, "
+              "definitions_agreement, definitions_corr, "
+              "definitions_buckets, definitions_distributions", file=sys.stderr)
 
 
 if __name__ == "__main__":
