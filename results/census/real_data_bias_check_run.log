@@ -1,0 +1,53 @@
+=== Stage A: format self-check (recomputed rho_headline vs census_results_full.csv) ===
+  [PASS] CollegeMsg       n_pairs=   13838  recomputed rho=0.1030  census.csv rho=0.1030  diff=0.0000
+  [PASS] email-Eu-core-temporal n_pairs=   16064  recomputed rho=0.5057  census.csv rho=0.5057  diff=0.0000
+  [PASS] HighSchool2013   n_pairs=    5818  recomputed rho=0.4856  census.csv rho=0.4856  diff=0.0000
+  [PASS] hospital         n_pairs=    1139  recomputed rho=0.4451  census.csv rho=0.4451  diff=0.0000
+  [PASS] ht2009           n_pairs=    2196  recomputed rho=0.2750  census.csv rho=0.2750  diff=0.0000
+
+5/5 datasets passed the format self-check.
+
+=== Stage B: clean vs forward walk MLE on real data ===
+  CollegeMsg: 1899 nodes, 13838 collapsed edges, 59835 events, true_rho=0.103
+  email-Eu-core-temporal: 986 nodes, 16064 collapsed edges, 332334 events, true_rho=0.506
+  HighSchool2013: 327 nodes, 5818 collapsed edges, 188508 events, true_rho=0.486
+  hospital: 75 nodes, 1139 collapsed edges, 32424 events, true_rho=0.445
+  ht2009: 113 nodes, 2196 collapsed edges, 20818 events, true_rho=0.275
+
+=== Summary (mean +/- std over seeds, per dataset x walk x budget) ===
+dataset         walk             budget    cov   true     MLE  MAE_u  transf  MAE_t
+------------------------------------------------------------------------------------------
+CollegeMsg      time_agnostic_t     400  0.026  0.103   0.008  0.095   0.010  0.093
+CollegeMsg      time_respecting     400  0.014  0.103   0.190  0.087   0.411  0.308
+CollegeMsg      time_agnostic_t    1600  0.101  0.103   0.039  0.064   0.043  0.060
+CollegeMsg      time_respecting    1600  0.046  0.103   0.238  0.135   0.458  0.355
+CollegeMsg      time_agnostic_t    3200  0.192  0.103   0.056  0.047   0.056  0.047
+CollegeMsg      time_respecting    3200  0.077  0.103   0.251  0.148   0.469  0.366
+HighSchool2013  time_agnostic_t     400  0.064  0.486   0.362  0.124   0.385  0.100
+HighSchool2013  time_respecting     400  0.031  0.486   0.133  0.352   0.275  0.211
+HighSchool2013  time_agnostic_t    1600  0.234  0.486   0.429  0.057   0.434  0.052
+HighSchool2013  time_respecting    1600  0.085  0.486   0.244  0.242   0.414  0.071
+HighSchool2013  time_agnostic_t    3200  0.412  0.486   0.397  0.088   0.407  0.078
+HighSchool2013  time_respecting    3200  0.129  0.486   0.284  0.201   0.466  0.020
+email-Eu-core-temporaltime_agnostic_t     400  0.024  0.506   0.436  0.070   0.487  0.019
+email-Eu-core-temporaltime_respecting     400  0.016  0.506   0.358  0.148   0.744  0.238
+email-Eu-core-temporaltime_agnostic_t    1600  0.092  0.506   0.351  0.154   0.373  0.133
+email-Eu-core-temporaltime_respecting    1600  0.050  0.506   0.473  0.033   0.914  0.408
+email-Eu-core-temporaltime_agnostic_t    3200  0.176  0.506   0.397  0.109   0.411  0.095
+email-Eu-core-temporaltime_respecting    3200  0.082  0.506   0.543  0.037   0.956  0.450
+hospital        time_agnostic_t     400  0.290  0.445   0.329  0.116   0.340  0.105
+hospital        time_respecting     400  0.127  0.445   0.163  0.282   0.289  0.156
+hospital        time_agnostic_t    1600  0.739  0.445   0.350  0.095   0.367  0.078
+hospital        time_respecting    1600  0.270  0.445   0.250  0.195   0.425  0.020
+hospital        time_agnostic_t    3200  0.931  0.445   0.358  0.087   0.373  0.072
+hospital        time_respecting    3200  0.374  0.445   0.293  0.152   0.471  0.026
+ht2009          time_agnostic_t     400  0.163  0.275   0.171  0.104   0.184  0.091
+ht2009          time_respecting     400  0.073  0.275   0.078  0.197   0.158  0.117
+ht2009          time_agnostic_t    1600  0.509  0.275   0.200  0.075   0.208  0.067
+ht2009          time_respecting    1600  0.176  0.275   0.159  0.116   0.272  0.003
+ht2009          time_agnostic_t    3200  0.758  0.275   0.218  0.058   0.229  0.046
+ht2009          time_respecting    3200  0.248  0.275   0.187  0.088   0.303  0.028
+
+wrote ../results/census/real_data_bias_check.csv (150 rows)
+wrote ../results/census/real_data_bias_check_summary.csv
+total 12s

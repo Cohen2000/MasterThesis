@@ -1,0 +1,31 @@
+selected 60 cases (12 rows excluded as duplicate case_ids, reserved family er8000f1 excluded)
+strategy         band    
+time_agnostic_t  hi(>.15)    10
+                 lo(<.02)    10
+                 mid         10
+time_respecting  hi(>.15)    10
+                 lo(<.02)    10
+                 mid         10 
+
+[    1s] regenerated family ba1500f0
+[    2s] regenerated family ba1500f1
+[    6s] regenerated family ba8000f0
+[   11s] regenerated family ba8000f1
+[   18s] regenerated family ba20000f0
+[   32s] regenerated family ba20000f1
+[   33s] regenerated family er1500f0
+[   34s] regenerated family er1500f1
+[   37s] regenerated family er8000f0
+[   45s] regenerated family er8000f1
+[   54s] regenerated family er20000f0
+[   64s] regenerated family er20000f1
+
+=== verification against frozen reference_band_cases.csv ===
+verified 60/60 cases exactly; 0 mismatches, 0 not regenerated
+calibration example [time_agnostic_t]: er8000f1|t0.294|r0|time_agnostic_t|b1600 (rho_true=0.294, edges=1345)
+calibration example [time_respecting]: er8000f1|t0.294|r0|time_respecting|b1600 (rho_true=0.294, edges=937)
+
+wrote ../results/phase3/prompts.jsonl (180 prompts = 60 cases x 3 conditions)
+wrote ../results/phase3/pilot_cases.csv (KEEP LOCAL, contains labels)
+wrote ../results/phase3/pilot_selection_report.txt
+total 64s

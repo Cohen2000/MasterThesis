@@ -1,0 +1,213 @@
+180 prompts, 0 already done, 180 to run
+loading Qwen/Qwen2.5-32B-Instruct ...
+Loading checkpoint shards:   0%|          | 0/17 [00:00<?, ?it/s]Loading checkpoint shards:   6%|▌         | 1/17 [00:04<01:15,  4.75s/it]Loading checkpoint shards:  12%|█▏        | 2/17 [00:07<00:56,  3.79s/it]Loading checkpoint shards:  18%|█▊        | 3/17 [00:10<00:48,  3.43s/it]Loading checkpoint shards:  24%|██▎       | 4/17 [00:14<00:46,  3.60s/it]Loading checkpoint shards:  29%|██▉       | 5/17 [00:17<00:40,  3.39s/it]Loading checkpoint shards:  35%|███▌      | 6/17 [00:20<00:36,  3.29s/it]Loading checkpoint shards:  41%|████      | 7/17 [00:23<00:32,  3.23s/it]Loading checkpoint shards:  47%|████▋     | 8/17 [00:27<00:28,  3.22s/it]Loading checkpoint shards:  53%|█████▎    | 9/17 [00:30<00:26,  3.25s/it]Loading checkpoint shards:  59%|█████▉    | 10/17 [00:33<00:22,  3.27s/it]Loading checkpoint shards:  65%|██████▍   | 11/17 [00:38<00:21,  3.62s/it]Loading checkpoint shards:  71%|███████   | 12/17 [00:41<00:16,  3.39s/it]Loading checkpoint shards:  76%|███████▋  | 13/17 [00:43<00:12,  3.23s/it]Loading checkpoint shards:  82%|████████▏ | 14/17 [00:46<00:09,  3.14s/it]Loading checkpoint shards:  88%|████████▊ | 15/17 [00:49<00:06,  3.07s/it]Loading checkpoint shards:  94%|█████████▍| 16/17 [00:52<00:03,  3.01s/it]Loading checkpoint shards: 100%|██████████| 17/17 [00:54<00:00,  2.79s/it]Loading checkpoint shards: 100%|██████████| 17/17 [00:54<00:00,  3.23s/it]
+loaded in 57s (temperature=0.0, top_p=0.95, seed=0)
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:590: UserWarning: `do_sample` is set to `False`. However, `temperature` is set to `0.7` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `temperature`.
+  warnings.warn(
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:595: UserWarning: `do_sample` is set to `False`. However, `top_p` is set to `0.8` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_p`.
+  warnings.warn(
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:612: UserWarning: `do_sample` is set to `False`. However, `top_k` is set to `20` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_k`.
+  warnings.warn(
+[1/180] ba20000f0|t0.093|r0|time_agnostic_t|b400 hidden           pred=0.0058  (8.2s, 147 tok, ETA 24 min)
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:590: UserWarning: `do_sample` is set to `False`. However, `temperature` is set to `0.7` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `temperature`.
+  warnings.warn(
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:595: UserWarning: `do_sample` is set to `False`. However, `top_p` is set to `0.8` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_p`.
+  warnings.warn(
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:612: UserWarning: `do_sample` is set to `False`. However, `top_k` is set to `20` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_k`.
+  warnings.warn(
+[2/180] ba20000f0|t0.093|r0|time_agnostic_t|b400 disclosed        pred=0.006  (6.0s, 145 tok, ETA 21 min)
+[3/180] ba20000f0|t0.093|r0|time_agnostic_t|b400 disclosed_calib  pred=0.25  (7.3s, 172 tok, ETA 21 min)
+[4/180] ba20000f0|t0.254|r0|time_agnostic_t|b1600 hidden           pred=0.01474  (5.7s, 137 tok, ETA 20 min)
+[5/180] ba20000f0|t0.254|r0|time_agnostic_t|b1600 disclosed        pred=0.012  (5.3s, 128 tok, ETA 19 min)
+[6/180] ba20000f0|t0.254|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.31  (5.5s, 129 tok, ETA 18 min)
+[7/180] ba20000f1|t0.312|r0|time_agnostic_t|b400 hidden           pred=0.0431  (5.9s, 143 tok, ETA 18 min)
+[8/180] ba20000f1|t0.312|r0|time_agnostic_t|b400 disclosed        pred=0.05  (6.8s, 163 tok, ETA 18 min)
+[9/180] ba20000f1|t0.312|r0|time_agnostic_t|b400 disclosed_calib  pred=0.35  (6.0s, 142 tok, ETA 18 min)
+[10/180] ba20000f1|t0.463|r0|time_agnostic_t|b400 hidden           pred=0.052  (5.5s, 133 tok, ETA 18 min)
+[11/180] ba20000f1|t0.463|r0|time_agnostic_t|b400 disclosed        pred=0.0523  (8.8s, 213 tok, ETA 18 min)
+[12/180] ba20000f1|t0.463|r0|time_agnostic_t|b400 disclosed_calib  pred=0.15  (6.1s, 143 tok, ETA 18 min)
+[13/180] ba8000f0|t0.280|r0|time_agnostic_t|b400 hidden           pred=0.021  (5.4s, 132 tok, ETA 18 min)
+[14/180] ba8000f0|t0.280|r0|time_agnostic_t|b400 disclosed        pred=0.021  (6.5s, 156 tok, ETA 18 min)
+[15/180] ba8000f0|t0.280|r0|time_agnostic_t|b400 disclosed_calib  pred=0.21  (6.5s, 152 tok, ETA 18 min)
+[16/180] ba8000f1|t0.410|r0|time_agnostic_t|b400 hidden           pred=0.0174  (5.5s, 133 tok, ETA 17 min)
+[17/180] ba8000f1|t0.410|r0|time_agnostic_t|b400 disclosed        pred=0.02  (5.7s, 137 tok, ETA 17 min)
+[18/180] ba8000f1|t0.410|r0|time_agnostic_t|b400 disclosed_calib  pred=0.15  (5.0s, 117 tok, ETA 17 min)
+[19/180] er20000f0|t0.484|r0|time_agnostic_t|b1600 hidden           pred=0.0347826087  (7.4s, 180 tok, ETA 17 min)
+[20/180] er20000f0|t0.484|r0|time_agnostic_t|b1600 disclosed        pred=0.025  (5.5s, 132 tok, ETA 17 min)
+[21/180] er20000f0|t0.484|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.32  (5.3s, 125 tok, ETA 16 min)
+[22/180] er20000f1|t0.415|r0|time_agnostic_t|b1600 hidden           pred=0.0355  (7.4s, 180 tok, ETA 16 min)
+[23/180] er20000f1|t0.415|r0|time_agnostic_t|b1600 disclosed        pred=0.026  (5.3s, 128 tok, ETA 16 min)
+[24/180] er20000f1|t0.415|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.31  (7.4s, 174 tok, ETA 16 min)
+[25/180] er20000f1|t0.564|r0|time_agnostic_t|b400 hidden           pred=0.046  (5.3s, 129 tok, ETA 16 min)
+[26/180] er20000f1|t0.564|r0|time_agnostic_t|b400 disclosed        pred=0.043  (5.9s, 141 tok, ETA 16 min)
+[27/180] er20000f1|t0.564|r0|time_agnostic_t|b400 disclosed_calib  pred=0.35  (6.2s, 145 tok, ETA 16 min)
+[28/180] er8000f0|t0.533|r0|time_agnostic_t|b400 hidden           pred=0.03  (6.1s, 148 tok, ETA 16 min)
+[29/180] er8000f0|t0.533|r0|time_agnostic_t|b400 disclosed        pred=0.04  (6.0s, 145 tok, ETA 16 min)
+[30/180] er8000f0|t0.533|r0|time_agnostic_t|b400 disclosed_calib  pred=0.1  (6.1s, 144 tok, ETA 15 min)
+[31/180] ba1500f0|t0.038|r0|time_agnostic_t|b400 hidden           pred=0.0058  (6.4s, 155 tok, ETA 15 min)
+[32/180] ba1500f0|t0.038|r0|time_agnostic_t|b400 disclosed        pred=0.006  (5.2s, 126 tok, ETA 15 min)
+[33/180] ba1500f0|t0.038|r0|time_agnostic_t|b400 disclosed_calib  pred=0.25  (7.3s, 172 tok, ETA 15 min)
+[34/180] ba1500f1|t0.267|r0|time_agnostic_t|b400 hidden           pred=0.02985  (5.6s, 135 tok, ETA 15 min)
+[35/180] ba1500f1|t0.267|r0|time_agnostic_t|b400 disclosed        pred=0.03  (5.5s, 133 tok, ETA 15 min)
+[36/180] ba1500f1|t0.267|r0|time_agnostic_t|b400 disclosed_calib  pred=0.25  (7.4s, 175 tok, ETA 15 min)
+[37/180] ba20000f1|t0.029|r0|time_agnostic_t|b3200 hidden           pred=0.0022  (5.9s, 143 tok, ETA 15 min)
+[38/180] ba20000f1|t0.029|r0|time_agnostic_t|b3200 disclosed        pred=0.002  (4.5s, 108 tok, ETA 15 min)
+[39/180] ba20000f1|t0.029|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.35  (6.7s, 157 tok, ETA 14 min)
+[40/180] ba8000f0|t0.113|r0|time_agnostic_t|b3200 hidden           pred=0.0106  (5.8s, 140 tok, ETA 14 min)
+[41/180] ba8000f0|t0.113|r0|time_agnostic_t|b3200 disclosed        pred=0.05  (6.4s, 155 tok, ETA 14 min)
+[42/180] ba8000f0|t0.113|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.25  (6.8s, 160 tok, ETA 14 min)
+[43/180] ba8000f1|t0.023|r0|time_agnostic_t|b1600 hidden           pred=0.0015  (4.0s, 96 tok, ETA 14 min)
+[44/180] ba8000f1|t0.023|r0|time_agnostic_t|b1600 disclosed        pred=0.01  (5.7s, 137 tok, ETA 14 min)
+[45/180] ba8000f1|t0.023|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.294  (6.1s, 144 tok, ETA 14 min)
+[46/180] ba8000f1|t0.410|r0|time_agnostic_t|b3200 hidden           pred=0.05  (5.6s, 136 tok, ETA 14 min)
+[47/180] ba8000f1|t0.410|r0|time_agnostic_t|b3200 disclosed        pred=0.037  (6.8s, 164 tok, ETA 14 min)
+[48/180] ba8000f1|t0.410|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.35  (7.4s, 175 tok, ETA 14 min)
+[49/180] er1500f1|t0.120|r0|time_agnostic_t|b400 hidden           pred=0.015  (4.0s, 96 tok, ETA 13 min)
+[50/180] er1500f1|t0.120|r0|time_agnostic_t|b400 disclosed        pred=0.011834378698224852  (6.6s, 158 tok, ETA 13 min)
+[51/180] er1500f1|t0.120|r0|time_agnostic_t|b400 disclosed_calib  pred=0.012  (6.4s, 150 tok, ETA 13 min)
+[52/180] er20000f0|t0.517|r0|time_agnostic_t|b3200 hidden           pred=0.0301  (6.5s, 157 tok, ETA 13 min)
+[53/180] er20000f0|t0.517|r0|time_agnostic_t|b3200 disclosed        pred=0.03  (5.5s, 132 tok, ETA 13 min)
+[54/180] er20000f0|t0.517|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.35  (5.7s, 134 tok, ETA 13 min)
+[55/180] er8000f0|t0.354|r0|time_agnostic_t|b1600 hidden           pred=0.0293  (6.1s, 147 tok, ETA 13 min)
+[56/180] er8000f0|t0.354|r0|time_agnostic_t|b1600 disclosed        pred=0.0300525997  (8.6s, 208 tok, ETA 13 min)
+[57/180] er8000f0|t0.354|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.31  (5.1s, 119 tok, ETA 13 min)
+[58/180] er8000f0|t0.533|r0|time_agnostic_t|b3200 hidden           pred=0.05  (6.0s, 146 tok, ETA 12 min)
+[59/180] er8000f0|t0.533|r0|time_agnostic_t|b3200 disclosed        pred=0.075  (6.3s, 151 tok, ETA 12 min)
+[60/180] er8000f0|t0.533|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.294  (9.0s, 213 tok, ETA 12 min)
+[61/180] ba1500f0|t0.038|r0|time_agnostic_t|b1600 hidden           pred=0.00475  (4.1s, 99 tok, ETA 12 min)
+[62/180] ba1500f0|t0.038|r0|time_agnostic_t|b1600 disclosed        pred=0.0047  (6.1s, 146 tok, ETA 12 min)
+[63/180] ba1500f0|t0.038|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.35  (7.0s, 165 tok, ETA 12 min)
+[64/180] ba1500f0|t0.076|r0|time_agnostic_t|b3200 hidden           pred=0.01084  (5.7s, 138 tok, ETA 12 min)
+[65/180] ba1500f0|t0.076|r0|time_agnostic_t|b3200 disclosed        pred=0.015  (7.0s, 169 tok, ETA 12 min)
+[66/180] ba1500f0|t0.076|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.25  (6.8s, 159 tok, ETA 12 min)
+[67/180] ba1500f0|t0.506|r0|time_agnostic_t|b1600 hidden           pred=0.052  (5.2s, 126 tok, ETA 12 min)
+[68/180] ba1500f0|t0.506|r0|time_agnostic_t|b1600 disclosed        pred=0.065  (6.0s, 144 tok, ETA 11 min)
+[69/180] ba1500f0|t0.506|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.055  (6.2s, 146 tok, ETA 11 min)
+[70/180] ba1500f1|t0.102|r0|time_agnostic_t|b1600 hidden           pred=0.015  (5.4s, 130 tok, ETA 11 min)
+[71/180] ba1500f1|t0.102|r0|time_agnostic_t|b1600 disclosed        pred=0.011  (5.4s, 129 tok, ETA 11 min)
+[72/180] ba1500f1|t0.102|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.294  (6.9s, 163 tok, ETA 11 min)
+[73/180] ba1500f1|t0.370|r0|time_agnostic_t|b3200 hidden           pred=0.0619  (6.1s, 147 tok, ETA 11 min)
+[74/180] ba1500f1|t0.370|r0|time_agnostic_t|b3200 disclosed        pred=0.1  (9.0s, 216 tok, ETA 11 min)
+[75/180] ba1500f1|t0.370|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.45  (5.0s, 118 tok, ETA 11 min)
+[76/180] er1500f0|t0.064|r0|time_agnostic_t|b1600 hidden           pred=0.0073  (5.5s, 134 tok, ETA 11 min)
+[77/180] er1500f0|t0.064|r0|time_agnostic_t|b1600 disclosed        pred=0.01  (5.0s, 120 tok, ETA 11 min)
+[78/180] er1500f0|t0.064|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.25  (8.3s, 195 tok, ETA 10 min)
+[79/180] er1500f0|t0.183|r0|time_agnostic_t|b3200 hidden           pred=0.0308  (5.9s, 142 tok, ETA 10 min)
+[80/180] er1500f0|t0.183|r0|time_agnostic_t|b3200 disclosed        pred=0.031  (7.1s, 172 tok, ETA 10 min)
+[81/180] er1500f0|t0.183|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.35  (5.2s, 122 tok, ETA 10 min)
+[82/180] er1500f1|t0.120|r0|time_agnostic_t|b3200 hidden           pred=0.0263  (5.7s, 139 tok, ETA 10 min)
+[83/180] er1500f1|t0.120|r0|time_agnostic_t|b3200 disclosed        pred=0.0263  (7.1s, 171 tok, ETA 10 min)
+[84/180] er1500f1|t0.120|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.45  (5.5s, 128 tok, ETA 10 min)
+[85/180] er1500f1|t0.335|r0|time_agnostic_t|b1600 hidden           pred=0.031  (5.4s, 131 tok, ETA 10 min)
+[86/180] er1500f1|t0.335|r0|time_agnostic_t|b1600 disclosed        pred=0.028  (7.1s, 171 tok, ETA 10 min)
+[87/180] er1500f1|t0.335|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.35  (8.2s, 194 tok, ETA 10 min)
+[88/180] er1500f1|t0.434|r0|time_agnostic_t|b3200 hidden           pred=0.0858  (6.3s, 152 tok, ETA 9 min)
+[89/180] er1500f1|t0.434|r0|time_agnostic_t|b3200 disclosed        pred=0.0803  (7.2s, 174 tok, ETA 9 min)
+[90/180] er1500f1|t0.434|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.0863  (8.4s, 198 tok, ETA 9 min)
+[91/180] ba20000f0|t0.093|r0|time_respecting|b400 hidden           pred=0.004  (4.7s, 113 tok, ETA 9 min)
+[92/180] ba20000f0|t0.093|r0|time_respecting|b400 disclosed        pred=0.04  (6.0s, 139 tok, ETA 9 min)
+[93/180] ba20000f0|t0.093|r0|time_respecting|b400 disclosed_calib  pred=0.35  (8.8s, 197 tok, ETA 9 min)
+[94/180] ba20000f0|t0.254|r0|time_respecting|b1600 hidden           pred=0.015353634233286855  (4.7s, 113 tok, ETA 9 min)
+[95/180] ba20000f0|t0.254|r0|time_respecting|b1600 disclosed        pred=0.015  (5.6s, 133 tok, ETA 9 min)
+[96/180] ba20000f0|t0.254|r0|time_respecting|b1600 disclosed_calib  pred=0.325  (7.2s, 170 tok, ETA 9 min)
+[97/180] ba20000f1|t0.312|r0|time_respecting|b400 hidden           pred=0.012  (3.5s, 84 tok, ETA 9 min)
+[98/180] ba20000f1|t0.312|r0|time_respecting|b400 disclosed        pred=0.016  (9.0s, 216 tok, ETA 9 min)
+[99/180] ba20000f1|t0.312|r0|time_respecting|b400 disclosed_calib  pred=0.12  (7.1s, 166 tok, ETA 8 min)
+[100/180] ba20000f1|t0.463|r0|time_respecting|b400 hidden           pred=0.012  (4.7s, 113 tok, ETA 8 min)
+[101/180] ba20000f1|t0.463|r0|time_respecting|b400 disclosed        pred=0.012  (7.5s, 180 tok, ETA 8 min)
+[102/180] ba20000f1|t0.463|r0|time_respecting|b400 disclosed_calib  pred=0.2  (11.3s, 266 tok, ETA 8 min)
+[103/180] ba8000f0|t0.280|r0|time_respecting|b400 hidden           pred=0.004  (5.4s, 130 tok, ETA 8 min)
+[104/180] ba8000f0|t0.280|r0|time_respecting|b400 disclosed        pred=0.0  (5.0s, 120 tok, ETA 8 min)
+[105/180] ba8000f0|t0.280|r0|time_respecting|b400 disclosed_calib  pred=0.2  (8.9s, 210 tok, ETA 8 min)
+[106/180] ba8000f1|t0.410|r0|time_respecting|b400 hidden           pred=0.0  (5.0s, 122 tok, ETA 8 min)
+[107/180] ba8000f1|t0.410|r0|time_respecting|b400 disclosed        pred=0.05  (7.3s, 175 tok, ETA 8 min)
+[108/180] ba8000f1|t0.410|r0|time_respecting|b400 disclosed_calib  pred=0.294  (9.4s, 220 tok, ETA 8 min)
+[109/180] er20000f0|t0.484|r0|time_respecting|b1600 hidden           pred=0.0244  (6.5s, 159 tok, ETA 7 min)
+[110/180] er20000f0|t0.484|r0|time_respecting|b1600 disclosed        pred=0.0244  (7.6s, 182 tok, ETA 7 min)
+[111/180] er20000f0|t0.484|r0|time_respecting|b1600 disclosed_calib  pred=0.35  (5.1s, 120 tok, ETA 7 min)
+[112/180] er20000f1|t0.415|r0|time_respecting|b1600 hidden           pred=0.026  (6.1s, 147 tok, ETA 7 min)
+[113/180] er20000f1|t0.415|r0|time_respecting|b1600 disclosed        pred=0.2  (6.5s, 157 tok, ETA 7 min)
+[114/180] er20000f1|t0.415|r0|time_respecting|b1600 disclosed_calib  pred=0.3  (6.3s, 147 tok, ETA 7 min)
+[115/180] er20000f1|t0.564|r0|time_respecting|b400 hidden           pred=0.007353  (6.1s, 148 tok, ETA 7 min)
+[116/180] er20000f1|t0.564|r0|time_respecting|b400 disclosed        pred=0.01  (8.0s, 193 tok, ETA 7 min)
+[117/180] er20000f1|t0.564|r0|time_respecting|b400 disclosed_calib  pred=0.125  (7.6s, 178 tok, ETA 7 min)
+[118/180] er8000f0|t0.533|r0|time_respecting|b400 hidden           pred=0.023  (4.1s, 100 tok, ETA 7 min)
+[119/180] er8000f0|t0.533|r0|time_respecting|b400 disclosed        pred=0.0193  (7.6s, 182 tok, ETA 6 min)
+[120/180] er8000f0|t0.533|r0|time_respecting|b400 disclosed_calib  pred=0.125  (7.4s, 174 tok, ETA 6 min)
+[121/180] ba1500f0|t0.038|r0|time_respecting|b400 hidden           pred=0.004444444444444444  (6.5s, 157 tok, ETA 6 min)
+[122/180] ba1500f0|t0.038|r0|time_respecting|b400 disclosed        pred=0.05  (4.8s, 116 tok, ETA 6 min)
+[123/180] ba1500f0|t0.038|r0|time_respecting|b400 disclosed_calib  pred=0.25  (9.8s, 231 tok, ETA 6 min)
+[124/180] ba1500f1|t0.025|r0|time_respecting|b400 hidden           pred=0.05  (5.8s, 141 tok, ETA 6 min)
+[125/180] ba1500f1|t0.025|r0|time_respecting|b400 disclosed        pred=0.0  (7.4s, 177 tok, ETA 6 min)
+[126/180] ba1500f1|t0.025|r0|time_respecting|b400 disclosed_calib  pred=0.35  (8.5s, 199 tok, ETA 6 min)
+[127/180] ba1500f1|t0.412|r0|time_respecting|b1600 hidden           pred=0.026  (4.3s, 103 tok, ETA 6 min)
+[128/180] ba1500f1|t0.412|r0|time_respecting|b1600 disclosed        pred=0.0172  (9.3s, 223 tok, ETA 6 min)
+[129/180] ba1500f1|t0.412|r0|time_respecting|b1600 disclosed_calib  pred=0.25  (7.2s, 169 tok, ETA 5 min)
+[130/180] ba20000f1|t0.473|r0|time_respecting|b3200 hidden           pred=0.0166  (5.9s, 144 tok, ETA 5 min)
+[131/180] ba20000f1|t0.473|r0|time_respecting|b3200 disclosed        pred=0.02  (8.2s, 196 tok, ETA 5 min)
+[132/180] ba20000f1|t0.473|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (5.6s, 132 tok, ETA 5 min)
+[133/180] ba8000f0|t0.546|r0|time_respecting|b3200 hidden           pred=0.03  (6.0s, 145 tok, ETA 5 min)
+[134/180] ba8000f0|t0.546|r0|time_respecting|b3200 disclosed        pred=0.045  (6.8s, 162 tok, ETA 5 min)
+[135/180] ba8000f0|t0.546|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (4.8s, 113 tok, ETA 5 min)
+[136/180] ba8000f1|t0.544|r0|time_respecting|b1600 hidden           pred=0.0237  (5.7s, 139 tok, ETA 5 min)
+[137/180] ba8000f1|t0.544|r0|time_respecting|b1600 disclosed        pred=0.0237  (7.5s, 180 tok, ETA 5 min)
+[138/180] ba8000f1|t0.544|r0|time_respecting|b1600 disclosed_calib  pred=0.35  (6.6s, 154 tok, ETA 4 min)
+[139/180] er1500f0|t0.556|r0|time_respecting|b400 hidden           pred=0.0121  (5.2s, 126 tok, ETA 4 min)
+[140/180] er1500f0|t0.556|r0|time_respecting|b400 disclosed        pred=0.016  (5.3s, 126 tok, ETA 4 min)
+[141/180] er1500f0|t0.556|r0|time_respecting|b400 disclosed_calib  pred=0.15  (7.8s, 184 tok, ETA 4 min)
+[142/180] er1500f1|t0.434|r0|time_respecting|b400 hidden           pred=0.0123  (5.5s, 133 tok, ETA 4 min)
+[143/180] er1500f1|t0.434|r0|time_respecting|b400 disclosed        pred=0.1  (6.0s, 143 tok, ETA 4 min)
+[144/180] er1500f1|t0.434|r0|time_respecting|b400 disclosed_calib  pred=0.125  (6.1s, 143 tok, ETA 4 min)
+[145/180] er20000f1|t0.564|r0|time_respecting|b3200 hidden           pred=0.0243  (5.9s, 144 tok, ETA 4 min)
+[146/180] er20000f1|t0.564|r0|time_respecting|b3200 disclosed        pred=0.05  (9.2s, 220 tok, ETA 4 min)
+[147/180] er20000f1|t0.564|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (4.7s, 109 tok, ETA 4 min)
+[148/180] er8000f0|t0.533|r0|time_respecting|b3200 hidden           pred=0.1584  (3.6s, 88 tok, ETA 3 min)
+[149/180] er8000f0|t0.533|r0|time_respecting|b3200 disclosed        pred=0.025  (7.4s, 177 tok, ETA 3 min)
+[150/180] er8000f0|t0.533|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (6.7s, 158 tok, ETA 3 min)
+[151/180] ba1500f0|t0.038|r0|time_respecting|b3200 hidden           pred=0.004  (5.4s, 131 tok, ETA 3 min)
+[152/180] ba1500f0|t0.038|r0|time_respecting|b3200 disclosed        pred=0.005  (5.7s, 136 tok, ETA 3 min)
+[153/180] ba1500f0|t0.038|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (5.9s, 138 tok, ETA 3 min)
+[154/180] ba1500f0|t0.293|r0|time_respecting|b3200 hidden           pred=0.0347  (6.6s, 160 tok, ETA 3 min)
+[155/180] ba1500f0|t0.293|r0|time_respecting|b3200 disclosed        pred=0.0362  (12.8s, 308 tok, ETA 3 min)
+[156/180] ba1500f0|t0.293|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (4.7s, 109 tok, ETA 3 min)
+[157/180] ba1500f0|t0.506|r0|time_respecting|b3200 hidden           pred=0.0683  (6.9s, 168 tok, ETA 2 min)
+[158/180] ba1500f0|t0.506|r0|time_respecting|b3200 disclosed        pred=0.05  (7.0s, 168 tok, ETA 2 min)
+[159/180] ba1500f0|t0.506|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (4.6s, 107 tok, ETA 2 min)
+[160/180] ba1500f1|t0.102|r0|time_respecting|b3200 hidden           pred=0.0172  (5.5s, 134 tok, ETA 2 min)
+[161/180] ba1500f1|t0.102|r0|time_respecting|b3200 disclosed        pred=0.01  (8.7s, 208 tok, ETA 2 min)
+[162/180] ba1500f1|t0.102|r0|time_respecting|b3200 disclosed_calib  pred=0.25  (6.5s, 152 tok, ETA 2 min)
+[163/180] ba1500f1|t0.370|r0|time_respecting|b3200 hidden           pred=0.0453  (7.6s, 185 tok, ETA 2 min)
+[164/180] ba1500f1|t0.370|r0|time_respecting|b3200 disclosed        pred=0.045  (12.2s, 293 tok, ETA 2 min)
+[165/180] ba1500f1|t0.370|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (4.8s, 112 tok, ETA 2 min)
+[166/180] er1500f0|t0.064|r0|time_respecting|b3200 hidden           pred=0.01  (4.7s, 114 tok, ETA 1 min)
+[167/180] er1500f0|t0.064|r0|time_respecting|b3200 disclosed        pred=0.01  (5.1s, 122 tok, ETA 1 min)
+[168/180] er1500f0|t0.064|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (5.7s, 134 tok, ETA 1 min)
+[169/180] er1500f0|t0.183|r0|time_respecting|b3200 hidden           pred=0.019375  (7.8s, 189 tok, ETA 1 min)
+[170/180] er1500f0|t0.183|r0|time_respecting|b3200 disclosed        pred=0.0194  (7.8s, 187 tok, ETA 1 min)
+[171/180] er1500f0|t0.183|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (4.8s, 113 tok, ETA 1 min)
+[172/180] er1500f1|t0.120|r0|time_respecting|b3200 hidden           pred=0.0093  (5.4s, 131 tok, ETA 1 min)
+[173/180] er1500f1|t0.120|r0|time_respecting|b3200 disclosed        pred=0.025  (8.7s, 208 tok, ETA 1 min)
+[174/180] er1500f1|t0.120|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (4.3s, 101 tok, ETA 1 min)
+[175/180] er1500f1|t0.188|r0|time_respecting|b3200 hidden           pred=0.0176  (5.0s, 122 tok, ETA 1 min)
+[176/180] er1500f1|t0.188|r0|time_respecting|b3200 disclosed        pred=0.05  (6.6s, 157 tok, ETA 0 min)
+[177/180] er1500f1|t0.188|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (6.6s, 155 tok, ETA 0 min)
+[178/180] er1500f1|t0.434|r0|time_respecting|b3200 hidden           pred=0.04515486187926057  (7.3s, 177 tok, ETA 0 min)
+[179/180] er1500f1|t0.434|r0|time_respecting|b3200 disclosed        pred=0.05  (6.7s, 161 tok, ETA 0 min)
+[180/180] er1500f1|t0.434|r0|time_respecting|b3200 disclosed_calib  pred=0.35  (5.4s, 126 tok, ETA 0 min)
+done.
+run complete: 180 answers
+
+============================= JOB FEEDBACK =============================
+
+NodeName=uc3n088
+Job ID: 5735794
+Cluster: uc3
+User/Group: tu_zxokn55/tu_tu
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 8
+CPU Utilized: 00:19:46
+CPU Efficiency: 11.89% of 02:46:16 core-walltime
+Job Wall-clock time: 00:20:47
+Memory Utilized: 3.68 GB
+Memory Efficiency: 3.83% of 96.00 GB (96.00 GB/node)

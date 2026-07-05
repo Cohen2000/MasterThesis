@@ -1,0 +1,43 @@
+180 prompts, 56 already done, 124 to run
+loading deepseek-ai/DeepSeek-R1-Distill-Qwen-32B ...
+Loading checkpoint shards:   0%|          | 0/8 [00:00<?, ?it/s]Loading checkpoint shards:  12%|█▎        | 1/8 [00:05<00:39,  5.68s/it]Loading checkpoint shards:  25%|██▌       | 2/8 [00:10<00:31,  5.18s/it]Loading checkpoint shards:  38%|███▊      | 3/8 [00:15<00:24,  4.93s/it]Loading checkpoint shards:  50%|█████     | 4/8 [00:19<00:19,  4.83s/it]Loading checkpoint shards:  62%|██████▎   | 5/8 [00:24<00:14,  4.80s/it]Loading checkpoint shards:  75%|███████▌  | 6/8 [00:29<00:09,  4.77s/it]Loading checkpoint shards:  88%|████████▊ | 7/8 [00:34<00:04,  4.77s/it]Loading checkpoint shards: 100%|██████████| 8/8 [00:36<00:00,  3.97s/it]Loading checkpoint shards: 100%|██████████| 8/8 [00:36<00:00,  4.54s/it]
+loaded in 38s (temperature=0.6, top_p=0.95, seed=0)
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:590: UserWarning: `do_sample` is set to `False`. However, `temperature` is set to `0.6` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `temperature`.
+  warnings.warn(
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:595: UserWarning: `do_sample` is set to `False`. However, `top_p` is set to `0.95` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_p`.
+  warnings.warn(
+[1/124] er8000f0|t0.354|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.28 (forced)  (94.7s, 2054 tok, ETA 194 min)
+[2/124] er8000f0|t0.533|r0|time_agnostic_t|b3200 hidden           pred=0.15 (forced)  (89.5s, 2054 tok, ETA 187 min)
+[3/124] er8000f0|t0.533|r0|time_agnostic_t|b3200 disclosed        pred=0.15 (forced)  (90.0s, 2054 tok, ETA 184 min)
+[4/124] er8000f0|t0.533|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.35 (forced)  (91.3s, 2054 tok, ETA 183 min)
+[5/124] ba1500f0|t0.038|r0|time_agnostic_t|b1600 hidden           pred=0.00475 (forced)  (89.6s, 2057 tok, ETA 181 min)
+[6/124] ba1500f0|t0.038|r0|time_agnostic_t|b1600 disclosed        pred=0.18 (forced)  (89.9s, 2054 tok, ETA 179 min)
+[7/124] ba1500f0|t0.038|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.25 (forced)  (91.6s, 2054 tok, ETA 177 min)
+[8/124] ba1500f0|t0.076|r0|time_agnostic_t|b3200 hidden           pred=0.15 (forced)  (89.5s, 2054 tok, ETA 175 min)
+[9/124] ba1500f0|t0.076|r0|time_agnostic_t|b3200 disclosed        pred=0.15 (forced)  (90.0s, 2054 tok, ETA 174 min)
+[10/124] ba1500f0|t0.076|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.35 (forced)  (91.3s, 2054 tok, ETA 172 min)
+[11/124] ba1500f0|t0.506|r0|time_agnostic_t|b1600 hidden           pred=0.25 (forced)  (89.5s, 2054 tok, ETA 171 min)
+[12/124] ba1500f0|t0.506|r0|time_agnostic_t|b1600 disclosed        pred=0.054 (forced)  (90.0s, 2055 tok, ETA 169 min)
+[13/124] ba1500f0|t0.506|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.25 (forced)  (91.3s, 2054 tok, ETA 168 min)
+[14/124] ba1500f1|t0.102|r0|time_agnostic_t|b1600 hidden           pred=0.112 (forced)  (89.8s, 2055 tok, ETA 166 min)
+[15/124] ba1500f1|t0.102|r0|time_agnostic_t|b1600 disclosed        pred=0.125 (forced)  (89.9s, 2055 tok, ETA 164 min)
+[16/124] ba1500f1|t0.102|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.25 (forced)  (91.2s, 2054 tok, ETA 163 min)
+[17/124] ba1500f1|t0.370|r0|time_agnostic_t|b3200 hidden           pred=0.35 (forced)  (89.5s, 2054 tok, ETA 161 min)
+[18/124] ba1500f1|t0.370|r0|time_agnostic_t|b3200 disclosed        pred=0.0636 (forced)  (90.0s, 2056 tok, ETA 160 min)
+[19/124] ba1500f1|t0.370|r0|time_agnostic_t|b3200 disclosed_calib  pred=0.35 (forced)  (91.3s, 2054 tok, ETA 158 min)
+[2026-07-03T06:46:48.044] error: *** JOB 5735802 ON uc3n088 CANCELLED AT 2026-07-03T06:46:48 DUE TO TIME LIMIT ***
+
+============================= JOB FEEDBACK =============================
+
+NodeName=uc3n088
+Job ID: 5735802
+Cluster: uc3
+User/Group: tu_zxokn55/tu_tu
+State: TIMEOUT (exit code 0)
+Nodes: 1
+Cores per node: 8
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 04:03:04 core-walltime
+Job Wall-clock time: 00:30:23
+Memory Utilized: 3.24 GB
+Memory Efficiency: 3.38% of 96.00 GB (96.00 GB/node)

@@ -1,0 +1,10 @@
+cases: 60  prompts: 180
+strategy         band    
+time_agnostic_t  hi(>.15)    10
+                 lo(<.02)    10
+                 mid         10
+time_respecting  hi(>.15)    10
+                 lo(<.02)    10
+                 mid         10
+calibration examples: {'time_agnostic_t': 'er8000f1|t0.294|r0|time_agnostic_t|b1600', 'time_respecting': 'er8000f1|t0.294|r0|time_respecting|b1600'}
+verification: all selected cases reproduced exactly.

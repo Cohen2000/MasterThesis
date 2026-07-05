@@ -1,0 +1,43 @@
+180 prompts, 113 already done, 67 to run
+loading deepseek-ai/DeepSeek-R1-Distill-Qwen-32B ...
+Loading checkpoint shards:   0%|          | 0/8 [00:00<?, ?it/s]Loading checkpoint shards:  12%|█▎        | 1/8 [00:05<00:39,  5.63s/it]Loading checkpoint shards:  25%|██▌       | 2/8 [00:10<00:30,  5.16s/it]Loading checkpoint shards:  38%|███▊      | 3/8 [00:15<00:24,  4.94s/it]Loading checkpoint shards:  50%|█████     | 4/8 [00:19<00:19,  4.82s/it]Loading checkpoint shards:  62%|██████▎   | 5/8 [00:24<00:14,  4.91s/it]Loading checkpoint shards:  75%|███████▌  | 6/8 [00:29<00:09,  4.95s/it]Loading checkpoint shards:  88%|████████▊ | 7/8 [00:34<00:04,  4.90s/it]Loading checkpoint shards: 100%|██████████| 8/8 [00:36<00:00,  4.07s/it]Loading checkpoint shards: 100%|██████████| 8/8 [00:36<00:00,  4.62s/it]
+loaded in 39s (temperature=0.6, top_p=0.95, seed=0)
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:590: UserWarning: `do_sample` is set to `False`. However, `temperature` is set to `0.6` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `temperature`.
+  warnings.warn(
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:595: UserWarning: `do_sample` is set to `False`. However, `top_p` is set to `0.95` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_p`.
+  warnings.warn(
+[1/67] er20000f1|t0.415|r0|time_respecting|b1600 disclosed_calib  pred=0.524 (forced)  (94.6s, 2055 tok, ETA 104 min)
+[2/67] er20000f1|t0.564|r0|time_respecting|b400 hidden           pred=0.073 (forced)  (89.6s, 2055 tok, ETA 100 min)
+[3/67] er20000f1|t0.564|r0|time_respecting|b400 disclosed        pred=0.011 (forced)  (90.2s, 2055 tok, ETA 98 min)
+[4/67] er20000f1|t0.564|r0|time_respecting|b400 disclosed_calib  pred=0.25 (forced)  (91.5s, 2054 tok, ETA 96 min)
+[5/67] er8000f0|t0.533|r0|time_respecting|b400 hidden           pred=0.02 (forced)  (89.5s, 2054 tok, ETA 94 min)
+[6/67] er8000f0|t0.533|r0|time_respecting|b400 disclosed        pred=0.0193 (forced)  (90.3s, 2056 tok, ETA 92 min)
+[7/67] er8000f0|t0.533|r0|time_respecting|b400 disclosed_calib  pred=0.172 (forced)  (92.1s, 2055 tok, ETA 91 min)
+[8/67] ba1500f0|t0.038|r0|time_respecting|b400 hidden           pred=0.145 (forced)  (89.6s, 2055 tok, ETA 89 min)
+[9/67] ba1500f0|t0.038|r0|time_respecting|b400 disclosed        pred=0.0044 (forced)  (90.3s, 2056 tok, ETA 88 min)
+[10/67] ba1500f0|t0.038|r0|time_respecting|b400 disclosed_calib  pred=0.183 (forced)  (91.5s, 2055 tok, ETA 86 min)
+[11/67] ba1500f1|t0.025|r0|time_respecting|b400 hidden           pred=0.0 (forced)  (89.5s, 2053 tok, ETA 85 min)
+[12/67] ba1500f1|t0.025|r0|time_respecting|b400 disclosed        pred=0.0 (forced)  (90.2s, 2055 tok, ETA 83 min)
+[13/67] ba1500f1|t0.025|r0|time_respecting|b400 disclosed_calib  pred=0.15 (forced)  (91.6s, 2054 tok, ETA 82 min)
+[14/67] ba1500f1|t0.412|r0|time_respecting|b1600 hidden           pred=0.027 (forced)  (89.9s, 2055 tok, ETA 80 min)
+[15/67] ba1500f1|t0.412|r0|time_respecting|b1600 disclosed        pred=0.027 (forced)  (90.2s, 2055 tok, ETA 79 min)
+[16/67] ba1500f1|t0.412|r0|time_respecting|b1600 disclosed_calib  pred=0.25 (forced)  (91.5s, 2054 tok, ETA 77 min)
+[17/67] ba20000f1|t0.473|r0|time_respecting|b3200 hidden           pred=0.115 (forced)  (89.6s, 2055 tok, ETA 76 min)
+[18/67] ba20000f1|t0.473|r0|time_respecting|b3200 disclosed        pred=0.17 (forced)  (90.2s, 2054 tok, ETA 74 min)
+[19/67] ba20000f1|t0.473|r0|time_respecting|b3200 disclosed_calib  pred=0.35 (forced)  (91.5s, 2054 tok, ETA 73 min)
+[2026-07-03T08:19:49.043] error: *** JOB 5735805 ON uc3n088 CANCELLED AT 2026-07-03T08:19:49 DUE TO TIME LIMIT ***
+
+============================= JOB FEEDBACK =============================
+
+NodeName=uc3n088
+Job ID: 5735805
+Cluster: uc3
+User/Group: tu_zxokn55/tu_tu
+State: TIMEOUT (exit code 0)
+Nodes: 1
+Cores per node: 8
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 04:03:04 core-walltime
+Job Wall-clock time: 00:30:23
+Memory Utilized: 1.40 GB
+Memory Efficiency: 1.46% of 96.00 GB (96.00 GB/node)

@@ -1,0 +1,24 @@
+
+== answers_qwen14b.jsonl ==
+rows: 180
+conditions: {'hidden': 60, 'disclosed': 60, 'disclosed_calib': 60}
+pred None: 0
+duplicates: 0
+forced: 0
+pred range: 0.0 to 0.5
+
+== answers_qwen32b.jsonl ==
+rows: 180
+conditions: {'hidden': 60, 'disclosed': 60, 'disclosed_calib': 60}
+pred None: 0
+duplicates: 0
+forced: 0
+pred range: 0.0 to 0.45
+
+== answers_r1_32b.jsonl ==
+rows: 180
+conditions: {'hidden': 60, 'disclosed': 60, 'disclosed_calib': 60}
+pred None: 0
+duplicates: 0
+forced: 178
+pred range: 0.0 to 0.568

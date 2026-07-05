@@ -1,0 +1,17 @@
+180 prompts, 180 already done, 0 to run
+run complete: 180 answers
+
+============================= JOB FEEDBACK =============================
+
+NodeName=uc3n088
+Job ID: 5735809
+Cluster: uc3
+User/Group: tu_zxokn55/tu_tu
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 8
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 00:02:40 core-walltime
+Job Wall-clock time: 00:00:20
+Memory Utilized: 34.73 MB
+Memory Efficiency: 0.04% of 96.00 GB (96.00 GB/node)

@@ -1,0 +1,42 @@
+180 prompts, 19 already done, 161 to run
+loading deepseek-ai/DeepSeek-R1-Distill-Qwen-32B ...
+Loading checkpoint shards:   0%|          | 0/8 [00:00<?, ?it/s]Loading checkpoint shards:  12%|█▎        | 1/8 [00:09<01:05,  9.42s/it]Loading checkpoint shards:  25%|██▌       | 2/8 [00:16<00:46,  7.76s/it]Loading checkpoint shards:  38%|███▊      | 3/8 [00:23<00:38,  7.62s/it]Loading checkpoint shards:  50%|█████     | 4/8 [00:29<00:27,  6.84s/it]Loading checkpoint shards:  62%|██████▎   | 5/8 [00:36<00:20,  6.87s/it]Loading checkpoint shards:  75%|███████▌  | 6/8 [00:40<00:12,  6.14s/it]Loading checkpoint shards:  88%|████████▊ | 7/8 [00:49<00:07,  7.06s/it]Loading checkpoint shards: 100%|██████████| 8/8 [00:52<00:00,  5.84s/it]Loading checkpoint shards: 100%|██████████| 8/8 [00:52<00:00,  6.62s/it]
+loaded in 57s (temperature=0.6, top_p=0.95, seed=0)
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:590: UserWarning: `do_sample` is set to `False`. However, `temperature` is set to `0.6` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `temperature`.
+  warnings.warn(
+/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/venv/lib64/python3.9/site-packages/transformers/generation/configuration_utils.py:595: UserWarning: `do_sample` is set to `False`. However, `top_p` is set to `0.95` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_p`.
+  warnings.warn(
+[1/161] er20000f0|t0.484|r0|time_agnostic_t|b1600 disclosed        pred=0.083 (forced)  (99.4s, 2055 tok, ETA 265 min)
+[2/161] er20000f0|t0.484|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.27 (forced)  (91.3s, 2054 tok, ETA 253 min)
+[3/161] er20000f1|t0.415|r0|time_agnostic_t|b1600 hidden           pred=0.25 (forced)  (89.5s, 2054 tok, ETA 246 min)
+[4/161] er20000f1|t0.415|r0|time_agnostic_t|b1600 disclosed        pred=0.15 (forced)  (89.9s, 2054 tok, ETA 242 min)
+[5/161] er20000f1|t0.415|r0|time_agnostic_t|b1600 disclosed_calib  pred=0.31 (forced)  (91.3s, 2054 tok, ETA 240 min)
+[6/161] er20000f1|t0.564|r0|time_agnostic_t|b400 hidden           pred=0.1429 (forced)  (90.1s, 2056 tok, ETA 237 min)
+[7/161] er20000f1|t0.564|r0|time_agnostic_t|b400 disclosed        pred=0.046 (forced)  (90.0s, 2055 tok, ETA 235 min)
+[8/161] er20000f1|t0.564|r0|time_agnostic_t|b400 disclosed_calib  pred=0.35 (forced)  (91.3s, 2054 tok, ETA 234 min)
+[9/161] er8000f0|t0.533|r0|time_agnostic_t|b400 hidden           pred=0.033 (forced)  (89.5s, 2055 tok, ETA 231 min)
+[10/161] er8000f0|t0.533|r0|time_agnostic_t|b400 disclosed        pred=0.15 (forced)  (89.9s, 2054 tok, ETA 230 min)
+[11/161] er8000f0|t0.533|r0|time_agnostic_t|b400 disclosed_calib  pred=0.423 (forced)  (91.3s, 2055 tok, ETA 228 min)
+[12/161] ba1500f0|t0.038|r0|time_agnostic_t|b400 hidden           pred=0.131 (forced)  (89.5s, 2055 tok, ETA 226 min)
+[13/161] ba1500f0|t0.038|r0|time_agnostic_t|b400 disclosed        pred=0.15 (forced)  (90.1s, 2054 tok, ETA 224 min)
+[14/161] ba1500f0|t0.038|r0|time_agnostic_t|b400 disclosed_calib  pred=0.147 (forced)  (91.2s, 2055 tok, ETA 223 min)
+[15/161] ba1500f1|t0.267|r0|time_agnostic_t|b400 hidden           pred=0.03 (forced)  (89.4s, 2054 tok, ETA 221 min)
+[16/161] ba1500f1|t0.267|r0|time_agnostic_t|b400 disclosed        pred=0.25 (forced)  (89.9s, 2054 tok, ETA 220 min)
+[17/161] ba1500f1|t0.267|r0|time_agnostic_t|b400 disclosed_calib  pred=0.25 (forced)  (91.2s, 2054 tok, ETA 218 min)
+[18/161] ba20000f1|t0.029|r0|time_agnostic_t|b3200 hidden           pred=0.0022 (forced)  (89.5s, 2056 tok, ETA 216 min)
+[2026-07-03T05:44:46.349] error: *** JOB 5735800 ON uc3n088 CANCELLED AT 2026-07-03T05:44:46 DUE TO TIME LIMIT ***
+
+============================= JOB FEEDBACK =============================
+
+NodeName=uc3n088
+Job ID: 5735800
+Cluster: uc3
+User/Group: tu_zxokn55/tu_tu
+State: TIMEOUT (exit code 0)
+Nodes: 1
+Cores per node: 8
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 04:02:48 core-walltime
+Job Wall-clock time: 00:30:21
+Memory Utilized: 5.46 GB
+Memory Efficiency: 5.69% of 96.00 GB (96.00 GB/node)
