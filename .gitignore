@@ -1,20 +1,8 @@
-# Python
 .venv/
+venv/
 __pycache__/
 *.pyc
-.ipynb_checkpoints/
-
-# Large/local data
-data/raw/
-data/synthetic/
-*.zip
-*.tar
-*.tar.gz
-
-# Literature PDFs - keep local, do not push
-literature/papers/*.pdf
-
-# OS/editor
-.DS_Store
-Thumbs.db
-*.swp
+data/benchmark_*/
+results/benchmark_smoke/
+results/benchmark_v2_smoke/
+local_logs*/

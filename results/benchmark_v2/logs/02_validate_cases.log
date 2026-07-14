@@ -1,0 +1,1 @@
+cases OK: 90040 rows, 506 legal features, strategies={'time_agnostic_t': 14900, 'time_respecting': 14900, 'recency_biased': 14900, 'recent_history_k5': 14900, 'recent_history_k20': 14900, 'time_respecting_multistart3': 14900, 'time_agnostic': 640}

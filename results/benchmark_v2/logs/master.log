@@ -1,0 +1,870 @@
+============================================================
+V2 benchmark started: Fr 10. Jul 13:29:33 CEST 2026
+Root: /home/albert/Dokumente/MasterArbeit_benchmark_v2
+Python: Python 3.10.12
+SHARDS=12 JOBS=1 RESET=0
+               gesamt       benutzt     frei      gemns.  Puffer/Cache verfügbar
+Speicher:       13Gi       4,1Gi       1,8Gi       293Mi       7,4Gi       8,7Gi
+Auslager:      2,0Gi       0,0Ki       2,0Gi
+============================================================
+[OK]      sp_hospital              data/raw/hospital_lyon_contacts.dat.gz (0.1 MB)
+[OK]      sp_primaryschool         data/raw/primaryschool.csv.gz (0.5 MB)
+[OK]      sp_highschool2013        data/raw/HighSchool2013_proximity_net.csv.gz (0.7 MB)
+[OK]      sp_hypertext2009         data/raw/ht2009_contact_list.dat.gz (0.1 MB)
+[MISSING] sp_workplace             expected data/raw/workplace_InVS15_tij.dat.gz
+          https://sociopatterns.org/datasets/test/
+[OK]      snap_collegemsg          data/raw/CollegeMsg.txt.gz (0.3 MB)
+[OK]      snap_email_eu            data/raw/email-Eu-core-temporal.txt.gz (1.7 MB)
+[OK]      snap_mathoverflow        data/raw/sx-mathoverflow.txt.gz (3.6 MB)
+[OK]      snap_bitcoin_otc         data/raw/soc-sign-bitcoinotc.csv.gz (0.4 MB)
+[MISSING] nr_radoslaw_email        expected data/raw/ia-radoslaw-email.edges
+          https://networkrepository.com/ia-radoslaw-email.php
+[MISSING] nr_enron_employees       expected data/raw/ia-enron-employees.edges
+          https://networkrepository.com/ia-enron-employees.php
+[MISSING] nr_digg_reply            expected data/raw/ia-digg-reply.edges
+          https://networkrepository.com/ia-digg-reply.php
+[MISSING] copenhagen_bluetooth     expected data/raw/copenhagen_bluetooth.csv.gz
+          https://www.copenhagenetworksstudy.org/
+
+8/13 present; minimum for preset v2: 6
+[real] parsing sp_hospital: data/raw/hospital_lyon_contacts.dat.gz
+[real] parsing sp_primaryschool: data/raw/primaryschool.csv.gz
+[real] parsing sp_highschool2013: data/raw/HighSchool2013_proximity_net.csv.gz
+[real] parsing sp_hypertext2009: data/raw/ht2009_contact_list.dat.gz
+[real] parsing snap_collegemsg: data/raw/CollegeMsg.txt.gz
+[real] parsing snap_email_eu: data/raw/email-Eu-core-temporal.txt.gz
+[real] parsing snap_mathoverflow: data/raw/sx-mathoverflow.txt.gz
+[real] parsing snap_bitcoin_otc: data/raw/soc-sign-bitcoinotc.csv.gz
+
+wrote data/benchmark_v2/manifest.csv: 745 instances, 38 independent groups
+data_block
+mechanistic_activity               18
+mechanistic_dar                   108
+mechanistic_dar_correlated         48
+mechanistic_dar_heterogeneous      96
+mechanistic_renewal                36
+real_chunk                         11
+real_controlled                   196
+real_empirical                      8
+real_shuffle_edge_rewire           14
+real_shuffle_global                14
+real_shuffle_lifetime_resample     14
+real_shuffle_within_window         14
+synthetic_controlled              168
+	Command being timed: "nice -n 10 python src/build_benchmark_data.py --preset v2 --overwrite"
+	User time (seconds): 762.55
+	System time (seconds): 16.77
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 12:59.49
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 554788
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 7665324
+	Voluntary context switches: 11
+	Involuntary context switches: 4708
+	Swaps: 0
+	File system inputs: 648
+	File system outputs: 783016
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+manifest OK: 745 instances, 38 groups, blocks={'real_controlled': 196, 'synthetic_controlled': 168, 'mechanistic_dar': 108, 'mechanistic_dar_heterogeneous': 96, 'mechanistic_dar_correlated': 48, 'mechanistic_renewal': 36, 'mechanistic_activity': 18, 'real_shuffle_global': 14, 'real_shuffle_lifetime_resample': 14, 'real_shuffle_within_window': 14, 'real_shuffle_edge_rewire': 14, 'real_chunk': 11, 'real_empirical': 8}
+Instances: 745
+Independent groups: 38
+data_block
+real_controlled                   196
+synthetic_controlled              168
+mechanistic_dar                   108
+mechanistic_dar_heterogeneous      96
+mechanistic_dar_correlated         48
+mechanistic_renewal                36
+mechanistic_activity               18
+real_shuffle_global                14
+real_shuffle_edge_rewire           14
+real_shuffle_lifetime_resample     14
+real_shuffle_within_window         14
+real_chunk                         11
+real_empirical                      8
+Instances: 745
+Independent groups: 38
+Expected total cases: 90,040
+Cases by strategy:
+  time_agnostic_t                        14,900
+  time_respecting                        14,900
+  recency_biased                         14,900
+  recent_history_k5                      14,900
+  recent_history_k20                     14,900
+  time_respecting_multistart3            14,900
+  time_agnostic                             640
+Running shard 000/11 at Fr 10. Jul 13:42:33 CEST 2026
+[walks shard 0] 5/63 instances, 600 cases, 30.5s
+[walks shard 0] 10/63 instances, 1220 cases, 64.3s
+[walks shard 0] 15/63 instances, 1840 cases, 96.0s
+[walks shard 0] 20/63 instances, 2440 cases, 128.8s
+[walks shard 0] 25/63 instances, 3040 cases, 168.9s
+[walks shard 0] 30/63 instances, 3640 cases, 202.6s
+[walks shard 0] 35/63 instances, 4240 cases, 236.0s
+[walks shard 0] 40/63 instances, 4840 cases, 266.2s
+[walks shard 0] 45/63 instances, 5440 cases, 298.6s
+[walks shard 0] 50/63 instances, 6040 cases, 334.7s
+[walks shard 0] 55/63 instances, 6640 cases, 367.8s
+[walks shard 0] 60/63 instances, 7240 cases, 400.6s
+[walks shard 0] 63/63 instances, 7600 cases, 420.3s
+wrote results/benchmark_v2/cases_shard_000.csv.gz: 7600 cases in 428.4s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 0"
+	User time (seconds): 428.25
+	System time (seconds): 0.78
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 7:09.08
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 794280
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 275626
+	Voluntary context switches: 2
+	Involuntary context switches: 2331
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 25072
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Running shard 001/11 at Fr 10. Jul 13:49:43 CEST 2026
+[walks shard 1] 5/62 instances, 600 cases, 32.4s
+[walks shard 1] 10/62 instances, 1200 cases, 66.2s
+[walks shard 1] 15/62 instances, 1820 cases, 97.5s
+[walks shard 1] 20/62 instances, 2420 cases, 135.0s
+[walks shard 1] 25/62 instances, 3020 cases, 173.8s
+[walks shard 1] 30/62 instances, 3620 cases, 203.7s
+[walks shard 1] 35/62 instances, 4240 cases, 233.6s
+[walks shard 1] 40/62 instances, 4840 cases, 258.5s
+[walks shard 1] 45/62 instances, 5440 cases, 288.4s
+[walks shard 1] 50/62 instances, 6040 cases, 321.6s
+[walks shard 1] 55/62 instances, 6660 cases, 354.7s
+[walks shard 1] 60/62 instances, 7260 cases, 387.1s
+[walks shard 1] 62/62 instances, 7500 cases, 400.1s
+wrote results/benchmark_v2/cases_shard_001.csv.gz: 7500 cases in 408.3s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 1"
+	User time (seconds): 407.99
+	System time (seconds): 0.93
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:48.97
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 787996
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 286419
+	Voluntary context switches: 1
+	Involuntary context switches: 2370
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 24480
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Running shard 002/11 at Fr 10. Jul 13:56:32 CEST 2026
+[walks shard 2] 5/62 instances, 600 cases, 31.3s
+[walks shard 2] 10/62 instances, 1200 cases, 64.0s
+[walks shard 2] 15/62 instances, 1800 cases, 94.4s
+[walks shard 2] 20/62 instances, 2400 cases, 130.1s
+[walks shard 2] 25/62 instances, 3000 cases, 168.1s
+[walks shard 2] 30/62 instances, 3620 cases, 200.2s
+[walks shard 2] 35/62 instances, 4220 cases, 230.2s
+[walks shard 2] 40/62 instances, 4840 cases, 258.3s
+[walks shard 2] 45/62 instances, 5440 cases, 289.2s
+[walks shard 2] 50/62 instances, 6040 cases, 322.1s
+[walks shard 2] 55/62 instances, 6660 cases, 355.0s
+[walks shard 2] 60/62 instances, 7260 cases, 386.9s
+[walks shard 2] 62/62 instances, 7500 cases, 399.9s
+wrote results/benchmark_v2/cases_shard_002.csv.gz: 7500 cases in 408.0s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 2"
+	User time (seconds): 407.71
+	System time (seconds): 0.95
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:48.71
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 787832
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 284586
+	Voluntary context switches: 1
+	Involuntary context switches: 2449
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 24784
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Running shard 003/11 at Fr 10. Jul 14:03:21 CEST 2026
+[walks shard 3] 5/62 instances, 600 cases, 31.6s
+[walks shard 3] 10/62 instances, 1200 cases, 64.6s
+[walks shard 3] 15/62 instances, 1800 cases, 95.4s
+[walks shard 3] 20/62 instances, 2400 cases, 131.6s
+[walks shard 3] 25/62 instances, 3000 cases, 171.6s
+[walks shard 3] 30/62 instances, 3600 cases, 203.8s
+[walks shard 3] 35/62 instances, 4220 cases, 236.8s
+[walks shard 3] 40/62 instances, 4820 cases, 265.2s
+[walks shard 3] 45/62 instances, 5420 cases, 297.2s
+[walks shard 3] 50/62 instances, 6040 cases, 331.2s
+[walks shard 3] 55/62 instances, 6640 cases, 367.3s
+[walks shard 3] 60/62 instances, 7240 cases, 399.9s
+[walks shard 3] 62/62 instances, 7480 cases, 413.1s
+wrote results/benchmark_v2/cases_shard_003.csv.gz: 7480 cases in 421.2s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 3"
+	User time (seconds): 420.86
+	System time (seconds): 0.97
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 7:01.88
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 786096
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 282961
+	Voluntary context switches: 1
+	Involuntary context switches: 2400
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 24864
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Running shard 004/11 at Fr 10. Jul 14:10:23 CEST 2026
+[walks shard 4] 5/62 instances, 600 cases, 31.6s
+[walks shard 4] 10/62 instances, 1200 cases, 64.3s
+[walks shard 4] 15/62 instances, 1800 cases, 96.3s
+[walks shard 4] 20/62 instances, 2400 cases, 131.6s
+[walks shard 4] 25/62 instances, 3000 cases, 169.0s
+[walks shard 4] 30/62 instances, 3600 cases, 199.1s
+[walks shard 4] 35/62 instances, 4200 cases, 228.2s
+[walks shard 4] 40/62 instances, 4820 cases, 254.5s
+[walks shard 4] 45/62 instances, 5440 cases, 284.1s
+[walks shard 4] 50/62 instances, 6060 cases, 317.8s
+[walks shard 4] 55/62 instances, 6660 cases, 351.5s
+[walks shard 4] 60/62 instances, 7280 cases, 383.7s
+[walks shard 4] 62/62 instances, 7520 cases, 397.0s
+wrote results/benchmark_v2/cases_shard_004.csv.gz: 7520 cases in 404.9s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 4"
+	User time (seconds): 404.57
+	System time (seconds): 0.93
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:45.55
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 789652
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 283594
+	Voluntary context switches: 1
+	Involuntary context switches: 2284
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 24520
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Running shard 005/11 at Fr 10. Jul 14:17:08 CEST 2026
+[walks shard 5] 5/62 instances, 600 cases, 31.7s
+[walks shard 5] 10/62 instances, 1220 cases, 64.5s
+[walks shard 5] 15/62 instances, 1840 cases, 96.3s
+[walks shard 5] 20/62 instances, 2440 cases, 131.5s
+[walks shard 5] 25/62 instances, 3040 cases, 170.5s
+[walks shard 5] 30/62 instances, 3640 cases, 201.2s
+[walks shard 5] 35/62 instances, 4240 cases, 232.8s
+[walks shard 5] 40/62 instances, 4840 cases, 260.3s
+[walks shard 5] 45/62 instances, 5460 cases, 291.4s
+[walks shard 5] 50/62 instances, 6060 cases, 325.5s
+[walks shard 5] 55/62 instances, 6660 cases, 358.9s
+[walks shard 5] 60/62 instances, 7260 cases, 390.9s
+[walks shard 5] 62/62 instances, 7500 cases, 404.4s
+wrote results/benchmark_v2/cases_shard_005.csv.gz: 7500 cases in 412.4s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 5"
+	User time (seconds): 412.10
+	System time (seconds): 0.88
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:53.03
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 788436
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 268500
+	Voluntary context switches: 1
+	Involuntary context switches: 2578
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 24960
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Running shard 006/11 at Fr 10. Jul 14:24:02 CEST 2026
+[walks shard 6] 5/62 instances, 600 cases, 31.7s
+[walks shard 6] 10/62 instances, 1200 cases, 64.4s
+[walks shard 6] 15/62 instances, 1800 cases, 95.2s
+[walks shard 6] 20/62 instances, 2400 cases, 132.1s
+[walks shard 6] 25/62 instances, 3040 cases, 169.5s
+[walks shard 6] 30/62 instances, 3640 cases, 202.3s
+[walks shard 6] 35/62 instances, 4240 cases, 233.6s
+[walks shard 6] 40/62 instances, 4840 cases, 263.4s
+[walks shard 6] 45/62 instances, 5440 cases, 295.5s
+[walks shard 6] 50/62 instances, 6040 cases, 329.4s
+[walks shard 6] 55/62 instances, 6640 cases, 363.1s
+[walks shard 6] 60/62 instances, 7240 cases, 395.6s
+[walks shard 6] 62/62 instances, 7480 cases, 409.0s
+wrote results/benchmark_v2/cases_shard_006.csv.gz: 7480 cases in 416.9s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 6"
+	User time (seconds): 416.66
+	System time (seconds): 0.90
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:57.61
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 786704
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 278806
+	Voluntary context switches: 1
+	Involuntary context switches: 2273
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 24912
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Running shard 007/11 at Fr 10. Jul 14:31:00 CEST 2026
+[walks shard 7] 5/62 instances, 600 cases, 31.7s
+[walks shard 7] 10/62 instances, 1200 cases, 65.1s
+[walks shard 7] 15/62 instances, 1820 cases, 95.4s
+[walks shard 7] 20/62 instances, 2420 cases, 132.6s
+[walks shard 7] 25/62 instances, 3020 cases, 168.1s
+[walks shard 7] 30/62 instances, 3620 cases, 197.4s
+[walks shard 7] 35/62 instances, 4220 cases, 227.0s
+[walks shard 7] 40/62 instances, 4840 cases, 252.7s
+[walks shard 7] 45/62 instances, 5440 cases, 284.0s
+[walks shard 7] 50/62 instances, 6040 cases, 318.1s
+[walks shard 7] 55/62 instances, 6640 cases, 350.7s
+[walks shard 7] 60/62 instances, 7240 cases, 382.4s
+[walks shard 7] 62/62 instances, 7480 cases, 395.8s
+wrote results/benchmark_v2/cases_shard_007.csv.gz: 7480 cases in 403.9s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 7"
+	User time (seconds): 403.69
+	System time (seconds): 0.86
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:44.61
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 787184
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 261908
+	Voluntary context switches: 3
+	Involuntary context switches: 1997
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 24720
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Running shard 008/11 at Fr 10. Jul 14:37:44 CEST 2026
+[walks shard 8] 5/62 instances, 600 cases, 31.6s
+[walks shard 8] 10/62 instances, 1200 cases, 64.9s
+[walks shard 8] 15/62 instances, 1800 cases, 97.2s
+[walks shard 8] 20/62 instances, 2400 cases, 134.6s
+[walks shard 8] 25/62 instances, 3000 cases, 170.7s
+[walks shard 8] 30/62 instances, 3600 cases, 202.7s
+[walks shard 8] 35/62 instances, 4220 cases, 232.8s
+[walks shard 8] 40/62 instances, 4820 cases, 261.8s
+[walks shard 8] 45/62 instances, 5420 cases, 293.7s
+[walks shard 8] 50/62 instances, 6020 cases, 327.0s
+[walks shard 8] 55/62 instances, 6620 cases, 360.2s
+[walks shard 8] 60/62 instances, 7220 cases, 391.0s
+[walks shard 8] 62/62 instances, 7480 cases, 404.1s
+wrote results/benchmark_v2/cases_shard_008.csv.gz: 7480 cases in 411.9s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 8"
+	User time (seconds): 411.64
+	System time (seconds): 0.88
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:52.57
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 787308
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 281103
+	Voluntary context switches: 1
+	Involuntary context switches: 2136
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 25040
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Running shard 009/11 at Fr 10. Jul 14:44:37 CEST 2026
+[walks shard 9] 5/62 instances, 600 cases, 31.0s
+[walks shard 9] 10/62 instances, 1200 cases, 64.2s
+[walks shard 9] 15/62 instances, 1800 cases, 96.7s
+[walks shard 9] 20/62 instances, 2400 cases, 134.5s
+[walks shard 9] 25/62 instances, 3040 cases, 173.1s
+[walks shard 9] 30/62 instances, 3640 cases, 206.2s
+[walks shard 9] 35/62 instances, 4260 cases, 238.9s
+[walks shard 9] 40/62 instances, 4860 cases, 267.6s
+[walks shard 9] 45/62 instances, 5460 cases, 299.9s
+[walks shard 9] 50/62 instances, 6060 cases, 335.1s
+[walks shard 9] 55/62 instances, 6660 cases, 368.2s
+[walks shard 9] 60/62 instances, 7260 cases, 400.4s
+[walks shard 9] 62/62 instances, 7500 cases, 414.3s
+wrote results/benchmark_v2/cases_shard_009.csv.gz: 7500 cases in 422.2s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 9"
+	User time (seconds): 421.88
+	System time (seconds): 0.98
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 7:02.92
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 787888
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 282034
+	Voluntary context switches: 1
+	Involuntary context switches: 2054
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 24960
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Running shard 010/11 at Fr 10. Jul 14:51:40 CEST 2026
+[walks shard 10] 5/62 instances, 600 cases, 30.8s
+[walks shard 10] 10/62 instances, 1200 cases, 63.3s
+[walks shard 10] 15/62 instances, 1820 cases, 95.3s
+[walks shard 10] 20/62 instances, 2420 cases, 130.9s
+[walks shard 10] 25/62 instances, 3040 cases, 164.9s
+[walks shard 10] 30/62 instances, 3640 cases, 196.1s
+[walks shard 10] 35/62 instances, 4240 cases, 224.1s
+[walks shard 10] 40/62 instances, 4860 cases, 250.6s
+[walks shard 10] 45/62 instances, 5480 cases, 282.1s
+[walks shard 10] 50/62 instances, 6080 cases, 316.4s
+[walks shard 10] 55/62 instances, 6680 cases, 348.7s
+[walks shard 10] 60/62 instances, 7280 cases, 380.0s
+[walks shard 10] 62/62 instances, 7520 cases, 393.3s
+wrote results/benchmark_v2/cases_shard_010.csv.gz: 7520 cases in 401.1s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 10"
+	User time (seconds): 400.85
+	System time (seconds): 0.84
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:41.74
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 789384
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 281138
+	Voluntary context switches: 1
+	Involuntary context switches: 2107
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 24464
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Running shard 011/11 at Fr 10. Jul 14:58:22 CEST 2026
+[walks shard 11] 5/62 instances, 600 cases, 30.0s
+[walks shard 11] 10/62 instances, 1200 cases, 62.4s
+[walks shard 11] 15/62 instances, 1800 cases, 94.6s
+[walks shard 11] 20/62 instances, 2400 cases, 130.8s
+[walks shard 11] 25/62 instances, 3000 cases, 167.1s
+[walks shard 11] 30/62 instances, 3600 cases, 199.0s
+[walks shard 11] 35/62 instances, 4200 cases, 230.2s
+[walks shard 11] 40/62 instances, 4800 cases, 257.2s
+[walks shard 11] 45/62 instances, 5420 cases, 289.1s
+[walks shard 11] 50/62 instances, 6020 cases, 323.3s
+[walks shard 11] 55/62 instances, 6640 cases, 355.8s
+[walks shard 11] 60/62 instances, 7240 cases, 387.4s
+[walks shard 11] 62/62 instances, 7480 cases, 400.5s
+wrote results/benchmark_v2/cases_shard_011.csv.gz: 7480 cases in 408.5s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset v2 --num-shards 12 --shard-id 11"
+	User time (seconds): 408.21
+	System time (seconds): 0.87
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:49.12
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 785856
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 279746
+	Voluntary context switches: 2
+	Involuntary context switches: 1901
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 24776
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+cases OK: 90040 rows, 506 legal features, strategies={'time_agnostic_t': 14900, 'time_respecting': 14900, 'recency_biased': 14900, 'recent_history_k5': 14900, 'recent_history_k20': 14900, 'time_respecting_multistart3': 14900, 'time_agnostic': 640}
+90040 cases, 38 groups, 7 targets, strategies=['recency_biased', 'recent_history_k20', 'recent_history_k5', 'time_agnostic', 'time_agnostic_t', 'time_respecting', 'time_respecting_multistart3']
+[recency_biased] fold 1/5 complete
+[recency_biased] fold 2/5 complete
+[recency_biased] fold 3/5 complete
+[recency_biased] fold 4/5 complete
+[recency_biased] fold 5/5 complete
+[recent_history_k20] fold 1/5 complete
+[recent_history_k20] fold 2/5 complete
+[recent_history_k20] fold 3/5 complete
+[recent_history_k20] fold 4/5 complete
+[recent_history_k20] fold 5/5 complete
+[recent_history_k5] fold 1/5 complete
+[recent_history_k5] fold 2/5 complete
+[recent_history_k5] fold 3/5 complete
+[recent_history_k5] fold 4/5 complete
+[recent_history_k5] fold 5/5 complete
+[time_agnostic] fold 1/5 complete
+[time_agnostic] fold 2/5 complete
+[time_agnostic] fold 3/5 complete
+[time_agnostic] fold 4/5 complete
+[time_agnostic] fold 5/5 complete
+[time_agnostic_t] fold 1/5 complete
+[time_agnostic_t] fold 2/5 complete
+[time_agnostic_t] fold 3/5 complete
+[time_agnostic_t] fold 4/5 complete
+[time_agnostic_t] fold 5/5 complete
+[time_respecting] fold 1/5 complete
+[time_respecting] fold 2/5 complete
+[time_respecting] fold 3/5 complete
+[time_respecting] fold 4/5 complete
+[time_respecting] fold 5/5 complete
+[time_respecting_multistart3] fold 1/5 complete
+[time_respecting_multistart3] fold 2/5 complete
+[time_respecting_multistart3] fold 3/5 complete
+[time_respecting_multistart3] fold 4/5 complete
+[time_respecting_multistart3] fold 5/5 complete
+Traceback (most recent call last):
+  File "/home/albert/Dokumente/MasterArbeit_benchmark_v2/src/evaluate_benchmark.py", line 493, in <module>
+    main()
+  File "/home/albert/Dokumente/MasterArbeit_benchmark_v2/src/evaluate_benchmark.py", line 462, in main
+    consume(evaluate_strategy_blind(
+  File "/home/albert/Dokumente/MasterArbeit_benchmark_v2/src/evaluate_benchmark.py", line 255, in evaluate_strategy_blind
+    records.extend(_fit_models(
+  File "/home/albert/Dokumente/MasterArbeit_benchmark_v2/src/evaluate_benchmark.py", line 160, in _fit_models
+    model.fit(Xtr[:, useful], fit_y)
+  File "/home/albert/Dokumente/MasterArbeit_benchmark_v2/venv/lib/python3.10/site-packages/sklearn/base.py", line 1365, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+  File "/home/albert/Dokumente/MasterArbeit_benchmark_v2/venv/lib/python3.10/site-packages/sklearn/pipeline.py", line 663, in fit
+    self._final_estimator.fit(Xt, y, **last_step_params["fit"])
+  File "/home/albert/Dokumente/MasterArbeit_benchmark_v2/venv/lib/python3.10/site-packages/sklearn/base.py", line 1365, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+  File "/home/albert/Dokumente/MasterArbeit_benchmark_v2/venv/lib/python3.10/site-packages/sklearn/multioutput.py", line 252, in fit
+    raise ValueError(
+ValueError: y must have at least two dimensions for multi-output regression but has only one.
+Command exited with non-zero status 1
+	Command being timed: "nice -n 10 python src/evaluate_benchmark.py --preset v2 --cases results/benchmark_v2/cases_shard_*.csv.gz --out-dir results/benchmark_v2 --jobs 1"
+	User time (seconds): 12981.22
+	System time (seconds): 19.94
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:36:42
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4247544
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 2625350
+	Voluntary context switches: 36
+	Involuntary context switches: 86828
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1
+============================================================
+V2 benchmark started: Sa 11. Jul 01:56:42 CEST 2026
+Root: /home/albert/Dokumente/MasterArbeit_benchmark_v2
+Python: Python 3.10.12
+SHARDS=12 JOBS=1 RESET=0
+               gesamt       benutzt     frei      gemns.  Puffer/Cache verfügbar
+Speicher:       13Gi       3,4Gi       3,1Gi       101Mi       6,9Gi       9,5Gi
+Auslager:      2,0Gi       1,0Mi       2,0Gi
+============================================================
+[OK]      sp_hospital              data/raw/hospital_lyon_contacts.dat.gz (0.1 MB)
+[OK]      sp_primaryschool         data/raw/primaryschool.csv.gz (0.5 MB)
+[OK]      sp_highschool2013        data/raw/HighSchool2013_proximity_net.csv.gz (0.7 MB)
+[OK]      sp_hypertext2009         data/raw/ht2009_contact_list.dat.gz (0.1 MB)
+[MISSING] sp_workplace             expected data/raw/workplace_InVS15_tij.dat.gz
+          https://sociopatterns.org/datasets/test/
+[OK]      snap_collegemsg          data/raw/CollegeMsg.txt.gz (0.3 MB)
+[OK]      snap_email_eu            data/raw/email-Eu-core-temporal.txt.gz (1.7 MB)
+[OK]      snap_mathoverflow        data/raw/sx-mathoverflow.txt.gz (3.6 MB)
+[OK]      snap_bitcoin_otc         data/raw/soc-sign-bitcoinotc.csv.gz (0.4 MB)
+[MISSING] nr_radoslaw_email        expected data/raw/ia-radoslaw-email.edges
+          https://networkrepository.com/ia-radoslaw-email.php
+[MISSING] nr_enron_employees       expected data/raw/ia-enron-employees.edges
+          https://networkrepository.com/ia-enron-employees.php
+[MISSING] nr_digg_reply            expected data/raw/ia-digg-reply.edges
+          https://networkrepository.com/ia-digg-reply.php
+[MISSING] copenhagen_bluetooth     expected data/raw/copenhagen_bluetooth.csv.gz
+          https://www.copenhagenetworksstudy.org/
+
+8/13 present; minimum for preset v2: 6
+Reusing existing data/benchmark_v2/manifest.csv
+manifest OK: 745 instances, 38 groups, blocks={'real_controlled': 196, 'synthetic_controlled': 168, 'mechanistic_dar': 108, 'mechanistic_dar_heterogeneous': 96, 'mechanistic_dar_correlated': 48, 'mechanistic_renewal': 36, 'mechanistic_activity': 18, 'real_shuffle_global': 14, 'real_shuffle_lifetime_resample': 14, 'real_shuffle_within_window': 14, 'real_shuffle_edge_rewire': 14, 'real_chunk': 11, 'real_empirical': 8}
+Instances: 745
+Independent groups: 38
+data_block
+real_controlled                   196
+synthetic_controlled              168
+mechanistic_dar                   108
+mechanistic_dar_heterogeneous      96
+mechanistic_dar_correlated         48
+mechanistic_renewal                36
+mechanistic_activity               18
+real_shuffle_global                14
+real_shuffle_edge_rewire           14
+real_shuffle_lifetime_resample     14
+real_shuffle_within_window         14
+real_chunk                         11
+real_empirical                      8
+Instances: 745
+Independent groups: 38
+Expected total cases: 90,040
+Cases by strategy:
+  time_agnostic_t                        14,900
+  time_respecting                        14,900
+  recency_biased                         14,900
+  recent_history_k5                      14,900
+  recent_history_k20                     14,900
+  time_respecting_multistart3            14,900
+  time_agnostic                             640
+Skipping valid shard 000
+Skipping valid shard 001
+Skipping valid shard 002
+Skipping valid shard 003
+Skipping valid shard 004
+Skipping valid shard 005
+Skipping valid shard 006
+Skipping valid shard 007
+Skipping valid shard 008
+Skipping valid shard 009
+Skipping valid shard 010
+Skipping valid shard 011
+cases OK: 90040 rows, 506 legal features, strategies={'time_agnostic_t': 14900, 'time_respecting': 14900, 'recency_biased': 14900, 'recent_history_k5': 14900, 'recent_history_k20': 14900, 'time_respecting_multistart3': 14900, 'time_agnostic': 640}
+90040 cases, 38 groups, 7 targets, strategies=['recency_biased', 'recent_history_k20', 'recent_history_k5', 'time_agnostic', 'time_agnostic_t', 'time_respecting', 'time_respecting_multistart3']
+[recency_biased] fold 1/5 complete
+[recency_biased] fold 2/5 complete
+[recency_biased] fold 3/5 complete
+[recency_biased] fold 4/5 complete
+[recency_biased] fold 5/5 complete
+[recent_history_k20] fold 1/5 complete
+[recent_history_k20] fold 2/5 complete
+[recent_history_k20] fold 3/5 complete
+[recent_history_k20] fold 4/5 complete
+[recent_history_k20] fold 5/5 complete
+[recent_history_k5] fold 1/5 complete
+[recent_history_k5] fold 2/5 complete
+[recent_history_k5] fold 3/5 complete
+[recent_history_k5] fold 4/5 complete
+[recent_history_k5] fold 5/5 complete
+[time_agnostic] fold 1/5 complete
+[time_agnostic] fold 2/5 complete
+[time_agnostic] fold 3/5 complete
+[time_agnostic] fold 4/5 complete
+[time_agnostic] fold 5/5 complete
+[time_agnostic_t] fold 1/5 complete
+[time_agnostic_t] fold 2/5 complete
+[time_agnostic_t] fold 3/5 complete
+[time_agnostic_t] fold 4/5 complete
+[time_agnostic_t] fold 5/5 complete
+[time_respecting] fold 1/5 complete
+[time_respecting] fold 2/5 complete
+[time_respecting] fold 3/5 complete
+[time_respecting] fold 4/5 complete
+[time_respecting] fold 5/5 complete
+[time_respecting_multistart3] fold 1/5 complete
+[time_respecting_multistart3] fold 2/5 complete
+[time_respecting_multistart3] fold 3/5 complete
+[time_respecting_multistart3] fold 4/5 complete
+[time_respecting_multistart3] fold 5/5 complete
+[strategy-blind] fold 1 complete
+[strategy-blind] fold 2 complete
+[strategy-blind] fold 3 complete
+[strategy-blind] fold 4 complete
+[strategy-blind] fold 5 complete
+[LOBO recency_biased] held out mechanistic_activity
+[LOBO recency_biased] held out mechanistic_dar
+[LOBO recency_biased] held out mechanistic_dar_correlated
+[LOBO recency_biased] held out mechanistic_dar_heterogeneous
+[LOBO recency_biased] held out mechanistic_renewal
+[LOBO recency_biased] held out real_chunk
+[LOBO recency_biased] held out real_controlled
+[LOBO recency_biased] held out real_empirical
+[LOBO recency_biased] held out real_shuffle_edge_rewire
+[LOBO recency_biased] held out real_shuffle_global
+[LOBO recency_biased] held out real_shuffle_lifetime_resample
+[LOBO recency_biased] held out real_shuffle_within_window
+[LOBO recency_biased] held out synthetic_controlled
+[LOBO recent_history_k20] held out mechanistic_activity
+[LOBO recent_history_k20] held out mechanistic_dar
+[LOBO recent_history_k20] held out mechanistic_dar_correlated
+[LOBO recent_history_k20] held out mechanistic_dar_heterogeneous
+[LOBO recent_history_k20] held out mechanistic_renewal
+[LOBO recent_history_k20] held out real_chunk
+[LOBO recent_history_k20] held out real_controlled
+[LOBO recent_history_k20] held out real_empirical
+[LOBO recent_history_k20] held out real_shuffle_edge_rewire
+[LOBO recent_history_k20] held out real_shuffle_global
+[LOBO recent_history_k20] held out real_shuffle_lifetime_resample
+[LOBO recent_history_k20] held out real_shuffle_within_window
+[LOBO recent_history_k20] held out synthetic_controlled
+[LOBO recent_history_k5] held out mechanistic_activity
+[LOBO recent_history_k5] held out mechanistic_dar
+[LOBO recent_history_k5] held out mechanistic_dar_correlated
+[LOBO recent_history_k5] held out mechanistic_dar_heterogeneous
+[LOBO recent_history_k5] held out mechanistic_renewal
+[LOBO recent_history_k5] held out real_chunk
+[LOBO recent_history_k5] held out real_controlled
+[LOBO recent_history_k5] held out real_empirical
+[LOBO recent_history_k5] held out real_shuffle_edge_rewire
+[LOBO recent_history_k5] held out real_shuffle_global
+[LOBO recent_history_k5] held out real_shuffle_lifetime_resample
+[LOBO recent_history_k5] held out real_shuffle_within_window
+[LOBO recent_history_k5] held out synthetic_controlled
+[LOBO time_agnostic] held out mechanistic_activity
+[LOBO time_agnostic] held out mechanistic_dar
+[LOBO time_agnostic] held out mechanistic_dar_correlated
+[LOBO time_agnostic] held out mechanistic_dar_heterogeneous
+[LOBO time_agnostic] held out mechanistic_renewal
+[LOBO time_agnostic] held out real_controlled
+[LOBO time_agnostic] held out real_empirical
+[LOBO time_agnostic] held out real_shuffle_within_window
+[LOBO time_agnostic] held out synthetic_controlled
+[LOBO time_agnostic_t] held out mechanistic_activity
+[LOBO time_agnostic_t] held out mechanistic_dar
+[LOBO time_agnostic_t] held out mechanistic_dar_correlated
+[LOBO time_agnostic_t] held out mechanistic_dar_heterogeneous
+[LOBO time_agnostic_t] held out mechanistic_renewal
+[LOBO time_agnostic_t] held out real_chunk
+[LOBO time_agnostic_t] held out real_controlled
+[LOBO time_agnostic_t] held out real_empirical
+[LOBO time_agnostic_t] held out real_shuffle_edge_rewire
+[LOBO time_agnostic_t] held out real_shuffle_global
+[LOBO time_agnostic_t] held out real_shuffle_lifetime_resample
+[LOBO time_agnostic_t] held out real_shuffle_within_window
+[LOBO time_agnostic_t] held out synthetic_controlled
+[LOBO time_respecting] held out mechanistic_activity
+[LOBO time_respecting] held out mechanistic_dar
+[LOBO time_respecting] held out mechanistic_dar_correlated
+[LOBO time_respecting] held out mechanistic_dar_heterogeneous
+[LOBO time_respecting] held out mechanistic_renewal
+[LOBO time_respecting] held out real_chunk
+[LOBO time_respecting] held out real_controlled
+[LOBO time_respecting] held out real_empirical
+[LOBO time_respecting] held out real_shuffle_edge_rewire
+[LOBO time_respecting] held out real_shuffle_global
+[LOBO time_respecting] held out real_shuffle_lifetime_resample
+[LOBO time_respecting] held out real_shuffle_within_window
+[LOBO time_respecting] held out synthetic_controlled
+[LOBO time_respecting_multistart3] held out mechanistic_activity
+[LOBO time_respecting_multistart3] held out mechanistic_dar
+[LOBO time_respecting_multistart3] held out mechanistic_dar_correlated
+[LOBO time_respecting_multistart3] held out mechanistic_dar_heterogeneous
+[LOBO time_respecting_multistart3] held out mechanistic_renewal
+[LOBO time_respecting_multistart3] held out real_chunk
+[LOBO time_respecting_multistart3] held out real_controlled
+[LOBO time_respecting_multistart3] held out real_empirical
+[LOBO time_respecting_multistart3] held out real_shuffle_edge_rewire
+[LOBO time_respecting_multistart3] held out real_shuffle_global
+[LOBO time_respecting_multistart3] held out real_shuffle_lifetime_resample
+[LOBO time_respecting_multistart3] held out real_shuffle_within_window
+[LOBO time_respecting_multistart3] held out synthetic_controlled
+[sim2real recency_biased] 9480 train -> 380 test
+[sim2real recent_history_k20] 9480 train -> 380 test
+[sim2real recent_history_k5] 9480 train -> 380 test
+[sim2real time_agnostic] 440 train -> 20 test
+[sim2real time_agnostic_t] 9480 train -> 380 test
+[sim2real time_respecting] 9480 train -> 380 test
+[sim2real time_respecting_multistart3] 9480 train -> 380 test
+wrote results/benchmark_v2/predictions.csv.gz, metrics.csv, rankings.csv, case_diagnostics.csv.gz, SCREEN_SUMMARY.md, headline_ranking.png
+	Command being timed: "nice -n 10 python src/evaluate_benchmark.py --preset v2 --cases results/benchmark_v2/cases_shard_*.csv.gz --out-dir results/benchmark_v2 --jobs 1"
+	User time (seconds): 28267.37
+	System time (seconds): 65.73
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 7:52:20
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4294116
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 25790
+	Minor (reclaiming a frame) page faults: 6337717
+	Voluntary context switches: 27354
+	Involuntary context switches: 279925
+	Swaps: 0
+	File system inputs: 1225424
+	File system outputs: 138208
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+wrote v2 diagnostics to results/benchmark_v2

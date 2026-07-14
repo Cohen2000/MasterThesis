@@ -42,9 +42,15 @@ def rho_mle(n_arr, w_arr, W=W, iters=300):
     E = len(n_arr)
     if E == 0:
         return np.nan, None
-    Lik = np.zeros((E, W))
-    for e in range(E):
-        n = int(n_arr[e]); w = int(w_arr[e])
+    # Edges sharing (n,w) have identical likelihood rows.  Aggregating them is
+    # exactly equivalent to the per-edge EM and makes the large benchmark
+    # practical (usually tens of rows instead of thousands per case).
+    patterns, counts = np.unique(
+        np.column_stack([n_arr.astype(np.int64), w_arr.astype(np.int64)]),
+        axis=0, return_counts=True)
+    Lik = np.zeros((len(patterns), W))
+    for e, (n0, w0) in enumerate(patterns):
+        n = int(n0); w = int(w0)
         if n >= NCAP:
             Lik[e, w - 1] = 1.0
         else:
@@ -54,7 +60,8 @@ def rho_mle(n_arr, w_arr, W=W, iters=300):
     for _ in range(iters):
         num = Lik * pi[None, :]
         den = num.sum(1, keepdims=True); den[den == 0] = 1.0
-        pi = (num / den).mean(0)
+        resp = num / den
+        pi = (resp * counts[:, None]).sum(0) / counts.sum()
         s = pi.sum()
         pi = pi / s if s > 0 else np.ones(W) / W
     return float(1.0 - pi[0]), pi

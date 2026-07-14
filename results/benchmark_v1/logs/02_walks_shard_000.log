@@ -1,0 +1,29 @@
+[walks shard 0] 5/21 instances, 240 cases, 13.6s
+[walks shard 0] 10/21 instances, 480 cases, 26.0s
+[walks shard 0] 15/21 instances, 720 cases, 37.0s
+[walks shard 0] 20/21 instances, 960 cases, 48.5s
+[walks shard 0] 21/21 instances, 1008 cases, 50.9s
+wrote results/benchmark_full/cases_shard_000.csv.gz: 1008 cases in 51.8s
+	Command being timed: "nice -n 10 python src/run_benchmark_walks.py --preset full --num-shards 12 --shard-id 0"
+	User time (seconds): 52.06
+	System time (seconds): 0.27
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:52.34
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 261184
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 72286
+	Voluntary context switches: 2
+	Involuntary context switches: 945
+	Swaps: 0
+	File system inputs: 8
+	File system outputs: 1912
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

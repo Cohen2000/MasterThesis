@@ -1,0 +1,20 @@
+[OK]      sp_hospital              data/raw/hospital_lyon_contacts.dat.gz (0.1 MB)
+[OK]      sp_primaryschool         data/raw/primaryschool.csv.gz (0.5 MB)
+[OK]      sp_highschool2013        data/raw/HighSchool2013_proximity_net.csv.gz (0.7 MB)
+[OK]      sp_hypertext2009         data/raw/ht2009_contact_list.dat.gz (0.1 MB)
+[MISSING] sp_workplace             expected data/raw/workplace_InVS15_tij.dat.gz
+          https://sociopatterns.org/datasets/test/
+[OK]      snap_collegemsg          data/raw/CollegeMsg.txt.gz (0.3 MB)
+[OK]      snap_email_eu            data/raw/email-Eu-core-temporal.txt.gz (1.7 MB)
+[OK]      snap_mathoverflow        data/raw/sx-mathoverflow.txt.gz (3.6 MB)
+[OK]      snap_bitcoin_otc         data/raw/soc-sign-bitcoinotc.csv.gz (0.4 MB)
+[MISSING] nr_radoslaw_email        expected data/raw/ia-radoslaw-email.edges
+          https://networkrepository.com/ia-radoslaw-email.php
+[MISSING] nr_enron_employees       expected data/raw/ia-enron-employees.edges
+          https://networkrepository.com/ia-enron-employees.php
+[MISSING] nr_digg_reply            expected data/raw/ia-digg-reply.edges
+          https://networkrepository.com/ia-digg-reply.php
+[MISSING] copenhagen_bluetooth     expected data/raw/copenhagen_bluetooth.csv.gz
+          https://www.copenhagenetworksstudy.org/
+
+8/13 present; minimum for preset v2: 6

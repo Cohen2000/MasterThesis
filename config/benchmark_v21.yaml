@@ -1,0 +1,612 @@
+version: 2
+presets:
+  smoke:
+    W: 5
+    seed: 20260710
+    real:
+      enabled: false
+      datasets: []
+      variant_datasets: []
+      min_datasets: 0
+      shuffle_reps: 0
+      controlled_targets: []
+      controlled_reps: 0
+    dar:
+      enabled: true
+      substrates:
+      - dcsbm
+      sizes:
+      - 100
+      - 220
+      families: 2
+      average_degree: 14
+      alphas:
+      - 0.15
+      - 0.8
+      chis:
+      - 0.2
+      - 0.45
+      event_rate: 0.7
+    activity_memory:
+      enabled: true
+      sizes:
+      - 150
+      families: 2
+      modes:
+      - memoryless
+      - 1.0
+      slots_per_window: 20
+      mean_activity: 0.06
+    synthetic_twins:
+      enabled: true
+      substrates:
+      - dcsbm
+      sizes:
+      - 180
+      families: 2
+      targets:
+      - 0.12
+      - 0.42
+      reps: 1
+      timestamp_modes:
+      - uniform
+    legacy_controls:
+      enabled: false
+      substrates:
+      - er
+      - ba
+    walks:
+      strategies:
+      - time_agnostic_t
+      - time_respecting
+      - recency_biased
+      - recent_history
+      - time_agnostic
+      budgets:
+      - 50
+      - 120
+      seeds: 1
+      recent_history_k: 10
+      recency_decay_scale: 0.1
+      time_agnostic_sentinel_fraction: 0.25
+  full:
+    W: 5
+    seed: 20260710
+    real:
+      enabled: true
+      datasets:
+      - sp_hospital
+      - sp_primaryschool
+      - sp_highschool2013
+      - sp_hypertext2009
+      - snap_collegemsg
+      - snap_email_eu
+      - snap_mathoverflow
+      - jodie_wikipedia
+      - jodie_reddit
+      - jodie_lastfm
+      variant_datasets:
+      - sp_hospital
+      - sp_primaryschool
+      - sp_highschool2013
+      - sp_hypertext2009
+      - snap_collegemsg
+      - snap_email_eu
+      min_datasets: 4
+      shuffle_reps: 3
+      controlled_targets:
+      - 0.1
+      - 0.3
+      - 0.5
+      controlled_reps: 2
+    dar:
+      enabled: true
+      substrates:
+      - dcsbm
+      - lfr
+      sizes:
+      - 500
+      - 2000
+      families: 3
+      average_degree: 24
+      alphas:
+      - 0.1
+      - 0.5
+      - 0.9
+      chis:
+      - 0.15
+      - 0.35
+      event_rate: 1.0
+    activity_memory:
+      enabled: true
+      sizes:
+      - 500
+      - 2000
+      families: 3
+      modes:
+      - memoryless
+      - 0.5
+      - 1.0
+      slots_per_window: 40
+      mean_activity: 0.04
+    synthetic_twins:
+      enabled: true
+      substrates:
+      - dcsbm
+      sizes:
+      - 500
+      - 2000
+      families: 3
+      targets:
+      - 0.08
+      - 0.22
+      - 0.38
+      - 0.54
+      reps: 2
+      timestamp_modes:
+      - uniform
+      - bursty
+    legacy_controls:
+      enabled: false
+      substrates:
+      - er
+      - ba
+    walks:
+      strategies:
+      - time_agnostic_t
+      - time_respecting
+      - recency_biased
+      - recent_history
+      - time_agnostic
+      budgets:
+      - 100
+      - 400
+      - 1600
+      - 3200
+      seeds: 3
+      recent_history_k: 20
+      recency_decay_scale: 0.1
+      time_agnostic_sentinel_fraction: 0.1
+  v2_smoke:
+    W: 5
+    seed: 20260711
+    real:
+      enabled: false
+      datasets: []
+      variant_datasets: []
+      min_datasets: 0
+      chunks: {}
+      shuffle_modes: []
+      shuffle_reps: 0
+      controlled_targets: []
+      controlled_reps: 0
+      controlled_timestamp_modes:
+      - bursty
+      controlled_span_layouts:
+      - contiguous
+    dar:
+      enabled: true
+      substrates:
+      - dcsbm
+      sizes:
+      - 100
+      families: 2
+      average_degree: 12
+      alphas:
+      - 0.2
+      - 0.8
+      chis:
+      - 0.05
+      - 0.3
+      event_rate: 0.7
+      heterogeneous:
+        enabled: true
+        means:
+        - 0.5
+        concentrations:
+        - 6.0
+        chis:
+        - 0.1
+      community_correlated:
+        enabled: true
+        pairs:
+        - - 0.8
+          - 0.2
+        chis:
+        - 0.1
+    activity_memory:
+      enabled: true
+      sizes:
+      - 120
+      families: 2
+      modes:
+      - memoryless
+      - 1.0
+      slots_per_window: 20
+      mean_activity: 0.08
+    renewal:
+      enabled: true
+      substrates:
+      - dcsbm
+      sizes:
+      - 120
+      families: 1
+      average_degree: 12
+      lifetime_means:
+      - 1.5
+      - 3.5
+      iet_shapes:
+      - 1.4
+      - 2.5
+      events_per_active_window: 1.0
+    synthetic_twins:
+      enabled: true
+      substrates:
+      - dcsbm
+      sizes:
+      - 140
+      families: 2
+      targets:
+      - 0.08
+      - 0.35
+      - 0.6
+      reps: 1
+      timestamp_modes:
+      - uniform
+      - bursty
+      span_layouts:
+      - legacy
+      - contiguous
+    legacy_controls:
+      enabled: false
+      substrates:
+      - er
+      - ba
+    walks:
+      strategies:
+      - time_agnostic_t
+      - time_respecting
+      - recency_biased
+      - recent_history_k5
+      - recent_history_k20
+      - time_respecting_multistart3
+      - time_agnostic
+      budgets:
+      - 50
+      - 120
+      seeds: 1
+      recency_decay_scale: 0.1
+      time_agnostic_sentinel_fraction: 0.2
+      recent_events_json_limit: 100
+    evaluation:
+      inputs:
+      - occupancy
+      - combined_plus_estimators
+      targets:
+      - rho_W5_k2
+      - rho_W5_k3
+      - rho_W5_k4
+      - rho_W5_k5
+      - C_one_step
+      - mean_span_frac
+      - rho_event_weighted
+      strategy_blind:
+        enabled: false
+        models:
+        - extra_trees
+        inputs:
+        - combined
+        targets:
+        - rho_W5_k2
+      leave_one_block_out:
+        enabled: false
+      sim2real:
+        enabled: false
+      conditional_baseline: true
+      block_beta: true
+      group_folds: 3
+      models:
+      - ridge
+      - extra_trees
+      prediction_targets:
+      - rho_W5_k2
+  v2:
+    W: 5
+    seed: 20260711
+    real:
+      enabled: true
+      datasets:
+      - sp_hospital
+      - sp_primaryschool
+      - sp_highschool2013
+      - sp_hypertext2009
+      - sp_workplace
+      - snap_collegemsg
+      - snap_email_eu
+      - snap_mathoverflow
+      - snap_bitcoin_otc
+      - nr_radoslaw_email
+      - nr_enron_employees
+      - nr_digg_reply
+      - copenhagen_bluetooth
+      variant_datasets:
+      - sp_hospital
+      - sp_primaryschool
+      - sp_highschool2013
+      - sp_hypertext2009
+      - sp_workplace
+      - snap_collegemsg
+      - snap_email_eu
+      - snap_mathoverflow
+      min_datasets: 6
+      chunks:
+        snap_collegemsg: 3
+        snap_email_eu: 4
+        snap_mathoverflow: 4
+        nr_enron_employees: 3
+        nr_digg_reply: 3
+      min_chunk_events: 500
+      shuffle_modes:
+      - global
+      - within_window
+      - lifetime_resample
+      - edge_rewire
+      shuffle_reps: 2
+      controlled_targets:
+      - 0.05
+      - 0.15
+      - 0.25
+      - 0.35
+      - 0.45
+      - 0.55
+      - 0.6
+      controlled_reps: 2
+      controlled_timestamp_modes:
+      - bursty
+      controlled_span_layouts:
+      - legacy
+      - contiguous
+    dar:
+      enabled: true
+      substrates:
+      - dcsbm
+      - lfr
+      sizes:
+      - 500
+      - 1500
+      families: 3
+      average_degree: 24
+      alphas:
+      - 0.1
+      - 0.5
+      - 0.9
+      chis:
+      - 0.05
+      - 0.15
+      - 0.35
+      event_rate: 1.0
+      heterogeneous:
+        enabled: true
+        means:
+        - 0.3
+        - 0.7
+        concentrations:
+        - 4.0
+        - 12.0
+        chis:
+        - 0.05
+        - 0.2
+      community_correlated:
+        enabled: true
+        pairs:
+        - - 0.8
+          - 0.2
+        - - 0.55
+          - 0.1
+        chis:
+        - 0.05
+        - 0.2
+    activity_memory:
+      enabled: true
+      sizes:
+      - 500
+      - 1500
+      families: 3
+      modes:
+      - memoryless
+      - 0.5
+      - 1.0
+      slots_per_window: 50
+      mean_activity: 0.08
+    renewal:
+      enabled: true
+      substrates:
+      - dcsbm
+      sizes:
+      - 500
+      - 1500
+      families: 3
+      average_degree: 20
+      lifetime_means:
+      - 1.4
+      - 2.5
+      - 4.0
+      iet_shapes:
+      - 1.3
+      - 2.5
+      events_per_active_window: 1.2
+    synthetic_twins:
+      enabled: true
+      substrates:
+      - dcsbm
+      sizes:
+      - 500
+      - 1500
+      families: 3
+      targets:
+      - 0.05
+      - 0.15
+      - 0.25
+      - 0.35
+      - 0.45
+      - 0.55
+      - 0.6
+      reps: 1
+      timestamp_modes:
+      - uniform
+      - bursty
+      span_layouts:
+      - legacy
+      - contiguous
+    legacy_controls:
+      enabled: false
+      substrates:
+      - er
+      - ba
+    walks:
+      strategies:
+      - time_agnostic_t
+      - time_respecting
+      - recency_biased
+      - recent_history_k5
+      - recent_history_k20
+      - time_respecting_multistart3
+      - time_agnostic
+      budgets:
+      - 100
+      - 400
+      - 800
+      - 1600
+      - 3200
+      seeds: 4
+      recency_decay_scale: 0.1
+      time_agnostic_sentinel_fraction: 0.05
+      recent_events_json_limit: 100
+    evaluation:
+      inputs:
+      - occupancy
+      - patterns
+      - crawl
+      - combined
+      - combined_plus_estimators
+      targets:
+      - rho_W5_k2
+      - rho_W5_k3
+      - rho_W5_k4
+      - rho_W5_k5
+      - C_one_step
+      - mean_span_frac
+      - rho_event_weighted
+      - lifetime_mean_over_T
+      strategy_blind:
+        enabled: true
+        models:
+        - extra_trees
+        - hist_gradient_boosting
+        inputs:
+        - combined
+        - combined_plus_estimators
+        targets:
+        - rho_W5_k2
+        - lifetime_mean_over_T
+      leave_one_block_out:
+        enabled: true
+        models:
+        - extra_trees
+        - hist_gradient_boosting
+        inputs:
+        - combined
+        - combined_plus_estimators
+        min_train_groups: 5
+        targets:
+        - rho_W5_k2
+        - lifetime_mean_over_T
+      sim2real:
+        enabled: true
+        models:
+        - extra_trees
+        - hist_gradient_boosting
+        inputs:
+        - patterns
+        - combined
+        - combined_plus_estimators
+        train_blocks:
+        - mechanistic_dar
+        - mechanistic_dar_heterogeneous
+        - mechanistic_dar_correlated
+        - mechanistic_activity
+        - mechanistic_renewal
+        - synthetic_controlled
+        test_blocks:
+        - real_empirical
+        - real_chunk
+        targets:
+        - rho_W5_k2
+        - lifetime_mean_over_T
+      conditional_baseline: true
+      block_beta: true
+      models:
+      - ridge
+      - random_forest
+      - extra_trees
+      - hist_gradient_boosting
+      model_inputs:
+        ridge:
+        - combined
+        random_forest:
+        - combined
+        - combined_plus_estimators
+        extra_trees:
+        - occupancy
+        - patterns
+        - crawl
+        - combined
+        - combined_plus_estimators
+        hist_gradient_boosting:
+        - combined
+        - combined_plus_estimators
+      headline_only_pairs:
+      - extra_trees:occupancy
+      - extra_trees:crawl
+      prediction_targets:
+      - rho_W5_k2
+      - lifetime_mean_over_T
+evaluation:
+  group_folds: 5
+  inputs:
+  - occupancy
+  - patterns
+  - crawl
+  - combined
+  models:
+  - ridge
+  - random_forest
+  - extra_trees
+  - hist_gradient_boosting
+  targets:
+  - rho_W5_k2
+  - rho_W5_k3
+  - rho_W5_k4
+  - rho_W5_k5
+  - C_one_step
+  beta_grid:
+  - 0.0
+  - 0.5
+  - 1.0
+  - 1.5
+  - 2.0
+  - 2.5
+  - 3.0
+  coverage_bins:
+  - -1.0
+  - 0.01
+  - 0.05
+  - 0.2
+  - 1.01
+  coverage_labels:
+  - very_low(<.01)
+  - low(.01-.05)
+  - mid(.05-.20)
+  - high(>.20)
+  conditional_baseline: false
+  block_beta: false

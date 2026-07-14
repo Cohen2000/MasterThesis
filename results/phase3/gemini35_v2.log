@@ -1,0 +1,33 @@
+nohup: Eingabe wird ignoriert
+180 Prompts, 3 erledigt, 177 offen -> ../results/phase3/answers_gemini-3.5-flash.jsonl
+model=gemini-3.5-flash thinking_level=default (laut Doku medium) temperature=default (1.0) workers=3 sleep=4.5s
+    429 rate limit, warte 30s (Versuch 1/5)
+    429 rate limit, warte 30s (Versuch 1/5)
+    429 rate limit, warte 30s (Versuch 1/5)
+    429 rate limit, warte 60s (Versuch 2/5)
+    429 rate limit, warte 60s (Versuch 2/5)
+    429 rate limit, warte 60s (Versuch 2/5)
+    429 rate limit, warte 120s (Versuch 3/5)
+    429 rate limit, warte 120s (Versuch 3/5)
+    429 rate limit, warte 120s (Versuch 3/5)
+    429 rate limit, warte 240s (Versuch 4/5)
+    429 rate limit, warte 240s (Versuch 4/5)
+    429 rate limit, warte 240s (Versuch 4/5)
+UEBERSPRUNGEN ba20000f0|t0.254|r0|time_agnostic_t|b1600 | hidden: 429 auch nach allen Retries
+    429 rate limit, warte 30s (Versuch 1/5)
+UEBERSPRUNGEN ba20000f0|t0.254|r0|time_agnostic_t|b1600 | disclosed: 429 auch nach allen Retries
+UEBERSPRUNGEN ba20000f0|t0.254|r0|time_agnostic_t|b1600 | disclosed_calib: 429 auch nach allen Retries
+3 endgueltige Fehlschlaege in Folge, stoppe den Lauf. Neustart setzt automatisch fort (Resume).
+    429 rate limit, warte 30s (Versuch 1/5)
+UEBERSPRUNGEN ba20000f1|t0.312|r0|time_agnostic_t|b400 | hidden: Lauf gestoppt
+4 endgueltige Fehlschlaege in Folge, stoppe den Lauf. Neustart setzt automatisch fort (Resume).
+UEBERSPRUNGEN ba20000f1|t0.312|r0|time_agnostic_t|b400 | disclosed: Lauf gestoppt
+5 endgueltige Fehlschlaege in Folge, stoppe den Lauf. Neustart setzt automatisch fort (Resume).
+5 Prompts uebersprungen, erneut laufen lassen.
+
+=== gemini-3.5-flash: MAE gegen rho_true (3/3 geparst) ===
+strategy         time_agnostic_t    all
+condition                              
+disclosed                  0.043  0.043
+disclosed_calib            0.019  0.019
+hidden                     0.063  0.063

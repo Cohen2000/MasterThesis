@@ -1,0 +1,6 @@
+key	filename	page_url
+sp_workplace	workplace_InVS15_tij.dat.gz	https://sociopatterns.org/datasets/test/
+nr_radoslaw_email	ia-radoslaw-email.edges	https://networkrepository.com/ia-radoslaw-email.php
+nr_enron_employees	ia-enron-employees.edges	https://networkrepository.com/ia-enron-employees.php
+nr_digg_reply	ia-digg-reply.edges	https://networkrepository.com/ia-digg-reply.php
+copenhagen_bluetooth	copenhagen_bluetooth.csv.gz	https://www.copenhagenetworksstudy.org/

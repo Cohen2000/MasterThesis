@@ -1,0 +1,52 @@
+selected 84 cases (28 target/strategy), seed=20260712
+walk_seed=0, strategies=['time_agnostic_t', 'time_respecting', 'recent_history_k20']
+
+strategy x block
+block_group         dar  real  real_controlled  renewal  synthetic_controlled
+strategy                                                                     
+recent_history_k20    6     8                7        3                     4
+time_agnostic_t       6     8                7        3                     4
+time_respecting       6     8                7        3                     4
+
+strategy x band
+coverage_band       high(>.20)  low(.01-.05)  mid(.05-.20)  very_low(<.01)
+strategy                                                                  
+recent_history_k20           7             5             9               7
+time_agnostic_t             12             5             8               3
+time_respecting              5             5            13               5
+
+strategy x budget
+budget              100   400   1600  3200
+strategy                                  
+recent_history_k20     8     8     7     5
+time_agnostic_t        8     8     7     5
+time_respecting        8     8     7     5
+
+rho_k2 spectrum of selected cases
+                      min    25%    50%    75%    max
+strategy                                             
+recent_history_k20  0.025  0.206  0.392  0.519  0.898
+time_agnostic_t     0.025  0.218  0.350  0.530  0.906
+time_respecting     0.025  0.203  0.389  0.519  0.900
+
+restricted-set baseline MAE (k2, selected cases only)
+pred__floor        recent_history_k20=0.1885  time_agnostic_t=0.1958  time_respecting=0.1884
+pred__occ_mle      recent_history_k20=0.1596  time_agnostic_t=0.0974  time_respecting=0.2103
+pred__mask_mle     recent_history_k20=0.1489  time_agnostic_t=0.0815  time_respecting=0.2072
+pred__beta_block   recent_history_k20=0.1599  time_agnostic_t=0.0791  time_respecting=0.1685
+pred__et_combined  recent_history_k20=0.0928  time_agnostic_t=0.0716  time_respecting=0.0972
+pred__et_stacked   recent_history_k20=0.0944  time_agnostic_t=0.0579  time_respecting=0.0965
+
+restricted-set baseline MAE (mean occupancy, selected cases)
+pred_occ__plugin       recent_history_k20=0.1222  time_agnostic_t=0.1286  time_respecting=0.1314
+pred_occ__occ_mle      recent_history_k20=0.0651  time_agnostic_t=0.0583  time_respecting=0.0888
+pred_occ__mask_mle     recent_history_k20=0.0583  time_agnostic_t=0.049  time_respecting=0.0988
+occ floor (set mean)   recent_history_k20=0.0925  time_agnostic_t=0.0975  time_respecting=0.0921
+
+restricted-set baseline MAE (lifetime/T, selected cases)
+pred_lt__plugin_zero   recent_history_k20=0.1634  time_agnostic_t=0.1876  time_respecting=0.1982
+pred_lt__plugin_cond   recent_history_k20=0.0961  time_agnostic_t=0.1171  time_respecting=0.1582
+lifetime floor         recent_history_k20=0.1252  time_agnostic_t=0.1278  time_respecting=0.1248
+
+ablation_subset: 36, tool_use_subset: 24
+examples: 9 (groups disjoint from eval groups)

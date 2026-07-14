@@ -2,7 +2,7 @@
 # One-time setup. Run on the LOGIN node (it has internet; compute nodes do NOT).
 # This is only pip install, so it is fine on the login node.
 set -e
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 # Default cluster python is 3.9.x and works. To use a module python instead,
 # `module load devel/python/3.11` BEFORE running this script.
 python3 -m venv venv

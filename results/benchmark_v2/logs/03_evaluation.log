@@ -1,0 +1,159 @@
+90040 cases, 38 groups, 7 targets, strategies=['recency_biased', 'recent_history_k20', 'recent_history_k5', 'time_agnostic', 'time_agnostic_t', 'time_respecting', 'time_respecting_multistart3']
+[recency_biased] fold 1/5 complete
+[recency_biased] fold 2/5 complete
+[recency_biased] fold 3/5 complete
+[recency_biased] fold 4/5 complete
+[recency_biased] fold 5/5 complete
+[recent_history_k20] fold 1/5 complete
+[recent_history_k20] fold 2/5 complete
+[recent_history_k20] fold 3/5 complete
+[recent_history_k20] fold 4/5 complete
+[recent_history_k20] fold 5/5 complete
+[recent_history_k5] fold 1/5 complete
+[recent_history_k5] fold 2/5 complete
+[recent_history_k5] fold 3/5 complete
+[recent_history_k5] fold 4/5 complete
+[recent_history_k5] fold 5/5 complete
+[time_agnostic] fold 1/5 complete
+[time_agnostic] fold 2/5 complete
+[time_agnostic] fold 3/5 complete
+[time_agnostic] fold 4/5 complete
+[time_agnostic] fold 5/5 complete
+[time_agnostic_t] fold 1/5 complete
+[time_agnostic_t] fold 2/5 complete
+[time_agnostic_t] fold 3/5 complete
+[time_agnostic_t] fold 4/5 complete
+[time_agnostic_t] fold 5/5 complete
+[time_respecting] fold 1/5 complete
+[time_respecting] fold 2/5 complete
+[time_respecting] fold 3/5 complete
+[time_respecting] fold 4/5 complete
+[time_respecting] fold 5/5 complete
+[time_respecting_multistart3] fold 1/5 complete
+[time_respecting_multistart3] fold 2/5 complete
+[time_respecting_multistart3] fold 3/5 complete
+[time_respecting_multistart3] fold 4/5 complete
+[time_respecting_multistart3] fold 5/5 complete
+[strategy-blind] fold 1 complete
+[strategy-blind] fold 2 complete
+[strategy-blind] fold 3 complete
+[strategy-blind] fold 4 complete
+[strategy-blind] fold 5 complete
+[LOBO recency_biased] held out mechanistic_activity
+[LOBO recency_biased] held out mechanistic_dar
+[LOBO recency_biased] held out mechanistic_dar_correlated
+[LOBO recency_biased] held out mechanistic_dar_heterogeneous
+[LOBO recency_biased] held out mechanistic_renewal
+[LOBO recency_biased] held out real_chunk
+[LOBO recency_biased] held out real_controlled
+[LOBO recency_biased] held out real_empirical
+[LOBO recency_biased] held out real_shuffle_edge_rewire
+[LOBO recency_biased] held out real_shuffle_global
+[LOBO recency_biased] held out real_shuffle_lifetime_resample
+[LOBO recency_biased] held out real_shuffle_within_window
+[LOBO recency_biased] held out synthetic_controlled
+[LOBO recent_history_k20] held out mechanistic_activity
+[LOBO recent_history_k20] held out mechanistic_dar
+[LOBO recent_history_k20] held out mechanistic_dar_correlated
+[LOBO recent_history_k20] held out mechanistic_dar_heterogeneous
+[LOBO recent_history_k20] held out mechanistic_renewal
+[LOBO recent_history_k20] held out real_chunk
+[LOBO recent_history_k20] held out real_controlled
+[LOBO recent_history_k20] held out real_empirical
+[LOBO recent_history_k20] held out real_shuffle_edge_rewire
+[LOBO recent_history_k20] held out real_shuffle_global
+[LOBO recent_history_k20] held out real_shuffle_lifetime_resample
+[LOBO recent_history_k20] held out real_shuffle_within_window
+[LOBO recent_history_k20] held out synthetic_controlled
+[LOBO recent_history_k5] held out mechanistic_activity
+[LOBO recent_history_k5] held out mechanistic_dar
+[LOBO recent_history_k5] held out mechanistic_dar_correlated
+[LOBO recent_history_k5] held out mechanistic_dar_heterogeneous
+[LOBO recent_history_k5] held out mechanistic_renewal
+[LOBO recent_history_k5] held out real_chunk
+[LOBO recent_history_k5] held out real_controlled
+[LOBO recent_history_k5] held out real_empirical
+[LOBO recent_history_k5] held out real_shuffle_edge_rewire
+[LOBO recent_history_k5] held out real_shuffle_global
+[LOBO recent_history_k5] held out real_shuffle_lifetime_resample
+[LOBO recent_history_k5] held out real_shuffle_within_window
+[LOBO recent_history_k5] held out synthetic_controlled
+[LOBO time_agnostic] held out mechanistic_activity
+[LOBO time_agnostic] held out mechanistic_dar
+[LOBO time_agnostic] held out mechanistic_dar_correlated
+[LOBO time_agnostic] held out mechanistic_dar_heterogeneous
+[LOBO time_agnostic] held out mechanistic_renewal
+[LOBO time_agnostic] held out real_controlled
+[LOBO time_agnostic] held out real_empirical
+[LOBO time_agnostic] held out real_shuffle_within_window
+[LOBO time_agnostic] held out synthetic_controlled
+[LOBO time_agnostic_t] held out mechanistic_activity
+[LOBO time_agnostic_t] held out mechanistic_dar
+[LOBO time_agnostic_t] held out mechanistic_dar_correlated
+[LOBO time_agnostic_t] held out mechanistic_dar_heterogeneous
+[LOBO time_agnostic_t] held out mechanistic_renewal
+[LOBO time_agnostic_t] held out real_chunk
+[LOBO time_agnostic_t] held out real_controlled
+[LOBO time_agnostic_t] held out real_empirical
+[LOBO time_agnostic_t] held out real_shuffle_edge_rewire
+[LOBO time_agnostic_t] held out real_shuffle_global
+[LOBO time_agnostic_t] held out real_shuffle_lifetime_resample
+[LOBO time_agnostic_t] held out real_shuffle_within_window
+[LOBO time_agnostic_t] held out synthetic_controlled
+[LOBO time_respecting] held out mechanistic_activity
+[LOBO time_respecting] held out mechanistic_dar
+[LOBO time_respecting] held out mechanistic_dar_correlated
+[LOBO time_respecting] held out mechanistic_dar_heterogeneous
+[LOBO time_respecting] held out mechanistic_renewal
+[LOBO time_respecting] held out real_chunk
+[LOBO time_respecting] held out real_controlled
+[LOBO time_respecting] held out real_empirical
+[LOBO time_respecting] held out real_shuffle_edge_rewire
+[LOBO time_respecting] held out real_shuffle_global
+[LOBO time_respecting] held out real_shuffle_lifetime_resample
+[LOBO time_respecting] held out real_shuffle_within_window
+[LOBO time_respecting] held out synthetic_controlled
+[LOBO time_respecting_multistart3] held out mechanistic_activity
+[LOBO time_respecting_multistart3] held out mechanistic_dar
+[LOBO time_respecting_multistart3] held out mechanistic_dar_correlated
+[LOBO time_respecting_multistart3] held out mechanistic_dar_heterogeneous
+[LOBO time_respecting_multistart3] held out mechanistic_renewal
+[LOBO time_respecting_multistart3] held out real_chunk
+[LOBO time_respecting_multistart3] held out real_controlled
+[LOBO time_respecting_multistart3] held out real_empirical
+[LOBO time_respecting_multistart3] held out real_shuffle_edge_rewire
+[LOBO time_respecting_multistart3] held out real_shuffle_global
+[LOBO time_respecting_multistart3] held out real_shuffle_lifetime_resample
+[LOBO time_respecting_multistart3] held out real_shuffle_within_window
+[LOBO time_respecting_multistart3] held out synthetic_controlled
+[sim2real recency_biased] 9480 train -> 380 test
+[sim2real recent_history_k20] 9480 train -> 380 test
+[sim2real recent_history_k5] 9480 train -> 380 test
+[sim2real time_agnostic] 440 train -> 20 test
+[sim2real time_agnostic_t] 9480 train -> 380 test
+[sim2real time_respecting] 9480 train -> 380 test
+[sim2real time_respecting_multistart3] 9480 train -> 380 test
+wrote results/benchmark_v2/predictions.csv.gz, metrics.csv, rankings.csv, case_diagnostics.csv.gz, SCREEN_SUMMARY.md, headline_ranking.png
+	Command being timed: "nice -n 10 python src/evaluate_benchmark.py --preset v2 --cases results/benchmark_v2/cases_shard_*.csv.gz --out-dir results/benchmark_v2 --jobs 1"
+	User time (seconds): 28267.37
+	System time (seconds): 65.73
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 7:52:20
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4294116
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 25790
+	Minor (reclaiming a frame) page faults: 6337717
+	Voluntary context switches: 27354
+	Involuntary context switches: 279925
+	Swaps: 0
+	File system inputs: 1225424
+	File system outputs: 138208
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

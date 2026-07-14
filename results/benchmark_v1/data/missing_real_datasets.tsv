@@ -1,0 +1,5 @@
+key	filename	page_url
+snap_mathoverflow	sx-mathoverflow.txt.gz	https://snap.stanford.edu/data/sx-mathoverflow.html
+jodie_wikipedia	wikipedia.csv	https://snap.stanford.edu/jodie/
+jodie_reddit	reddit.csv	https://snap.stanford.edu/jodie/
+jodie_lastfm	lastfm.csv	https://snap.stanford.edu/jodie/

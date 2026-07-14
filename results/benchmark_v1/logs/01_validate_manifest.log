@@ -1,0 +1,1 @@
+manifest OK: 246 instances, 36 groups, blocks={'synthetic_controlled': 96, 'mechanistic_dar': 72, 'real_controlled': 36, 'real_shuffle': 18, 'mechanistic_activity': 18, 'real_empirical': 6}

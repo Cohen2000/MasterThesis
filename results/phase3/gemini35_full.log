@@ -1,0 +1,20 @@
+180 Prompts, 3 erledigt, 177 offen -> ../results/phase3/answers_gemini-3.5-flash.jsonl
+model=gemini-3.5-flash thinking_level=medium temperature=0.0 store=False
+[1/177] ba20000f0|t0.254|r0|time_agnostic_t|b1600 | hidden: pred=0.07 status=completed thought_tok=4526 114.3s (gesamt 1.9 min)
+[2/177] ba20000f0|t0.254|r0|time_agnostic_t|b1600 | disclosed: pred=0.185 status=completed thought_tok=4548 174.9s (gesamt 4.9 min)
+[3/177] ba20000f0|t0.254|r0|time_agnostic_t|b1600 | disclosed_calib: pred=0.19 status=completed thought_tok=5428 117.5s (gesamt 7.0 min)
+[4/177] ba20000f1|t0.312|r0|time_agnostic_t|b400 | hidden: pred=0.19 status=completed thought_tok=7760 203.6s (gesamt 10.5 min)
+[5/177] ba20000f1|t0.312|r0|time_agnostic_t|b400 | disclosed: pred=0.41 status=completed thought_tok=4102 211.4s (gesamt 14.1 min)
+[6/177] ba20000f1|t0.312|r0|time_agnostic_t|b400 | disclosed_calib: pred=0.43 status=completed thought_tok=6111 166.9s (gesamt 17.0 min)
+[7/177] ba20000f1|t0.463|r0|time_agnostic_t|b400 | hidden: pred=0.15 status=completed thought_tok=3915 46.2s (gesamt 17.8 min)
+    Netzfehler (HTTPSConnectionPool(host='generativelanguage.googleapis.com', port=443): Read timed out. (read timeout=300)), Retry in 20s
+    HTTP 500, Retry in 40s
+    HTTP 500, Retry in 80s
+    HTTP 500, Retry in 160s
+    HTTP 500, Retry in 300s
+180 Prompts, 10 erledigt, 170 offen -> ../results/phase3/answers_gemini-3.5-flash.jsonl
+model=gemini-3.5-flash thinking_level=medium temperature=0.0 store=False
+    HTTP 500, Retry in 20s
+    429 rate limit, warte 40s (Versuch 2/7)
+    429 rate limit, warte 80s (Versuch 3/7)
+    429 rate limit, warte 160s (Versuch 4/7)

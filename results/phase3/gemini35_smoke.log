@@ -1,0 +1,12 @@
+180 Prompts, 0 erledigt, 3 offen -> ../results/phase3/answers_gemini-3.5-flash.jsonl
+model=gemini-3.5-flash thinking_level=medium temperature=0.0 store=False
+[1/3] ba20000f0|t0.093|r0|time_agnostic_t|b400 | hidden: pred=0.022 status=completed thought_tok=2903 27.3s (gesamt 0.5 min)
+[2/3] ba20000f0|t0.093|r0|time_agnostic_t|b400 | disclosed: pred=0.05 status=completed thought_tok=2673 30.6s (gesamt 1.0 min)
+[3/3] ba20000f0|t0.093|r0|time_agnostic_t|b400 | disclosed_calib: pred=0.08 status=completed thought_tok=3917 25.9s (gesamt 1.5 min)
+
+=== gemini-3.5-flash: MAE gegen rho_true (3/3 geparst) ===
+strategy         time_agnostic_t    all
+condition                              
+disclosed                  0.043  0.043
+disclosed_calib            0.013  0.013
+hidden                     0.071  0.071

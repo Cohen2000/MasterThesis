@@ -152,3 +152,15 @@ datasets:
     file: "mooc.csv"
     format: {delimiter: ",", columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 1, bipartite: true}
     notes: "Optional. student-course interactions, ~1 month."
+
+  # ---------- Optional preprocessed Copenhagen Networks Study ----------
+  # The public CNS release has changed packaging over time. To avoid silently
+  # assuming a release-specific column layout, export Bluetooth encounters to
+  # this canonical three-column file before running the benchmark.
+  copenhagen_bluetooth:
+    label: "Copenhagen Networks Study Bluetooth (preprocessed)"
+    domain: proximity
+    page_url: "https://www.copenhagenetworksstudy.org/"
+    file: "copenhagen_bluetooth.csv.gz"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 1}
+    notes: "Optional canonical export with header u,v,t. Keep one row per Bluetooth encounter."

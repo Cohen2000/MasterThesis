@@ -1,0 +1,125 @@
+preset: full
+plan:
+  W: 5
+  seed: 20260710
+  real:
+    enabled: true
+    datasets:
+    - sp_hospital
+    - sp_primaryschool
+    - sp_highschool2013
+    - sp_hypertext2009
+    - snap_collegemsg
+    - snap_email_eu
+    - snap_mathoverflow
+    - jodie_wikipedia
+    - jodie_reddit
+    - jodie_lastfm
+    variant_datasets:
+    - sp_hospital
+    - sp_primaryschool
+    - sp_highschool2013
+    - sp_hypertext2009
+    - snap_collegemsg
+    - snap_email_eu
+    min_datasets: 4
+    shuffle_reps: 3
+    controlled_targets:
+    - 0.1
+    - 0.3
+    - 0.5
+    controlled_reps: 2
+  dar:
+    enabled: true
+    substrates:
+    - dcsbm
+    - lfr
+    sizes:
+    - 500
+    - 2000
+    families: 3
+    average_degree: 24
+    alphas:
+    - 0.1
+    - 0.5
+    - 0.9
+    chis:
+    - 0.15
+    - 0.35
+    event_rate: 1.0
+  activity_memory:
+    enabled: true
+    sizes:
+    - 500
+    - 2000
+    families: 3
+    modes:
+    - memoryless
+    - 0.5
+    - 1.0
+    slots_per_window: 40
+    mean_activity: 0.04
+  synthetic_twins:
+    enabled: true
+    substrates:
+    - dcsbm
+    sizes:
+    - 500
+    - 2000
+    families: 3
+    targets:
+    - 0.08
+    - 0.22
+    - 0.38
+    - 0.54
+    reps: 2
+    timestamp_modes:
+    - uniform
+    - bursty
+  legacy_controls:
+    enabled: false
+    substrates:
+    - er
+    - ba
+  walks:
+    strategies:
+    - time_agnostic_t
+    - time_respecting
+    - recency_biased
+    - recent_history
+    - time_agnostic
+    budgets:
+    - 100
+    - 400
+    - 1600
+    - 3200
+    seeds: 3
+    recent_history_k: 20
+    recency_decay_scale: 0.1
+    time_agnostic_sentinel_fraction: 0.1
+evaluation:
+  group_folds: 5
+  inputs:
+  - occupancy
+  - patterns
+  - crawl
+  - combined
+  models:
+  - ridge
+  - random_forest
+  - extra_trees
+  - hist_gradient_boosting
+  targets:
+  - rho_W5_k2
+  - rho_W5_k3
+  - rho_W5_k4
+  - rho_W5_k5
+  - C_one_step
+  beta_grid:
+  - 0.0
+  - 0.5
+  - 1.0
+  - 1.5
+  - 2.0
+  - 2.5
+  - 3.0

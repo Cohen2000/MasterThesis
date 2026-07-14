@@ -17,6 +17,11 @@ Strategies
                    chosen incident event with t > tau; dead end -> restart.
   recency_biased   like time_respecting, but among future events the weight is
                    exp(-(t - tau) / decay_scale): sooner events preferred.
+  recent_history   reverse-time temporal walk.  At each node it retrieves the
+                   k most recent incident events strictly before the current
+                   query time and samples one uniformly.  This mirrors the
+                   recent-neighbour access used by temporal-graph systems; it
+                   is a different access model from the forward short-gap walk.
 
 Budget accounting (fairness rule from the design):
   every log entry costs exactly 1 budget unit, both observed events ('step')
@@ -47,6 +52,7 @@ LOG_COLS = ["kind", "node", "u", "v", "t", "dt"]  # kind: 0=restart, 1=step
 @dataclass
 class TemporalGraphIndex:
     n_nodes: int
+    active_nodes: np.ndarray
     T: float
     W: int
     # per node: sorted event times, the other endpoint, canonical edge id parts
@@ -91,7 +97,10 @@ def build_index(events: pd.DataFrame, T: float = 1.0, W: int = 5) -> TemporalGra
     coll = [np.unique(nbr_other[x]) for x in range(n)]
     deg = np.array([len(c) for c in coll], dtype=np.int64)
     edge_times = {e: np.sort(np.array(ts)) for e, ts in edge_times.items()}
-    return TemporalGraphIndex(n_nodes=n, T=T, W=W, nbr_times=nbr_times,
+    active_nodes = np.flatnonzero(deg > 0).astype(np.int64)
+    if len(active_nodes) == 0:
+        raise ValueError("temporal graph contains no traversable edge")
+    return TemporalGraphIndex(n_nodes=n, active_nodes=active_nodes, T=T, W=W, nbr_times=nbr_times,
                               nbr_other=nbr_other, coll_adj=coll,
                               coll_deg=deg, edge_times=edge_times)
 
@@ -101,15 +110,24 @@ def build_index(events: pd.DataFrame, T: float = 1.0, W: int = 5) -> TemporalGra
 # ----------------------------------------------------------------------------
 
 def run_walk(idx: TemporalGraphIndex, strategy: str, max_budget: int,
-             seed: int, decay_scale: float = None) -> pd.DataFrame:
+             seed: int, decay_scale: float = None,
+             history_k: int = 20) -> pd.DataFrame:
     """One walk process under the given strategy until the budget is spent.
     Returns the log as a DataFrame with one row per budget unit."""
     rng = np.random.default_rng(seed)
     rng_aux = np.random.default_rng(seed ^ 0x9E3779B9)  # only for _t time sampling
     if decay_scale is None:
         decay_scale = idx.T / 10.0
-    temporal = strategy in ("time_respecting", "recency_biased")
-    record_time = strategy in ("time_respecting", "recency_biased", "time_agnostic_t")
+    valid = {"time_agnostic", "time_agnostic_t", "time_respecting",
+             "recency_biased", "recent_history"}
+    if strategy not in valid:
+        raise ValueError(f"unknown walk strategy {strategy!r}; choose from {sorted(valid)}")
+    if history_k < 1:
+        raise ValueError("history_k must be >= 1")
+    forward = strategy in ("time_respecting", "recency_biased")
+    backward = strategy == "recent_history"
+    temporal = forward or backward
+    record_time = temporal or strategy == "time_agnostic_t"
 
     kinds = np.empty(max_budget, np.int8)
     nodes = np.empty(max_budget, np.int64)
@@ -122,15 +140,22 @@ def run_walk(idx: TemporalGraphIndex, strategy: str, max_budget: int,
         # Walk start. CTDNE (Nguyen et al. 2018) samples the initial edge from a
         # global time-sorted distribution; under walk-limited access we instead
         # start from a random node at a uniform time. Access-faithful deviation.
-        x = int(rng.integers(idx.n_nodes))
-        tau = float(rng.uniform(0.0, idx.T)) if temporal else 0.0
+        x = int(idx.active_nodes[rng.integers(len(idx.active_nodes))])
+        if forward:
+            tau = float(rng.uniform(0.0, idx.T))
+        elif backward:
+            # Query from "now" and move strictly backwards.  Adding a tiny
+            # epsilon includes an event exactly at T in the first candidate set.
+            tau = float(idx.T + np.finfo(float).eps * max(1.0, idx.T))
+        else:
+            tau = 0.0
         kinds[i] = 0; nodes[i] = x
         return x, tau
 
     i = 0
     x, tau = place(i); i += 1
     while i < max_budget:
-        if temporal:
+        if forward:
             times = idx.nbr_times[x]
             j0 = int(np.searchsorted(times, tau, side="right"))
             if j0 >= len(times):                      # temporal dead end
@@ -149,13 +174,29 @@ def run_walk(idx: TemporalGraphIndex, strategy: str, max_budget: int,
                 # for a small in-between time; we use exp(-(t - tau)/scale),
                 # matching that intent (sign-corrected).
                 d = times[j0:] - tau
-                w = np.exp(-d / decay_scale)
+                # Subtract the minimum for numerical stability; it cancels in
+                # the normalized probabilities.
+                w = np.exp(-(d - d.min()) / decay_scale)
                 w /= w.sum()
                 j = j0 + int(rng.choice(len(w), p=w))
             y = int(idx.nbr_other[x][j]); te = float(times[j])
             a, b = (x, y) if x < y else (y, x)
             kinds[i] = 1; nodes[i] = y; us[i] = a; vs[i] = b
             ts[i] = te; dts[i] = te - tau
+            x, tau = y, te
+            i += 1
+        elif backward:
+            times = idx.nbr_times[x]
+            j1 = int(np.searchsorted(times, tau, side="left"))
+            if j1 <= 0:
+                x, tau = place(i); i += 1
+                continue
+            j0 = max(0, j1 - history_k)
+            j = int(rng.integers(j0, j1))
+            y = int(idx.nbr_other[x][j]); te = float(times[j])
+            a, b = (x, y) if x < y else (y, x)
+            kinds[i] = 1; nodes[i] = y; us[i] = a; vs[i] = b
+            ts[i] = te; dts[i] = tau - te
             x, tau = y, te
             i += 1
         else:
@@ -192,12 +233,20 @@ def summarize(log: pd.DataFrame, idx: TemporalGraphIndex, budget: int) -> dict:
     edges = list(zip(steps["u"].to_numpy(), steps["v"].to_numpy()))
     uniq_edges = set(edges)
     visited = set(L["node"].to_numpy().tolist())
+    observed_degree = {}
+    for a, b in uniq_edges:
+        observed_degree[a] = observed_degree.get(a, 0) + 1
+        observed_degree[b] = observed_degree.get(b, 0) + 1
+    observed_degree_values = list(observed_degree.values())
     feats.update({
         "unique_nodes": len(visited),
         "unique_edges": len(uniq_edges),
         "edge_revisit_rate": 1.0 - len(uniq_edges) / n_steps,
-        "deg_mean_visited": float(np.mean(idx.coll_deg[list(visited)])),
-        "deg_max_visited": float(np.max(idx.coll_deg[list(visited)])),
+        # Only degrees in the observed walk subgraph are legal partial-access
+        # features.  The old implementation read idx.coll_deg, i.e. the true
+        # full-graph degree, which is retained nowhere in the new benchmark.
+        "observed_deg_mean": float(np.mean(observed_degree_values)),
+        "observed_deg_max": float(np.max(observed_degree_values)),
     })
 
     # discovery slope: new-edge rate in first vs second half of the steps

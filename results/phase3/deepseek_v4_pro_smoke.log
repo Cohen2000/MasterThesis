@@ -1,0 +1,3 @@
+180 Prompts, 0 erledigt, 3 offen -> ../results/phase3/answers_deepseek-v4-pro.jsonl
+model=deepseek-v4-pro thinking=enabled reasoning_effort=high max_tokens=4096 max_usd=3.0 bisher≈$0.0000
+    Netzfehler (('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))), Retry in 15s

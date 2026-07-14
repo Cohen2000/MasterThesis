@@ -1,0 +1,25 @@
+nohup: Eingabe wird ignoriert
+180 Prompts, 3 erledigt, 177 offen -> ../results/phase3/answers_deepseek-v4-pro.jsonl
+model=deepseek-v4-pro thinking=enabled reasoning_effort=high max_tokens=65536 workers=2 max_usd=3.0 bisher~$0.0958
+[1/177] ba20000f0|t0.254|r0|time_agnostic_t|b1600 | hidden: pred=0.061 finish=stop reason_tok=29879 cost~$0.02630 cum~$0.1221 494.7s (0.1/min, ETA 1451 min)
+[2/177] ba20000f0|t0.254|r0|time_agnostic_t|b1600 | disclosed: pred=0.181 finish=stop reason_tok=29276 cost~$0.02588 cum~$0.1480 511.6s (0.2/min, ETA 748 min)
+[3/177] ba20000f0|t0.254|r0|time_agnostic_t|b1600 | disclosed_calib: pred=0.189 finish=stop reason_tok=19472 cost~$0.01736 cum~$0.1653 331.1s (0.2/min, ETA 798 min)
+[4/177] ba20000f1|t0.312|r0|time_agnostic_t|b400 | hidden: pred=0.0431 finish=stop reason_tok=33908 cost~$0.02976 cum~$0.1951 661.0s (0.2/min, ETA 846 min)
+[5/177] ba20000f1|t0.312|r0|time_agnostic_t|b400 | disclosed: pred=0.41 finish=stop reason_tok=33084 cost~$0.02901 cum~$0.2241 592.2s (0.2/min, ETA 813 min)
+[6/177] ba20000f1|t0.312|r0|time_agnostic_t|b400 | disclosed_calib: pred=0.426 finish=stop reason_tok=38940 cost~$0.03431 cum~$0.2584 640.9s (0.2/min, ETA 862 min)
+[7/177] ba20000f1|t0.463|r0|time_agnostic_t|b400 | hidden: pred=0.02 finish=stop reason_tok=43252 cost~$0.03791 cum~$0.2963 810.3s (0.2/min, ETA 902 min)
+[8/177] ba20000f1|t0.463|r0|time_agnostic_t|b400 | disclosed_calib: pred=0.585 finish=stop reason_tok=26999 cost~$0.02381 cum~$0.3202 355.3s (0.2/min, ETA 910 min)
+  ba20000f1|t0.463|r0|time_agnostic_t|b400 | disclosed: finish=length, eskaliere max_tokens auf 131072
+[9/177] ba20000f1|t0.463|r0|time_agnostic_t|b400 | disclosed: pred=0.541 finish=stop reason_tok=40188 cost~$0.09232 cum~$0.4125 491.9s (0.2/min, ETA 1013 min)
+[10/177] ba8000f0|t0.280|r0|time_agnostic_t|b400 | hidden: pred=0.084 finish=stop reason_tok=58737 cost~$0.05152 cum~$0.4640 724.3s (0.2/min, ETA 921 min)
+[11/177] ba8000f0|t0.280|r0|time_agnostic_t|b400 | disclosed_calib: pred=0.265 finish=stop reason_tok=27278 cost~$0.02399 cum~$0.4880 354.8s (0.2/min, ETA 921 min)
+[12/177] ba8000f0|t0.280|r0|time_agnostic_t|b400 | disclosed: pred=0.24 finish=stop reason_tok=50502 cost~$0.04422 cum~$0.5322 575.3s (0.2/min, ETA 878 min)
+[13/177] ba8000f1|t0.410|r0|time_agnostic_t|b400 | hidden: pred=0.097 finish=stop reason_tok=30511 cost~$0.02691 cum~$0.5591 396.3s (0.2/min, ETA 853 min)
+[14/177] ba8000f1|t0.410|r0|time_agnostic_t|b400 | disclosed: pred=0.284 finish=stop reason_tok=29373 cost~$0.02593 cum~$0.5850 355.5s (0.2/min, ETA 812 min)
+[15/177] ba8000f1|t0.410|r0|time_agnostic_t|b400 | disclosed_calib: pred=0.301 finish=stop reason_tok=62343 cost~$0.05449 cum~$0.6395 777.5s (0.2/min, ETA 871 min)
+[16/177] er20000f0|t0.484|r0|time_agnostic_t|b1600 | hidden: pred=0.16 finish=stop reason_tok=52972 cost~$0.04642 cum~$0.6860 678.1s (0.2/min, ETA 816 min)
+[17/177] er20000f0|t0.484|r0|time_agnostic_t|b1600 | disclosed: pred=0.44 finish=stop reason_tok=43537 cost~$0.03813 cum~$0.7241 536.2s (0.2/min, ETA 843 min)
+[18/177] er20000f0|t0.484|r0|time_agnostic_t|b1600 | disclosed_calib: pred=0.507 finish=stop reason_tok=49535 cost~$0.04349 cum~$0.7676 579.6s (0.2/min, ETA 801 min)
+[19/177] er20000f1|t0.415|r0|time_agnostic_t|b1600 | disclosed: pred=0.4 finish=stop reason_tok=10688 cost~$0.00962 cum~$0.7772 139.8s (0.2/min, ETA 774 min)
+[20/177] er20000f1|t0.415|r0|time_agnostic_t|b1600 | hidden: pred=0.4 finish=stop reason_tok=27739 cost~$0.02452 cum~$0.8017 373.0s (0.2/min, ETA 752 min)
+[21/177] er20000f1|t0.415|r0|time_agnostic_t|b1600 | disclosed_calib: pred=0.422 finish=stop reason_tok=27343 cost~$0.02403 cum~$0.8257 324.4s (0.2/min, ETA 731 min)
