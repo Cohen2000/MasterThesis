@@ -1,8 +1,56 @@
+# Python
 .venv/
 venv/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# Generated datasets and benchmark outputs
+data/raw/*
+!data/raw/.gitkeep
 data/benchmark_*/
-results/benchmark_smoke/
-results/benchmark_v2_smoke/
+results/
+
+# Runtime files
+*.log
+*.pid
+*.out
+nohup.out
 local_logs*/
+
+# Local backups and archives
+backup_before_*/
+*.zip
+*.tar.gz
+
+# Local literature collection
+literature/papers/
+
+# Models and caches
+models/
+checkpoints/
+.cache/
+huggingface/
+wandb/
+
+# Claude Code machine-specific settings
+.claude/settings.local.json
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Personal Claude Code instructions
+CLAUDE.local.md
