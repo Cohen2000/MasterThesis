@@ -22,15 +22,38 @@
 #
 # Model override (check your free-tier models in AI Studio first):
 #   GEMINI_MODEL=gemini-2.5-flash bash scripts/run_llm_v21_gemini.sh think
+#
+# Output budget: GEMINI_MAXTOK=0 omits max_tokens so the model may think as
+# long as it needs (server default applies). Truncation is a real outcome on
+# the frozen suite -- most of the spread in the failure-penalized numbers came
+# from non-responses, not worse answers -- so removing the cap removes a
+# confound rather than flattering the model. Verify on a smoke that
+# finish_reason is "stop" and not "length".
+#
+# Prompt/output override for probes and ablation cells (env, not flags):
+#   PROMPTS_FILE=results/llm_noise_probe/prompts.jsonl \
+#   OUT_FILE=results/llm_noise_probe/answers_gemini_minimal.jsonl \
+#   bash scripts/run_llm_v21_gemini.sh minimal
 set -euo pipefail
 
-PROMPTS="results/llm_v2/prompts.jsonl"   # frozen V2.1 suite (420 prompts)
+# Overridable so probes and ablation cells can reuse this runner. Both the
+# generation pass and the completion check below read these variables, which
+# is why --prompts/--out must NOT be passed as extra args: `remaining()` would
+# then count against the wrong file and the outer loop would never terminate.
+PROMPTS="${PROMPTS_FILE:-results/llm_v2/prompts.jsonl}"  # default: frozen 420
 OUTDIR="results/llm_v21"
 LOGDIR="$OUTDIR/logs"
-SMOKE_IDS="0b394cf2d923,3106eb7c74bb,90e26b753383"
+# Frozen-suite defaults (one per access strategy). Override for probes:
+# the ids must exist in $PROMPTS_FILE or the run finds nothing to do.
+SMOKE_IDS="${SMOKE_IDS:-0b394cf2d923,3106eb7c74bb,90e26b753383}"
 BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
 
-MODEL="${GEMINI_MODEL:-gemini-3-flash}"
+# default chosen from the project's actual free-tier quotas (AI Studio
+# rate-limit page, 2026-07-15): gemini-3.1-flash-lite has 500 requests/day
+# at 15 RPM -- the only text model with enough daily quota for a 420-prompt
+# mode. The bigger flash models (3.5/3/2.5) allow only 20 requests/day.
+# NOTE: both modes share the model's daily quota -> run one mode per day.
+MODEL="${GEMINI_MODEL:-gemini-3.1-flash-lite}"
 SLEEP_S="${GEMINI_SLEEP:-7}"            # pace below the free-tier RPM limit
 MAX_WAIT="${GEMINI_MAX_WAIT:-3600}"     # cap for the 429 quota backoff
 MAX_PASSES="${GEMINI_MAX_PASSES:-40}"   # stop retrying incompletes forever
@@ -41,12 +64,15 @@ shift || true
 case "$MODE" in
   think)
     EFFORT="high"
-    MAXTOK=16384
+    # Gemini counts thinking tokens against max_tokens; the smoke run hit
+    # "length" at 16384 with effort=high -> 32768 gives headroom.
+    # GEMINI_MAXTOK=0 removes the cap entirely (the server default applies).
+    MAXTOK="${GEMINI_MAXTOK:-32768}"
     THOUGHTS=(--include-thoughts)
     ;;
   minimal)
     EFFORT="minimal"
-    MAXTOK=8192
+    MAXTOK="${GEMINI_MAXTOK:-8192}"
     THOUGHTS=()
     ;;
   *)
@@ -56,8 +82,8 @@ case "$MODE" in
 esac
 
 TAG="${MODEL##*/}_${MODE}"
-OUT="$OUTDIR/answers_${TAG}.jsonl"
-LOG="$LOGDIR/${TAG}.log"
+OUT="${OUT_FILE:-$OUTDIR/answers_${TAG}.jsonl}"
+LOG="${LOG_FILE:-$LOGDIR/${TAG}.log}"
 
 # --smoke selects the three fixed smoke prompts and separate smoke files
 SMOKE=0
@@ -65,8 +91,11 @@ EXTRA=()
 for a in "$@"; do
     if [ "$a" = "--smoke" ]; then
         SMOKE=1
-        OUT="$OUTDIR/answers_${TAG}_smoke.jsonl"
-        LOG="$LOGDIR/${TAG}_smoke.log"
+        # An explicit OUT_FILE/LOG_FILE wins: a probe smoke must not be
+        # appended to the frozen suite's smoke file just because --smoke was
+        # passed. Only derive the _smoke name when nothing was requested.
+        [ -n "${OUT_FILE:-}" ] || OUT="$OUTDIR/answers_${TAG}_smoke.jsonl"
+        [ -n "${LOG_FILE:-}" ] || LOG="$LOGDIR/${TAG}_smoke.log"
         EXTRA+=(--ids "$SMOKE_IDS")
     else
         EXTRA+=("$a")
@@ -109,6 +138,17 @@ if [ "$SMOKE" -eq 1 ]; then
     run_pass
     exit 0
 fi
+
+# --limit caps a single pass, not the run. Looping would re-enter it up to
+# GEMINI_MAX_PASSES times and quietly generate MAX_PASSES*limit records, so a
+# limited invocation is deliberately one pass only.
+for a in ${EXTRA[@]+"${EXTRA[@]}"}; do
+    if [ "$a" = "--limit" ]; then
+        echo "--limit given: running a single pass, not the completion loop"
+        run_pass
+        exit 0
+    fi
+done
 
 pass=1
 while true; do

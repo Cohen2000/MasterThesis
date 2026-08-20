@@ -9,6 +9,12 @@
 #   mistral-high    Mistral Small 4, reasoning_effort=high
 #   dsv4-think      DeepSeek V4 Pro, chat_template_kwargs.thinking=true
 #   dsv4-nothink    DeepSeek V4 Pro, chat_template_kwargs.thinking=false
+#                   NOTE: deepseek-v4-pro reached end of life 2026-08-07 and
+#                   now answers HTTP 410. Both dsv4-* modes are kept for the
+#                   record and no longer run.
+#   dsv4-flash      DeepSeek V4 Flash (0731), non-thinking -- the available
+#                   DeepSeek on NIM as of 2026-08-20, and version-pinned in
+#                   its own model id
 #
 # Smoke test (3 real prompts, one per access strategy, separate out/log):
 #   bash scripts/run_llm_v21_nim.sh mistral-high --smoke
@@ -27,11 +33,18 @@ case "$MODE" in
   mistral-none)
     # fast instant-reply mode, equivalent to Mistral Small 3.2 style
     # (Mistral Small 3.x guidance: low temperature ~0.15)
+    # Full run 2026-07-15: 59% of the first 175 records hit the 4096 cap
+    # (the model enumerates edges/windows verbosely before the JSON; stop
+    # records had median 3210 / p90 3963 tokens) and temp 0.15 makes
+    # retries near-deterministic -> budget 4096 -> 16384 + --stream.
+    # Records completed under the old cap are unaffected (a cap does not
+    # change sampling below it).
     TAG="mistral-small-4_none"
     ARGS=(--model mistralai/mistral-small-4-119b-2603
           --reasoning-effort none
           --temperature 0.15
-          --max-tokens 4096)
+          --max-tokens 16384
+          --stream)
     ;;
   mistral-high)
     # deep reasoning mode, Magistral-equivalent verbosity
@@ -60,6 +73,36 @@ case "$MODE" in
           --temperature 1.0
           --max-tokens 16384
           --stream)
+    ;;
+  dsv4-flash)
+    # Successor arm after deepseek-v4-pro was retired. The date suffix pins
+    # the version, which the -pro id never did. Same non-thinking sampling as
+    # the retired mode so the rows stay comparable in character.
+    # If NIM rejects chat_template_kwargs for this model (HTTP 400), rerun
+    # with `--thinking none`: that sends no toggle at all and lets the model
+    # default, at the cost of a larger token budget.
+    TAG="deepseek-v4-flash-0731_nothink"
+    ARGS=(--model deepseek-ai/deepseek-v4-flash-0731
+          --thinking off
+          --temperature 1.0
+          # NIM_MAXTOK=0 omits max_tokens so the model may think as long as it
+          # needs; the server default then applies. Check finish_reason on a
+          # smoke before trusting it.
+          --max-tokens "${NIM_MAXTOK:-8192}"
+          # Same gateway-timeout lesson as dsv4-think: a non-streaming request
+          # dies with HTTP 504 when the generation outlasts the gateway, and
+          # dropping the token cap makes long generations more likely, not
+          # less. Streaming keeps bytes flowing so the connection survives.
+          --stream
+          # The free endpoint answers HTTP 529 when it is busy. With a wait
+          # budget that is backpressure to sit out, not a failed prompt --
+          # but bounded, so a permanently overloaded endpoint fails visibly
+          # after NIM_TOTAL_WAIT instead of parking the run on prompt 1.
+          --rate-limit-max-wait "${NIM_MAX_WAIT:-120}"
+          --rate-limit-total-wait "${NIM_TOTAL_WAIT:-600}"
+          # 504s consume retry attempts (they are not backpressure), so a
+          # flaky gateway needs more headroom than the default six.
+          --retries "${NIM_RETRIES:-12}")
     ;;
   dsv4-nothink)
     TAG="deepseek-v4-pro_nothink"

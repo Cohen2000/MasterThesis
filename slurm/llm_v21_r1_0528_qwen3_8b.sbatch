@@ -11,7 +11,7 @@
 # OPTIONAL: DeepSeek-R1-0528-Qwen3-8B (Qwen3 architecture, DeepSeek R1 tuning).
 # Official sampling (DeepSeek model card): temperature 0.6, top_p 0.95.
 # Requires a transformers version with Qwen3 support (>= 4.51); the pinned
-# pilot venv has 4.46.3 -> run the compat check in docs/llm_v21_run_plan.md
+# pilot venv has 4.46.3 -> run the compat check in docs/LLM_V21_RUNS.md
 # BEFORE submitting. The template thinks by default -> --thinking none.
 set -e
 MODEL="deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"

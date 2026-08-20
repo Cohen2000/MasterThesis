@@ -104,7 +104,8 @@ def is_complete_record(record):
     if finish_reason.startswith("error") or finish_reason == "length":
         return False
     obj = extract_last_json(record.get("answer"))
-    return isinstance(obj, dict) and all(k in obj for k in PRED_KEYS)
+    required = record.get("required_keys") or PRED_KEYS
+    return isinstance(obj, dict) and all(k in obj for k in required)
 
 
 def load_prompts(path, shard_index, shard_count, only_ids):
@@ -136,6 +137,52 @@ def done_ids(out_path):
                 except (json.JSONDecodeError, KeyError):
                     continue
     return ids
+
+
+def attempt_stats(out_path):
+    """Return per-prompt attempt and length-truncation counts.
+
+    Malformed lines are ignored.  These counts let long-running batch jobs
+    prefer unseen prompts and avoid deterministically regenerating the same
+    length-truncated answer at an unchanged token budget.
+    """
+    attempts, lengths = {}, {}
+    if Path(out_path).exists():
+        with open(out_path) as fh:
+            for line in fh:
+                try:
+                    record = json.loads(line)
+                    prompt_id = record["prompt_id"]
+                except (json.JSONDecodeError, KeyError):
+                    continue
+                attempts[prompt_id] = attempts.get(prompt_id, 0) + 1
+                if str(record.get("finish_reason") or "").lower() == "length":
+                    lengths[prompt_id] = lengths.get(prompt_id, 0) + 1
+    return attempts, lengths
+
+
+def select_todo(rows, out_path, max_length_attempts=0):
+    """Select incomplete prompts, with unseen prompts first.
+
+    ``max_length_attempts=0`` preserves the historical unlimited-retry
+    behavior.  A positive value suppresses prompts that already accumulated
+    that many ``finish_reason=length`` records.  The cap is deliberately
+    specific to truncation: transient errors and malformed replies remain
+    retryable.
+    """
+    done = done_ids(out_path)
+    attempts, lengths = attempt_stats(out_path)
+    todo = [
+        row for row in rows
+        if row["prompt_id"] not in done
+        and (max_length_attempts <= 0
+             or lengths.get(row["prompt_id"], 0) < max_length_attempts)
+    ]
+    todo.sort(key=lambda row: (
+        attempts.get(row["prompt_id"], 0),
+        row["prompt_id"],
+    ))
+    return done, todo, lengths
 
 
 # ---------------------------------------------------------------- api backend
@@ -209,15 +256,44 @@ def read_stream(resp):
             "usage": usage, "model": model}
 
 
+# Transient server-side conditions: retry rather than record a failure.
+# 529 is non-standard but is what NVIDIA NIM (and others) return for
+# "overloaded". It was missing here, so a single busy moment on the endpoint
+# turned into a permanent error record for that prompt on the first attempt.
+RETRYABLE_STATUS = (408, 409, 429, 500, 502, 503, 504, 529)
+
+# Backpressure proper: the server is telling us to slow down, not that the
+# request was wrong. Under --rate-limit-max-wait these wait patiently without
+# consuming a retry attempt.
+BACKPRESSURE_STATUS = (429, 503, 529)
+
+
 def api_call(base_url, api_key, model, prompt, temperature, max_tokens,
              thinking, timeout, retries, sleep, top_p=None,
              reasoning_effort=None, extra_body=None, rate_limit_max_wait=0.0,
-             stream=False):
+             stream=False, rate_limit_total_wait=0.0,
+             max_tokens_param="max_tokens"):
     url = base_url.rstrip("/") + "/chat/completions"
     body = {"model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": temperature,
-            "max_tokens": max_tokens}
+            "messages": [{"role": "user", "content": prompt}]}
+    # A negative temperature means "do not send the field". Several reasoning
+    # endpoints reject any explicit temperature and 400 the request; omitting
+    # it is the only way to reach them, and it is a distinct run condition
+    # from a chosen value, so it is recorded as null rather than as a number.
+    if temperature is not None and temperature >= 0:
+        body["temperature"] = temperature
+    if max_tokens:
+        # OpenAI reasoning models reject `max_tokens` outright and require
+        # `max_completion_tokens`; NIM and the Gemini compatibility layer take
+        # the classic name. Same number, different key, so the caller chooses.
+        body[max_tokens_param] = max_tokens
+    # max_tokens = 0 omits the field entirely and lets the server apply its own
+    # limit. That removes the truncation confound -- on the frozen suite most
+    # of the spread in the failure-penalized numbers came from non-responses,
+    # not from worse answers -- but it does NOT guarantee an unlimited budget:
+    # the server default applies, and on some OpenAI-compatible backends that
+    # default is *smaller* than an explicit large value. Check finish_reason
+    # on a smoke before trusting it.
     if stream:
         body["stream"] = True
         body["stream_options"] = {"include_usage": True}
@@ -236,6 +312,13 @@ def api_call(base_url, api_key, model, prompt, temperature, max_tokens,
     last_err = None
     attempt = 0
     quota_wait = max(sleep, 1.0)  # doubling backoff for patient 429 handling
+    # Patient waiting must not be unbounded. The backpressure branch below
+    # deliberately does not consume a retry attempt, so without a ceiling a
+    # persistently overloaded endpoint parks the run on its first prompt
+    # forever, writing nothing and reporting nothing. Past this budget the
+    # same status falls through to the ordinary retry path and the prompt is
+    # eventually recorded as failed, so the run moves on and stays visible.
+    waited_total = 0.0
     while attempt < retries:
         req = urllib.request.Request(
             url, data=data, method="POST",
@@ -249,10 +332,15 @@ def api_call(base_url, api_key, model, prompt, temperature, max_tokens,
                 else:
                     out = json.loads(resp.read().decode())
             msg = out["choices"][0].get("message", {})
+            answer = msg.get("content") or ""
+            reasoning = msg.get("reasoning_content") or msg.get("reasoning")
+            if not reasoning:
+                # Gemini inlines thought summaries into content as
+                # <thought>...</thought>; keep reasoning/answer separate
+                reasoning, answer = split_think(answer)
             return {
-                "answer": msg.get("content") or "",
-                "reasoning": (msg.get("reasoning_content")
-                              or msg.get("reasoning")),
+                "answer": answer,
+                "reasoning": reasoning,
                 "finish_reason": out["choices"][0].get("finish_reason"),
                 "usage": out.get("usage"),
                 "model_echo": out.get("model"),
@@ -262,19 +350,28 @@ def api_call(base_url, api_key, model, prompt, temperature, max_tokens,
             detail = e.read(2000).decode(errors="replace")
             last_err = f"HTTP {e.code}: {detail[:500]}"
             suggested = retry_wait_seconds(e.headers, detail)
-            if e.code == 429 and rate_limit_max_wait > 0:
-                # free-tier quota mode: 429 means "wait", not "fail" -- do
+            over_budget = (rate_limit_total_wait > 0
+                           and waited_total >= rate_limit_total_wait)
+            if (e.code in BACKPRESSURE_STATUS and rate_limit_max_wait > 0
+                    and not over_budget):
+                # free-tier quota mode: these mean "wait", not "fail" -- do
                 # not consume an attempt; RPM quotas recover within a
-                # minute, daily quotas reset at midnight Pacific
+                # minute, daily quotas reset at midnight Pacific, and 529
+                # (provider overloaded) clears when capacity frees up
                 wait = min(max(quota_wait, suggested), rate_limit_max_wait)
+                if rate_limit_total_wait > 0:
+                    wait = min(wait, rate_limit_total_wait - waited_total)
                 quota_wait = min(quota_wait * 2, rate_limit_max_wait)
-                print(f"  [rate-limit] {last_err[:120]} -> wait {wait:.0f}s",
-                      flush=True)
+                waited_total += wait
+                budget = (f"/{rate_limit_total_wait:.0f}s"
+                          if rate_limit_total_wait > 0 else "")
+                print(f"  [rate-limit] {last_err[:100]} -> wait {wait:.0f}s "
+                      f"(waited {waited_total:.0f}s{budget})", flush=True)
                 time.sleep(wait)
                 continue
             attempt += 1
             wait = max(sleep * (2 ** (attempt - 1)), suggested)
-            if e.code in (408, 409, 429, 500, 502, 503, 504):
+            if e.code in RETRYABLE_STATUS:
                 print(f"  [retry {attempt}/{retries}] {last_err[:120]} "
                       f"-> wait {wait:.1f}s", flush=True)
                 time.sleep(wait)
@@ -295,23 +392,33 @@ def api_call(base_url, api_key, model, prompt, temperature, max_tokens,
 
 # ----------------------------------------------------------------- hf backend
 def split_think(text):
-    """Split '<think>...</think> tail' into (reasoning, answer).
+    """Split a leading think block into (reasoning, answer).
 
+    Handles '<think>...</think>' (DeepSeek/Qwen style, split at the first
+    close) and '<thought>...</thought>' (Gemini thought summaries inlined
+    into content; possibly several blocks, split at the last close).
     Lossless: reasoning + answer together cover the full generated text.
-    Without a closing </think> everything stays in "answer" (a truncated
-    think block then fails the resume completeness check and is retried).
+    Without a closing tag everything stays in "answer" (a truncated think
+    block then fails the resume completeness check and is retried).
     """
-    if not isinstance(text, str) or "</think>" not in text:
+    if not isinstance(text, str):
         return None, text
-    head, tail = text.split("</think>", 1)
-    if head.startswith("<think>"):
-        head = head[len("<think>"):]
-    return head.strip(), tail.strip()
+    if "</thought>" in text:
+        head, tail = text.rsplit("</thought>", 1)
+        head = head.replace("<thought>", "").replace("</thought>", "\n")
+        return head.strip(), tail.strip()
+    if "</think>" in text:
+        head, tail = text.split("</think>", 1)
+        if head.startswith("<think>"):
+            head = head[len("<think>"):]
+        return head.strip(), tail.strip()
+    return None, text
 
 
 class HFModel:
     def __init__(self, model_name, max_new_tokens, temperature,
-                 top_p=None, top_k=None, seed=0, thinking="none"):
+                 top_p=None, top_k=None, seed=0, thinking="none",
+                 repetition_penalty=None, no_repeat_ngram_size=None):
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
         self.torch = torch
@@ -326,8 +433,16 @@ class HFModel:
         self.top_k = top_k
         self.seed = seed
         self.thinking = thinking
+        # The Qwen3.6 model card recommends presence_penalty 1.5 to stop
+        # non-thinking runs degenerating into repetition. transformers'
+        # generate() has no presence_penalty; repetition_penalty and
+        # no_repeat_ngram_size are the available equivalents. They are NOT
+        # numerically interchangeable -- repetition_penalty rescales logits
+        # multiplicatively, so useful values sit near 1.05-1.15, not 1.5.
+        self.repetition_penalty = repetition_penalty
+        self.no_repeat_ngram_size = no_repeat_ngram_size
 
-    def __call__(self, prompt):
+    def __call__(self, prompt, gen_seed=None):
         msgs = [{"role": "user", "content": prompt}]
         template_kwargs = {}
         if self.thinking in ("on", "off"):
@@ -343,6 +458,10 @@ class HFModel:
                           add_special_tokens=False).to(self.model.device)
         gen_kwargs = {"max_new_tokens": self.max_new_tokens,
                       "pad_token_id": self.tok.eos_token_id}
+        if self.repetition_penalty:
+            gen_kwargs["repetition_penalty"] = self.repetition_penalty
+        if self.no_repeat_ngram_size:
+            gen_kwargs["no_repeat_ngram_size"] = self.no_repeat_ngram_size
         if self.temperature and self.temperature > 0:
             gen_kwargs.update(do_sample=True, temperature=self.temperature)
             if self.top_p is not None:
@@ -352,8 +471,12 @@ class HFModel:
         else:
             gen_kwargs.update(do_sample=False)
         t0 = time.time()
-        # reseed per generation: results do not depend on resume order
-        self.torch.manual_seed(self.seed)
+        # Reseed per generation so results do not depend on resume order.
+        # A record may carry its own `gen_seed`: without one, two identical
+        # prompts in the same run decode byte-identically, which would make a
+        # repeated-sampling probe measure exactly zero response noise as an
+        # artifact of this line rather than a property of the model.
+        self.torch.manual_seed(self.seed if gen_seed is None else int(gen_seed))
         with self.torch.no_grad():
             out = self.model.generate(**inputs, **gen_kwargs)
         new = out[0][inputs["input_ids"].shape[1]:]
@@ -401,13 +524,27 @@ def main():
                     help="api backend: use SSE streaming and reassemble the "
                          "full response client-side; avoids gateway timeouts "
                          "(HTTP 504) on long thinking generations")
+    ap.add_argument("--max-tokens-param", default="max_tokens",
+                    choices=["max_tokens", "max_completion_tokens"],
+                    help="api backend: request field carrying the output "
+                         "budget. OpenAI reasoning models reject 'max_tokens' "
+                         "and require 'max_completion_tokens'")
+    ap.add_argument("--rate-limit-total-wait", type=float, default=0.0,
+                    help="ceiling on the TOTAL time one prompt may spend "
+                         "waiting out backpressure; past it the status "
+                         "consumes retry attempts like any other error so the "
+                         "run cannot park forever. 0 means unbounded, which "
+                         "is what a daily-quota wait wants and an overloaded "
+                         "endpoint does not")
     ap.add_argument("--rate-limit-max-wait", type=float, default=0.0,
                     help="api backend: if > 0, treat HTTP 429 as quota "
                          "exhaustion -- retry the same request indefinitely "
                          "with doubling backoff capped at this many seconds "
                          "(free tiers; daily quotas reset at midnight "
                          "Pacific). 0 keeps 429 within normal --retries.")
-    ap.add_argument("--temperature", type=float, default=0.0)
+    ap.add_argument("--temperature", type=float, default=0.0,
+                    help="api backend: a negative value omits the field, "
+                         "which some reasoning endpoints require")
     ap.add_argument("--top-p", type=float, default=None,
                     help="nucleus sampling; omitted from the request/"
                          "generation when not given")
@@ -416,9 +553,28 @@ def main():
     ap.add_argument("--seed", type=int, default=0,
                     help="hf backend: torch seed, re-applied per generation")
     ap.add_argument("--max-tokens", type=int, default=8192,
-                    help="api backend: max completion tokens")
+                    help="api backend: max completion tokens; 0 omits the "
+                         "field so the server applies its own limit (removes "
+                         "the truncation confound, but the server default may "
+                         "be smaller than an explicit value -- check "
+                         "finish_reason on a smoke first)")
     ap.add_argument("--max-new-tokens", type=int, default=3072,
                     help="hf backend: generation budget")
+    ap.add_argument("--repetition-penalty", type=float, default=None,
+                    help="hf backend: stand-in for the presence_penalty some "
+                         "model cards recommend; rescales logits of seen "
+                         "tokens, so 1.05-1.15 is the useful range and 1.0 "
+                         "is off. Deviating from a card's sampling recipe is "
+                         "a run condition -- record it")
+    ap.add_argument("--no-repeat-ngram-size", type=int, default=None,
+                    help="hf backend: hard ban on repeating any n-gram. Blunt "
+                         "but effective against arithmetic loops; it also "
+                         "forbids legitimate repeats, so prefer the smallest "
+                         "value that works")
+    ap.add_argument("--max-length-attempts", type=int, default=0,
+                    help="skip a prompt after this many length-truncated "
+                         "records at the current output budget; 0 means "
+                         "unlimited (default)")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--ids", default="",
                     help="comma-separated prompt_ids (smoke tests)")
@@ -433,12 +589,19 @@ def main():
     only_ids = [x for x in args.ids.split(",") if x.strip()]
     rows = load_prompts(args.prompts, args.shard_index, args.shard_count,
                         only_ids)
-    done = done_ids(args.out)
-    todo = [r for r in rows if r["prompt_id"] not in done]
+    done, todo, length_counts = select_todo(
+        rows, args.out, args.max_length_attempts)
+    suppressed = sum(
+        1 for r in rows
+        if r["prompt_id"] not in done
+        and args.max_length_attempts > 0
+        and length_counts.get(r["prompt_id"], 0) >= args.max_length_attempts
+    )
     if args.limit:
         todo = todo[:args.limit]
     print(f"{len(rows)} prompts in shard {args.shard_index+1}/"
-          f"{args.shard_count}; {len(done)} done; {len(todo)} to run "
+          f"{args.shard_count}; {len(done)} done; "
+          f"{suppressed} length-capped; {len(todo)} to run "
           f"-> {args.out}", flush=True)
     if not todo:
         return
@@ -449,16 +612,20 @@ def main():
             sys.exit(f"env var {args.api_key_env} is empty")
         extra_body, effort = gemini_thinking_body(args.include_thoughts,
                                                   args.reasoning_effort)
-        call = lambda prompt: api_call(
+        call = lambda prompt, gen_seed=None: api_call(
             args.base_url, api_key, args.model, prompt, args.temperature,
             args.max_tokens, args.thinking, args.timeout, args.retries,
             args.sleep, top_p=args.top_p,
             reasoning_effort=effort, extra_body=extra_body,
-            rate_limit_max_wait=args.rate_limit_max_wait, stream=args.stream)
+            rate_limit_max_wait=args.rate_limit_max_wait, stream=args.stream,
+            rate_limit_total_wait=args.rate_limit_total_wait,
+            max_tokens_param=args.max_tokens_param)
     else:
         hf = HFModel(args.model, args.max_new_tokens, args.temperature,
                      top_p=args.top_p, top_k=args.top_k, seed=args.seed,
-                     thinking=args.thinking)
+                     thinking=args.thinking,
+                     repetition_penalty=args.repetition_penalty,
+                     no_repeat_ngram_size=args.no_repeat_ngram_size)
         call = hf
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
@@ -466,7 +633,7 @@ def main():
     with open(args.out, "a") as fh:
         for i, r in enumerate(todo, 1):
             try:
-                res = call(r["prompt"])
+                res = call(r["prompt"], gen_seed=r.get("gen_seed"))
             except Exception as e:  # keep going, record the failure
                 res = {"answer": "", "reasoning": None,
                        "finish_reason": f"error: {e}", "usage": None,
@@ -478,8 +645,22 @@ def main():
                    "model": args.model, "backend": args.backend,
                    "thinking": args.thinking,
                    "reasoning_effort": args.reasoning_effort,
-                   "temperature": args.temperature, "top_p": args.top_p,
-                   "top_k": args.top_k, "seed": args.seed,
+                   "temperature": (args.temperature
+                                   if args.temperature is None
+                                   or args.temperature >= 0 else None),
+                   "top_p": args.top_p,
+                   "top_k": args.top_k,
+                   "repetition_penalty": args.repetition_penalty,
+                   "no_repeat_ngram_size": args.no_repeat_ngram_size,
+                   "seed": (args.seed if r.get("gen_seed") is None
+                            else int(r["gen_seed"])),
+                   "prompt_variant": r.get("prompt_variant"),
+                   "required_keys": r.get("required_keys", PRED_KEYS),
+                   # None records "no cap requested", which is a different
+                   # run condition from any particular number
+                   "max_tokens": ((args.max_tokens or None)
+                                  if args.backend == "api"
+                                  else args.max_new_tokens),
                    "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), **res}
             fh.write(json.dumps(rec) + "\n")
             fh.flush()

@@ -154,6 +154,41 @@ class TestDoneIds(unittest.TestCase):
                                   finish_reason="length")])
         self.assertEqual(runner.done_ids(path), set())
 
+    def test_attempt_stats_counts_valid_lines(self):
+        path = self.write([
+            record("p1", answer="", finish_reason="length"),
+            record("p1", answer="", finish_reason="error: timeout"),
+            record("p2", answer="", finish_reason="length"),
+            "{broken",
+        ])
+        attempts, lengths = runner.attempt_stats(path)
+        self.assertEqual(attempts, {"p1": 2, "p2": 1})
+        self.assertEqual(lengths, {"p1": 1, "p2": 1})
+
+    def test_select_todo_prioritizes_unseen_and_caps_length(self):
+        good = json.dumps(COMPLETE)
+        path = self.write([
+            record("done", answer=good),
+            record("capped", answer="", finish_reason="length"),
+            record("retry", answer="", finish_reason="error: timeout"),
+        ])
+        rows = [{"prompt_id": x} for x in
+                ("retry", "unseen_b", "done", "capped", "unseen_a")]
+        done, todo, lengths = runner.select_todo(
+            rows, path, max_length_attempts=1)
+        self.assertEqual(done, {"done"})
+        self.assertEqual([r["prompt_id"] for r in todo],
+                         ["unseen_a", "unseen_b", "retry"])
+        self.assertEqual(lengths["capped"], 1)
+
+    def test_zero_length_cap_preserves_retry(self):
+        path = self.write([
+            record("old", answer="", finish_reason="length"),
+        ])
+        rows = [{"prompt_id": "old"}, {"prompt_id": "new"}]
+        _, todo, _ = runner.select_todo(rows, path, max_length_attempts=0)
+        self.assertEqual([r["prompt_id"] for r in todo], ["new", "old"])
+
 
 class TestSplitThink(unittest.TestCase):
     def test_think_block_split_losslessly(self):
@@ -181,6 +216,30 @@ class TestSplitThink(unittest.TestCase):
         reasoning, answer = runner.split_think("thoughts</think>" + final)
         self.assertEqual(reasoning, "thoughts")
         self.assertEqual(answer, final)
+
+    def test_gemini_thought_block(self):
+        final = json.dumps(COMPLETE)
+        reasoning, answer = runner.split_think(
+            "<thought>**Analysis** of the sample</thought>\n" + final)
+        self.assertEqual(reasoning, "**Analysis** of the sample")
+        self.assertEqual(answer, final)
+
+    def test_gemini_multiple_thought_blocks_split_at_last(self):
+        final = json.dumps(COMPLETE)
+        text = ("<thought>part one</thought><thought>part two</thought>\n"
+                + final)
+        reasoning, answer = runner.split_think(text)
+        self.assertIn("part one", reasoning)
+        self.assertIn("part two", reasoning)
+        self.assertNotIn("<thought>", reasoning)
+        self.assertEqual(answer, final)
+
+    def test_truncated_thought_stays_in_answer(self):
+        # length-truncated Gemini record: open <thought> never closed
+        reasoning, answer = runner.split_think("<thought>cut off mid...")
+        self.assertIsNone(reasoning)
+        self.assertEqual(answer, "<thought>cut off mid...")
+        self.assertFalse(runner.is_complete_record(record(answer=answer)))
 
 
 class TestRetryWaitSeconds(unittest.TestCase):
@@ -271,6 +330,22 @@ class TestApiCallRateLimit(unittest.TestCase):
         with self.assertRaises(RuntimeError) as ctx:
             self.call(effects, retries=2, rate_limit_max_wait=0.0)
         self.assertIn("HTTP 429", str(ctx.exception))
+
+    def test_gemini_inline_thought_split_into_reasoning(self):
+        res, _ = self.call([ok_response("<thought>why</thought>\nfinal")])
+        self.assertEqual(res["reasoning"], "why")
+        self.assertEqual(res["answer"], "final")
+
+    def test_no_split_when_reasoning_content_present(self):
+        payload = json.dumps({
+            "choices": [{"message": {"content": "a </thought> b",
+                                     "reasoning_content": "rc"},
+                         "finish_reason": "stop"}]}).encode()
+        m = mock.MagicMock()
+        m.__enter__.return_value.read.return_value = payload
+        res, _ = self.call([m])
+        self.assertEqual(res["reasoning"], "rc")
+        self.assertEqual(res["answer"], "a </thought> b")
 
     def test_gemini_reasoning_field_fallback(self):
         payload = json.dumps({
@@ -412,6 +487,273 @@ class TestApiCallStreaming(unittest.TestCase):
                                 "none", timeout=5, retries=2, sleep=0.1,
                                 stream=True)
         self.assertIn("IncompleteRead", str(ctx.exception))
+
+
+class TestHFRepetitionControls(unittest.TestCase):
+    """Degeneration controls must reach generate(), and stay off by default.
+
+    The Qwen3.6 non-thinking smoke on the non-walk screen filled its entire
+    8192-token budget with `+1+1+1...`: trigram diversity collapsed from 0.44
+    to 0.001. The model card's answer is presence_penalty, which transformers
+    does not have; these are the substitutes.
+    """
+
+    def build(self, **kw):
+        hf = runner.HFModel.__new__(runner.HFModel)
+        hf.max_new_tokens = 128
+        hf.temperature = 0.7
+        hf.top_p = 0.8
+        hf.top_k = 20
+        hf.seed = 0
+        hf.thinking = "off"
+        hf.repetition_penalty = kw.get("repetition_penalty")
+        hf.no_repeat_ngram_size = kw.get("no_repeat_ngram_size")
+        return hf
+
+    def gen_kwargs(self, hf):
+        captured = {}
+
+        class Tok:
+            eos_token_id = 7
+
+            def apply_chat_template(self, msgs, **kw):
+                return "text"
+
+            def __call__(self, text, **kw):
+                class Inputs(dict):
+                    def to(self, device):
+                        return self
+                return Inputs(input_ids=DummyTensor())
+
+            def decode(self, ids, **kw):
+                return "answer"
+
+        class DummyTensor:
+            shape = (1, 3)
+
+            def __getitem__(self, item):
+                return self
+
+        class Model:
+            device = "cpu"
+
+            def generate(self, **kw):
+                captured.update(kw)
+                return [[0, 1, 2, 3]]
+
+        class Torch:
+            @staticmethod
+            def manual_seed(seed):
+                pass
+
+            @staticmethod
+            def no_grad():
+                import contextlib
+                return contextlib.nullcontext()
+
+        hf.tok = Tok()
+        hf.model = Model()
+        hf.torch = Torch()
+        hf("prompt")
+        return captured
+
+    def test_defaults_send_neither_control(self):
+        kw = self.gen_kwargs(self.build())
+        self.assertNotIn("repetition_penalty", kw)
+        self.assertNotIn("no_repeat_ngram_size", kw)
+
+    def test_controls_reach_generate(self):
+        kw = self.gen_kwargs(self.build(repetition_penalty=1.1,
+                                        no_repeat_ngram_size=40))
+        self.assertEqual(kw["repetition_penalty"], 1.1)
+        self.assertEqual(kw["no_repeat_ngram_size"], 40)
+
+    def test_penalty_of_one_is_treated_as_off(self):
+        # 1.0 is transformers' no-op; sending it is harmless but noise
+        kw = self.gen_kwargs(self.build(repetition_penalty=0))
+        self.assertNotIn("repetition_penalty", kw)
+
+
+class TestOutputBudget(unittest.TestCase):
+    """`--max-tokens 0` must omit the field, not send a zero budget."""
+
+    def send(self, max_tokens):
+        sent = {}
+        ok = {"choices": [{"message": {"content": "{}"},
+                           "finish_reason": "stop"}]}
+
+        def fake(req, timeout=None):
+            sent.update(json.loads(req.data.decode()))
+            m = mock.MagicMock()
+            m.__enter__.return_value.read.return_value = json.dumps(ok).encode()
+            return m
+
+        with mock.patch("urllib.request.urlopen", side_effect=fake):
+            runner.api_call("http://x", "key", "m", "p", 1.0, max_tokens,
+                            "none", timeout=5, retries=1, sleep=0)
+        return sent
+
+    def test_explicit_budget_is_sent(self):
+        self.assertEqual(self.send(8192)["max_tokens"], 8192)
+
+    def test_reasoning_models_get_max_completion_tokens(self):
+        """OpenAI reasoning models 400 on `max_tokens` and demand the other
+        name. Same number, different key -- the caller picks."""
+        sent = {}
+        ok = {"choices": [{"message": {"content": "{}"},
+                           "finish_reason": "stop"}]}
+
+        def fake(req, timeout=None):
+            sent.update(json.loads(req.data.decode()))
+            m = mock.MagicMock()
+            m.__enter__.return_value.read.return_value = json.dumps(ok).encode()
+            return m
+
+        with mock.patch("urllib.request.urlopen", side_effect=fake):
+            runner.api_call("http://x", "key", "m", "p", -1, 4096, "none",
+                            timeout=5, retries=1, sleep=0,
+                            max_tokens_param="max_completion_tokens")
+        self.assertEqual(sent["max_completion_tokens"], 4096)
+        self.assertNotIn("max_tokens", sent)
+        self.assertNotIn("temperature", sent)
+
+    def test_zero_budget_omits_the_field(self):
+        body = self.send(0)
+        self.assertNotIn("max_tokens", body)
+        # a literal 0 would ask the server for an empty completion
+        self.assertEqual(body["messages"][0]["content"], "p")
+
+
+class TestTransientStatusHandling(unittest.TestCase):
+    """A busy endpoint must not become a permanent error record.
+
+    NVIDIA NIM answers HTTP 529 when the provider is overloaded. It was absent
+    from the retryable set, so the first 529 raised immediately and the prompt
+    was written out as failed after zero retries.
+    """
+
+    def http_error(self, code):
+        import urllib.error
+
+        def raiser(req, timeout=None):
+            raise urllib.error.HTTPError(
+                "http://x", code, "boom", {},
+                io.BytesIO(b'{"message":"overloaded"}'))
+        return raiser
+
+    def call(self, retries=3, **kw):
+        return runner.api_call("http://x", "key", "m", "p", 1.0, 64, "none",
+                               timeout=5, retries=retries, sleep=0, **kw)
+
+    def test_529_is_retried_before_giving_up(self):
+        calls = []
+
+        def counting(req, timeout=None):
+            calls.append(1)
+            return self.http_error(529)(req, timeout)
+
+        with mock.patch("urllib.request.urlopen", side_effect=counting), \
+             mock.patch.object(runner.time, "sleep", lambda s: None):
+            with self.assertRaises(RuntimeError) as ctx:
+                self.call(retries=3)
+        self.assertEqual(len(calls), 3)
+        self.assertIn("529", str(ctx.exception))
+
+    def test_529_recovers_without_a_failure_record(self):
+        state = {"n": 0}
+        ok = {"choices": [{"message": {"content": "{}"},
+                           "finish_reason": "stop"}]}
+
+        def flaky(req, timeout=None):
+            state["n"] += 1
+            if state["n"] == 1:
+                return self.http_error(529)(req, timeout)
+            m = mock.MagicMock()
+            m.__enter__.return_value.read.return_value = json.dumps(ok).encode()
+            return m
+
+        with mock.patch("urllib.request.urlopen", side_effect=flaky), \
+             mock.patch.object(runner.time, "sleep", lambda s: None):
+            res = self.call(retries=3)
+        self.assertEqual(res["finish_reason"], "stop")
+
+    def test_persistent_backpressure_gives_up_once_the_budget_is_spent(self):
+        """Patient waiting must terminate.
+
+        The backpressure branch does not consume retry attempts, so without a
+        total ceiling one permanently overloaded endpoint parks the run on its
+        first prompt indefinitely -- writing nothing, reporting nothing.
+        """
+        calls = []
+        slept = []
+
+        def always_529(req, timeout=None):
+            calls.append(1)
+            return self.http_error(529)(req, timeout)
+
+        with mock.patch("urllib.request.urlopen", side_effect=always_529), \
+             mock.patch.object(runner.time, "sleep", slept.append):
+            with self.assertRaises(RuntimeError):
+                self.call(retries=3, rate_limit_max_wait=60,
+                          rate_limit_total_wait=10)
+        self.assertLessEqual(sum(slept), 10 + 1e-9,
+                             "total wait exceeded the stated budget")
+        self.assertGreater(len(calls), 3, "should wait before spending retries")
+        self.assertLess(len(calls), 30, "must terminate, not loop forever")
+
+    def test_unbounded_budget_keeps_the_daily_quota_behaviour(self):
+        state = {"n": 0}
+        ok = {"choices": [{"message": {"content": "{}"},
+                           "finish_reason": "stop"}]}
+
+        def flaky(req, timeout=None):
+            state["n"] += 1
+            if state["n"] <= 8:
+                return self.http_error(429)(req, timeout)
+            m = mock.MagicMock()
+            m.__enter__.return_value.read.return_value = json.dumps(ok).encode()
+            return m
+
+        with mock.patch("urllib.request.urlopen", side_effect=flaky), \
+             mock.patch.object(runner.time, "sleep", lambda s: None):
+            res = self.call(retries=2, rate_limit_max_wait=60)
+        self.assertEqual(res["finish_reason"], "stop")
+        self.assertEqual(state["n"], 9)
+
+    def test_529_waits_patiently_under_rate_limit_budget(self):
+        # With a wait budget, backpressure must not consume retry attempts,
+        # so more than `retries` requests can be made before success.
+        state = {"n": 0}
+        ok = {"choices": [{"message": {"content": "{}"},
+                           "finish_reason": "stop"}]}
+
+        def flaky(req, timeout=None):
+            state["n"] += 1
+            if state["n"] <= 4:
+                return self.http_error(529)(req, timeout)
+            m = mock.MagicMock()
+            m.__enter__.return_value.read.return_value = json.dumps(ok).encode()
+            return m
+
+        with mock.patch("urllib.request.urlopen", side_effect=flaky), \
+             mock.patch.object(runner.time, "sleep", lambda s: None):
+            res = self.call(retries=2, rate_limit_max_wait=60)
+        self.assertEqual(state["n"], 5)
+        self.assertEqual(res["finish_reason"], "stop")
+
+    def test_client_errors_still_fail_immediately(self):
+        for code in (400, 401, 404, 410):
+            calls = []
+
+            def counting(req, timeout=None, code=code):
+                calls.append(1)
+                return self.http_error(code)(req, timeout)
+
+            with mock.patch("urllib.request.urlopen", side_effect=counting), \
+                 mock.patch.object(runner.time, "sleep", lambda s: None):
+                with self.assertRaises(RuntimeError):
+                    self.call(retries=3)
+            self.assertEqual(len(calls), 1, f"HTTP {code} must not retry")
 
 
 class TestLoadPromptsSharding(unittest.TestCase):

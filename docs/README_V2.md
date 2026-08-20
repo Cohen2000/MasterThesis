@@ -62,6 +62,13 @@ The supervised screen includes Ridge, Random Forest, Extra Trees, and histogram
 gradient boosting; the more expensive transfer protocols retain the two strongest
 tree families.
 
+The evaluator also emits a componentwise `median_floor` from the training fold.
+This complements `mean_floor` and is the appropriate constant reference for MAE.
+The optional `knn` retrieval model median-imputes and standardizes observable
+features, learns a 32-dimensional PCA embedding on the training fold, and takes
+the inverse-distance-weighted mean of the 25 nearest training cases. All
+preprocessing and labels remain inside the source/family `GroupKFold` split.
+
 ### Evaluation
 
 - leakage-safe source/family `GroupKFold`;
@@ -104,6 +111,62 @@ The local runner limits BLAS/OpenMP libraries to one thread, executes crawl
 shards serially, uses `nice -n 10`, validates intermediate artifacts, resumes
 valid finished shards, performs all evaluations, creates diagnostic tables, and
 finally tests the result ZIP.
+
+To evaluate only the constant, analytical, and kNN profile competitors on
+already materialized full-v2 cases, without overwriting the frozen screen:
+
+```bash
+source .venv/bin/activate
+export MPLCONFIGDIR="${TMPDIR:-/tmp}/thesis_mpl_cache"
+
+python src/evaluate_benchmark.py \
+  --config config/benchmark_v21.yaml \
+  --preset v2 \
+  --cases 'results/benchmark_v2/results/cases_shard_*.csv.gz' \
+  --out-dir results/benchmark_v2/median_knn \
+  --models knn \
+  --inputs combined_plus_estimators \
+  --targets rho_W5_k2 rho_W5_k3 rho_W5_k4 rho_W5_k5 \
+  --prediction-targets rho_W5_k2 rho_W5_k3 rho_W5_k4 rho_W5_k5 \
+  --main-only \
+  --jobs -1
+```
+
+The output directory contains `SCREEN_SUMMARY.md`, `metrics.csv`,
+`rankings.csv`, case-level `predictions.csv.gz`, and the headline plot.
+
+### Completed median-floor and kNN screen
+
+The supplementary run above completed on 90,040 cases from 38 independent
+source/family groups. On the three access strategies prespecified for the final
+target panel (`time_agnostic_t`, `time_respecting`, and `recent_history_k20`),
+the equal-strategy averages are:
+
+| Estimator | Profile group-macro MAE | `rho_W5_k2` group-macro MAE |
+|---|---:|---:|
+| mean floor | 0.1428 | 0.1964 |
+| median floor | 0.1384 | 0.1929 |
+| kNN (`combined_plus_estimators`) | 0.0549 | 0.0787 |
+| ExtraTrees (`combined_plus_estimators`, original full screen) | 0.0458 | 0.0665 |
+
+The median is therefore a useful second constant reference for an MAE target,
+but it is not uniformly preferable: its average worst-group ProfileMAE is
+higher than the mean floor's (0.2479 versus 0.2277). The kNN is a supervised,
+conceptually different local-retrieval competitor: it averages the known
+target profiles of nearby training-fold cases, not unlabeled observations.
+The held-out source/family and its labels remain unavailable to it. ExtraTrees
+remains better on these matched aggregate comparisons. These are descriptive
+full-benchmark results, not a claim that the same ordering must hold on the
+96-case final panel. Within the supplementary run, kNN also beats the
+analytical `rho_W5_k2` estimators on each of the three prespecified strategies.
+The small static `time_agnostic` sentinel is a counterexample to a universal
+kNN advantage: there the mean floor remains slightly better than kNN.
+
+The standalone `median_knn/SCREEN_SUMMARY.md` ranks kNN first within that
+supplementary run because the older supervised models were not rerun into the
+same output directory. Its rank should therefore not be read as a direct win
+over ExtraTrees; the table above joins the matched metrics from the two result
+directories for that comparison.
 
 ## Frozen-band gate before new LLM prompts
 

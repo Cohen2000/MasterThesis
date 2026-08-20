@@ -6,6 +6,31 @@ full-network properties from partial temporal random-walk summaries.
 The current active track is the frozen V2 estimator benchmark plus the V2.1 LLM
 prompt and evaluation suite.
 
+# Current state and entry point
+
+The main comparison is being assembled on the frozen 32-graph panel. Targets
+and scoring are settled; what still has to be recorded are the open gates
+listed at the end of `docs/TARGET_EVALUATION_FREEZE.md` — input contract,
+output schema, model configurations, the 96 cases with their walk budget, and
+the prompt hash.
+
+Two documents carry the current picture: `docs/TARGET_EVALUATION_FREEZE.md`
+for targets, scoring and gates, and `docs/LLM_EVIDENCE.md` for what
+has been measured about inputs, contexts and models. Both keep the historical
+84-case evidence suite separate from the final 96-case panel; that distinction
+matters, because transferring a result across the two is a design judgement
+rather than a measurement. `docs/LLM_V21_RUNS.md` carries the model
+matrix, the cluster runs and the token-budget ladder.
+
+`LLM_EVIDENCE.md` also lists what has *not* been tested. Several of its numbers
+come from exploratory scripts that are not part of the tested code base; it says
+so where that applies. Treat its readings as candidate interpretations open to
+revision, not as settled results.
+
+Most generated evidence under `results/` is gitignored, so `git status`,
+`git ls-files`, and a default `rg --files` inventory say nothing about whether
+those files exist. Read the explicit paths.
+
 # Repository map
 
 - `src/`: benchmark generation, walks, prompt creation, model runners, evaluation
@@ -35,20 +60,21 @@ Lightweight inspection, compilation, and unit tests are allowed on a cluster
 login node. Benchmark generation, random-walk runs, model inference, and other
 heavy computation must use SLURM. Never run heavy jobs on a login node.
 
-# Current configuration caveat
+# Configuration caveat
 
-- Existing benchmark runners default to `config/benchmark.yaml`.
-- `config/benchmark_v21.yaml` is not selected automatically by the current
-  runners. Compared with `benchmark.yaml`, it adds the lifetime target to
-  several evaluation blocks and removes `extra_trees:patterns` from
-  `headline_only_pairs`.
-- The lifetime add-on currently requires an explicit
-  `--config config/benchmark_v21.yaml` argument.
-- Never assume a configuration from its filename. Inspect CLI defaults and pass
-  `--config ...` explicitly when required.
-- Do not merge the two configurations or change which one is authoritative
-  without explicit approval. Revisit this only after the lifetime add-on run is
-  complete.
+Runners default to `config/benchmark.yaml`; `config/benchmark_v21.yaml` is
+never selected automatically and differs by adding the lifetime target to
+several evaluation blocks and dropping `extra_trees:patterns` from
+`headline_only_pairs`. Filenames are not a reliable guide to which
+configuration is in force — checking CLI defaults and passing `--config`
+explicitly avoids a whole class of silent mistakes.
+
+Which of the two is authoritative is an open question tied to the lifetime
+add-on run, so merging them is a decision to make deliberately rather than in
+passing.
+
+Both files also accept new presets. Adding one in a scratch location is a cheap
+way to run a variation without touching the committed configuration.
 
 # Frozen benchmark artifacts
 
@@ -72,9 +98,16 @@ Do not regenerate walks, cases, examples, or prompts. Do not use `--overwrite`,
 permission. Do not delete, truncate, rename, or modify generated answers or
 results unless explicitly requested.
 
-# LLM output contract
+# Historical V2.1 LLM output contract
 
-Every final prediction object uses these nine keys:
+The frozen 420-prompt V2.1 suite uses the nine-key contract below. It predates
+the target hierarchy in `docs/TARGET_EVALUATION_FREEZE.md`, where mean
+occupancy became profile-derived and lifetime moved to robustness reporting.
+It is therefore evidence about the *input representation*, and not a template
+that carries over to the final experiment by default — the new prompt's
+requested keys are one of the open gates.
+
+Every historical V2.1 prediction object uses these nine keys:
 
 - `rho_k2`
 - `rho_k3`
@@ -107,47 +140,52 @@ profile in raw model outputs. Preserve and evaluate model inconsistency as an
 outcome, and report monotonicity violations separately.
 
 Raw answer JSONL records are append-only and must never be rewritten to clamp,
-sort, repair, or replace model predictions. The current evaluator converts
-numeric values to floats and clips them to `[0, 1]` in its derived evaluation
-table; it does not repair monotonicity and records `profile_violation`. Treat
-this clipping as an explicit existing evaluation policy. Do not change it
-silently. A raw-value scoring policy must be implemented as a named and tested
-evaluation change or ablation.
+sort, repair, or replace model predictions. The historical
+`src/eval_llm_v2.py` converts numeric values to floats and clips them to
+`[0, 1]` in its derived evaluation table; it does not repair monotonicity and
+records `profile_violation`. That is a legacy V2.1 reporting policy, not the
+frozen final policy. `docs/TARGET_EVALUATION_FREEZE.md` instead treats
+out-of-range values as invalid and requires validity plus failure-penalized
+loss. Never present the clipped historical metrics as if they already
+implemented the frozen final scoring rule.
 
 # Resume and answer validation
 
 LLM runs resume by `prompt_id`, and failed attempts must not count as complete.
 Answer files remain append-only; retries append a new record.
 
-Known issue: the current `src/run_llm_v2.py` resume logic treats every record
-whose `finish_reason` does not start with `error` as complete. This can wrongly
-skip truncated (`finish_reason="length"`), empty, unparsable, or
-schema-incomplete responses.
-
-Before any full LLM run, fix and test resume validation so that a record counts
-as complete only when:
+Resolved issue: `src/run_llm_v2.py:is_complete_record` now counts a record as
+complete only when:
 
 - it is not an error or length-truncated response;
 - its answer contains a parseable final JSON object;
 - all nine required keys are present.
 
-Do not silently repair invalid values as part of resume validation. Keep
-truncated, empty, unparsable, and schema-incomplete records retryable. Add a
-focused unit test before changing the runner. Keep the evaluator's retry
-selection behavior aligned with the runner.
+It is covered by focused tests. Do not regress this behavior: truncated,
+empty, unparsable, and schema-incomplete records remain retryable, and invalid
+values are never silently repaired as part of resume validation. A record with
+`finish_reason="stop"` is therefore not necessarily structurally complete.
 
-# Planned model matrix
+# V2.1 evidence model matrix
 
-This section describes intended experiments, not implementation status:
+Five API configurations are complete at 420/420 prompts: DeepSeek V4 Pro
+non-thinking, Gemini 3.1 Flash Lite minimal and high reasoning, and Mistral
+Small 4 reasoning `none` and `high`.
 
-- Qwen3.6-27B: thinking and non-thinking on the cluster
-- DeepSeek-R1-Distill-Qwen-32B: continuity baseline on the cluster
-- DeepSeek V4 Pro: thinking and non-thinking through NVIDIA NIM
-- Mistral Small 4: reasoning `none` and `high` through NVIDIA NIM
-- GPT through the AIST endpoint later
+A partial Open-Weights snapshot (Qwen3.6-27B thinking/non-thinking,
+DeepSeek-R1-Distill-Qwen-32B) sits in `results/llm_v21/cluster_snapshot/` and
+uses the same frozen prompts. Its open prompts are largely token-limit
+truncations rather than substantive failures, so complete-case and
+failure-penalized numbers diverge there and are best read together.
+
+Claude Code Opus and Codex CLI runs carry a harness prompt that is not part of
+the frozen prompt and cannot be version-pinned, which is why they are kept
+apart from the API rows. That is a statement about what claim they support,
+not a verdict on their results — they are the strongest results in the suite.
+Details in `docs/LLM_EVIDENCE.md`.
 
 Existing SLURM filenames may refer to older Qwen2.5 or pilot runs. Inspect them
-before editing and do not assume they already implement this matrix.
+before editing and do not infer current experiment status from filenames.
 
 # Secrets and external services
 
@@ -157,25 +195,26 @@ before editing and do not assume they already implement this matrix.
 - Do not start API calls, paid model runs, full benchmark runs, or SLURM jobs
   without explicit permission.
 
-# Before editing
+# Working on the code
 
-1. Run `git status --short` and inspect the relevant files and nearby tests.
-2. Check whether any target path is generated, frozen, ignored, or append-only.
-3. Explain the intended changes and any effect on reproducibility or frozen data.
-4. Prefer the smallest focused change; avoid unrelated refactors and formatting.
-5. Do not commit, push, submit jobs, call APIs, or launch full runs without
-   explicit permission.
+Before changing something, it helps to know whether the target path is
+generated, frozen, ignored, or append-only — that determines whether an edit is
+routine or destroys evidence. Small focused changes are easier to review than
+bundled refactors.
 
-# After editing
+Committing, pushing, submitting jobs, calling paid APIs, or launching full runs
+are actions the user decides on, not side effects of a task.
 
-1. Run `python -m py_compile` on every changed Python file.
-2. Run the smallest relevant unit or invariant test. Use temporary output paths
-   for smoke tests so frozen results are not modified.
-3. Run `bash -n` on changed shell or SLURM scripts.
-4. Validate changed JSON/JSONL with strict parsing and check expected schemas,
-   unique IDs, and row counts where relevant.
-5. Run `git diff --check` and show `git diff --stat`.
-6. List changed files, tests run, results, and unresolved issues.
+After a change, the usual checks are compilation for Python, `bash -n` for
+shell and SLURM files, strict parsing plus a schema and row-count sanity check
+for JSON/JSONL, and the smallest test that would actually catch a regression.
+Smoke runs belong in temporary output paths. `git diff --stat` and a short note
+on what changed, what was run, and what is still open make the result
+reviewable.
+
+Analysis that only reads data is cheap and safe; the walk and estimator
+pipeline on the 32-graph panel, for instance, runs in under a minute locally.
+Gauging the actual cost before reaching for SLURM is worth the few seconds.
 
 # Documentation discipline
 

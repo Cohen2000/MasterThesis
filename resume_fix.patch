@@ -1,0 +1,86 @@
+diff --git a/src/run_llm_v2.py b/src/run_llm_v2.py
+index 3345535..81238b3 100644
+--- a/src/run_llm_v2.py
++++ b/src/run_llm_v2.py
+@@ -34,6 +34,54 @@ import urllib.request
+ from pathlib import Path
+ 
+ 
++PRED_KEYS = [
++    "rho_k2", "rho_k3", "rho_k4", "rho_k5", "mean_occupancy",
++    "C_one_step", "lifetime_mean_over_T", "lo90", "hi90",
++]
++
++
++def extract_last_json(text):
++    """Return the last balanced JSON object containing ``rho_k2``."""
++    if not isinstance(text, str):
++        return None
++    end = len(text)
++    while True:
++        close = text.rfind("}", 0, end)
++        if close < 0:
++            return None
++        depth = 0
++        start = None
++        for i in range(close, -1, -1):
++            if text[i] == "}":
++                depth += 1
++            elif text[i] == "{":
++                depth -= 1
++                if depth == 0:
++                    start = i
++                    break
++        if start is not None:
++            fragment = text[start:close + 1]
++            if "rho_k2" in fragment:
++                try:
++                    obj = json.loads(fragment)
++                except json.JSONDecodeError:
++                    obj = None
++                if isinstance(obj, dict):
++                    return obj
++        end = close
++        if end <= 0:
++            return None
++
++
++def is_complete_record(record):
++    """Whether a stored response is structurally complete for resume."""
++    finish_reason = str(record.get("finish_reason") or "").lower()
++    if finish_reason.startswith("error") or finish_reason == "length":
++        return False
++    obj = extract_last_json(record.get("answer"))
++    return isinstance(obj, dict) and all(key in obj for key in PRED_KEYS)
++
++
+ def load_prompts(path, shard_index, shard_count, only_ids):
+     rows = [json.loads(l) for l in open(path) if l.strip()]
+     rows.sort(key=lambda r: r["prompt_id"])
+@@ -46,17 +94,17 @@ def load_prompts(path, shard_index, shard_count, only_ids):
+ 
+ 
+ def done_ids(out_path):
+-    """prompt_ids with a successful record; error records are retried."""
++    """Prompt IDs with a structurally complete, non-truncated response."""
+     ids = set()
+     if Path(out_path).exists():
+-        for line in open(out_path):
+-            try:
+-                r = json.loads(line)
+-                fr = str(r.get("finish_reason") or "")
+-                if not fr.startswith("error"):
+-                    ids.add(r["prompt_id"])
+-            except (json.JSONDecodeError, KeyError):
+-                continue
++        with open(out_path) as fh:
++            for line in fh:
++                try:
++                    record = json.loads(line)
++                    if is_complete_record(record):
++                        ids.add(record["prompt_id"])
++                except (json.JSONDecodeError, KeyError):
++                    continue
+     return ids
+ 
+ 

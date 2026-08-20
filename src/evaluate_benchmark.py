@@ -16,7 +16,9 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.model_selection import GroupKFold
 from sklearn.multioutput import MultiOutputRegressor
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import make_pipeline
+from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 warnings.filterwarnings("ignore", message="Skipping features without any observed values")
@@ -72,7 +74,7 @@ def input_columns(d, name):
     return cols
 
 
-def make_model(name, jobs=-1, n_outputs=1):
+def make_model(name, jobs=-1, n_outputs=1, n_features=None, n_samples=None):
     if name == "ridge":
         return make_pipeline(SimpleImputer(strategy="median", keep_empty_features=True),
                              StandardScaler(), Ridge(alpha=10.0))
@@ -95,6 +97,27 @@ def make_model(name, jobs=-1, n_outputs=1):
         return make_pipeline(
             SimpleImputer(strategy="median", keep_empty_features=True),
             estimator,
+        )
+    if name == "knn":
+        # Euclidean neighbours over hundreds of sparse histogram columns are
+        # both noisy and unnecessarily expensive.  Fit every preprocessing
+        # step on the training fold, retain a compact observable embedding,
+        # and use a fixed k so that no test labels tune the retrieval rule.
+        n_features = max(1, int(n_features or 1))
+        n_samples = max(1, int(n_samples or 1))
+        n_components = min(32, n_features, n_samples)
+        n_neighbors = min(25, n_samples)
+        return make_pipeline(
+            SimpleImputer(strategy="median", keep_empty_features=True),
+            StandardScaler(),
+            PCA(n_components=n_components, svd_solver="randomized",
+                random_state=37),
+            KNeighborsRegressor(
+                n_neighbors=n_neighbors,
+                weights="distance",
+                algorithm="brute",
+                n_jobs=jobs,
+            ),
         )
     raise KeyError(name)
 
@@ -167,6 +190,8 @@ def _fit_models(train, test, targets, inputs, model_names, jobs,
             model_name,
             jobs=jobs,
             n_outputs=len(pair_targets),
+            n_features=int(useful.sum()),
+            n_samples=len(train),
         )
         model.fit(Xtr[:, useful], fit_y)
         pred = np.asarray(model.predict(Xte[:, useful]))
@@ -215,6 +240,9 @@ def evaluate_strategy(d, strategy, targets, inputs, model_names, folds, jobs, cf
             records.append(_prediction_records(
                 test, target, "mean_floor", "none",
                 np.full(len(test), float(np.mean(ytr[:, j]))), fold))
+            records.append(_prediction_records(
+                test, target, "median_floor", "none",
+                np.full(len(test), float(np.median(ytr[:, j]))), fold))
             estimators = ["plugin", "occ_mle", "mask_mle"]
             if cfg.get("conditional_baseline", False):
                 estimators.insert(1, "conditional")
@@ -444,18 +472,44 @@ def main():
     ap.add_argument("--cases", nargs="+", default=None)
     ap.add_argument("--out-dir", default=None)
     ap.add_argument("--jobs", type=int, default=-1)
+    ap.add_argument(
+        "--models", nargs="+", default=None,
+        help="override the preset's supervised models (for example: knn)")
+    ap.add_argument(
+        "--inputs", nargs="+", default=None,
+        help="override input sets and use each one for every selected model")
+    ap.add_argument(
+        "--targets", nargs="+", default=None,
+        help="override the preset's evaluation targets")
+    ap.add_argument(
+        "--prediction-targets", nargs="+", default=None,
+        help="targets retained in predictions.csv.gz")
+    ap.add_argument(
+        "--main-only", action="store_true",
+        help="run only per-strategy GroupKFold, without transfer protocols")
     args = ap.parse_args()
     cfg = load_evaluation_config(args.config, args.preset)
     case_specs = args.cases or [f"results/benchmark_{args.preset}/cases*.csv.gz"]
     out_dir = args.out_dir or f"results/benchmark_{args.preset}"
     cases, paths = read_cases(case_specs)
-    targets = [t for t in cfg["targets"] if t in cases.columns]
-    inputs, models = list(cfg["inputs"]), list(cfg["models"])
+    requested_targets = list(args.targets or cfg["targets"])
+    if args.targets:
+        missing = [t for t in requested_targets if t not in cases.columns]
+        if missing:
+            raise ValueError(f"requested target columns are missing: {missing}")
+    targets = [t for t in requested_targets if t in cases.columns]
+    inputs = list(args.inputs or cfg["inputs"])
+    models = list(args.models or cfg["models"])
+    if args.inputs:
+        # A CLI input override is intentional and must not be narrowed again
+        # by a preset's per-model input matrix.
+        cfg["model_inputs"] = {model: list(inputs) for model in models}
     print(f"{len(cases)} cases, {cases.group_id.nunique()} groups, "
           f"{len(targets)} targets, strategies={sorted(cases.strategy.unique())}")
     metric_parts = []
     saved_predictions = []
-    save_targets = set(cfg.get("prediction_targets", targets))
+    save_targets = set(args.prediction_targets or
+                       cfg.get("prediction_targets", targets))
 
     def consume(records):
         if not records:
@@ -470,13 +524,14 @@ def main():
         consume(evaluate_strategy(
             cases, strategy, targets, inputs, models,
             folds=int(cfg.get("group_folds", 5)), jobs=args.jobs, cfg=cfg))
-    consume(evaluate_strategy_blind(
-        cases, targets, cfg.get("strategy_blind", {}),
-        folds=int(cfg.get("group_folds", 5)), jobs=args.jobs))
-    consume(evaluate_leave_one_block_out(
-        cases, targets, cfg.get("leave_one_block_out", {}), jobs=args.jobs))
-    consume(evaluate_sim2real(
-        cases, targets, cfg.get("sim2real", {}), jobs=args.jobs))
+    if not args.main_only:
+        consume(evaluate_strategy_blind(
+            cases, targets, cfg.get("strategy_blind", {}),
+            folds=int(cfg.get("group_folds", 5)), jobs=args.jobs))
+        consume(evaluate_leave_one_block_out(
+            cases, targets, cfg.get("leave_one_block_out", {}), jobs=args.jobs))
+        consume(evaluate_sim2real(
+            cases, targets, cfg.get("sim2real", {}), jobs=args.jobs))
     if not metric_parts:
         raise RuntimeError("no evaluable protocol had at least two groups")
     metrics = pd.concat(metric_parts, ignore_index=True)

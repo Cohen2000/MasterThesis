@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=llmv21_r1_32b
-#SBATCH --partition=gpu_h100_short
-#SBATCH --time=04:00:00
+#SBATCH --partition=gpu_h100
+#SBATCH --time=08:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
@@ -15,6 +15,12 @@
 # run follows the official recommendation, so results are a new series.
 # The template always thinks -> --thinking none (no enable_thinking kwarg);
 # the runner splits <think>...</think> into the "reasoning" field.
+# Budget 12288 -> 32768 (2026-07-17, "no thinking cap" decision, aligned
+# with the other thinking runs; DeepSeek recommends up to 32k output).
+# Partition 2026-07-19: moved from gpu_h100_short (00:30:00 cap) to
+# gpu_h100.
+# Time limit 48:00:00 -> 08:00:00 (2026-07-20): see the backfill note in
+# llm_v21_qwen36_27b_think.sbatch. A ~105-prompt shard needs ~4 passes.
 set -e
 MODEL="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
 # sbatch spools the script away, so $0 does not point at slurm/ -- find
@@ -33,7 +39,9 @@ if [ -n "${SMOKE:-}" ]; then
         echo "smoke mode: array task ${SLURM_ARRAY_TASK_ID} skipped"; exit 0
     fi
     OUT="answers_r1-distill-32b_smoke.jsonl"
-    EXTRA=(--ids "$SMOKE_IDS")
+    # SMOKE_MAXTOK trims the generation budget so the plumbing check fits
+    # into a short dev-partition slot; the full run keeps the real budget.
+    EXTRA=(--ids "$SMOKE_IDS" --max-new-tokens "${SMOKE_MAXTOK:-32768}")
 fi
 
 python3 run_llm_v2.py --backend hf \
@@ -42,6 +50,7 @@ python3 run_llm_v2.py --backend hf \
     --model "$MODEL" \
     --thinking none \
     --temperature 0.6 --top-p 0.95 --seed 0 \
-    --max-new-tokens 12288 \
+    --max-new-tokens 32768 \
+    --max-length-attempts 1 \
     "${EXTRA[@]}"
 echo "done: $(wc -l < "$OUT") records in $OUT"

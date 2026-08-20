@@ -17,7 +17,20 @@ if command -v ws_find >/dev/null 2>&1 && ws_find llm_pilot >/dev/null 2>&1; then
 else
     WS=$HOME/llm_pilot_ws
 fi
-source "$WS/venv/bin/activate"
+# prefer the newer V2.1 venv if it exists (Qwen3.6 needs a recent
+# transformers; the pinned pilot venv stays untouched for old jobs).
+# venv_v21 is built on the module Python 3.12 (the system 3.9 is too old for
+# current transformers), so the job has to load the same module first --
+# otherwise the venv's interpreter and its shared libs are not found.
+V21_PYTHON_MODULE="devel/python/3.12.3-gnu-14.2"
+if [ -d "$WS/venv_v21" ]; then
+    if command -v module >/dev/null 2>&1; then
+        module load "$V21_PYTHON_MODULE"
+    fi
+    source "$WS/venv_v21/bin/activate"
+else
+    source "$WS/venv/bin/activate"
+fi
 export HF_HOME="$WS/hf_cache"
 export HF_HUB_OFFLINE=1
 cd "$WS/llm_v21"
@@ -25,4 +38,6 @@ cd "$WS/llm_v21"
 PROMPTS=prompts.jsonl
 # one frozen prompt per access strategy:
 # time_agnostic_t, time_respecting, recent_history_k20
-SMOKE_IDS="0b394cf2d923,3106eb7c74bb,90e26b753383"
+# Overridable from the submit environment so a smoke can be narrowed to a
+# single prompt when it has to fit into a 30 min dev partition.
+SMOKE_IDS="${SMOKE_IDS:-0b394cf2d923,3106eb7c74bb,90e26b753383}"

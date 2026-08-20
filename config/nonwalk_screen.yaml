@@ -1,0 +1,41 @@
+version: 1
+presets:
+  smoke:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/nonwalk_screen/smoke_cases.csv.gz
+    W: 5
+    seed: 20260820
+    budgets: [100, 400]
+    seeds: 1
+    strategies:
+      - uniform_event_reservoir
+      - time_prefix_events
+      - time_random_window_events
+      - node_panel_full_history
+      - ego_recent_k1
+      - ego_recent_k5
+      - ego_recent_k20
+      - ego_recent_kall
+    node_panel_min_budget: 400
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  panel32:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/nonwalk_screen/panel32_cases.csv.gz
+    W: 5
+    seed: 20260820
+    budgets: [100, 400, 800, 1600, 3200]
+    seeds: 4
+    strategies:
+      - uniform_event_reservoir
+      - time_prefix_events
+      - time_random_window_events
+      - node_panel_full_history
+      - ego_recent_k1
+      - ego_recent_k5
+      - ego_recent_k20
+      - ego_recent_kall
+    node_panel_min_budget: 400
+    recent_events_json_limit: 100
+    stationarity_bins: 10

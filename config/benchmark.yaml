@@ -561,6 +561,8 @@ presets:
         hist_gradient_boosting:
         - combined
         - combined_plus_estimators
+        knn:
+        - combined_plus_estimators
       headline_only_pairs:
       - extra_trees:occupancy
       - extra_trees:patterns

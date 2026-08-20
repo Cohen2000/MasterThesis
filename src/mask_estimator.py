@@ -39,8 +39,31 @@ def _surjection_probability(n: int, observed_k: int, true_k: int) -> float:
     return float(max(0.0, min(1.0, out)))
 
 
+def mask_pattern_likelihood(n_arr, mask_arr, W: int = 5):
+    """Likelihood rows and latent-mask metadata for unique observations."""
+    n_arr = np.asarray(n_arr, dtype=np.int64)
+    mask_arr = np.asarray(mask_arr, dtype=np.int64)
+    max_mask = (1 << W) - 1
+    if np.any(mask_arr < 1) or np.any(mask_arr > max_mask):
+        raise ValueError(f"observed masks must be in [1,{max_mask}]")
+    states = np.arange(1, max_mask + 1, dtype=np.int64)
+    state_k = np.array([_bitcount(s) for s in states], dtype=np.int64)
+    likelihood = np.zeros((len(n_arr), len(states)), dtype=float)
+    cache = {}
+    for e, (n, obs) in enumerate(zip(n_arr, mask_arr)):
+        ko = _bitcount(int(obs))
+        for j, (true, kt) in enumerate(zip(states, state_k)):
+            if int(obs) & int(true) != int(obs):
+                continue
+            key = (int(n), ko, int(kt))
+            if key not in cache:
+                cache[key] = _surjection_probability(*key)
+            likelihood[e, j] = cache[key]
+    return likelihood, states, state_k
+
+
 def mask_mle(n_arr, mask_arr, W: int = 5, iters: int = 300,
-             prior: float = 1e-3):
+             prior: float = 1e-3, weights=None):
     """Fit latent probabilities for all non-empty W-bit masks.
 
     Returns ``(readouts, probs)``.  ``readouts`` contains the full persistence
@@ -57,21 +80,16 @@ def mask_mle(n_arr, mask_arr, W: int = 5, iters: int = 300,
     if np.any(mask_arr < 1) or np.any(mask_arr > max_mask):
         raise ValueError(f"observed masks must be in [1,{max_mask}]")
 
-    patterns, counts = np.unique(np.column_stack([n_arr, mask_arr]), axis=0,
-                                 return_counts=True)
-    states = np.arange(1, max_mask + 1, dtype=np.int64)
-    state_k = np.array([_bitcount(s) for s in states], dtype=np.int64)
-    likelihood = np.zeros((len(patterns), len(states)), dtype=float)
-    cache = {}
-    for e, (n, obs) in enumerate(patterns):
-        ko = _bitcount(int(obs))
-        for j, (true, kt) in enumerate(zip(states, state_k)):
-            if int(obs) & int(true) != int(obs):
-                continue
-            key = (int(n), ko, int(kt))
-            if key not in cache:
-                cache[key] = _surjection_probability(*key)
-            likelihood[e, j] = cache[key]
+    if weights is None:
+        weights = np.ones(len(n_arr), dtype=float)
+    weights = np.asarray(weights, dtype=float)
+    if len(weights) != len(n_arr) or np.any(weights <= 0):
+        raise ValueError("weights must be positive and match observations")
+    patterns, inverse = np.unique(
+        np.column_stack([n_arr, mask_arr]), axis=0, return_inverse=True)
+    counts = np.bincount(inverse, weights=weights)
+    likelihood, states, state_k = mask_pattern_likelihood(
+        patterns[:, 0], patterns[:, 1], W=W)
 
     probs = np.ones(len(states), dtype=float) / len(states)
     for _ in range(iters):
