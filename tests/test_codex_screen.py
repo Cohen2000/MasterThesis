@@ -23,8 +23,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts/codex_screen"))
 
 from run_codex_screen import (  # noqa: E402
-    ALWAYS_OFF, NO_TOOL_FEATURES, attempts_by_id, build_cmd, estimate_usd,
-    iter_events, limit_info, parse_events, wait_seconds,
+    ALWAYS_OFF, NO_TOOL_FEATURES, attempts_by_id, build_cmd, done_ids,
+    estimate_usd, iter_events, limit_info, parse_events, wait_seconds,
 )
 
 # VERIFIED -- the 401 probe, trimmed. Note the interleaved plain-text ERROR
@@ -241,6 +241,7 @@ class CommandShape(unittest.TestCase):
             cmd = build_cmd(self.Args(), arm)
             for feat in ALWAYS_OFF:
                 self.assertIn(feat, cmd, f"{feat} enabled in {arm}")
+            self.assertIn('web_search="disabled"', cmd)
             self.assertIn("tools.web_search=false", cmd)
 
     def test_user_config_and_history_cannot_leak_in(self):
@@ -265,6 +266,23 @@ class CommandShape(unittest.TestCase):
 
 
 class AttemptCounting(unittest.TestCase):
+    def test_notools_resume_retries_a_structurally_complete_tool_leak(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".jsonl",
+                                         delete=False) as fh:
+            fh.write(json.dumps({
+                "prompt_id": "leaked", "finish_reason": "stop",
+                "answer": '{"rho_k2": 0.5}', "n_tool_events": 24,
+                "required_keys": ["rho_k2"],
+            }) + "\n")
+            fh.write(json.dumps({
+                "prompt_id": "clean", "finish_reason": "stop",
+                "answer": '{"rho_k2": 0.5}', "n_tool_events": 0,
+                "required_keys": ["rho_k2"],
+            }) + "\n")
+            path = fh.name
+        self.assertEqual(done_ids(path, "notools"), {"clean"})
+        self.assertEqual(done_ids(path, "tools"), {"leaked", "clean"})
+
     def test_counts_every_record_not_just_failures(self):
         with tempfile.NamedTemporaryFile("w", suffix=".jsonl",
                                          delete=False) as fh:

@@ -1,5 +1,10 @@
 # V2 validation record
 
+> **Historical snapshot.** This file records the validation performed when V2
+> was introduced. The test suite has expanded substantially since then; use the
+> root README command for the current test run rather than reading “9/9” below
+> as the present test count.
+
 The packaged source was checked with:
 
 ```bash

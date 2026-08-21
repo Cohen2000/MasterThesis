@@ -21,7 +21,7 @@ node has internet; compute nodes do not, so the one pip step is on the login nod
 ## 0. Upload and unzip (from your laptop, VPN on)
 
 ```bash
-scp thesis_pilot_bundle.zip uc3:/home/tu/tu_tu/tu_zxokn55/
+scp thesis_pilot_bundle.zip uc3:~/
 ssh uc3
 cd ~ && unzip -o thesis_pilot_bundle.zip && cd thesis_pilot
 ```

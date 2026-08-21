@@ -16,12 +16,16 @@
 #                   DeepSeek on NIM as of 2026-08-20, and version-pinned in
 #                   its own model id
 #
+# A probe or ablation can override PROMPTS_FILE, OUT_FILE and LOG_FILE in the
+# environment.  Keeping all three explicit prevents a special run from ever
+# appending to the frozen 420-prompt answer file.
+#
 # Smoke test (3 real prompts, one per access strategy, separate out/log):
 #   bash scripts/run_llm_v21_nim.sh mistral-high --smoke
 # Reruns resume by prompt_id: only complete final-JSON records count as done.
 set -euo pipefail
 
-PROMPTS="results/llm_v2/prompts.jsonl"   # frozen V2.1 suite (420 prompts)
+PROMPTS="${PROMPTS_FILE:-results/llm_v2/prompts.jsonl}" # frozen default (420)
 OUTDIR="results/llm_v21"
 LOGDIR="$OUTDIR/logs"
 SMOKE_IDS="0b394cf2d923,3106eb7c74bb,90e26b753383"
@@ -112,20 +116,20 @@ case "$MODE" in
           --max-tokens 8192)
     ;;
   *)
-    echo "usage: $0 {mistral-none|mistral-high|dsv4-think|dsv4-nothink} [extra args]" >&2
+    echo "usage: $0 {mistral-none|mistral-high|dsv4-think|dsv4-nothink|dsv4-flash} [extra args]" >&2
     exit 1
     ;;
 esac
 
-OUT="$OUTDIR/answers_${TAG}.jsonl"
-LOG="$LOGDIR/${TAG}.log"
+OUT="${OUT_FILE:-$OUTDIR/answers_${TAG}.jsonl}"
+LOG="${LOG_FILE:-$LOGDIR/${TAG}.log}"
 
 # --smoke selects the three fixed smoke prompts and separate smoke files
 EXTRA=()
 for a in "$@"; do
     if [ "$a" = "--smoke" ]; then
-        OUT="$OUTDIR/answers_${TAG}_smoke.jsonl"
-        LOG="$LOGDIR/${TAG}_smoke.log"
+        [ -n "${OUT_FILE:-}" ] || OUT="$OUTDIR/answers_${TAG}_smoke.jsonl"
+        [ -n "${LOG_FILE:-}" ] || LOG="$LOGDIR/${TAG}_smoke.log"
         EXTRA+=(--ids "$SMOKE_IDS")
     else
         EXTRA+=("$a")

@@ -105,7 +105,7 @@ is not guaranteed and should be stated if the arm is ever reported.
 Prerequisite: `claude` on `PATH`, logged in.
 
 ```bash
-cd /home/albert/Dokumente/MasterArbeit
+cd "$HOME/Dokumente/MasterArbeit"
 source .venv/bin/activate
 ```
 
@@ -129,7 +129,8 @@ picked up again on the next call. Then extrapolate the bill:
 ```bash
 python - <<'PY'
 import json, glob
-for f in sorted(glob.glob("/home/albert/Dokumente/cc_screen/answers_*.jsonl")):
+from pathlib import Path
+for f in sorted(glob.glob(str(Path.home() / "Dokumente/cc_screen/answers_*.jsonl"))):
     rs = [json.loads(l) for l in open(f)]
     c = [r["cost_usd"] for r in rs if r.get("cost_usd")]
     t = [r["num_turns"] for r in rs if r.get("num_turns")]

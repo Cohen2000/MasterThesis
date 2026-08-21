@@ -349,6 +349,10 @@ def main():
                     help="explicit comma-separated input kinds; overrides "
                          "--ablation-design")
     ap.add_argument("--ablation-condition", default="disclosed")
+    ap.add_argument("--only-ablation", action="store_true",
+                    help="emit only the selected ablation cells; useful for "
+                         "extending the frozen suite without regenerating or "
+                         "overwriting its main/context prompts")
     ap.add_argument("--tool-input", default="mask_crawl_temporal")
     ap.add_argument("--emit-tool-subset", action="store_true", default=True)
     ap.add_argument("--no-tool-subset", dest="emit_tool_subset",
@@ -396,12 +400,15 @@ def main():
         })
 
     for _, row in cases.iterrows():
-        for cond in [c.strip() for c in args.main_conditions.split(",")]:
-            emit(row, cond, args.main_input)
+        if not args.only_ablation:
+            for cond in [c.strip() for c in args.main_conditions.split(",")
+                         if c.strip()]:
+                emit(row, cond, args.main_input)
         if int(row.get("ablation_subset", 0)) == 1:
             for kind in ablation_inputs:
                 emit(row, args.ablation_condition, kind)
-        if args.emit_tool_subset and int(row.get("tool_use_subset", 0)) == 1:
+        if (not args.only_ablation and args.emit_tool_subset
+                and int(row.get("tool_use_subset", 0)) == 1):
             emit(row, "method", args.tool_input)
 
     with open(out_path, "w") as fh:

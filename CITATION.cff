@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software or its experimental design, please cite it using the metadata below."
+title: "Temporal Network Persistence from Partial Observations"
+type: software
+authors:
+  - family-names: "Borchardt"
+    given-names: "Albert"
+repository-code: "https://github.com/Cohen2000/MasterArbeit"
+license: MIT
+abstract: >-
+  Research software for estimating full-network temporal persistence from
+  partial and potentially biased network observations using analytical
+  estimators, supervised baselines, and language models.
+keywords:
+  - temporal networks
+  - graph sampling
+  - random walks
+  - persistence estimation
+  - language models

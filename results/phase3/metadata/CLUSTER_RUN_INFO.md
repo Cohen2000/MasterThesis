@@ -3,9 +3,9 @@
 ## Cluster
 
 - Cluster: bwUniCluster 3.0
-- User: tu_zxokn55
-- Workspace: /pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot
-- Pilot directory: /pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/pilot
+- User: user-specific identifier omitted
+- Workspace: user-specific `llm_pilot` workspace
+- Pilot directory: `llm_pilot/pilot`
 - GPU type used: NVIDIA H100
 - Main partition: gpu_h100_short
 

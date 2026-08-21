@@ -1,3 +1,0 @@
-nohup: Eingabe wird ignoriert
-90040 cases, 38 groups, 8 targets, strategies=['recency_biased', 'recent_history_k20', 'recent_history_k5', 'time_agnostic', 'time_agnostic_t', 'time_respecting', 'time_respecting_multistart3']
-[recency_biased] fold 1/5 complete

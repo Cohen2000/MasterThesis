@@ -317,15 +317,24 @@ def load_prompts(path, condition, input_kind, only_ids, limit):
     return rows
 
 
-def done_ids(out_path):
-    """prompt_ids already answered completely (shared runner semantics)."""
+def usable_record(record, arm):
+    """Whether a record is complete and valid for the requested arm."""
+    if not is_complete_record(record):
+        return False
+    # A structurally valid answer obtained after a tool call is still not a
+    # valid observation for the deliberately tool-free treatment.
+    return not (arm == "notools" and record.get("n_tool_events"))
+
+
+def done_ids(out_path, arm=None):
+    """prompt_ids already answered completely and validly for ``arm``."""
     ids = set()
     if Path(out_path).exists():
         with open(out_path) as fh:
             for line in fh:
                 try:
                     rec = json.loads(line)
-                    if is_complete_record(rec):
+                    if usable_record(rec, arm):
                         ids.add(rec["prompt_id"])
                 except (json.JSONDecodeError, KeyError):
                     continue
@@ -375,7 +384,11 @@ def build_cmd(args, arm):
     `--output-last-message` and the trailing `-` are appended per call by
     call_codex, which owns the temporary directory.
     """
-    cmd = ["codex", "exec",
+    # Keep the executable selectable: CLI feature schemas can change between
+    # releases, and an ablation must use the same harness version in every
+    # cell.  Older unit-test fixtures intentionally omit codex_bin.
+    codex_bin = getattr(args, "codex_bin", None) or "codex"
+    cmd = [codex_bin, "exec",
            "--model", args.model,
            "--json", "--color", "never",
            # the user's own config, project rules and session history must not
@@ -389,6 +402,10 @@ def build_cmd(args, arm):
            # --strict-config rejects unknown keys, which is how this list was
            # validated locally: `tools.view_image` does not exist in 0.146.0
            # and made every call abort before the model was reached.
+           # The top-level mode is the authoritative switch that removes the
+           # hosted web-search tool. tools.web_search=false alone proved
+           # insufficient in one real 0.146.0 run.
+           "-c", 'web_search="disabled"',
            "-c", "tools.web_search=false"]
     for feat in ALWAYS_OFF:
         cmd += ["--disable", feat]
@@ -529,6 +546,9 @@ def main():
     ap.add_argument("--limit", type=int, default=0, help="first N prompts (smoke)")
     ap.add_argument("--model", default=DEFAULT_MODEL,
                     help="default: %(default)s (see `codex debug models`)")
+    ap.add_argument("--codex-bin", default=os.environ.get("CODEX_BIN", "codex"),
+                    help="Codex CLI executable (or set CODEX_BIN). Pin this "
+                         "when extending an existing experiment.")
     ap.add_argument("--effort", default=DEFAULT_EFFORT,
                     choices=["low", "medium", "high", "xhigh", "max", "ultra"],
                     help="default: %(default)s -- the model's own default is "
@@ -583,8 +603,16 @@ def main():
                     help="print the command and the first prompt, call nothing")
     args = ap.parse_args()
 
-    if shutil.which("codex") is None:
-        sys.exit("codex not found on PATH")
+    codex_bin = shutil.which(args.codex_bin)
+    if codex_bin is None:
+        sys.exit(f"codex executable not found: {args.codex_bin}")
+    args.codex_bin = codex_bin
+    try:
+        cli_version = subprocess.run(
+            [codex_bin, "--version"], text=True, capture_output=True,
+            timeout=10, check=True).stdout.strip()
+    except (OSError, subprocess.SubprocessError) as exc:
+        sys.exit(f"could not identify Codex CLI {codex_bin}: {exc}")
 
     out_dir = Path(args.out_dir)
     if REPO in out_dir.resolve().parents or out_dir.resolve() == REPO:
@@ -612,7 +640,8 @@ def main():
     out_path.parent.mkdir(parents=True, exist_ok=True)
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    have = done_ids(out_path)
+    selected_ids = {r["prompt_id"] for r in rows}
+    have = done_ids(out_path, args.arm) & selected_ids
     todo = [r for r in rows if r["prompt_id"] not in have]
     burned = []
     tries = attempts_by_id(out_path)
@@ -630,6 +659,7 @@ def main():
               f"prompt. Check with --verify before trusting the run.")
 
     print(f"arm={args.arm}  model={args.model}  effort={args.effort}  label={label}")
+    print(f"cli={cli_version}  binary={codex_bin}")
     print(f"selected={len(rows)}  complete={len(have)}  todo={len(todo)}"
           + (f"  giving_up_on={len(burned)}" if burned else ""))
     if burned:
@@ -688,12 +718,17 @@ def main():
                        "input_kind": r["input_kind"], "strategy": r["strategy"],
                        "model": label, "backend": "codex_cli",
                        "arm": args.arm, "cli_model": args.model,
+                       "cli_version": cli_version,
+                       "cli_binary": codex_bin,
                        "effort": args.effort,
                        "reasoning_effort": args.effort,
                        "tools": "" if args.arm == "notools" else args.sandbox,
                        "thinking": None,
                        "temperature": None, "top_p": None, "top_k": None,
                        "seed": None, "max_tokens": None,
+                       "rep": r.get("rep"),
+                       "base_prompt_id": r.get("base_prompt_id"),
+                       "prompt_sha256": r.get("prompt_sha256"),
                        "num_turns": None,
                        "n_tool_events": meta.get("n_tool_events"),
                        "tool_item_types": meta.get("tool_item_types"),
@@ -706,7 +741,8 @@ def main():
                 tries[r["prompt_id"]] = attempt
                 tok_spent += meta.get("total_tokens") or 0
                 usd_spent += usd or 0.0
-                ok = "ok " if is_complete_record(rec) else "INCOMPLETE"
+                usable = usable_record(rec, args.arm)
+                ok = "ok " if usable else "INCOMPLETE"
                 print(f"[{i}/{len(todo)}] {r['prompt_id']} {ok} "
                       f"tools={meta.get('n_tool_events')} "
                       f"tok={meta.get('total_tokens')} {res['latency_s']}s "
@@ -720,9 +756,17 @@ def main():
                     print(f"    WARNING: notools arm used tools "
                           f"({meta['tool_item_types']}) -- the feature flags "
                           f"did not disable execution", flush=True)
+                    # Fail closed. Continuing could silently contaminate more
+                    # benchmark cells; the written record remains auditable
+                    # and retryable after the configuration is corrected.
+                    sys.exit(2)
 
                 lim, resets = limit_info(raw, meta, err, res["finish_reason"])
-                if lim and args.wait_for_reset and waits < args.max_waits:
+                # A complete answer must never be repeated merely because the
+                # CLI also emitted plan-limit metadata after the turn. Three
+                # such successful calls were previously duplicated.
+                if (not usable and lim and args.wait_for_reset
+                        and waits < args.max_waits):
                     waits += 1
                     delay = wait_seconds(resets)
                     until = time.strftime("%H:%M", time.localtime(time.time() + delay))
@@ -736,7 +780,7 @@ def main():
 
             if exhausted_attempts:
                 continue
-            if lim and not args.ignore_usage_limit:
+            if not usable and lim and not args.ignore_usage_limit:
                 stopped = (f"plan limit ({lim}). The record stays retryable; "
                            f"rerun the same command after the reset, or use "
                            f"--wait-for-reset to sit it out automatically.")

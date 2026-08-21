@@ -43,8 +43,10 @@ checkpoints/
 huggingface/
 wandb/
 
-# Claude Code machine-specific settings
-.claude/settings.local.json
+# Local coding-agent state (root-level instruction files remain trackable)
+.claude/
+.codex/
+.agents/
 
 # Editors / OS
 .vscode/

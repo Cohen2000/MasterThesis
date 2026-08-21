@@ -109,7 +109,8 @@ def is_complete_record(record):
 
 
 def load_prompts(path, shard_index, shard_count, only_ids):
-    rows = [json.loads(l) for l in open(path) if l.strip()]
+    with open(path) as fh:
+        rows = [json.loads(line) for line in fh if line.strip()]
     rows.sort(key=lambda r: r["prompt_id"])
     if only_ids:
         keep = set(only_ids)
@@ -652,8 +653,16 @@ def main():
                    "top_k": args.top_k,
                    "repetition_penalty": args.repetition_penalty,
                    "no_repeat_ngram_size": args.no_repeat_ngram_size,
-                   "seed": (args.seed if r.get("gen_seed") is None
-                            else int(r["gen_seed"])),
+                   # The OpenAI-compatible request does not send a seed.  A
+                   # prompt-level gen_seed only controls the local HF backend;
+                   # recording it as an API seed would falsely claim seeded
+                   # reproducibility for Gemini/NIM generations.
+                   "seed": (None if args.backend == "api" else
+                            (args.seed if r.get("gen_seed") is None
+                             else int(r["gen_seed"]))),
+                   "rep": r.get("rep"),
+                   "base_prompt_id": r.get("base_prompt_id"),
+                   "prompt_sha256": r.get("prompt_sha256"),
                    "prompt_variant": r.get("prompt_variant"),
                    "required_keys": r.get("required_keys", PRED_KEYS),
                    # None records "no cap requested", which is a different
