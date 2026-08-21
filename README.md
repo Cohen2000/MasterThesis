@@ -31,7 +31,45 @@ The project studies when this profile is identifiable from compact sample
 summaries, how access bias changes the answer, and whether an LLM can add useful
 general-purpose inference beyond task-specific estimators.
 
-![Conceptual pipeline from temporal events to persistence estimation](figures/pipeline_updt.png)
+## Current experimental pipeline
+
+```mermaid
+flowchart TD
+    A["Real and synthetic temporal networks"]
+    B["Ground-truth persistence profile: rho_2 ... rho_5"]
+    C{"Controlled partial access"}
+    D["Temporal walk mechanisms"]
+    E["Non-walk retrieval mechanisms"]
+    F["Compact summaries, features, and prompts"]
+    G["Analytical estimators"]
+    H["Supervised baselines"]
+    I["Language models"]
+    J["Leakage-aware paired evaluation"]
+    K["Accuracy and bias"]
+    L["Graph, walk-seed, and response variation"]
+    M["Input ablations, validity, and cost"]
+
+    A --> B
+    A --> C
+    C --> D
+    C --> E
+    D --> F
+    E --> F
+    F --> G
+    F --> H
+    F --> I
+    B --> J
+    G --> J
+    H --> J
+    I --> J
+    J --> K
+    J --> L
+    J --> M
+```
+
+This is the current project-level view. Individual experiments use controlled
+subsets of these branches; historical diagrams under `figures/` may describe
+earlier stages of the work.
 
 ## Research questions
 
