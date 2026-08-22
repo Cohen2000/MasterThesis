@@ -55,14 +55,81 @@ bash scripts/run_llm_ofat.sh deepseek
 bash scripts/run_llm_ofat.sh codex
 ```
 
-Gemini und DeepSeek laufen im Hintergrund. DeepSeek verteilt die 216 Prompts
-standardmäßig auf acht Shards (27 pro Shard). Codex läuft im Vordergrund über
-das ChatGPT-/Codex-Kontingent und verbraucht kein OpenAI-API-Budget.
+Gemini und DeepSeek laufen im Hintergrund. DeepSeek behält acht Ergebnis-Shards
+(27 Prompts pro Shard), verarbeitet sie wegen der Drosselung des freien
+Endpunkts aber standardmäßig nacheinander. Die Parallelität lässt sich bewusst
+und ohne neues Sharding erhöhen, zum Beispiel auf zwei gleichzeitige Requests:
+
+```bash
+OFAT_DEEPSEEK_CONCURRENCY=2 bash scripts/run_llm_ofat.sh deepseek
+```
+
+Codex läuft im Vordergrund über das ChatGPT-/Codex-Kontingent und verbraucht
+kein OpenAI-API-Budget.
 
 Alle Befehle sind fortsetzbar: vollständige Prompt-IDs werden übersprungen.
 DeepSeek führt bis zu drei Pässe für transiente Fehler oder unvollständige
 Antworten aus. An einem unveränderten Tokenlimit abgeschnittene Antworten
 werden nicht endlos wiederholt.
+
+Nach starker HTTP-429-Drosselung kann ein einzelner, länger wartender Worker
+verwendet werden. Bereits vollständige Prompt-IDs werden weiterhin übersprungen:
+
+```bash
+OFAT_DEEPSEEK_CONCURRENCY=1 NIM_TOTAL_WAIT=1800 \
+  bash scripts/run_llm_ofat.sh deepseek
+```
+
+### Offizielle DeepSeek-API als nachvollziehbare Fortsetzung
+
+Falls der kostenlose NIM-Endpunkt dauerhaft blockiert, können ausschließlich
+die noch unvollständigen Prompt-IDs über die offizielle API ergänzt werden. Die
+Antworten landen in einer separaten Datei; die ursprünglichen NIM-Records werden
+nicht verändert. Status und Auswertung führen beide Quellen über `prompt_id`
+zusammen.
+
+Den Schlüssel verdeckt in der aktuellen Shell setzen:
+
+```bash
+read -rsp "DeepSeek API key: " DEEPSEEK_API_KEY
+echo
+export DEEPSEEK_API_KEY
+```
+
+Danach mit einer auf diesen Lauf bezogenen Kostenobergrenze starten:
+
+```bash
+DEEPSEEK_OFFICIAL_MAX_USD=0.50 \
+  bash scripts/run_llm_ofat.sh deepseek-official
+```
+
+Der Default nutzt `deepseek-v4-flash`, deaktiviertes Thinking, Temperatur 1.0,
+8.192 Output-Tokens und die am 2026-08-22 dokumentierten Preise von 0,0028 / 0,14 /
+0,28 USD pro Million Cache-Hit-Input-/Cache-Miss-Input-/Output-Tokens. Vor jedem
+Request wird dessen konservativ maximaler Preis gegen das verbleibende Limit
+geprüft. Bereits in der offiziellen Ausgabedatei verbuchte Kosten zählen bei
+einem Resume weiter gegen dasselbe Limit.
+
+`finish_reason=length` bleibt absichtlich unvollständig. Für eine zweite,
+gezielte Eskalationsstufe werden nur diese Fälle erneut ausgewählt; alle
+strukturell vollständigen Antworten bleiben übersprungen:
+
+```bash
+DEEPSEEK_OFFICIAL_MAX_USD=0.50 \
+DEEPSEEK_OFFICIAL_MAX_TOKENS=16384 \
+DEEPSEEK_OFFICIAL_MAX_LENGTH_ATTEMPTS=2 \
+  bash scripts/run_llm_ofat.sh deepseek-official
+```
+
+Die Attempt-Grenze wird mit jeder Budgetstufe erhöht: `1` ist der ursprüngliche
+8.192-Token-Versuch, `2` erlaubt genau einen zusätzlichen Versuch. Das
+Kostenlimit gilt kumulativ für die gesamte offizielle Ausgabedatei, nicht erneut
+pro Start.
+
+Diese Fortsetzung ist als kombinierte Provider-Konfiguration zu kennzeichnen:
+NIM verwendet den datierten Namen `deepseek-v4-flash-0731`, die offizielle API
+den Alias `deepseek-v4-flash`. Sie vervollständigt die OFAT-Zellen, ist aber
+kein reiner Provider- oder Versionsvergleich.
 
 ## 3. Lokalen Fortschritt prüfen
 
@@ -133,7 +200,7 @@ ssh uc3 'cd ~/MasterArbeit && bash scripts/cluster_llm_ofat_status.sh'
 Accounting:
 
 ```bash
-ssh uc3 'sacct -S today --name=ofat_q36_primary,ofat_q36_n16,ofat_q36_n32,ofat_q36_t64,ofat_q36_t128 --format=JobID%24,JobName%22,State,Elapsed,MaxRSS'
+ssh uc3 'sacct -S today --name=ofat_q36_primary,ofat_q36_n16,ofat_q36_n32,ofat_q36_n64,ofat_q36_n128,ofat_q36_t64,ofat_q36_t128 --format=JobID%24,JobName%22,State,Elapsed,MaxRSS'
 ```
 
 ## 6. Qwen herunterladen

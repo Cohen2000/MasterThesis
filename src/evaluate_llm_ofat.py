@@ -39,8 +39,9 @@ RUNS = [
         "results/llm_v21/answers_gemini-3.1-flash-lite_minimal.jsonl",
         "results/llm_v21_ofat/answers_gemini-3.1-flash-lite_minimal.shard*.jsonl",
     ]),
-    ("deepseek-v4-flash-0731", [
+    ("deepseek-v4-flash nothink (NIM+official)", [
         "results/llm_v21_ofat/answers_deepseek-v4-flash-0731_nothink.shard*.jsonl",
+        "results/llm_v21_ofat/answers_deepseek-v4-flash_official_nothink.jsonl",
     ]),
     ("qwen3.6-27b nothink", [
         "results/llm_v21/cluster_snapshot/answers_qwen36-27b_nothink.shard*.jsonl",

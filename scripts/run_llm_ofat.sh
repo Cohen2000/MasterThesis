@@ -5,6 +5,7 @@
 #   bash scripts/run_llm_ofat.sh prepare
 #   bash scripts/run_llm_ofat.sh gemini
 #   bash scripts/run_llm_ofat.sh deepseek
+#   bash scripts/run_llm_ofat.sh deepseek-official
 #   bash scripts/run_llm_ofat.sh codex
 #   bash scripts/run_llm_ofat.sh status
 #   bash scripts/run_llm_ofat.sh evaluate
@@ -20,6 +21,7 @@ PYTHON_BIN="${PYTHON_BIN:-$REPO/.venv/bin/python}"
 OUT="$REPO/results/llm_v21_ofat"
 GEMINI_SHARDS="${OFAT_GEMINI_SHARDS:-3}"
 DEEPSEEK_SHARDS="${OFAT_DEEPSEEK_SHARDS:-8}"
+DEEPSEEK_CONCURRENCY="${OFAT_DEEPSEEK_CONCURRENCY:-1}"
 
 if [[ ! -x "$PYTHON_BIN" ]]; then
     echo "Python environment not found: $PYTHON_BIN" >&2
@@ -141,6 +143,7 @@ deepseek_worker() {
         left=$(retryable_count "$prompt" "$answer")
         echo "DeepSeek shard $i pass $pass/$max_passes: $left retryable prompts"
         [[ "$left" -eq 0 ]] && break
+        PYTHON_BIN="$PYTHON_BIN" \
         PROMPTS_FILE="$prompt" OUT_FILE="$answer" LOG_FILE="$api_log" \
         NIM_MAXTOK="${NIM_MAXTOK:-0}" \
         NIM_MAX_WAIT="${NIM_MAX_WAIT:-120}" \
@@ -153,25 +156,180 @@ deepseek_worker() {
     echo "DeepSeek shard $i finished worker: $left retryable prompts remain"
 }
 
-run_deepseek() {
-    need_prepared
-    : "${NVIDIA_API_KEY:?set NVIDIA_API_KEY first (the script never prints it)}"
-    mkdir -p "$OUT/logs" "$OUT/pids"
-    local i prompt pidfile worker_log
+deepseek_supervisor() {
+    local concurrency="$DEEPSEEK_CONCURRENCY"
+    local i prompt worker_log pidfile left active=0 failures=0
+
+    if [[ ! "$concurrency" =~ ^[1-9][0-9]*$ ]]; then
+        echo "OFAT_DEEPSEEK_CONCURRENCY must be a positive integer" >&2
+        exit 2
+    fi
+    if ((concurrency > DEEPSEEK_SHARDS)); then
+        concurrency="$DEEPSEEK_SHARDS"
+    fi
+
+    echo "DeepSeek supervisor: $DEEPSEEK_SHARDS result shards, " \
+         "at most $concurrency concurrent API request(s)"
+
+    # Old versions left stale per-shard PID files behind. They are runtime
+    # metadata only; every file is recreated for a worker launched below.
+    for ((i=0; i<DEEPSEEK_SHARDS; i++)); do
+        rm -f -- "$OUT/pids/deepseek.shard${i}.pid"
+    done
+
     for ((i=0; i<DEEPSEEK_SHARDS; i++)); do
         prompt="$OUT/prompts_ofat_deepseek.shard${i}.jsonl"
-        pidfile="$OUT/pids/deepseek.shard${i}.pid"
         worker_log="$OUT/logs/deepseek_flash.shard${i}.worker.log"
-        [[ -f "$prompt" ]] || { echo "missing $prompt; rerun prepare" >&2; exit 2; }
-        if [[ -f "$pidfile" ]] && kill -0 "$(<"$pidfile")" 2>/dev/null; then
-            echo "DeepSeek shard $i already runs as PID $(<"$pidfile")"
+        pidfile="$OUT/pids/deepseek.shard${i}.pid"
+        left=$(retryable_count \
+            "$prompt" \
+            "$OUT/answers_deepseek-v4-flash-0731_nothink.shard${i}.jsonl")
+        if [[ "$left" -eq 0 ]]; then
+            echo "DeepSeek shard $i skipped: complete"
             continue
         fi
-        nohup bash "$0" _deepseek_worker "$i" >>"$worker_log" 2>&1 &
-        echo "$!" > "$pidfile"
-        echo "DeepSeek shard $i started as PID $!"
+
+        while ((active >= concurrency)); do
+            if ! wait -n; then
+                failures=$((failures + 1))
+            fi
+            active=$((active - 1))
+        done
+
+        bash "$0" _deepseek_worker "$i" >>"$worker_log" 2>&1 &
+        echo "$!" >"$pidfile"
+        active=$((active + 1))
+        echo "DeepSeek shard $i queued as PID $! ($left retryable)"
     done
+
+    while ((active > 0)); do
+        if ! wait -n; then
+            failures=$((failures + 1))
+        fi
+        active=$((active - 1))
+    done
+
+    for ((i=0; i<DEEPSEEK_SHARDS; i++)); do
+        rm -f -- "$OUT/pids/deepseek.shard${i}.pid"
+    done
+    # Keep the supervisor PID file as a harmless completion record. The next
+    # start validates both PID liveness and command line before trusting it,
+    # then overwrites it. This avoids a start/finish race on very short runs.
+    echo "DeepSeek supervisor finished; worker failures: $failures"
+}
+
+deepseek_supervisor_is_running() {
+    local pidfile="$OUT/pids/deepseek.supervisor.pid"
+    local pid cmdline
+    [[ -f "$pidfile" ]] || return 1
+    pid=$(<"$pidfile")
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    kill -0 "$pid" 2>/dev/null || return 1
+    cmdline=$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null || true)
+    [[ "$cmdline" == *"scripts/run_llm_ofat.sh _deepseek_supervisor"* ]]
+}
+
+deepseek_official_is_running() {
+    local pidfile="$OUT/pids/deepseek.official.pid"
+    local pid cmdline
+    [[ -f "$pidfile" ]] || return 1
+    pid=$(<"$pidfile")
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    kill -0 "$pid" 2>/dev/null || return 1
+    cmdline=$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null || true)
+    [[ "$cmdline" == *"src/run_llm_v2.py"* &&
+       "$cmdline" == *"answers_deepseek-v4-flash_official_nothink.jsonl"* ]]
+}
+
+run_deepseek() {
+    need_prepared
+    if [[ "${NVIDIA_API_KEY+x}" != x ]]; then
+        echo "set NVIDIA_API_KEY first (the script never prints it)" >&2
+        exit 2
+    fi
+    mkdir -p "$OUT/logs" "$OUT/pids"
+    local i prompt supervisor_pidfile supervisor_log
+    for ((i=0; i<DEEPSEEK_SHARDS; i++)); do
+        prompt="$OUT/prompts_ofat_deepseek.shard${i}.jsonl"
+        [[ -f "$prompt" ]] || { echo "missing $prompt; rerun prepare" >&2; exit 2; }
+    done
+
+    supervisor_pidfile="$OUT/pids/deepseek.supervisor.pid"
+    supervisor_log="$OUT/logs/deepseek_flash.supervisor.log"
+    if deepseek_supervisor_is_running; then
+        echo "DeepSeek supervisor already runs as PID $(<"$supervisor_pidfile")"
+        return
+    fi
+
+    nohup bash "$0" _deepseek_supervisor >>"$supervisor_log" 2>&1 &
+    echo "$!" >"$supervisor_pidfile"
+    echo "DeepSeek supervisor started as PID $!"
+    echo "Concurrency: $DEEPSEEK_CONCURRENCY (override with OFAT_DEEPSEEK_CONCURRENCY)"
+    echo "Supervisor log: $supervisor_log"
     echo "DeepSeek worker logs: $OUT/logs/deepseek_flash.shard*.worker.log"
+}
+
+run_deepseek_official() {
+    need_prepared
+    if [[ "${DEEPSEEK_API_KEY+x}" != x ]]; then
+        echo "set DEEPSEEK_API_KEY first (the script never prints it)" >&2
+        exit 2
+    fi
+    mkdir -p "$OUT/logs" "$OUT/pids"
+
+    local answer="$OUT/answers_deepseek-v4-flash_official_nothink.jsonl"
+    local log="$OUT/logs/deepseek_flash_official_nothink.log"
+    local pidfile="$OUT/pids/deepseek.official.pid"
+    local cap="${DEEPSEEK_OFFICIAL_MAX_USD:-0.50}"
+    local max_tokens="${DEEPSEEK_OFFICIAL_MAX_TOKENS:-8192}"
+    local max_length_attempts="${DEEPSEEK_OFFICIAL_MAX_LENGTH_ATTEMPTS:-1}"
+
+    if [[ ! "$max_tokens" =~ ^[1-9][0-9]*$ ]]; then
+        echo "DEEPSEEK_OFFICIAL_MAX_TOKENS must be a positive integer" >&2
+        exit 2
+    fi
+    if [[ ! "$max_length_attempts" =~ ^[1-9][0-9]*$ ]]; then
+        echo "DEEPSEEK_OFFICIAL_MAX_LENGTH_ATTEMPTS must be a positive integer" >&2
+        exit 2
+    fi
+
+    if deepseek_supervisor_is_running; then
+        echo "Refusing overlapping providers: NIM supervisor is still running." >&2
+        echo "Wait for it to stop before starting the official continuation." >&2
+        exit 2
+    fi
+    if deepseek_official_is_running; then
+        echo "Official DeepSeek continuation already runs as PID $(<"$pidfile")"
+        return
+    fi
+
+    nohup env PYTHONPATH=src "$PYTHON_BIN" src/run_llm_v2.py \
+        --backend api \
+        --prompts "$OUT/prompts_ofat_deepseek.jsonl" \
+        --resume-from "$OUT/answers_deepseek-v4-flash-0731_nothink.shard*.jsonl" \
+        --out "$answer" \
+        --base-url https://api.deepseek.com \
+        --api-key-env DEEPSEEK_API_KEY \
+        --model deepseek-v4-flash \
+        --thinking off \
+        --api-thinking-format deepseek \
+        --temperature 1.0 \
+        --max-tokens "$max_tokens" \
+        --max-length-attempts "$max_length_attempts" \
+        --timeout 1200 \
+        --retries 5 \
+        --sleep 2 \
+        --max-usd "$cap" \
+        --price-input-cache-hit 0.0028 \
+        --price-input-cache-miss 0.14 \
+        --price-output 0.28 \
+        >>"$log" 2>&1 &
+    echo "$!" >"$pidfile"
+    echo "Official DeepSeek continuation started as PID $!"
+    echo "Cost cap: \$$cap (override with DEEPSEEK_OFFICIAL_MAX_USD)"
+    echo "Output budget: $max_tokens tokens; length-attempt cap: $max_length_attempts"
+    echo "Output: $answer"
+    echo "Log: $log"
 }
 
 cmd="${1:-}"
@@ -180,12 +338,14 @@ case "$cmd" in
     codex) run_codex ;;
     gemini) run_gemini ;;
     deepseek) run_deepseek ;;
+    deepseek-official) run_deepseek_official ;;
     all-local)
         run_gemini
         run_deepseek
         run_codex
         ;;
     _deepseek_worker) deepseek_worker "${2:-}" ;;
+    _deepseek_supervisor) deepseek_supervisor ;;
     status)
         PYTHONPATH=src "$PYTHON_BIN" src/llm_ofat_status.py
         ;;
@@ -193,7 +353,7 @@ case "$cmd" in
         PYTHONPATH=src "$PYTHON_BIN" src/evaluate_llm_ofat.py
         ;;
     *)
-        echo "usage: $0 {prepare|gemini|deepseek|codex|all-local|status|evaluate}" >&2
+        echo "usage: $0 {prepare|gemini|deepseek|deepseek-official|codex|all-local|status|evaluate}" >&2
         exit 2
         ;;
 esac

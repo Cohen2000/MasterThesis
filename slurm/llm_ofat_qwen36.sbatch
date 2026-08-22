@@ -13,7 +13,8 @@
 # the dependency chain and supplies STAGE and SHARDS.
 #
 # The settings intentionally match the frozen-suite Qwen run exactly:
-# nothink: temp=.7, top_p=.8, top_k=20, seed 0, tiers 8k -> 16k -> 32k
+# nothink: temp=.7, top_p=.8, top_k=20, seed 0,
+#          tiers 8k -> 16k -> 32k -> 64k -> 128k
 # think:   temp=1,  top_p=.95, top_k=20, seed 0, tiers 32k -> 64k -> 128k
 # No repetition penalty is used here.  The penalty belonged to the separate
 # non-walk screen; adding it only to the two new OFAT cells would confound the
@@ -54,6 +55,15 @@ select_open() {
         n32)
             previous=(--answers 'answers_ofat_qwen36_nothink_8k.shard*.jsonl'
                       --answers 'answers_ofat_qwen36_nothink_16k.shard*.jsonl') ;;
+        n64)
+            previous=(--answers 'answers_ofat_qwen36_nothink_8k.shard*.jsonl'
+                      --answers 'answers_ofat_qwen36_nothink_16k.shard*.jsonl'
+                      --answers 'answers_ofat_qwen36_nothink_32k.shard*.jsonl') ;;
+        n128)
+            previous=(--answers 'answers_ofat_qwen36_nothink_8k.shard*.jsonl'
+                      --answers 'answers_ofat_qwen36_nothink_16k.shard*.jsonl'
+                      --answers 'answers_ofat_qwen36_nothink_32k.shard*.jsonl'
+                      --answers 'answers_ofat_qwen36_nothink_64k.shard*.jsonl') ;;
         t64)
             previous=(--answers 'answers_ofat_qwen36_think_32k.shard*.jsonl') ;;
         t128)
@@ -93,7 +103,7 @@ case "$STAGE" in
         fi
         EXTRA=(--shard-index "$SHARD" --shard-count "$SHARDS")
         ;;
-    n16|n32|t64|t128)
+    n16|n32|n64|n128|t64|t128)
         SHARD=$TASK
         IDS=$(select_open "$STAGE")
         if [[ -z "$IDS" ]]; then
@@ -107,6 +117,12 @@ case "$STAGE" in
             n32)
                 MODE=nothink; THINKING=off; TEMP=0.7; TOP_P=0.8; MAXTOK=32768
                 OUT="answers_ofat_qwen36_nothink_32k.shard${SHARD}.jsonl" ;;
+            n64)
+                MODE=nothink; THINKING=off; TEMP=0.7; TOP_P=0.8; MAXTOK=65536
+                OUT="answers_ofat_qwen36_nothink_64k.shard${SHARD}.jsonl" ;;
+            n128)
+                MODE=nothink; THINKING=off; TEMP=0.7; TOP_P=0.8; MAXTOK=126976
+                OUT="answers_ofat_qwen36_nothink_128k.shard${SHARD}.jsonl" ;;
             t64)
                 MODE=think; THINKING=on; TEMP=1.0; TOP_P=0.95; MAXTOK=65536
                 OUT="answers_ofat_qwen36_think_64k.shard${SHARD}.jsonl" ;;
@@ -117,7 +133,7 @@ case "$STAGE" in
         EXTRA=(--ids "$IDS" --shard-index "$SHARD" --shard-count "$SHARDS")
         ;;
     *)
-        echo "STAGE must be primary, n16, n32, t64 or t128; got: $STAGE" >&2
+        echo "STAGE must be primary, n16, n32, n64, n128, t64 or t128; got: $STAGE" >&2
         exit 2
         ;;
 esac
@@ -133,4 +149,6 @@ python3 run_llm_v2.py --backend hf \
     --max-length-attempts 1 \
     "${EXTRA[@]}"
 
-echo "done: stage=$STAGE mode=$MODE shard=$SHARD; $(wc -l < "$OUT") records"
+records=0
+[[ -f "$OUT" ]] && records=$(wc -l <"$OUT")
+echo "done: stage=$STAGE mode=$MODE shard=$SHARD; $records records"

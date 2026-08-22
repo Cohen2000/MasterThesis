@@ -122,10 +122,11 @@ def main():
         OFAT / "pids/gemini.shard*.pid",
     )
     report(
-        "DeepSeek V4 Flash 0731 non-thinking",
+        "DeepSeek V4 Flash non-thinking (NIM 0731 + official continuation)",
         OFAT / "prompts_ofat_deepseek.jsonl",
-        [OFAT / "answers_deepseek-v4-flash-0731_nothink.shard*.jsonl"],
-        OFAT / "pids/deepseek.shard*.pid",
+        [OFAT / "answers_deepseek-v4-flash-0731_nothink.shard*.jsonl",
+         OFAT / "answers_deepseek-v4-flash_official_nothink.jsonl"],
+        OFAT / "pids/deepseek*.pid",
     )
     qprompt = OFAT / "prompts_ofat_qwen.jsonl"
     for mode in ("nothink", "think"):

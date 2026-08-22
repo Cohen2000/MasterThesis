@@ -25,6 +25,14 @@
 # Reruns resume by prompt_id: only complete final-JSON records count as done.
 set -euo pipefail
 
+# Use an explicit interpreter so background jobs do not depend on whether the
+# interactive shell happened to activate the repository virtual environment.
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+    echo "Python interpreter not found: $PYTHON_BIN" >&2
+    exit 2
+fi
+
 PROMPTS="${PROMPTS_FILE:-results/llm_v2/prompts.jsonl}" # frozen default (420)
 OUTDIR="results/llm_v21"
 LOGDIR="$OUTDIR/logs"
@@ -140,7 +148,7 @@ done
 mkdir -p "$OUTDIR" "$LOGDIR"
 
 echo "mode=$MODE -> $OUT (log: $LOG)"
-python src/run_llm_v2.py --backend api \
+"$PYTHON_BIN" src/run_llm_v2.py --backend api \
     --prompts "$PROMPTS" \
     --out "$OUT" \
     --base-url https://integrate.api.nvidia.com/v1 \

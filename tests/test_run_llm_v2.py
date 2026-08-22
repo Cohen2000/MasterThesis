@@ -189,6 +189,21 @@ class TestDoneIds(unittest.TestCase):
         _, todo, _ = runner.select_todo(rows, path, max_length_attempts=0)
         self.assertEqual([r["prompt_id"] for r in todo], ["new", "old"])
 
+    def test_resume_done_ids_unions_globbed_answer_files(self):
+        good = json.dumps(COMPLETE)
+        first = self.write([record("p1", answer=good)])
+        second = self.write([
+            record("p2", answer=good),
+            record("retry", answer="", finish_reason="error: HTTP 429"),
+        ])
+        pattern = os.path.join(os.path.dirname(first), "*.jsonl")
+        # Other test temp files can share /tmp, so assert inclusion rather
+        # than exact equality for the broad temporary-directory glob.
+        ids = runner.resume_done_ids([first, second, pattern])
+        self.assertIn("p1", ids)
+        self.assertIn("p2", ids)
+        self.assertNotIn("retry", ids)
+
 
 class TestSplitThink(unittest.TestCase):
     def test_think_block_split_losslessly(self):
@@ -487,6 +502,46 @@ class TestApiCallStreaming(unittest.TestCase):
                                 "none", timeout=5, retries=2, sleep=0.1,
                                 stream=True)
         self.assertIn("IncompleteRead", str(ctx.exception))
+
+    def test_official_deepseek_thinking_toggle_format(self):
+        sent = {}
+        ok = {"choices": [{"message": {"content": "done"},
+                           "finish_reason": "stop"}]}
+
+        def fake(req, timeout=None):
+            sent.update(json.loads(req.data.decode()))
+            m = mock.MagicMock()
+            m.__enter__.return_value.read.return_value = json.dumps(ok).encode()
+            return m
+
+        with mock.patch("urllib.request.urlopen", side_effect=fake):
+            runner.api_call(
+                "http://x", "key", "deepseek-v4-flash", "p", 1.0, 8192,
+                "off", timeout=5, retries=1, sleep=0,
+                api_thinking_format="deepseek")
+        self.assertEqual(sent["thinking"], {"type": "disabled"})
+        self.assertNotIn("chat_template_kwargs", sent)
+
+
+class TestApiCostGuard(unittest.TestCase):
+    def test_cost_uses_detailed_cache_usage(self):
+        usage = {"prompt_tokens": 100, "completion_tokens": 200,
+                 "prompt_cache_hit_tokens": 80,
+                 "prompt_cache_miss_tokens": 20}
+        got = runner.estimate_api_cost_usd(usage, 0.0028, 0.14, 0.28)
+        expected = (80 * 0.0028 + 20 * 0.14 + 200 * 0.28) / 1_000_000
+        self.assertAlmostEqual(got, expected)
+
+    def test_cost_falls_back_to_all_cache_miss(self):
+        usage = {"prompt_tokens": 100, "completion_tokens": 200}
+        got = runner.estimate_api_cost_usd(usage, 0.0028, 0.14, 0.28)
+        expected = (100 * 0.14 + 200 * 0.28) / 1_000_000
+        self.assertAlmostEqual(got, expected)
+
+    def test_request_reservation_assumes_full_output_budget(self):
+        got = runner.request_cost_upper_bound("abcd", 8192, 0.14, 0.28)
+        expected = (4 * 0.14 + 8192 * 0.28) / 1_000_000
+        self.assertAlmostEqual(got, expected)
 
 
 class TestHFRepetitionControls(unittest.TestCase):

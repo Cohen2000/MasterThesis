@@ -28,16 +28,79 @@ decides which is worth paying for.
 """
 
 import argparse
+import collections
+import glob
+import json
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from llm_eval_frozen import PROFILE_PRED, PROFILE_TRUTH, load_answers, \
     load_prompts, valid_unit
-from run_llm_v2 import extract_last_json
+from run_llm_v2 import extract_last_json, is_complete_record
 
 RESPONSE_ARM = "response"
 INPUT_ARM = "input"
+
+
+def load_by_model(patterns, root="."):
+    """{model: {prompt_id: record}}, never merged across models.
+
+    `load_answers` keys on prompt_id alone, so a glob spanning several models
+    would let whichever file sorts last silently overwrite the others -- the
+    probe deliberately asks every model the same prompt_ids, so the collision
+    is total rather than occasional. Bucketing by the record's own `model`
+    field keeps each model's answers separate. Within a model the same rule as
+    `load_answers` applies: smoke files are skipped and the last complete
+    record for a prompt wins, so a successful retry replaces a failed attempt.
+    """
+    if isinstance(patterns, (str, Path)):
+        patterns = [patterns]
+    paths = []
+    for pattern in patterns:
+        paths += [q for q in glob.glob(str(Path(root) / pattern))
+                  if "smoke" not in Path(q).name]
+    complete = collections.defaultdict(dict)
+    latest = collections.defaultdict(dict)
+    for path in sorted(paths):
+        with open(path) as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue          # a half-written last line, not evidence
+                prompt_id = record.get("prompt_id")
+                if prompt_id is None:
+                    continue
+                model = str(record.get("model") or Path(path).stem)
+                latest[model][prompt_id] = record
+                if is_complete_record(record):
+                    complete[model][prompt_id] = record
+    out = {}
+    for model in latest:
+        merged = dict(latest[model])
+        merged.update(complete[model])
+        out[model] = merged
+    return out
+
+
+def build_frame(prompts, answers, cases):
+    rows = []
+    for prompt_id, meta in prompts.items():
+        record = answers.get(prompt_id)
+        if record is None:
+            continue
+        truth = cases.loc[meta["case_id"]]
+        rows.append({**{k: meta[k] for k in
+                        ("case_id", "instance_id", "group_id", "walk_seed",
+                         "rep", "arms", "coverage")},
+                     "prompt_id": prompt_id,
+                     **score_record(record.get("answer"), truth)})
+    return pd.DataFrame(rows)
 
 
 def score_record(answer_text, truth_row):
@@ -93,39 +156,11 @@ def se_design(group, inst, s2_input, s2_resp, n_group, n_inst, seeds, reps):
                          + s2_resp / (n_group * n_inst * seeds * reps)))
 
 
-def main():
-    ap = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--answers", required=True, help="glob of answer jsonl")
-    ap.add_argument("--prompts", default="results/llm_noise_probe/prompts.jsonl")
-    ap.add_argument("--cases", default="results/panel_seed_probe/cases.csv.gz")
-    ap.add_argument("--metric", default="penalized",
-                    choices=["penalized", "profile_mae", "rho_k2_pred"],
-                    help="penalized: frozen primary. profile_mae: complete "
-                         "cases only. rho_k2_pred: the raw prediction, which "
-                         "separates 'the answer moves' from 'the error moves'")
-    args = ap.parse_args()
-
-    prompts = load_prompts(args.prompts)
-    answers = load_answers(args.answers)
-    cases = pd.read_csv(args.cases).set_index("case_id")
-
-    rows = []
-    for prompt_id, meta in prompts.items():
-        record = answers.get(prompt_id)
-        if record is None:
-            continue
-        truth = cases.loc[meta["case_id"]]
-        rows.append({**{k: meta[k] for k in
-                        ("case_id", "instance_id", "group_id", "walk_seed",
-                         "rep", "arms", "coverage")},
-                     "prompt_id": prompt_id,
-                     **score_record(record.get("answer"), truth)})
-    if not rows:
-        raise SystemExit("no answers matched the probe prompts")
-    frame = pd.DataFrame(rows)
-
+def report(frame, prompts, metric, label):
+    """The full variance read for one model."""
+    print("\n" + "#" * 76)
+    print(f"# {label}")
+    print("#" * 76)
     attempted, total = len(frame), len(prompts)
     print(f"probe generations: {attempted}/{total} answered")
     print(f"response rate {frame.responded.mean():.2f} | "
@@ -144,7 +179,7 @@ def main():
               "confounded with non-response and should not be read as noise "
               "alone.")
 
-    metric = args.metric
+    # metric arrives as a parameter now; the old `args` lookup lived in main.
     print("\n" + "=" * 76)
     print(f"Variance components on `{metric}`")
     print("=" * 76)
@@ -219,6 +254,45 @@ def main():
                   f"sd of {between:.4f} (ratio {spread / between:.2f})")
             print("  A ratio near or above 1 means asking twice moves the "
                   "answer about as much as changing the network.")
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--answers", required=True, help="glob of answer jsonl")
+    ap.add_argument("--prompts", default="results/llm_noise_probe/prompts.jsonl")
+    ap.add_argument("--cases", default="results/panel_seed_probe/cases.csv.gz")
+    ap.add_argument("--metric", default="penalized",
+                    choices=["penalized", "profile_mae", "rho_k2_pred"],
+                    help="penalized: frozen primary. profile_mae: complete "
+                         "cases only. rho_k2_pred: the raw prediction, which "
+                         "separates 'the answer moves' from 'the error moves'")
+    args = ap.parse_args()
+
+    prompts = load_prompts(args.prompts)
+    cases = pd.read_csv(args.cases).set_index("case_id")
+    per_model = load_by_model(args.answers)
+    if not per_model:
+        raise SystemExit("no answer files matched")
+
+    frames = {}
+    for model, answers in sorted(per_model.items()):
+        frame = build_frame(prompts, answers, cases)
+        if frame.empty:
+            continue
+        frames[model] = frame
+    if not frames:
+        raise SystemExit("no answers matched the probe prompts")
+
+    print(f"models found: {len(frames)}")
+    for model, frame in frames.items():
+        print(f"  {model:<44} {len(frame):>4} answers")
+
+    for model, frame in frames.items():
+        # One model at a time. Merging them would average over machines with
+        # different noise levels, which is the very thing under test.
+        report(frame, prompts, args.metric, model)
 
 
 if __name__ == "__main__":

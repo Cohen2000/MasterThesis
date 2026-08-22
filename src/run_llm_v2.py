@@ -4,8 +4,9 @@
 Backends
   api  OpenAI-compatible chat completions (NVIDIA NIM, DeepSeek, Gemini ...).
        Endpoint via --base-url, key via the env var named in --api-key-env.
-       --thinking on|off sends {"chat_template_kwargs": {"thinking": bool}}
-       (DeepSeek hybrid reasoning on NIM); --thinking none omits it.
+       --thinking on|off uses the encoding selected by
+       --api-thinking-format: chat_template_kwargs for NIM or thinking.type
+       for the official DeepSeek API; --thinking none omits it.
        --reasoning-effort none|minimal|low|medium|high sends a top-level
        "reasoning_effort" (Mistral Small 4 on NIM, thinking level on the
        Gemini OpenAI-compat endpoint); omitted by default.
@@ -41,6 +42,7 @@ Examples
 """
 
 import argparse
+import glob
 import http.client
 import json
 import os
@@ -186,6 +188,65 @@ def select_todo(rows, out_path, max_length_attempts=0):
     return done, todo, lengths
 
 
+def resume_done_ids(patterns):
+    """Complete prompt IDs found in additional answer files or globs.
+
+    This lets a continuation use a different provider/output file without
+    copying or modifying the original answer records. Only structurally
+    complete records count; error and truncated records remain retryable.
+    """
+    ids = set()
+    for pattern in patterns or []:
+        paths = glob.glob(pattern)
+        if not paths and Path(pattern).is_file():
+            paths = [pattern]
+        for path in paths:
+            ids.update(done_ids(path))
+    return ids
+
+
+def estimate_api_cost_usd(usage, cache_hit_price, cache_miss_price,
+                          output_price):
+    """Estimate request cost from OpenAI-style usage, prices per 1M tokens."""
+    if not usage:
+        return 0.0
+    prompt = float(usage.get("prompt_tokens") or 0)
+    completion = float(usage.get("completion_tokens") or 0)
+    hit = usage.get("prompt_cache_hit_tokens")
+    miss = usage.get("prompt_cache_miss_tokens")
+    if hit is None or miss is None:
+        hit, miss = 0.0, prompt
+    return (float(hit) * cache_hit_price
+            + float(miss) * cache_miss_price
+            + completion * output_price) / 1_000_000.0
+
+
+def recorded_cost_usd(path):
+    """Cost already recorded in a resumable answer JSONL."""
+    total = 0.0
+    if not Path(path).exists():
+        return total
+    with open(path) as fh:
+        for line in fh:
+            try:
+                total += float(json.loads(line).get("est_cost_usd") or 0)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
+    return total
+
+
+def request_cost_upper_bound(prompt, max_tokens, cache_miss_price,
+                             output_price):
+    """Conservative reservation before a capped request.
+
+    UTF-8 bytes upper-bound tokenizer tokens for the text prompts used here.
+    Cache misses and the full requested output budget are assumed.
+    """
+    input_tokens = len(prompt.encode("utf-8"))
+    return (input_tokens * cache_miss_price
+            + max_tokens * output_price) / 1_000_000.0
+
+
 # ---------------------------------------------------------------- api backend
 def retry_wait_seconds(headers, body_text):
     """Server-suggested wait: Retry-After header or Gemini-style retryDelay.
@@ -273,7 +334,7 @@ def api_call(base_url, api_key, model, prompt, temperature, max_tokens,
              thinking, timeout, retries, sleep, top_p=None,
              reasoning_effort=None, extra_body=None, rate_limit_max_wait=0.0,
              stream=False, rate_limit_total_wait=0.0,
-             max_tokens_param="max_tokens"):
+             max_tokens_param="max_tokens", api_thinking_format="nim"):
     url = base_url.rstrip("/") + "/chat/completions"
     body = {"model": model,
             "messages": [{"role": "user", "content": prompt}]}
@@ -301,7 +362,15 @@ def api_call(base_url, api_key, model, prompt, temperature, max_tokens,
     if top_p is not None:
         body["top_p"] = top_p
     if thinking in ("on", "off"):
-        body["chat_template_kwargs"] = {"thinking": thinking == "on"}
+        if api_thinking_format == "nim":
+            body["chat_template_kwargs"] = {"thinking": thinking == "on"}
+        elif api_thinking_format == "deepseek":
+            body["thinking"] = {
+                "type": "enabled" if thinking == "on" else "disabled"
+            }
+        elif api_thinking_format != "none":
+            raise ValueError(
+                f"unsupported api_thinking_format: {api_thinking_format}")
     if reasoning_effort is not None:
         # Mistral Small 4 hybrid reasoning on NIM and Gemini thinking level;
         # "none" disables reasoning and must still be sent explicitly.
@@ -509,6 +578,12 @@ def main():
                     help="api: chat_template_kwargs.thinking (NIM DeepSeek); "
                          "hf: enable_thinking for the chat template (Qwen3 "
                          "family); none omits the switch entirely")
+    ap.add_argument("--api-thinking-format",
+                    choices=["nim", "deepseek", "none"], default="nim",
+                    help="api backend encoding for --thinking: NIM uses "
+                         "chat_template_kwargs.thinking; the official "
+                         "DeepSeek API uses thinking.type; none suppresses "
+                         "the provider field")
     ap.add_argument("--reasoning-effort", default=None,
                     choices=["none", "minimal", "low", "medium", "high"],
                     help="api backend: top-level reasoning_effort (NIM "
@@ -585,13 +660,41 @@ def main():
                     help="base seconds between api calls / backoff unit")
     ap.add_argument("--retries", type=int, default=6)
     ap.add_argument("--timeout", type=int, default=600)
+    ap.add_argument("--resume-from", action="append", default=[],
+                    help="additional answer path or glob whose structurally "
+                         "complete prompt_ids should be skipped; repeatable")
+    ap.add_argument("--max-usd", type=float, default=0.0,
+                    help="estimated cost ceiling for this output file; 0 "
+                         "disables. Requires explicit token prices and a "
+                         "positive explicit --max-tokens")
+    ap.add_argument("--price-input-cache-hit", type=float, default=None,
+                    help="USD per 1M cache-hit input tokens")
+    ap.add_argument("--price-input-cache-miss", type=float, default=None,
+                    help="USD per 1M cache-miss input tokens")
+    ap.add_argument("--price-output", type=float, default=None,
+                    help="USD per 1M output tokens")
     args = ap.parse_args()
+
+    prices = (args.price_input_cache_hit, args.price_input_cache_miss,
+              args.price_output)
+    if args.max_usd < 0:
+        ap.error("--max-usd cannot be negative")
+    if args.max_usd > 0:
+        if args.backend != "api":
+            ap.error("--max-usd is supported only by the api backend")
+        if any(x is None or x < 0 for x in prices):
+            ap.error("--max-usd requires all three non-negative token prices")
+        if args.max_tokens <= 0:
+            ap.error("--max-usd requires a positive explicit --max-tokens")
 
     only_ids = [x for x in args.ids.split(",") if x.strip()]
     rows = load_prompts(args.prompts, args.shard_index, args.shard_count,
                         only_ids)
     done, todo, length_counts = select_todo(
         rows, args.out, args.max_length_attempts)
+    external_done = resume_done_ids(args.resume_from)
+    done.update(external_done)
+    todo = [row for row in todo if row["prompt_id"] not in external_done]
     suppressed = sum(
         1 for r in rows
         if r["prompt_id"] not in done
@@ -620,7 +723,8 @@ def main():
             reasoning_effort=effort, extra_body=extra_body,
             rate_limit_max_wait=args.rate_limit_max_wait, stream=args.stream,
             rate_limit_total_wait=args.rate_limit_total_wait,
-            max_tokens_param=args.max_tokens_param)
+            max_tokens_param=args.max_tokens_param,
+            api_thinking_format=args.api_thinking_format)
     else:
         hf = HFModel(args.model, args.max_new_tokens, args.temperature,
                      top_p=args.top_p, top_k=args.top_k, seed=args.seed,
@@ -631,8 +735,18 @@ def main():
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     n_err = 0
+    spent = recorded_cost_usd(args.out) if args.backend == "api" else 0.0
     with open(args.out, "a") as fh:
         for i, r in enumerate(todo, 1):
+            if args.backend == "api" and args.max_usd > 0:
+                reserve = request_cost_upper_bound(
+                    r["prompt"], args.max_tokens,
+                    args.price_input_cache_miss, args.price_output)
+                if spent + reserve > args.max_usd:
+                    print(f"cost cap: ${spent:.6f} spent; next request may "
+                          f"cost up to ${reserve:.6f}; stopping before "
+                          f"${args.max_usd:.2f}", flush=True)
+                    break
             try:
                 res = call(r["prompt"], gen_seed=r.get("gen_seed"))
             except Exception as e:  # keep going, record the failure
@@ -640,11 +754,22 @@ def main():
                        "finish_reason": f"error: {e}", "usage": None,
                        "model_echo": None, "latency_s": None}
                 n_err += 1
+            request_cost = (
+                estimate_api_cost_usd(
+                    res.get("usage"), args.price_input_cache_hit,
+                    args.price_input_cache_miss, args.price_output)
+                if args.backend == "api" and args.max_usd > 0 else None)
+            if request_cost is not None:
+                spent += request_cost
             rec = {"id": r["prompt_id"], "prompt_id": r["prompt_id"],
                    "case_id": r["case_id"], "condition": r["condition"],
                    "input_kind": r["input_kind"], "strategy": r["strategy"],
                    "model": args.model, "backend": args.backend,
                    "thinking": args.thinking,
+                   "api_thinking_format": (args.api_thinking_format
+                                             if args.backend == "api" else None),
+                   "api_base_url": (args.base_url
+                                    if args.backend == "api" else None),
                    "reasoning_effort": args.reasoning_effort,
                    "temperature": (args.temperature
                                    if args.temperature is None
@@ -670,12 +795,17 @@ def main():
                    "max_tokens": ((args.max_tokens or None)
                                   if args.backend == "api"
                                   else args.max_new_tokens),
+                   "est_cost_usd": request_cost,
+                   "run_cost_usd": (spent if request_cost is not None
+                                    else None),
                    "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), **res}
             fh.write(json.dumps(rec) + "\n")
             fh.flush()
             tag = (res.get("finish_reason") or "?")[:24]
             print(f"[{i}/{len(todo)}] {r['prompt_id']} {tag} "
-                  f"{res.get('latency_s')}s", flush=True)
+                  f"{res.get('latency_s')}s"
+                  + (f" cost=${request_cost:.6f} total=${spent:.6f}"
+                     if request_cost is not None else ""), flush=True)
             if args.backend == "api" and args.sleep > 0:
                 time.sleep(args.sleep)
     print(f"done, {n_err} errors; answers in {args.out}", flush=True)
