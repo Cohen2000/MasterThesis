@@ -233,7 +233,7 @@ def main():
     status = []
     for run, patterns in RUNS:
         answers = load_answers(patterns, root=ROOT)
-        if label.startswith("codex-"):
+        if run.startswith("codex-"):
             # The notools treatment excludes structurally valid answers that
             # nevertheless used a hosted tool. The runner also retries these.
             answers = {pid: rec for pid, rec in answers.items()
