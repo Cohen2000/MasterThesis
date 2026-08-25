@@ -75,6 +75,15 @@ read-off show exactly 0% seed variance, which is the expected sanity anchor.
    not where the uncertainty is, and every seed multiplies LLM cost by the
    number of cases. This frees the entire replication budget for other axes.
 
+   **Superseded for language models, 2026-08-25.** Everything measured here is
+   a classical estimator; extending the rule to the LLM run was an
+   extrapolation, and `docs/LLM_NOISE_PROBE.md` existed to test it. With all
+   five arms complete, it holds for Gemini and DeepSeek and fails for Qwen and
+   Codex, where redrawing the walk contributes 68-71% of the within-graph
+   noise and extra seeds beat extra generations. See
+   [`LLM_NOISE_RESULT.md`](LLM_NOISE_RESULT.md). The classical part of this
+   document is unaffected.
+
 2. **Panel size is the binding constraint on resolution.** With 32 graphs,
    12 groups and 1 seed, the smallest paired difference in group-macro
    ProfileMAE detectable at 80% power (two-sided 5%) is:

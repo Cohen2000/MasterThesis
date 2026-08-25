@@ -1,9 +1,54 @@
-# LLM noise probe: first result (Gemini 3.1 Flash Lite)
+# LLM noise probe
 
-Measured 2026-08-20. 288/288 generations, response rate 1.00, validity 1.00,
-32 graphs, 12 groups, `time_agnostic_t`, budget 800, `disclosed`/`mask`, no
-output cap. Second model (DeepSeek V4 Flash) still running; these numbers are
-one model and should be read as such.
+All five arms complete as of 2026-08-25: Gemini 3.1 Flash Lite, DeepSeek V4
+Flash, Qwen3.6-27B in both modes, and Codex gpt-5.6-sol. 32 graphs, 12 groups,
+`time_agnostic_t`, budget 800, `disclosed`/`mask`, response rate 1.00 and
+validity 1.00 throughout.
+
+The cross-model result is in the next section and **revises the single-model
+conclusion** that the rest of this document was written around. Sections below
+it are the original Gemini reading, kept because the argument they make is
+still the argument, and because the limitation they name is the one the other
+four arms went on to confirm.
+
+## All five arms
+
+Reproducibility is the mean absolute gap between two generations of the
+identical prompt, divided by the spread between graphs. At 1.00, asking twice
+moves the answer as much as changing the network.
+
+| model | ProfileMAE | reproducibility | pearson | share of within-graph noise from redrawing the walk |
+|---|---:|---:|---:|---:|
+| Codex gpt-5.6-sol | 0.053 | **0.07** | 0.993 | 68% |
+| Qwen3.6-27B thinking | 0.073 | 0.31 | 0.783 | 71% |
+| Qwen3.6-27B non-thinking | 0.082 | 0.53 | 0.613 | 70% |
+| DeepSeek V4 Flash | 0.102 | 0.91 | 0.220 | 0% |
+| Gemini 3.1 Flash Lite | 0.112 | 0.92 | 0.391 | 0% |
+
+Two patterns, not a gradient. The two models whose repeated answers barely
+agree show no input noise at all; the three whose answers do agree get 68-71%
+of their within-graph noise from redrawing the walk.
+
+That is the outcome the Limits section of this document predicted before those
+arms existed: a model that barely reads the sample is the least likely to show
+input noise. The association is what was measured; the mechanism is not, and a
+model whose own sampling is loud enough can also mask an input effect that is
+present. Either way the design consequence is the same.
+
+**`s2_input` = 0 is a property of Gemini and DeepSeek, not of the probe.** The
+"one walk seed per case" rule below was derived from Gemini alone and does not
+generalise. For Qwen, five walk seeds cut the standard error by 21% while five
+repeated generations cut it by 6%; for Codex the same comparison is 9% against
+3%. Where the model reads the sample, seeds buy more than repeats.
+
+Doubling the panel remains -29% for every arm, which is still the largest
+single lever and is the one conclusion the extra arms left untouched.
+
+---
+
+## Original single-model reading (Gemini 3.1 Flash Lite, 2026-08-20)
+
+288/288 generations, response rate 1.00, validity 1.00.
 
 ## The question
 
@@ -74,7 +119,7 @@ asking it more often.
 
 | decision | evidence |
 |---|---|
-| **1 walk seed per case** | `s2_input` = 0 for both classical estimators and this model |
+| ~~**1 walk seed per case**~~ — holds for Gemini and DeepSeek only, see above | `s2_input` = 0 for the classical estimators and for this model |
 | **Panel size is still the lever** | doubling graphs: -29% SE; five repeats: -2% on the error metric |
 | **Repeats where a cell must resolve a small effect** | see below |
 
@@ -101,6 +146,9 @@ than by finding. This is exactly the number the probe was run to obtain.
   `s2_input` = 0 less surprising here than it would be for a model that does
   use the sample. The DeepSeek arm, and ideally a Qwen arm, are what would
   make this robust.
+  **Resolved 2026-08-25:** both arms ran. DeepSeek behaved like Gemini,
+  Qwen and Codex did not, and the split follows how well each model reproduces
+  its own answer. See "All five arms" above.
 - Variance components are balanced-design moment estimators floored at zero.
 - Detection thresholds assume approximate normality over 12 groups; they are
   planning numbers, not the final inferential procedure.
