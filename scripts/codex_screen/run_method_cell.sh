@@ -41,8 +41,26 @@ OUT="$OUT_DIR/answers_codex-gpt-5.6-sol_${ARM}_high_method24.jsonl"
 # longer reasoning a stated method tends to produce without removing the stop.
 CAP="${CODEX_METHOD_TOKEN_CAP:-5500000}"
 
+# Version pin. Every existing Codex arm -- the noise probe, the non-walk run,
+# the input ablation -- was produced with 0.146.0. On 0.149.1 this cell failed
+# all three attempts with "Code Mode is unavailable because code-mode host is
+# disabled": the newer CLI reaches for code mode even though the notools arm
+# disables it, and then fails closed. Pinning fixes that, and it is what makes
+# the cell comparable to the arms it is meant to sit beside. Running a paired
+# cell on a different harness version measures the version as much as the cell.
+PINNED="${CODEX_METHOD_BIN:-$HOME/.codex/packages/standalone/releases/0.146.0-x86_64-unknown-linux-musl/bin/codex}"
+
 EXTRA=()
 [[ "${CODEX_METHOD_DRY_RUN:-0}" == "1" ]] && EXTRA+=(--dry-run)
+if [[ -x "$PINNED" ]]; then
+    EXTRA+=(--codex-bin "$PINNED")
+    echo "codex binary pinned: $("$PINNED" --version 2>&1 | head -1)"
+else
+    echo "WARNING: pinned Codex 0.146.0 not found at $PINNED." >&2
+    echo "         Falling back to whatever is on PATH; on 0.149.x the notools" >&2
+    echo "         arm fails closed on code mode, and the result would not be" >&2
+    echo "         comparable to the other Codex cells either." >&2
+fi
 
 if [[ ! -x "$PYTHON_BIN" ]]; then
     echo "Python environment not found: $PYTHON_BIN" >&2
