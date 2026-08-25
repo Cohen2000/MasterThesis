@@ -71,15 +71,39 @@ fi
 source "$COMMON"
 
 PROMPTS="${PROMPTS_FILE:-nonwalk_qwen36_screen_prompts.jsonl}"
-OUT="answers_nonwalk_qwen36_${MODE}.shard${SHARD_INDEX}.jsonl"
+# OUT_TAG keeps a second run on a different prompt file out of the first
+# run's answer files.  run_llm_v2.py appends, so without it the expanded
+# screen would land inside the original screen's shards and the two could
+# only be told apart by looking up every prompt_id.
+TAG="${OUT_TAG:-nonwalk}"
+# OUT_SUFFIX trennt eine Eskalationsstufe von ihrem Ausgangslauf.  Ohne eigenen
+# Namen wuerde die zweite Stufe in dieselbe Datei anhaengen, und die
+# Ausgangsantworten waeren nicht mehr von den Wiederholungen unterscheidbar --
+# genau die Trennung, aus der die Rauschprobe ihre Leiter aufbaut.
+OUT="answers_${TAG}_qwen36_${MODE}${OUT_SUFFIX:-}.shard${SHARD_INDEX}.jsonl"
 EXTRA=(--shard-index "$SHARD_INDEX" --shard-count "$SHARDS")
+
+# ESCALATE_FROM ist ein Glob auf die Antworten der vorherigen Stufe.  Der
+# Screen hatte anders als die Rauschprobe keine Leiter, weshalb 41 von 448
+# Prompts am 8192-Limit haengen geblieben sind.  Abgeschnittene Antworten sind
+# nicht zufaellig verteilt -- es trifft die langen Begruendungen -- also waere
+# ihr Wegfall eine verzerrte Auswahl und keine harmlose Luecke.
+if [ -n "${ESCALATE_FROM:-}" ]; then
+    IDS=$(python3 select_llm_escalation.py --prompts "$PROMPTS" \
+              --answers "$ESCALATE_FROM")
+    if [ -z "$IDS" ]; then
+        echo "escalation: no incomplete prompts for $ESCALATE_FROM"
+        exit 0
+    fi
+    EXTRA=(--ids "$IDS" --shard-index "$SHARD_INDEX" --shard-count "$SHARDS")
+fi
 
 if [ -n "${SMOKE:-}" ]; then
     if [ "$SHARD_INDEX" -ne 0 ]; then
         echo "smoke mode: shard $SHARD_INDEX skipped"
         exit 0
     fi
-    OUT="answers_nonwalk_qwen36_${MODE}_smoke.jsonl"
+    OUT="answers_${TAG}_qwen36_${MODE}_smoke.jsonl"
     EXTRA=(--limit 1 --max-new-tokens "${SMOKE_MAX_NEW_TOKENS:-$MAX_NEW_TOKENS}")
 fi
 
