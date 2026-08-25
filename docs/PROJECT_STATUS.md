@@ -1,6 +1,6 @@
 # Project status and repository guide
 
-Last updated: **2026-08-21**
+Last updated: **2026-08-25**
 
 ## Short version
 
@@ -38,8 +38,9 @@ is immutable.
 
 ## Active work
 
-- A six-cell one-factor-at-a-time LLM input ablation across Codex, Gemini,
-  DeepSeek V4 Flash, and Qwen3.6-27B.
+- Analysis of the six-cell one-factor-at-a-time LLM input ablation across Codex,
+  Gemini, DeepSeek V4 Flash, and Qwen3.6-27B. Generation is finished; the
+  paired comparison is computed but not yet written up.
 - Validation of response noise, input sensitivity, and model/harness effects.
 - Synthesis of classical estimators, supervised baselines, and LLM results on
   matched cases.

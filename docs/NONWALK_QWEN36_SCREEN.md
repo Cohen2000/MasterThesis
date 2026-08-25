@@ -11,7 +11,16 @@ This is an exploratory, bounded run, not the final thesis comparison.
 - conditions: sample and metadata-only control
 - size: 32 cases and 64 prompts per mode, 128 generations total
 - execution: four shards per mode, one pass, no unchanged-budget retries
-- token caps: 8,192 non-thinking and 16,384 thinking
+- token caps: 8,192 non-thinking; the thinking cap is unresolved (see below)
+
+The thinking cap recorded here was 16,384, but `slurm/nonwalk_qwen36_screen.sbatch`
+has defaulted to `THINK_MAX_NEW_TOKENS=32768` since its first commit, no runner
+overrides it, and the answer records carry no `max_new_tokens` field. The run
+therefore used 32,768 unless the environment variable was set by hand at
+submission time, which left no trace in the repository or in the job logs.
+This matters for reading the screen: the cap determines how many thinking
+answers were truncated, and truncation is not random -- it removes the long
+reasoning traces first.
 
 The four cases per strategy are enough for a potential screen, but not for a
 final claim or a reliable strategy ranking.

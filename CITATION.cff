@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: "Borchardt"
     given-names: "Albert"
-repository-code: "https://github.com/Cohen2000/MasterArbeit"
+repository-code: "https://github.com/Cohen2000/MasterThesis"
 license: MIT
 abstract: >-
   Research software for estimating full-network temporal persistence from

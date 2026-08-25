@@ -34,7 +34,7 @@ For the current boundary between stable, active, and legacy work, read
 | Document | Role | Status |
 |---|---|---|
 | [`LLM_V21_RUNS.md`](LLM_V21_RUNS.md) | model matrix, sampling settings, escalation ladder, and execution history | mixed plan/log; consult dated status notes |
-| [`LLM_OFAT_RUNBOOK.md`](LLM_OFAT_RUNBOOK.md) | six-cell LLM input ablation and resumable commands | active experiment; German |
+| [`LLM_OFAT_RUNBOOK.md`](LLM_OFAT_RUNBOOK.md) | six-cell LLM input ablation and resumable commands | generation complete; analysis open; German |
 | [`RUN_V2_LINUX.md`](RUN_V2_LINUX.md) | full V2 laptop workflow | environment-specific example |
 | [`../slurm/README_cluster.md`](../slurm/README_cluster.md) | early cluster pilot workflow | historical; not the current cluster entry point |
 
