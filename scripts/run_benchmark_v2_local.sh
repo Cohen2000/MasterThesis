@@ -27,6 +27,36 @@ echo "============================================================"
 python src/check_real_data.py --preset v2 | tee "$LOGDIR/00_real_data_status.log"
 
 if [[ "$RESET" == "1" ]]; then
+  # `rm -rf results/benchmark_v2` also removes results/benchmark_v2/results/,
+  # where the frozen V2 bundle lives -- the case shards and predictions that
+  # CLAUDE.md lists as immutable. results/ is gitignored, so there is no second
+  # copy anywhere: one environment variable would end the archive. The runner
+  # writes its own shards one level higher, directly under
+  # results/benchmark_v2/, so it never needs to touch the archive to do its job.
+  frozen=0
+  for guarded in results/benchmark_v2/results/cases_shard_*.csv.gz \
+                 results/benchmark_v2/results/predictions.csv.gz; do
+    [[ -e "$guarded" ]] && frozen=1
+  done
+  if [[ "$frozen" == "1" && "${RESET_DESTROYS_FROZEN_V2:-}" != "yes" ]]; then
+    cat >&2 <<'GUARD'
+RESET=1 refused: the frozen V2 bundle is present.
+
+  results/benchmark_v2/results/cases_shard_*.csv.gz
+  results/benchmark_v2/results/predictions.csv.gz
+
+These are listed as immutable in CLAUDE.md and are not in Git -- results/ is
+ignored -- so deleting them is not recoverable. Note also that a fresh run no
+longer reproduces them: the archive was built from 8 real sources, while all 13
+are present today, so the panel would differ.
+
+To rebuild from scratch anyway, move the archive aside first, or, if you really
+mean to delete it:
+
+  RESET_DESTROYS_FROZEN_V2=yes RESET=1 bash scripts/run_benchmark_v2_local.sh
+GUARD
+    exit 1
+  fi
   rm -rf data/benchmark_v2 results/benchmark_v2
   mkdir -p results/benchmark_v2
 fi

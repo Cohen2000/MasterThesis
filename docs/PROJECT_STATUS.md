@@ -86,6 +86,30 @@ historical provenance without losing information.
 - Secrets belong in environment variables. No API credential should be stored
   in a prompt, answer record, script, or committed environment file.
 
+## Re-running the V2 benchmark: two traps
+
+Both were found on 2026-08-25 while auditing the repository, and neither is
+visible from the file names.
+
+**A fresh run does not reproduce the archived benchmark.** The archived
+745-instance bundle was built from 8 real sources plus synthetic data; five
+optional datasets were missing at the time and are present now
+(`sp_workplace`, `nr_radoslaw_email`, `nr_enron_employees`, `nr_digg_reply`,
+`copenhagen_bluetooth`). `check_real_data.py --preset v2` reports 13/13 today.
+Rebuilding with the current configuration therefore produces a *different*
+panel, not the archived one. Treat the archive as the artifact and rebuild only
+with a deliberate decision about which sources are in scope.
+
+**The archive and the runner use different layouts.** The archived bundle sits
+under `results/benchmark_v2/data/` and `results/benchmark_v2/results/`, while
+`scripts/run_benchmark_v2_local.sh` reads `data/benchmark_v2/` and writes
+`results/benchmark_v2/cases_shard_*.csv.gz` one level higher. A full run
+therefore leaves two layouts side by side, and a reader who globs for case
+shards can pick up either. `RESET=1` used to remove the whole
+`results/benchmark_v2` tree, archive included; since `results/` is gitignored
+there was no second copy. The runner now refuses that unless
+`RESET_DESTROYS_FROZEN_V2=yes` is set as well.
+
 ## Which command should I run?
 
 | Goal | Command or entry point |
