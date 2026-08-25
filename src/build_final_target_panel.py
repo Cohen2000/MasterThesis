@@ -20,6 +20,15 @@ from build_benchmark_data import _instance_row, stable_seed
 from generator import make_dcsbm_graph, make_instance
 
 
+# The eight sources the frozen 32-graph panel was built from. Five further
+# datasets have become available since; they are not added here, because the
+# panel is a frozen design decision and each source contributes three instances
+# (one empirical plus two controlled twins). Pass --real-keys to build a wider
+# panel into a scratch directory and see what it would buy.
+#
+# Every per-source seed goes through stable_seed(seed, "controlled", key, ...),
+# so it depends on the key and not on the position in this list: a wider panel
+# contains the frozen one as a subset instead of reshuffling it.
 REAL_KEYS = [
     "sp_hospital", "sp_primaryschool", "sp_highschool2013",
     "sp_hypertext2009", "snap_collegemsg", "snap_email_eu",
@@ -43,10 +52,10 @@ def assert_timing_twin(original, twin, label):
         raise RuntimeError(f"{label}: topology or per-edge event counts changed")
 
 
-def real_and_twins(out, registry_path, raw_dir, seed, W):
+def real_and_twins(out, registry_path, raw_dir, seed, W, real_keys=None):
     registry = census.load_registry(Path(registry_path))
     rows = []
-    for key in REAL_KEYS:
+    for key in (real_keys or REAL_KEYS):
         spec = registry[key]
         path = Path(raw_dir) / spec["file"]
         if not path.exists():
@@ -158,6 +167,11 @@ def main():
     ap.add_argument("--registry", default="config/datasets.yaml")
     ap.add_argument("--raw-dir", default="data/raw")
     ap.add_argument("--out-dir", default="results/final_target_panel")
+    ap.add_argument("--real-keys", default=None,
+                    help="comma-separated registry keys, or 'all'. Default is "
+                         "the eight sources of the frozen panel. Anything else "
+                         "builds a different panel and belongs in a scratch "
+                         "--out-dir, never on top of the frozen one.")
     args = ap.parse_args()
     with open(args.config) as fh:
         config = yaml.safe_load(fh)
@@ -166,7 +180,17 @@ def main():
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
-    rows = real_and_twins(out, args.registry, args.raw_dir, seed, W)
+    if args.real_keys == "all":
+        real_keys = sorted(census.load_registry(Path(args.registry)))
+    elif args.real_keys:
+        real_keys = [k.strip() for k in args.real_keys.split(",") if k.strip()]
+    else:
+        real_keys = list(REAL_KEYS)
+    if real_keys != list(REAL_KEYS):
+        print(f"NOTE: building a {len(real_keys)}-source panel, not the frozen "
+              f"eight. Expect {3 * len(real_keys)} real instances.")
+    rows = real_and_twins(out, args.registry, args.raw_dir, seed, W,
+                          real_keys=real_keys)
     rows += mechanistic(out, plan, seed, W)
     panel = pd.DataFrame(rows)
     order = {"empirical": 0, "literature_synthetic": 1,
