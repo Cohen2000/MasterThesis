@@ -139,10 +139,25 @@ def fmt(value, digits=3):
         return "-"
 
 
-def write_summary(metrics, out_path):
+def write_summary(metrics, out_path, title=None):
+    """Write the markdown report.
+
+    The title is derived from the models actually present rather than fixed.
+    The same evaluator serves the bounded Qwen screen and the multi-model
+    expansion, and a report headed "Qwen screen" while listing five models is
+    the kind of label that gets a table quoted for the wrong experiment.
+    """
+    models = sorted({str(m) for m in metrics.model.unique()
+                     if str(m) != "nan" and not str(m).startswith("ET_")})
+    if title is None:
+        title = ("# Non-walk access evaluation"
+                 if len(models) > 1 else "# Non-walk Qwen screen")
     lines = [
-        "# Non-walk Qwen screen", "",
-        "Failure-penalized profile MAE is the primary screen metric; lower is better.",
+        title, "",
+        f"Models in this report: {len(models)} "
+        f"({', '.join(models)}).",
+        "",
+        "Failure-penalized profile MAE is the primary metric; lower is better.",
         "Missing jobs are reported separately and are not silently scored as answers.",
         "",
         "| source | model/mode | condition | strategy | answered/expected | valid | penalized MAE | complete MAE |",
