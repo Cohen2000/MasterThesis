@@ -11,16 +11,33 @@ This is an exploratory, bounded run, not the final thesis comparison.
 - conditions: sample and metadata-only control
 - size: 32 cases and 64 prompts per mode, 128 generations total
 - execution: four shards per mode, one pass, no unchanged-budget retries
-- token caps: 8,192 non-thinking; the thinking cap is unresolved (see below)
+- token caps: 8,192 non-thinking and 32,768 thinking, both recorded in the
+  `max_tokens` field of every answer record
 
-The thinking cap recorded here was 16,384, but `slurm/nonwalk_qwen36_screen.sbatch`
-has defaulted to `THINK_MAX_NEW_TOKENS=32768` since its first commit, no runner
-overrides it, and the answer records carry no `max_new_tokens` field. The run
-therefore used 32,768 unless the environment variable was set by hand at
-submission time, which left no trace in the repository or in the job logs.
-This matters for reading the screen: the cap determines how many thinking
-answers were truncated, and truncation is not random -- it removes the long
-reasoning traces first.
+An earlier version of this document reported a 16,384 thinking cap. That figure
+belongs to the smoke run: `answers_nonwalk_qwen36_think_smoke.jsonl` is the only
+record in the whole screen written at 16,384, and all 64 answers of the actual
+thinking arm carry `max_tokens = 32768`.
+
+The correction matters less than what checking it exposed. **31 of the 64
+thinking answers, 48%, stopped at the token cap rather than at an end of
+answer**, against 4 of 64 (6%) in the non-thinking arm at 8,192:
+
+| mode | cap | answers | truncated |
+|---|---:|---:|---:|
+| non-thinking | 8,192 | 64 | 4 (6%) |
+| thinking | 32,768 | 64 | 31 (48%) |
+
+A truncated answer has no final JSON object, so it is a failure, not a slow
+answer. Truncation is also not spread evenly: it removes the cases the model
+reasoned longest about. Roughly half the thinking arm is therefore missing in a
+way that correlates with difficulty, which is enough to invalidate a strategy
+ranking read off that arm -- the thinking rows of this screen should be read as
+a statement about the token budget, not about the access mechanisms. The
+non-thinking arm does not have this problem.
+
+This screen has no escalation ladder to repair it, unlike the noise probe and
+the later non-walk expansion, which rerun incomplete prompts at a higher cap.
 
 The four cases per strategy are enough for a potential screen, but not for a
 final claim or a reliable strategy ranking.
