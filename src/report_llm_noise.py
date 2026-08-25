@@ -44,6 +44,23 @@ RESPONSE_ARM = "response"
 INPUT_ARM = "input"
 
 
+def model_key(record, path):
+    """Bucket label for one answer record.
+
+    The `model` field alone is not a configuration. Qwen non-thinking and
+    thinking report the identical string `Qwen/Qwen3.6-27B` and answer the
+    identical prompt_ids, so bucketing on it would let one mode overwrite the
+    other in full -- the same total collision `load_by_model` exists to
+    prevent, one level further down. The thinking flag is appended only when
+    it is on, which leaves every non-reasoning arm's label unchanged.
+    """
+    model = str(record.get("model") or Path(path).stem)
+    thinking = str(record.get("thinking") or "").lower()
+    if thinking in {"on", "true", "high"}:
+        return f"{model} (thinking)"
+    return model
+
+
 def load_by_model(patterns, root="."):
     """{model: {prompt_id: record}}, never merged across models.
 
@@ -76,7 +93,7 @@ def load_by_model(patterns, root="."):
                 prompt_id = record.get("prompt_id")
                 if prompt_id is None:
                     continue
-                model = str(record.get("model") or Path(path).stem)
+                model = model_key(record, path)
                 latest[model][prompt_id] = record
                 if is_complete_record(record):
                     complete[model][prompt_id] = record
