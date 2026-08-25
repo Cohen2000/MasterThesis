@@ -199,12 +199,27 @@ def main():
     panel = panel.sort_values(
         ["_order", "matched_backbone", "panel_role", "instance_id"]
     ).drop(columns="_order").reset_index(drop=True)
-    expected = {"empirical": 8, "literature_synthetic": 8,
-                "controlled_variant": 16}
-    if len(panel) != 32 or panel.graph_category.value_counts().to_dict() != expected:
-        raise RuntimeError("final panel composition invariant failed")
+    # The invariant checks the design rule, not the number 32: every real
+    # source contributes one empirical graph and two controlled twins, and the
+    # mechanistic half is fixed at eight. Hardcoding the total would make the
+    # rule untestable at any other panel size, which is the thing worth being
+    # able to price.
+    expected = {"empirical": len(real_keys),
+                "literature_synthetic": 8,
+                "controlled_variant": 2 * len(real_keys)}
+    total = sum(expected.values())
+    if len(panel) != total or panel.graph_category.value_counts().to_dict() != expected:
+        raise RuntimeError(
+            f"panel composition invariant failed: expected {expected} "
+            f"({total} graphs), got {panel.graph_category.value_counts().to_dict()} "
+            f"({len(panel)} graphs)")
+    if list(real_keys) == list(REAL_KEYS) and len(panel) != 32:
+        raise RuntimeError(f"frozen panel must have 32 graphs, got {len(panel)}")
 
-    manifest = out / "panel32_final.csv"
+    # The frozen manifest is named for its size; a differently sized panel must
+    # not land under that name, or a later glob will read it as the frozen one.
+    manifest = out / ("panel32_final.csv" if len(panel) == 32
+                      else f"panel{len(panel)}.csv")
     panel.to_csv(manifest, index=False)
     hashes = []
     for rel in panel.path:
