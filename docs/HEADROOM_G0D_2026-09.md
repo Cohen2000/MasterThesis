@@ -1,9 +1,9 @@
 # G0d: budget parity by coverage, not by events
 
 Prepared: **2026-08-31**  
-Gate status: **G0d.1-G0d.4 complete and passing. G0d.5 does not clear its
-own bar and hands G1 an open decision (see below). No LLM calls were made.
-STOP before G1.**
+Gate status: **G0d complete on all five sub-gates. The G0d.5 AUC gate was
+withdrawn as self-contradictory and the `mismatched` pair is adopted with its
+detectability recorded as a limitation. No LLM calls were made. G1 released.**
 
 ## Why the budgets moved
 
@@ -86,7 +86,15 @@ The coverage axes move differently, which is the point: matching dyad coverage
 does **not** match node coverage, and it does not match temporal spread either.
 Every arm touches all five windows on every case, so `windows_touched` is 1.00
 throughout and separates nothing; `temporal_evenness` (1 = the sample's events
-are spread uniformly over the five windows, 0 = all in one) does separate them.
+are spread uniformly over the five windows, 0 = all in one) does separate them,
+and sharply: `time_respecting` sits at 0.27 against `time_agnostic_t` at 0.82.
+
+That spread is direct evidence for the G1.2 no-shared-phrasing rule.  The three
+walks are near-replicates on the signed-bias axis, so it is tempting to write
+one mechanism text and vary a few words.  These numbers show the processes put
+their observations in measurably different places in time, and a text that
+describes one of them misdescribes the others.  The rule is justified by
+measurement, not by assertion.
 The arms remain information-distinct by construction, and G4 must say so rather
 than read cross-arm accuracy differences as arm difficulty.
 
@@ -248,6 +256,52 @@ Eight-slot variance decomposition:
 | node_panel_full_history        | occupancy MLE (uniform; censoring-aware, mechanism-agnostic) | 0.2350 | 256 |     0.0372 |    0.0245 |    0.0029 |                0.0442 |     0.0629 |      0.0623 |
 | node_panel_full_history        | mask MLE (uniform; censoring-aware, mechanism-agnostic)      | 0.1624 | 256 |     0.0367 |    0.0042 |    0.0011 |                0.0267 |     0.0568 |      0.0565 |
 
+### Decision 3 — does the seed-advance rule distort arm A?
+
+Advancing the seed conditions on "the first drawn node did not overflow the
+budget", which slightly under-weights high-degree nodes as first draws.  Two
+checks, both with a placebo built in.
+
+| scope                                                | arm                            | group                |   graphs |   cases |   rho2_bias |   profile_mae |   median_coverage |
+|:-----------------------------------------------------|:-------------------------------|:---------------------|---------:|--------:|------------:|--------------:|------------------:|
+| arm at its G0d budget                                | event_sample_then_full_history | other graphs         |       28 |     224 |      0.1377 |        0.0766 |            0.0641 |
+| arm at its G0d budget                                | event_sample_then_full_history | seed-advanced graphs |        4 |      32 |      0.3216 |        0.2668 |            0.0034 |
+| arm at its G0d budget                                | node_panel_full_history        | other graphs         |       28 |     224 |     -0.0060 |        0.0143 |            0.0678 |
+| arm at its G0d budget                                | node_panel_full_history        | seed-advanced graphs |        4 |      32 |     -0.0037 |        0.0377 |            0.0111 |
+| node_panel_full_history at 12,000 (rule cannot fire) | node_panel_full_history        | other graphs         |       28 |     224 |     -0.0009 |        0.0047 |            0.3342 |
+| node_panel_full_history at 12,000 (rule cannot fire) | node_panel_full_history        | seed-advanced graphs |        4 |      32 |      0.0100 |        0.0220 |            0.0583 |
+
+**The gap between the two graph sets is a property of the graphs, not of the
+rule.** The four seed-advanced graphs are the large dense ones -- median
+coverage about a fifth of the others' -- and they are harder on every arm.  Arm
+B is the first placebo: the rule never fired there, yet the same four graphs
+show a *larger* discrepancy than they do on arm A.  Arm A at budget 12,000 is
+the second: no case is empty at that budget so the rule cannot fire at all, and
+the four graphs are still the harder ones.  On the axis that matters, `rho_2`
+bias, the advanced and non-advanced arm-A cases are indistinguishable
+(-0.0037 against -0.0060, both inside the +/-0.05 gate).
+
+Check 2, arm A at the structurally empty-free budget:
+
+| arm                     |   target_budget |   median_dyad_coverage |   empty_draws |   group_macro_bias_mean |   group_macro_bias_sd | within_pm_0_05   |
+|:------------------------|----------------:|-----------------------:|--------------:|------------------------:|----------------------:|:-----------------|
+| node_panel_full_history |           12000 |                 0.3104 |             0 |                  0.0004 |                0.0024 | True             |
+
+Estimator ladder at that budget:
+
+| arm                     | estimator                                                                              |   n |   profile_mae |   rho2_bias |   pooled_profile_mae |   pooled_rho2_bias |
+|:------------------------|:---------------------------------------------------------------------------------------|----:|--------------:|------------:|---------------------:|-------------------:|
+| node_panel_full_history | mean floor (panel LOGO)                                                                |  32 |        0.1413 |     -0.0116 |               0.1304 |             0.0010 |
+| node_panel_full_history | naive read-off                                                                         |  32 |        0.0055 |      0.0008 |               0.0059 |             0.0009 |
+| node_panel_full_history | occupancy MLE (uniform; censoring-aware, mechanism-agnostic)                           |  32 |        0.2547 |      0.3005 |               0.2306 |             0.2819 |
+| node_panel_full_history | mask MLE (uniform; censoring-aware, mechanism-agnostic)                                |  32 |        0.1890 |      0.2872 |               0.1649 |             0.2674 |
+| node_panel_full_history | supervised ExtraTrees (label-informed performance reference; panel backbones held out) |  32 |        0.0164 |     -0.0021 |               0.0179 |            -0.0030 |
+
+Bias at 12,000 is **+0.0004**, comfortably inside +/-0.05 and if
+anything closer to zero than the -0.0053 at 2,500.  The empty-draw count of 0
+confirms the closed-form derivation directly.  **This is a sensitivity, not a
+budget change: arm A stays at 2,500 in the main run.**
+
 ## G0d.4 — Prompt size at the new budgets
 
 The frozen input contract is `INPUT_MASK` plus an exact `(n, mask)` histogram
@@ -290,8 +344,10 @@ cannot be recomputed here -- the tokenizer snapshot G0c used is not present in
 this environment -- so they are calibrated from G0c's stored exact counts and
 the same rendered texts.  The ratio of exact Qwen tokens to the
 tokenizer-independent portable count is tight on those cases (median 1.664,
-p10 1.579, p90 1.725), so the conversion below is good to roughly +/-5% and is
-an estimate, not a measurement:
+p10 1.579, p90 1.725), so the conversion below is good to roughly +/-5%.
+**These are estimates, not measurements.** The Qwen tokenizer is available on
+BWUniCluster where the model runs anyway; exact counts replace these before G3,
+and until then no number in this table should be quoted as measured:
 
 | arm                            |   calibration_ratio |   median |   mean |   p10 |   p90 |   min |   max |
 |:-------------------------------|--------------------:|---------:|-------:|------:|------:|------:|------:|
@@ -317,6 +373,15 @@ arms for the *prose* sections, and that is still achievable, but the data
 block cannot be equalized without changing the input contract.  Report the
 data-block length per arm alongside the prose length rather than claiming one
 band for the whole prompt.
+
+**Prompt length is an arm-level confound, and only an arm-level one.** Within a
+case, length is near-constant across conditions -- the conditions differ by a
+paragraph of prose, not by the data block -- so it cancels in the primary
+`mechanism - hidden` contrast.  Across arms it does not cancel, which is one
+more reason cross-arm comparisons of absolute accuracy stay descriptive only.
+G3 must therefore track response rate and validity rate per arm as well as per
+condition, so a length effect shows up as a refusal or truncation pattern
+rather than hiding inside an accuracy number.
 
 ### Arm B at the G0c budget of 10,500, for comparison
 
@@ -398,66 +463,79 @@ The best eligible pair by bias penalty is **`time_agnostic_t` <->
 **0.2922**, held-group-out observable
 AUC **0.8584**.
 
-### This does not clear the bar, and the re-budget is why
+### The AUC gate is withdrawn, and the coupling is structural
 
-The requirement was that the chosen pair's AUC stay **well below 1.0**, so that
-a model cannot detect the mismatch from the sample statistics alone.  It does
-not.  At **0.8584** a held-group-out logistic
-classifier reading only the mask histogram tells the two arms apart most of the
-time, and one ineligible pair (`time_respecting` <-> `node_panel_full_history`)
-is now at AUC 1.0000, i.e. perfectly separable.
+The gate originally set for this section ("observable AUC well below 1.0") was
+withdrawn after G0d measured it, because it was close to self-contradictory.
+Penalty and detectability are not two properties to trade off against each
+other; they are one quantity seen from two sides.  A pair has a large bias
+penalty exactly when the two arms' correct corrections differ, which happens
+exactly when their `P(observed | truth)` differ, which is exactly what makes
+their observable distributions separable.  Requiring a large penalty at low
+detectability was close to requiring a contradiction, and the positive coupling
+G0d measured is structural rather than an artifact of these budgets.
 
-The re-budget caused this.  On the identical pair, G0c measured AUC
-**0.6660** with both arms at 800 events; here the same pair sits at
-**0.9102**.  Nothing about the arms' definitions changed -- only arm B's
-budget.  The mechanism is visible in the input: with complete histories at
-9,600 events, arm B's `n` distribution is the true per-dyad event count over
-611 dyads, while a walk at 800 steps sees each dyad once or twice.  Those are
-different-shaped histograms, and the classifier reads the shape, not the size.
+The re-budget did move the numbers.  On the identical pair, G0c measured AUC
+**0.6660** with both arms at 800 events; the same pair sits at **0.9102** here.
+Arm B's `n` distribution at 9,600 events is the true per-dyad event count over
+611 dyads, while a walk at 800 steps sees each dyad once or twice, and the
+classifier reads that shape difference.  But it would have been coupled at any
+budget: at 800 events `time_respecting` <-> `node_panel_full_history` already
+sat at AUC 0.9971.
 
-**Bias penalty and observable detectability are now positively coupled**, which
-is the worst possible arrangement: the pairs worth contrasting are the ones a
-model can most easily tell apart without reading the mechanism text.  Across
-all seven candidate pairs the only one under AUC 0.75 is
-`node_panel_full_history` <-> `event_sample_then_full_history` at
-**0.6445** -- and its bias penalty is
-**0.0349**, an order of magnitude
-below the others, because both of its arms return complete histories and
-neither needs an upward correction.  It is ineligible in any case: arm A needs
-no correction at all, so the pair has no opposing directions to contrast.
-Among the three eligible pairs the *lowest* AUC is
-**0.8584**.
+Two things keep the condition usable.
 
-### What this means for `mismatched`
+**The AUC is a trained classifier's ceiling, not a measurement of what a model
+notices.** It is a logistic model fitted on labelled per-arm data with the
+graph group held out.  A language model reading one histogram in one prompt has
+neither the labels nor the fit.  0.8584 bounds what is detectable in principle;
+it establishes nothing about what a zero-shot reader picks up.
 
-This is a G1 design decision, not something G0d should settle by picking the
-least-bad number.  The options, with what each costs:
+**With opposite correction directions the outcome space is three-way, and the
+rival explanations make different directional predictions.** This is what makes
+the high-penalty pair the right one rather than a compromise:
 
-1. **Demote `mismatched` to exploratory.** Keep it, run it, and state up front
-   that a specificity effect on this pair has a live rival explanation -- the
-   model may be reacting to a sample that does not look like the described
-   process rather than to the mechanism text.  Cheapest, and honest, but the
-   condition stops being able to support the claim it was added for.
-2. **Take the AUC as a measured covariate.** Run the pair, and report the
-   effect against the per-case detectability rather than pooled.  If the effect
-   is flat in detectability, the rival explanation is weakened empirically
-   instead of by design.  Costs nothing extra to run and is the strongest
-   version of option 1.
-3. **Add a sixth configuration purely for the mismatch contrast**, with the two
-   arms event-matched so their histograms are the same shape.  This restores
-   the G0c AUC but breaks the within-case pairing that the primary contrast
-   depends on, because `mismatched` would then run on a different sample from
-   `hidden` and `mechanism` for the same case.  Expensive and it damages the
-   primary design.
-4. **Drop `mismatched`.** The 2x2 over {process described} x {direction
-   stated} plus `metadata_only` still answers the main question.  `mismatched`
-   was always the specificity check, not the effect.
+| observed shift under `mismatched` | interpretation |
+|---|---|
+| in the direction implied by the **stated** (wrong) mechanism | the model reads and operationalizes the description, applied to the wrong process |
+| toward `hidden` | incoherence detection, or the description is discounted |
+| in the direction implied by the **actual** mechanism | the model ignores the text and reads the data |
 
-Recommendation: **option 2**, falling back to option 1 if the detectability
-covariate turns out to have no spread.  Option 3 should not be taken -- the
-within-case pairing is worth more than this one condition.  None of this is
-G0d's to decide; it is recorded here because G1 cannot write the `mismatched`
-text without choosing.
+**Adopted pair: `time_agnostic_t` <-> `event_sample_then_full_history`,
+bidirectional, that pair only.** AUC **0.8584**
+is recorded as a measured limitation, not a disqualification.  A sixth
+event-matched configuration was considered and rejected: it would break the
+within-case pairing the primary contrast depends on.
+
+### Detectability as a per-case covariate
+
+For every case in the pair, the held-group-out classifier's posterior for the
+*stated* arm is stored, so G4 can test whether the mismatched effect varies
+with how strongly the sample itself contradicts the text.  If the effect
+survives in the low-detectability cases, incoherence detection is weakened as
+an explanation; if it concentrates in the high-detectability cases, it is
+supported.  Either way it is reportable rather than arguable.
+
+| actual_arm                     | stated_arm                     |   cases |   median_p_stated |   p_stated_p10 |   p_stated_p90 |   cases_p_stated_above_0_2 |   cases_p_stated_above_0_5 |
+|:-------------------------------|:-------------------------------|--------:|------------------:|---------------:|---------------:|---------------------------:|---------------------------:|
+| event_sample_then_full_history | time_agnostic_t                |      32 |            0.0106 |         0.0001 |         0.9280 |                          6 |                          5 |
+| time_agnostic_t                | event_sample_then_full_history |      32 |            0.1041 |         0.0489 |         0.1515 |                          2 |                          1 |
+
+**The covariate has spread, but it is heavily skewed, and G4 must plan for
+that.** `p_stated` spans the full [0, 1] range, yet only
+**8 of 64** cases exceed 0.2: on this panel the
+classifier is usually confident the sample did not come from the arm the text
+names.  Pooled tertiles of detectability would therefore compare "very
+detectable" against "extremely detectable" and answer nothing.  The usable
+contrast is the low-detectability tail against the rest, which is a subgroup of
+about 8 cases -- thin, and to be reported as such rather than
+presented as a clean stratification.  Prefer the covariate entered continuously,
+with the low-detectability subgroup shown separately and its n stated.
+
+Per-case values are in `mismatch_detectability_by_case.csv`
+(`p_stated`, and `mismatch_detectability = 1 - p_stated`).  G2 must recompute
+this on the fresh final samples, where the spread may differ; the values here
+describe the G0d panel.
 
 ## Final arm configuration
 
@@ -481,8 +559,38 @@ comparable across rows; the calibrated exact-tokenizer figures are in G0d.4.
 
 Replay verification: 5960/5960 benchmark cases reproduced
 their stored `(n,mask)` histogram exactly.  All new artifacts live below
-`results/g0d_headroom_2026_09`; no frozen benchmark case, panel truth, walk artifact or LLM
-artifact was modified.
+`results/g0d_headroom_2026_09`, with the small summary tables mirrored into
+`results_summary/g0d/` so they survive outside the ignore rule.  No frozen
+benchmark case, panel truth, walk artifact or LLM artifact was modified.
+
+## Pre-registered G4 amendment: the three-way mismatched reading
+
+Specified now, before any model has seen a prompt, so the reading of the result
+is not chosen after the fact.
+
+For each mismatched case, classify the sign of `Delta_i(mismatched - hidden)`
+against the direction implied by the **stated** arm and the direction implied
+by the **actual** arm.  The pair was chosen so those two are opposite, which is
+what makes the classification three-way rather than binary:
+
+| observed shift | interpretation |
+|---|---|
+| toward the direction implied by the stated (wrong) mechanism | the model reads and operationalizes the description, applied to the wrong process |
+| toward `hidden` | incoherence detection, or the description is discounted |
+| toward the direction implied by the actual mechanism | the model ignores the text and reads the data |
+
+Report the three-way distribution per model, and the same distribution against
+the per-case detectability covariate.  Given the skew documented above, report
+detectability continuously and show the low-detectability subgroup separately
+with its n stated; do not present pooled tertiles as a stratification.
+
+The rest of the G4 plan is unchanged: aggregate over generations within
+(case, condition) **before** any paired test, since the nesting is
+graph -> seed -> condition -> generation and the uncertainty level that matters
+is the graph group; report how many independent graph groups there are rather
+than implying 160 independent units; and report the direction hit rate and the
+magnitude ratio separately, because deriving the right direction and sizing the
+correction are different failures.
 
 ## What remains uncertain
 
@@ -496,6 +604,12 @@ artifact was modified.
   such in the write-up.
 - The wrong-mechanism matrix uses labels and collapses the exact sample to
   mask frequencies.  It bounds nothing.
+- The detectability covariate is skewed toward high detectability on this
+  panel, so the subgroup that would most cleanly separate incoherence detection
+  from mechanism reading is small.  G2 should check the spread again on the
+  fresh samples before committing to the stratified analysis.
+- Qwen token counts throughout are calibrated estimates, not measurements,
+  until the cluster tokenizer replaces them before G3.
 - No language model has been tested here.  Nothing in this report says whether
   a model can operationalize a mechanism description.
 

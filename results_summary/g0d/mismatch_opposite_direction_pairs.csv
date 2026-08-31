@@ -1,0 +1,4 @@
+arm_a,arm_b,correction_a,correction_b,median_profile_mae_penalty,median_abs_rho2_bias_shift,min_abs_rho2_bias_shift,max_abs_rho2_bias_shift,observable_auc_logo,observable_distance_2auc_minus1,observable_balanced_accuracy,observable_feature_count
+time_agnostic_t,event_sample_then_full_history,upward,downward,0.23464768827810661,0.2922294751068515,0.1931410290763455,0.3913179211373575,0.8583984375,0.716796875,0.90625,447
+time_respecting,event_sample_then_full_history,upward,downward,0.13709307687239763,0.24910808459741318,0.22838444513827882,0.26983172405654754,0.9951171875,0.990234375,0.953125,447
+recent_history_k20,event_sample_then_full_history,upward,downward,0.2148626927803293,0.2896201499377808,0.204758121897765,0.3744821779777966,0.91015625,0.8203125,0.859375,447

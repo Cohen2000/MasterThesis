@@ -1,0 +1,3 @@
+actual_arm,stated_arm,direction_implied_by_stated_text,direction_implied_by_actual_process,cases
+time_agnostic_t,event_sample_then_full_history,downward,upward,32
+event_sample_then_full_history,time_agnostic_t,upward,downward,32

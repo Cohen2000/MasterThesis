@@ -10,6 +10,7 @@
 #   bash scripts/run_g0d_headroom.sh ladder     # budget search (~25 min)
 #   bash scripts/run_g0d_headroom.sh sample     # panels + benchmark (~25 min)
 #   bash scripts/run_g0d_headroom.sh report     # tables + docs/HEADROOM_G0D
+#   bash scripts/run_g0d_headroom.sh contract   # docs/PROMPT_CONTRACT (G1)
 #   bash scripts/run_g0d_headroom.sh all
 set -euo pipefail
 
@@ -55,13 +56,20 @@ report() {
     PYTHONPATH=src "$PYTHON_BIN" src/report_g0d_headroom.py "$@"
 }
 
+# G1: the prompt contract is generated from the texts themselves, so it needs
+# only the accepted panel the report step already wrote.
+contract() {
+    PYTHONPATH=src "$PYTHON_BIN" src/report_prompt_contract.py "$@"
+}
+
 case "${1:-all}" in
     ladder) ladder ;;
     sample) sample ;;
     report) shift; report "$@" ;;
-    all)    ladder; sample; report ;;
+    contract) shift; contract "$@" ;;
+    all)    ladder; sample; report; contract ;;
     *)
-        echo "usage: $0 {ladder|sample|report|all}" >&2
+        echo "usage: $0 {ladder|sample|report|contract|all}" >&2
         exit 2
         ;;
 esac

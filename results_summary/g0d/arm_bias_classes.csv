@@ -1,0 +1,6 @@
+arm,target_budget,naive_group_macro_rho2_bias,required_correction
+time_agnostic_t,800,-0.3084631594841752,upward
+time_respecting,800,-0.3098470448568926,upward
+recent_history_k20,800,-0.2867914675128002,upward
+node_panel_full_history,2500,-0.0053328866288650904,none
+event_sample_then_full_history,9600,0.1511605922589685,downward

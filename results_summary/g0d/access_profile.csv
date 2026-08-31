@@ -1,0 +1,6 @@
+arm,target_budget,natural_unit,median_natural_units,median_realized_events,median_dyad_coverage,median_node_coverage,median_windows_touched,median_temporal_evenness,median_dyads_observed,cases
+event_sample_then_full_history,9600,dyads looked up,611.5,9579.0,0.054433713784021,0.5325624893725557,1.0,0.6909355604956752,611.5,256
+node_panel_full_history,2500,nodes recruited,41.0,2381.0,0.0575173705112247,0.28440366972477066,1.0,0.6891523232233745,335.5,256
+recent_history_k20,800,walk steps,800.0,800.0,0.053985812191896104,0.40900000000000003,1.0,0.5800047234311592,471.0,256
+time_agnostic_t,800,walk steps,800.0,800.0,0.0900565107610917,0.5169700366534998,1.0,0.8175844806007511,715.0,256
+time_respecting,800,walk steps,800.0,800.0,0.05176145244679565,0.5241009174311927,1.0,0.26599809528198265,393.5,256

@@ -1,0 +1,3 @@
+arm,target_budget,group_macro_bias_mean,group_macro_bias_sd,slot0_group_macro_bias,accepted_cases,empty_cases_after_rule,delta_gt_zero_share,delta_lt_zero_share
+event_sample_then_full_history,9600,0.1511605922589685,0.004090608133667385,0.1494030035567562,256,0,0.07421875,0.89453125
+node_panel_full_history,2500,-0.0053328866288650904,0.005205245419180572,-0.00648245307175686,256,0,0.56640625,0.43359375

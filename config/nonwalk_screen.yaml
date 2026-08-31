@@ -238,3 +238,34 @@ presets:
     node_panel_min_budget: 800
     recent_events_json_limit: 100
     stationarity_bins: 10
+
+  # G0d sensitivity (Decision 3): arm A at the structurally empty-free level.
+  # The panel's largest node carries 10,571 incident events, so at 12,000 no
+  # first draw can overflow and the seed-advance rule never fires.  This
+  # isolates whether conditioning on non-emptiness at 2,500 distorts the arm.
+  # It is a sensitivity only -- arm A stays at 2,500 in the main run.
+  g0d_panel_a_12000:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/g0d_headroom_2026_09/panel_a_12000.csv.gz
+    W: 5
+    seed: 20260831
+    budgets: [12000]
+    seeds: 8
+    strategies:
+      - node_panel_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  g0d_benchmark_a_12000:
+    manifest: results/g0_headroom_2026_09/regenerated_benchmark_v2/manifest.csv
+    out: results/g0d_headroom_2026_09/benchmark_a_12000.csv.gz
+    W: 5
+    seed: 20260711
+    budgets: [12000]
+    seeds: 4
+    strategies:
+      - node_panel_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10

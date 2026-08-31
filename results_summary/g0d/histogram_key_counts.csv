@@ -1,0 +1,6 @@
+arm,median,mean,p10,p90,min,max
+event_sample_then_full_history,91.5,108.25,15.0,215.9,11.0,323.0
+node_panel_full_history,67.0,64.9375,19.5,117.10000000000007,11.0,139.0
+recent_history_k20,40.0,35.625,13.1,58.30000000000001,7.0,70.0
+time_agnostic_t,17.0,21.875,12.0,39.40000000000001,10.0,64.0
+time_respecting,25.5,23.96875,12.0,36.0,8.0,37.0

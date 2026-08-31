@@ -1,0 +1,2 @@
+arm,target_budget,median_dyad_coverage,coverage_target,group_macro_bias_mean,group_macro_bias_sd,seed_advances,empty_draws
+event_sample_then_full_history,10500,0.06101843722563645,0.05477530520069025,0.1495301118754881,0.003446970128401815,0,0

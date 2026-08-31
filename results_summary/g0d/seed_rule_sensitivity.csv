@@ -1,0 +1,7 @@
+scope,arm,group,graphs,cases,rho2_bias,profile_mae,median_coverage
+arm at its G0d budget,event_sample_then_full_history,other graphs,28,224,0.1376874034517548,0.076638769055656,0.06414947921914049
+arm at its G0d budget,event_sample_then_full_history,seed-advanced graphs,4,32,0.32158367764914053,0.26684291895622425,0.0033516672396012
+arm at its G0d budget,node_panel_full_history,other graphs,28,224,-0.005975157620655474,0.014279585470725109,0.06777512333983204
+arm at its G0d budget,node_panel_full_history,seed-advanced graphs,4,32,-0.0036930516890644177,0.03770930248483341,0.011086283946373302
+"node_panel_full_history at 12,000 (rule cannot fire)",node_panel_full_history,other graphs,28,224,-0.0008838365261183737,0.00469428577284649,0.33424434467070824
+"node_panel_full_history at 12,000 (rule cannot fire)",node_panel_full_history,seed-advanced graphs,4,32,0.00995108351443291,0.021952615663421084,0.058267445857682995

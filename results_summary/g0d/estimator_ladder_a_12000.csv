@@ -1,0 +1,6 @@
+arm,estimator,n,profile_mae,rho2_bias,pooled_profile_mae,pooled_rho2_bias
+node_panel_full_history,mean floor (panel LOGO),32,0.1413112035062518,-0.011601237251938719,0.13042507402998665,0.0009667697709949026
+node_panel_full_history,naive read-off,32,0.00547103154426166,0.0008453314288466153,0.00592805778911114,0.0008727789472221361
+node_panel_full_history,"occupancy MLE (uniform; censoring-aware, mechanism-agnostic)",32,0.2547487710980264,0.30051691331035085,0.230619652152163,0.28185394942009523
+node_panel_full_history,"mask MLE (uniform; censoring-aware, mechanism-agnostic)",32,0.18901958479521372,0.2872169898619597,0.16492627328199616,0.2674162240345713
+node_panel_full_history,supervised ExtraTrees (label-informed performance reference; panel backbones held out),32,0.016385494440677415,-0.002085453059048954,0.01787852453231121,-0.0030245255051930472
