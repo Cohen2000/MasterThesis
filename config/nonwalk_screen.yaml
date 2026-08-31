@@ -158,3 +158,83 @@ presets:
     node_panel_min_budget: 800
     recent_events_json_limit: 100
     stationarity_bins: 10
+
+  # G0d: budgets set by dyad-coverage parity with the three walk arms at 800
+  # unique events, whose pooled eight-seed median coverage is 0.0548.  The
+  # walks are unchanged; only the two whole-entity arms move.  Selected from
+  # `src/g0d_budget_ladder.py` over a 28-point grid.
+  #
+  # The panels run 16 seed slots rather than 8 so the prespecified
+  # empty-sample rule -- advance along the seed sequence until the sample is
+  # non-empty -- has headroom to draw from.  Arm A cannot reach a structurally
+  # zero empty rate at any coverage-parity budget: the panel's largest node
+  # carries 10,571 incident events, so a whole-node response only always fits
+  # above budget 12,000, nearly five times the parity budget.
+  g0d_panel_a:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/g0d_headroom_2026_09/panel_a.csv.gz
+    W: 5
+    seed: 20260831
+    budgets: [2500]
+    seeds: 16
+    strategies:
+      - node_panel_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  g0d_panel_b:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/g0d_headroom_2026_09/panel_b.csv.gz
+    W: 5
+    seed: 20260831
+    budgets: [9600]
+    seeds: 16
+    strategies:
+      - event_sample_then_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  # The budget G0c proposed for arm B, kept as a measured alternative: its
+  # eight-seed median coverage is 0.0610, against 0.0553 at seed 0 alone.
+  g0d_panel_b_10500:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/g0d_headroom_2026_09/panel_b_10500.csv.gz
+    W: 5
+    seed: 20260831
+    budgets: [10500]
+    seeds: 16
+    strategies:
+      - event_sample_then_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  # Benchmark population at the G0d budgets: supplies the group-held-out
+  # observation model and the supervised reference, exactly as in G0c.
+  g0d_benchmark_a:
+    manifest: results/g0_headroom_2026_09/regenerated_benchmark_v2/manifest.csv
+    out: results/g0d_headroom_2026_09/benchmark_a.csv.gz
+    W: 5
+    seed: 20260711
+    budgets: [2500]
+    seeds: 4
+    strategies:
+      - node_panel_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  g0d_benchmark_b:
+    manifest: results/g0_headroom_2026_09/regenerated_benchmark_v2/manifest.csv
+    out: results/g0d_headroom_2026_09/benchmark_b.csv.gz
+    W: 5
+    seed: 20260711
+    budgets: [9600]
+    seeds: 4
+    strategies:
+      - event_sample_then_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
