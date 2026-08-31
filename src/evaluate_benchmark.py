@@ -467,7 +467,14 @@ def make_plot(metrics, out_dir):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--config", default="config/benchmark.yaml")
+    # `benchmark_v21.yaml` is the authoritative evaluation configuration
+    # (G2.6). The two files differ in exactly one key, `presets.v2.evaluation`,
+    # and this script is their only consumer: v21 carries the
+    # `lifetime_mean_over_T` robustness target the frozen hierarchy in
+    # docs/TARGET_EVALUATION_FREEZE.md requires, and the older file silently
+    # drops it. Data generation and walks are byte-identical in both, so this
+    # default changes no sample and invalidates no generated artifact.
+    ap.add_argument("--config", default="config/benchmark_v21.yaml")
     ap.add_argument("--preset", default="smoke")
     ap.add_argument("--cases", nargs="+", default=None)
     ap.add_argument("--out-dir", default=None)

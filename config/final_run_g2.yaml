@@ -1,0 +1,131 @@
+# G2: the frozen configuration of the main five-arm run.
+#
+# One master seed drives every sample in the study.  Both runners derive their
+# per-case seed as stable_seed(master, instance_id, arm, seed_slot), so a
+# different seed reaches every (graph, arm) pair while the whole design stays
+# reproducible from the single number below.
+#
+# The budgets are the G0d coverage-parity result: the walks are unchanged at
+# 800 steps and the two whole-entity arms are set so their median dyad coverage
+# matches the walks' 0.0548.  See docs/HEADROOM_G0D_2026-09.md.
+#
+# Eight seed slots are generated per (graph, arm).  Slot 0 is the primary
+# sample that every condition of that case shares; slots 1-3 feed the seed
+# replication subset.  The extra slots exist because the G0d empty-sample rule
+# advances along the sequence on arm A, and it needs somewhere to advance to.
+version: 1
+
+final_run:
+  master_seed: 20260901
+  W: 5
+  panel_manifest: results/final_target_panel/panel32_final.csv
+  seed_slots_generated: 8
+  seed_slots_used: 4          # slot 0 primary + slots 1-3 for replication
+  arms:
+    time_agnostic_t: {family: walk, budget: 800, unit: walk steps}
+    time_respecting: {family: walk, budget: 800, unit: walk steps}
+    recent_history_k20: {family: walk, budget: 800, unit: walk steps}
+    node_panel_full_history: {family: whole_entity, budget: 2500, unit: nodes}
+    event_sample_then_full_history:
+      {family: whole_entity, budget: 9600, unit: dyads}
+  mismatch_pair: [time_agnostic_t, event_sample_then_full_history]
+
+  # Generations are a resolution instrument, not an accuracy one, so the count
+  # follows each model's measured reproducibility in docs/LLM_NOISE_RESULT.md
+  # rather than being uniform.
+  #
+  # `primary` designates the model that carries the subsets. Codex is the
+  # strongest reader in the suite (ProfileMAE 0.053, reproducibility 0.07) and
+  # its walk-redraw noise share of 68% is what justifies spending seeds on it.
+  # The caveat is recorded rather than hidden: the Codex harness adds a prompt
+  # that is not part of the frozen prompt and cannot be version-pinned, so
+  # every Codex row is a product screen, not a pinned API measurement. The
+  # subsets are robustness and diagnostic items where the strongest reader is
+  # the most informative, so that trade is acceptable there; no primary claim
+  # rests on a Codex-only result. `qwen3.6-27b_think` is the pinnable
+  # alternative if the subsets must be version-pinned instead.
+  models:
+    codex-gpt-5.6-sol: {generations: 2, role: primary, pinnable: false}
+    qwen3.6-27b_think: {generations: 3, role: secondary, pinnable: true}
+    qwen3.6-27b_nothink: {generations: 3, role: secondary, pinnable: true}
+  # Subsets are selected by a recorded rule, never by eye after the fact.
+  # Both stratify on the seed-0 dyad-coverage quintile so they span the range
+  # the panel actually covers; ties break on instance_id, which is stable.
+  subsets:
+    seed_replication:
+      graphs: 8
+      arms: all
+      conditions: [hidden, mechanism]
+      extra_seed_slots: [1, 2, 3]
+      selection_rule: coverage_stratified_by_group
+    irrelevant_context:
+      arms: [time_agnostic_t, event_sample_then_full_history]
+      graphs: 32
+
+presets:
+  # Walks, consumed by src/run_benchmark_walks.py.
+  g2_walks:
+    W: 5
+    seed: 20260901
+    walks:
+      strategies: [time_agnostic_t, time_respecting, recent_history_k20]
+      budgets: [800]
+      seeds: 8
+      recency_decay_scale: 0.10
+      recent_history_k: 20
+      recent_events_json_limit: 100
+      # Applies only to the `time_agnostic` sentinel strategy, which this run
+      # does not use; pinned at 0 so that is explicit rather than inherited.
+      time_agnostic_sentinel_fraction: 0.0
+
+  # Whole-entity arms, consumed by src/run_nonwalk_screen.py.
+  g2_arm_a:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/final_run_g2/arm_a.csv.gz
+    W: 5
+    seed: 20260901
+    budgets: [2500]
+    seeds: 8
+    strategies: [node_panel_full_history]
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  g2_arm_b:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/final_run_g2/arm_b.csv.gz
+    W: 5
+    seed: 20260901
+    budgets: [9600]
+    seeds: 8
+    strategies: [event_sample_then_full_history]
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  # Benchmark population at the same budgets, for the supervised reference and
+  # the group-held-out observation model.  Its seed is the archived benchmark
+  # seed, not the master seed: these are training inputs, not study samples.
+  g2_benchmark_a:
+    manifest: results/g0_headroom_2026_09/regenerated_benchmark_v2/manifest.csv
+    out: results/final_run_g2/benchmark_a.csv.gz
+    W: 5
+    seed: 20260711
+    budgets: [2500]
+    seeds: 4
+    strategies: [node_panel_full_history]
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  g2_benchmark_b:
+    manifest: results/g0_headroom_2026_09/regenerated_benchmark_v2/manifest.csv
+    out: results/final_run_g2/benchmark_b.csv.gz
+    W: 5
+    seed: 20260711
+    budgets: [9600]
+    seeds: 4
+    strategies: [event_sample_then_full_history]
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10

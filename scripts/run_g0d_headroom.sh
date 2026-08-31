@@ -11,6 +11,7 @@
 #   bash scripts/run_g0d_headroom.sh sample     # panels + benchmark (~25 min)
 #   bash scripts/run_g0d_headroom.sh report     # tables + docs/HEADROOM_G0D
 #   bash scripts/run_g0d_headroom.sh contract   # docs/PROMPT_CONTRACT (G1)
+#   bash scripts/run_g0d_headroom.sh g2         # final samples + docs/FREEZE (G2)
 #   bash scripts/run_g0d_headroom.sh all
 set -euo pipefail
 
@@ -62,14 +63,37 @@ contract() {
     PYTHONPATH=src "$PYTHON_BIN" src/report_prompt_contract.py "$@"
 }
 
+# G2: the final samples, from the one master seed in config/final_run_g2.yaml.
+g2() {
+    local shard
+    PYTHONPATH=src "$PYTHON_BIN" src/run_benchmark_walks.py \
+        --config config/final_run_g2.yaml --preset g2_walks \
+        --manifest results/final_target_panel/panel32_final.csv \
+        --out results/final_run_g2/walks.csv.gz
+    for preset in g2_arm_a g2_arm_b g2_benchmark_a g2_benchmark_b; do
+        for ((shard=0; shard<SHARDS; shard++)); do
+            PYTHONPATH=src "$PYTHON_BIN" src/run_nonwalk_screen.py \
+                --config config/final_run_g2.yaml --preset "$preset" \
+                --num-shards "$SHARDS" --shard-id "$shard" &
+        done
+        wait
+        echo "done: $preset"
+    done
+    # The retrospective slice reads archived answers only; the freeze report
+    # expects its tables to exist.
+    PYTHONPATH=src "$PYTHON_BIN" src/report_historical_direction_slice.py
+    PYTHONPATH=src "$PYTHON_BIN" src/report_freeze_g2.py
+}
+
 case "${1:-all}" in
     ladder) ladder ;;
     sample) sample ;;
     report) shift; report "$@" ;;
     contract) shift; contract "$@" ;;
+    g2)     g2 ;;
     all)    ladder; sample; report; contract ;;
     *)
-        echo "usage: $0 {ladder|sample|report|contract|all}" >&2
+        echo "usage: $0 {ladder|sample|report|contract|g2|all}" >&2
         exit 2
         ;;
 esac

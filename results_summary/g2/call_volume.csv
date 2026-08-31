@@ -1,0 +1,5 @@
+model,role,generations,version_pinnable,prompts,calls
+codex-gpt-5.6-sol,primary,2,no,1136,2272
+qwen3.6-27b_think,secondary,3,yes,736,2208
+qwen3.6-27b_nothink,secondary,3,yes,736,2208
+TOTAL CALLS,,,,,6688

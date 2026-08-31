@@ -1,0 +1,9 @@
+group_id,instance_id,mean_coverage
+real::snap_mathoverflow,controlled__snap_mathoverflow__bursty__contiguous__rho0.15__r0,0.00517698126456222
+real::snap_collegemsg,real__snap_collegemsg,0.040005781182251746
+real::sp_primaryschool,real__sp_primaryschool,0.043621498136347206
+real::snap_bitcoin_otc,real__snap_bitcoin_otc,0.08050437372045408
+activity::n1500::f0,activity__n1500__f0__memoryless,0.099222518177237
+real::sp_hypertext2009,real__sp_hypertext2009,0.1518214936247723
+real::sp_hospital,controlled__sp_hospital__bursty__contiguous__rho0.55__r0,0.19315188762071991
+dar::dcsbm::n500::f0,dar__dcsbm__n500__f0__a0.9__c0.15,0.42059732234809466

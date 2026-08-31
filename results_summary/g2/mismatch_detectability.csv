@@ -1,0 +1,3 @@
+actual_arm,stated_arm,cases,median_p_stated,p_stated_p10,p_stated_p90,cases_p_stated_above_0_2
+event_sample_then_full_history,time_agnostic_t,32,0.011442621610062265,0.0001419223022876448,0.9245093292309977,6
+time_agnostic_t,event_sample_then_full_history,32,0.09797171556664835,0.048840365489371734,0.2101631958490521,4

@@ -1,0 +1,3 @@
+arm,graphs,conditions,models
+time_agnostic_t,32,irrelevant_context vs mechanism,primary only
+event_sample_then_full_history,32,irrelevant_context vs mechanism,primary only

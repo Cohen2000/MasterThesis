@@ -1,0 +1,8 @@
+set,prompts,models
+"factorial: hidden, direction_only, mechanism, mechanism_direction",640,all
+"mismatched, bidirectional on one pair",64,all
+metadata_only (identical across arms),32,all
+disclosed_historical (appendix bridge),96,primary only
+irrelevant_context (robustness subset),64,primary only
+seed replication,240,primary only
+TOTAL PROMPTS,1136,

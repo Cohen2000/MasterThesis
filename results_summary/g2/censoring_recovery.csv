@@ -1,0 +1,6 @@
+arm,naive_rho2_bias,mask_mle_rho2_bias,bias_denominator,anchor_moves_toward_zero,normalization
+time_agnostic_t,-0.2775883192459905,-0.0376110445352411,-0.23997727471074937,True,defined
+time_respecting,-0.3101282250440511,-0.1146795646920055,-0.19544866035204556,True,defined
+recent_history_k20,-0.2836358902867139,-0.0514976223248407,-0.23213826796187317,True,defined
+node_panel_full_history,-0.0012575735483711,0.288035543522731,-0.28929311707110206,False,DEGENERATE: report raw signed bias
+event_sample_then_full_history,0.1531261554184632,0.3310432827677478,-0.1779171273492846,False,DEGENERATE: report raw signed bias
