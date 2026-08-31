@@ -100,3 +100,61 @@ presets:
     node_panel_min_budget: 800
     recent_events_json_limit: 100
     stationarity_bins: 10
+
+  # G0c replaces the oracle-weighted G0b arm with event-log discovery followed
+  # by complete per-dyad lookup.  The main-budget panel uses eight seeds; the
+  # benchmark population supplies group-held-out likelihood and ML references.
+  g0c_panel_b:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/g0c_headroom_2026_09/panel_b.csv.gz
+    W: 5
+    seed: 20260831
+    budgets: [800]
+    seeds: 8
+    strategies:
+      - event_sample_then_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  g0c_benchmark_main:
+    manifest: results/g0_headroom_2026_09/regenerated_benchmark_v2/manifest.csv
+    out: results/g0c_headroom_2026_09/benchmark_main.csv.gz
+    W: 5
+    seed: 20260711
+    budgets: [800]
+    seeds: 4
+    strategies:
+      - node_panel_full_history
+      - event_sample_then_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  # Seed-0 sensitivity budget chosen after the G0c panel probe: it gives
+  # median dyad coverage 0.0553, against 0.0555 for the three walk arms.
+  g0c_panel_b_coverage:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/g0c_headroom_2026_09/panel_b_coverage.csv.gz
+    W: 5
+    seed: 20260831
+    budgets: [10500]
+    seeds: 1
+    strategies:
+      - event_sample_then_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  g0c_benchmark_b_coverage:
+    manifest: results/g0_headroom_2026_09/regenerated_benchmark_v2/manifest.csv
+    out: results/g0c_headroom_2026_09/benchmark_b_coverage.csv.gz
+    W: 5
+    seed: 20260711
+    budgets: [10500]
+    seeds: 4
+    strategies:
+      - event_sample_then_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10

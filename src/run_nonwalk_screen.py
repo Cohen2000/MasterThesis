@@ -16,6 +16,7 @@ from build_benchmark_data import stable_seed
 from nonwalk_samplers import (
     activity_proportional_dyad_full_history,
     ego_recent_k_snowball,
+    event_sample_then_full_history,
     neighbourhood_crawl,
     node_panel_full_history,
     node_selection_diagnostics,
@@ -58,7 +59,8 @@ def _parse_strategy(name):
         return base, None if value == "all" else int(value)
     if name in {"uniform_event_reservoir", "time_prefix_events",
                 "time_random_window_events", "node_panel_full_history",
-                "activity_proportional_dyad_full_history"}:
+                "activity_proportional_dyad_full_history",
+                "event_sample_then_full_history"}:
         return name, None
     raise ValueError(f"unknown non-walk strategy {name!r}")
 
@@ -86,6 +88,8 @@ def _sample(events, strategy, budget, seed, burn_prob=0.35):
         return node_panel_full_history(events, budget, seed)
     if base == "activity_proportional_dyad_full_history":
         return activity_proportional_dyad_full_history(events, budget, seed)
+    if base == "event_sample_then_full_history":
+        return event_sample_then_full_history(events, budget, seed)
     if base == "bfs_crawl":
         return neighbourhood_crawl(events, budget, seed, value,
                                    expansion="bfs")
@@ -139,7 +143,8 @@ def main():
         events = pd.read_csv(_event_path(manifest_path, meta["path"]))
         prepared = prepare_events(events)
         prepared_dyads = (prepare_dyad_histories(prepared)
-                          if "activity_proportional_dyad_full_history" in strategies
+                          if ({"activity_proportional_dyad_full_history",
+                               "event_sample_then_full_history"} & set(strategies))
                           else None)
         idx = build_index(events, T=1.0, W=W)
         total_edges = len(idx.edge_times)
@@ -159,7 +164,9 @@ def main():
                             target_budget < node_panel_min_budget):
                         continue
                     sample_input = (prepared_dyads
-                                    if strategy == "activity_proportional_dyad_full_history"
+                                    if strategy in {
+                                        "activity_proportional_dyad_full_history",
+                                        "event_sample_then_full_history"}
                                     else prepared)
                     result = _sample(sample_input, strategy, target_budget,
                                      seed, burn_prob=burn_prob)

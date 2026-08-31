@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from nonwalk_samplers import (  # noqa: E402
     activity_proportional_dyad_full_history,
     ego_recent_k_snowball,
+    event_sample_then_full_history,
     neighbourhood_crawl,
     node_panel_full_history,
     node_panel_size,
@@ -96,6 +97,44 @@ class ActivityProportionalDyad(unittest.TestCase):
         self.assertEqual(len(result.log), 2)
         self.assertGreaterEqual(
             result.diagnostics["skipped_oversize_dyad_count"], 1)
+
+
+class EventSampleThenFullHistory(unittest.TestCase):
+    def test_uniform_event_discovery_returns_only_complete_histories(self):
+        events = toy_events()
+        result = event_sample_then_full_history(events, 7, seed=4)
+        self.assertLessEqual(len(result.log), 7)
+        self.assertEqual(result.diagnostics["partial_response_count"], 0)
+        for edge, observed in result.log.groupby(["u", "v"]):
+            full = events[(events.u == edge[0]) & (events.v == edge[1])]
+            self.assertEqual(len(observed), len(full))
+        self.assertEqual(
+            result.diagnostics["phase1_unique_event_count"]
+            + result.diagnostics["phase2_additional_unique_event_count"],
+            len(result.log))
+        again = event_sample_then_full_history(events, 7, seed=4)
+        self.assertTrue(result.log.equals(again.log))
+
+    def test_whole_lookup_stop_can_leave_empty_sample(self):
+        events = pd.DataFrame({
+            "u": [0] * 9 + [2],
+            "v": [1] * 9 + [3],
+            "t": np.linspace(0.0, 1.0, 10),
+        })
+        empty = None
+        for seed in range(100):
+            got = event_sample_then_full_history(events, 2, seed=seed)
+            if got.log.empty:
+                empty = got
+                break
+        self.assertIsNotNone(empty)
+        self.assertTrue(
+            empty.diagnostics["empty_due_to_first_nonfitting_lookup"])
+        self.assertEqual(empty.diagnostics["phase1_unique_event_count"], 0)
+
+    def test_strategy_name_parses(self):
+        self.assertEqual(_parse_strategy("event_sample_then_full_history"),
+                         ("event_sample_then_full_history", None))
 
 
 class EgoRecent(unittest.TestCase):
