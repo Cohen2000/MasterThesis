@@ -543,6 +543,28 @@ class TestApiCostGuard(unittest.TestCase):
         expected = (4 * 0.14 + 8192 * 0.28) / 1_000_000
         self.assertAlmostEqual(got, expected)
 
+    def test_shared_budget_reserves_settles_and_reuses_headroom(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            budget = runner.SharedApiBudget(
+                os.path.join(tmp, "budget.json"), 1.0)
+            first = budget.reserve(0.6)
+            self.assertIsNotNone(first)
+            self.assertIsNone(budget.reserve(0.5))
+            self.assertAlmostEqual(budget.settle(first, 0.2), 0.2)
+            second = budget.reserve(0.5)
+            self.assertIsNotNone(second)
+            budget.release(second)
+            state = budget.snapshot()
+            self.assertAlmostEqual(state["spent_usd"], 0.2)
+            self.assertEqual(state["reservations"], {})
+
+    def test_shared_budget_rejects_a_different_limit_on_resume(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "budget.json")
+            runner.SharedApiBudget(path, 1.0)
+            with self.assertRaises(ValueError):
+                runner.SharedApiBudget(path, 2.0)
+
 
 class TestHFRepetitionControls(unittest.TestCase):
     """Degeneration controls must reach generate(), and stay off by default.

@@ -15,6 +15,7 @@ from benchmark_features import build_case_features
 from build_benchmark_data import stable_seed
 from nonwalk_samplers import (
     ego_recent_k_snowball,
+    neighbourhood_crawl,
     node_panel_full_history,
     node_selection_diagnostics,
     oracle_reservoir_ht,
@@ -49,10 +50,10 @@ def _load_config(path, preset):
 
 
 def _parse_strategy(name):
-    match = re.fullmatch(r"ego_recent_k(\d+|all)", name)
+    match = re.fullmatch(r"(ego_recent|bfs_crawl|forest_fire)_k(\d+|all)", name)
     if match:
-        value = match.group(1)
-        return "ego_recent", None if value == "all" else int(value)
+        base, value = match.group(1), match.group(2)
+        return base, None if value == "all" else int(value)
     if name in {"uniform_event_reservoir", "time_prefix_events",
                 "time_random_window_events", "node_panel_full_history"}:
         return name, None
@@ -60,12 +61,17 @@ def _parse_strategy(name):
 
 
 def _strategy_seed_key(name):
-    # The k sweep must share the same restart order and latest-event frontier.
+    # A k sweep must share the same restart order within its own crawl family.
     # Otherwise a k effect would be confounded with a different random path.
-    return "ego_recent_k_sweep" if name.startswith("ego_recent_k") else name
+    # The families do not share a key with each other: their frontier rules
+    # consume the generator differently, so a shared key would buy nothing.
+    for family in ("ego_recent_k", "bfs_crawl_k", "forest_fire_k"):
+        if name.startswith(family):
+            return f"{family}_sweep"
+    return name
 
 
-def _sample(events, strategy, budget, seed):
+def _sample(events, strategy, budget, seed, burn_prob=0.35):
     base, value = _parse_strategy(strategy)
     if base == "uniform_event_reservoir":
         return uniform_event_reservoir(events, budget, seed)
@@ -75,6 +81,13 @@ def _sample(events, strategy, budget, seed):
         return time_random_window_events(events, budget, seed)
     if base == "node_panel_full_history":
         return node_panel_full_history(events, budget, seed)
+    if base == "bfs_crawl":
+        return neighbourhood_crawl(events, budget, seed, value,
+                                   expansion="bfs")
+    if base == "forest_fire":
+        return neighbourhood_crawl(events, budget, seed, value,
+                                   expansion="forest_fire",
+                                   burn_prob=burn_prob)
     return ego_recent_k_snowball(events, budget, seed, value)
 
 
@@ -113,6 +126,7 @@ def main():
     node_panel_min_budget = int(plan.get("node_panel_min_budget", 400))
     recent_limit = int(plan.get("recent_events_json_limit", 100))
     stationarity_bins = int(plan.get("stationarity_bins", 10))
+    burn_prob = float(plan.get("forest_fire_burn_prob", 0.35))
 
     rows = []
     started = time.time()
@@ -136,13 +150,14 @@ def main():
                     if (strategy == "node_panel_full_history" and
                             target_budget < node_panel_min_budget):
                         continue
-                    result = _sample(prepared, strategy, target_budget, seed)
+                    result = _sample(prepared, strategy, target_budget,
+                                     seed, burn_prob=burn_prob)
                     actual_budget = len(result.log)
                     features = build_case_features(
                         result.log, budget=actual_budget, W=W, idx=idx,
                         recent_limit=recent_limit, include_beta=False)
                     selected_nodes = None
-                    if strategy.startswith("ego_recent_"):
+                    if "query_node_order" in result.diagnostics:
                         selected_nodes = result.diagnostics["query_node_order"]
                     elif strategy == "node_panel_full_history":
                         selected_nodes = result.diagnostics["panel_node_order"]

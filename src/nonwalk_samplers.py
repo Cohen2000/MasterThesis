@@ -325,6 +325,142 @@ def ego_recent_k_snowball(events: pd.DataFrame, budget: int, seed: int,
     })
 
 
+def neighbourhood_crawl(events: pd.DataFrame, budget: int, seed: int,
+                        k: int | None, expansion: str = "bfs",
+                        burn_prob: float = 0.35) -> SampleResult:
+    """Snowball crawl that builds its frontier from the whole query response.
+
+    The access primitive is the one used by :func:`ego_recent_k_snowball`: a
+    queried node returns its ``k`` newest unique incident records at ``T_end``
+    and only unique events are charged against the budget.  What differs is the
+    frontier rule, so a contrast against ego retrieval at equal ``k`` isolates
+    crawl geometry rather than information depth.
+
+    ``bfs`` queues every neighbour appearing in the response, which spreads the
+    crawl breadth-first.  ``forest_fire`` queues each of them independently
+    with probability ``burn_prob``, the classic forward-burning design.  Ego
+    retrieval expands only along the endpoint of the single newest event and
+    therefore crawls a chain; that is why its query order is k-invariant while
+    the query order here is not.
+    """
+    if budget < 1:
+        raise ValueError("budget must be positive")
+    if k is not None and k < 1:
+        raise ValueError("k must be positive or None for all history")
+    if expansion not in {"bfs", "forest_fire"}:
+        raise ValueError(f"unknown expansion {expansion!r}")
+    if not 0.0 < float(burn_prob) <= 1.0:
+        raise ValueError("burn_prob must lie in (0,1]")
+    prepared = events if isinstance(events, PreparedEvents) else prepare_events(events)
+    x = prepared.events
+    incident = prepared.incident_event_ids
+    active = prepared.active_nodes
+    rng = np.random.default_rng(seed)
+    restart_order = rng.permutation(active).tolist()
+    restart_pos = 0
+    frontier = deque()
+    queued = set()
+    queried = set()
+    query_order = []
+    seen_events = set()
+    records = []
+    query_id = 0
+    n_restarts = 0
+    partial_queries = 0
+    n_discovered = 0
+    n_queued = 0
+
+    def restart():
+        nonlocal restart_pos, n_restarts
+        while restart_pos < len(restart_order):
+            node = int(restart_order[restart_pos]); restart_pos += 1
+            if node not in queried and node not in queued:
+                frontier.append(node); queued.add(node); n_restarts += 1
+                return True
+        return False
+
+    restart()
+    while frontier and len(records) < budget:
+        ego = int(frontier.popleft()); queued.discard(ego)
+        if ego in queried:
+            if not frontier:
+                restart()
+            continue
+        queried.add(ego)
+        query_order.append(ego)
+        ids_all = incident[ego]
+        response = ids_all if k is None else ids_all[:int(k)]
+        new_ids = [i for i in response if i not in seen_events]
+        remaining = int(budget) - len(records)
+        kept = new_ids[:remaining]
+        is_partial = len(kept) < len(new_ids)
+        partial_queries += int(is_partial)
+        for eid in kept:
+            seen_events.add(eid)
+            row = x.iloc[eid]
+            records.append({
+                "u": int(row.u), "v": int(row.v), "t": float(row.t),
+                "event_id": int(eid), "query_id": int(query_id),
+                "query_node": ego, "partial_response": bool(is_partial),
+                "response_size_total": int(len(new_ids)),
+                "response_size_kept": int(len(kept)),
+            })
+
+        # The frontier is built from the response the query actually returned,
+        # not from the events the budget happened to pay for: a repeated event
+        # still names its endpoints.  This matches the ego convention, which
+        # also expands from the response rather than from the charged events.
+        candidates = []
+        seen_candidates = set()
+        for eid in response:
+            row = x.iloc[eid]
+            other = int(row.v) if int(row.u) == ego else int(row.u)
+            if other == ego or other in queried or other in queued:
+                continue
+            if other not in seen_candidates:
+                seen_candidates.add(other); candidates.append(other)
+        n_discovered += len(candidates)
+        if expansion == "forest_fire" and candidates:
+            burn = rng.random(len(candidates)) < float(burn_prob)
+            candidates = [node for node, hit in zip(candidates, burn) if hit]
+        for node in candidates:
+            frontier.append(node); queued.add(node)
+        n_queued += len(candidates)
+        query_id += 1
+        if not frontier and len(records) < budget:
+            restart()
+
+    selected = pd.DataFrame(records)
+    if selected.empty:
+        selected = pd.DataFrame(columns=[
+            "u", "v", "t", "event_id", "query_id", "query_node",
+            "partial_response", "response_size_total", "response_size_kept",
+        ])
+    log = _as_log(selected[["u", "v", "t", "event_id"]])
+    for col in ("query_id", "query_node", "partial_response",
+                "response_size_total", "response_size_kept"):
+        log[col] = selected[col].to_numpy() if len(selected) else log[col]
+    return SampleResult(log, {
+        "sampling_design": f"neighbourhood_crawl_{expansion}",
+        "history_k": "all" if k is None else int(k),
+        "query_time": "end",
+        "deduplicate_events": True,
+        "frontier_expansion": expansion,
+        "burn_probability": (float(burn_prob) if expansion == "forest_fire"
+                             else np.nan),
+        "target_budget": int(budget),
+        "realized_event_budget": int(len(log)),
+        "query_budget_realized": int(len(queried)),
+        "query_node_order": query_order,
+        "restart_count": int(n_restarts),
+        "partial_query_count": int(partial_queries),
+        "discovered_node_count": int(n_discovered),
+        "queued_node_count": int(n_queued),
+        "sampling_fraction_events": float(len(log) / len(x)),
+        "task_class": "end_time_neighbourhood_crawl",
+    })
+
+
 def temporal_nonstationarity_diagnostics(events: pd.DataFrame,
                                          bins: int = 10,
                                          T: float = 1.0) -> dict:

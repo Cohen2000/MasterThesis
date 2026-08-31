@@ -1,0 +1,22 @@
+version: 1
+
+# Walk arms for the crawl-regime comparison in docs/NONWALK_CRAWL_REGIME.md.
+# Seed and W match results/nonwalk_screen/panel32_cases.csv.gz and the earlier
+# results/walk_nonwalk_comparison/walk_cases_b800.csv.gz, so the three
+# strategies present in that file reproduce exactly and the two added ones join
+# on the same footing.
+presets:
+  panel32_b800:
+    W: 5
+    seed: 20260820
+    walks:
+      strategies:
+        - time_agnostic_t
+        - time_respecting
+        - recency_biased
+        - recent_history_k5
+        - recent_history_k20
+      budgets: [800]
+      seeds: 4
+      recency_decay_scale: 0.10
+      recent_events_json_limit: 100

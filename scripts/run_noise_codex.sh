@@ -23,7 +23,11 @@ PYTHON_BIN="${PYTHON_BIN:-$REPO/.venv/bin/python}"
 PROBE="$REPO/results/llm_noise_probe"
 PROMPTS="${NOISE_PROMPTS:-$PROBE/prompts_subset160.jsonl}"
 OUT_DIR="${CODEX_NOISE_OUT_DIR:-$HOME/Dokumente/codex_noise}"
-ANSWER="$OUT_DIR/answers_codex-gpt-5.6-sol_notools_high_noise.jsonl"
+# The effort belongs in the filename. run_codex_screen.py refuses to mix two
+# efforts inside one label; --out would quietly bypass that, and the resume
+# would then skip a low run entirely as "already complete".
+EFFORT="${EFFORT:-high}"
+ANSWER="$OUT_DIR/answers_codex-gpt-5.6-sol_notools_${EFFORT}_noise.jsonl"
 CODEX_BIN="${CODEX_NOISE_BIN:-$HOME/.codex/packages/standalone/releases/0.146.0-x86_64-unknown-linux-musl/bin/codex}"
 # 160 prompts at the OFAT median of ~24.7k total tokens is about 4M. The cap is
 # a runaway brake, not a budget target.
@@ -46,11 +50,12 @@ fi
 
 mkdir -p "$OUT_DIR"
 total=$(wc -l <"$PROMPTS")
-echo "== Codex noise arm: $total prompts, pinned 0.146.0 =="
+echo "== Codex noise arm: $total prompts, effort=$EFFORT, pinned 0.146.0 =="
 echo "   answers: $ANSWER"
 
 "$PYTHON_BIN" scripts/codex_screen/run_codex_screen.py \
     --arm notools \
+    --effort "$EFFORT" \
     --codex-bin "$CODEX_BIN" \
     --prompts "$PROMPTS" \
     --condition disclosed \

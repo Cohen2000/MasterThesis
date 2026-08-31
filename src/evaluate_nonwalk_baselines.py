@@ -204,9 +204,19 @@ def main():
     parser.add_argument("--eb-max-iter", type=int, default=500)
     parser.add_argument("--eb-jobs", type=int, default=1)
     parser.add_argument("--max-cases", type=int, default=0)
+    parser.add_argument(
+        "--strategies", nargs="+", default=None,
+        help="restrict the evaluation to these strategy names; the default "
+             "keeps every strategy present in the case files")
     args = parser.parse_args()
 
     cases, paths = read_cases(args.cases)
+    if args.strategies:
+        wanted = set(args.strategies)
+        missing = sorted(wanted - set(cases.strategy.unique()))
+        if missing:
+            raise SystemExit(f"strategies not present in the cases: {missing}")
+        cases = cases[cases.strategy.isin(wanted)].reset_index(drop=True)
     if args.max_cases:
         cases = cases.head(args.max_cases).copy()
     print(f"{len(cases)} cases from {len(paths)} file(s)", flush=True)

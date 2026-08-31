@@ -155,6 +155,40 @@ hours in one task. Shard it (8 shards -> ~5 h each) or cut the probe down
 first with `--repeats 3` and a graph subset. Upload the probe prompts under
 their own name; do **not** overwrite `$WS/llm_v21/prompts.jsonl`.
 
+### Option D -- DeepSeek V4 Pro over the official API
+
+The Pro arms use the same frozen 288 prompts as every other full arm. Smoke and
+full run append to a mode-specific, resume-safe answer file. Thinking and
+non-thinking costs share one global hard ceiling; the wrapper refuses a ceiling
+above USD 0.84.
+
+```bash
+bash scripts/run_noise_deepseek_pro.sh smoke
+bash scripts/run_noise_deepseek_pro.sh run
+bash scripts/run_noise_deepseek_pro.sh status
+
+DEEPSEEK_PRO_NOISE_MODE=think bash scripts/run_noise_deepseek_pro.sh smoke
+DEEPSEEK_PRO_NOISE_MODE=think bash scripts/run_noise_deepseek_pro.sh run
+DEEPSEEK_PRO_NOISE_MODE=think bash scripts/run_noise_deepseek_pro.sh status
+```
+
+For a fast mixed run, `run_noise_deepseek_pro_parallel.sh` uses one locked
+budget across all processes. It runs the full 288-prompt non-thinking arm in
+four shards and a 60-prompt thinking subset (12 graphs, three draws per noise
+arm) in twelve shards. The default cap is $2.69 of new spend; an existing
+ledger is resumed rather than reset:
+
+```bash
+bash scripts/run_noise_deepseek_pro_parallel.sh start
+bash scripts/run_noise_deepseek_pro_parallel.sh status
+```
+
+Defaults: `deepseek-v4-pro`, non-thinking, official Chat Completions endpoint,
+8192 output tokens, and the documented USD-per-million prices 0.003625 cache
+hit / 0.435 cache miss / 0.87 output. Thinking uses effort `high`. Override the ceiling downward with
+`DEEPSEEK_PRO_NOISE_MAX_USD`; the cumulative answer-file cost remains in force
+after every resume.
+
 ## Output budget
 
 `--max-tokens 0` (via `NIM_MAXTOK=0` / `GEMINI_MAXTOK=0`) omits the field from

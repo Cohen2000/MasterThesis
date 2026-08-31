@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from nonwalk_samplers import (  # noqa: E402
     ego_recent_k_snowball,
+    neighbourhood_crawl,
     node_panel_full_history,
     node_panel_size,
     temporal_nonstationarity_diagnostics,
@@ -16,7 +17,10 @@ from nonwalk_samplers import (  # noqa: E402
     time_random_window_events,
     uniform_event_reservoir,
 )
-from run_nonwalk_screen import _strategy_seed_key  # noqa: E402
+from run_nonwalk_screen import (  # noqa: E402
+    _parse_strategy,
+    _strategy_seed_key,
+)
 
 
 def toy_events():
@@ -86,6 +90,64 @@ class EgoRecent(unittest.TestCase):
         self.assertEqual(len(result.log), 2)
         self.assertEqual(result.diagnostics["partial_query_count"], 1)
         self.assertTrue(result.log.partial_response.all())
+
+
+def star_events():
+    """A hub with eight leaves: the newest-event chain is narrow, the
+    neighbourhood is wide, so the two frontier rules must diverge."""
+    leaves = list(range(1, 9))
+    return pd.DataFrame({
+        "u": [0] * 8 + leaves,
+        "v": leaves + [(i % 8) + 1 for i in leaves],
+        "t": np.linspace(0.01, 0.99, 16),
+    })
+
+
+class NeighbourhoodCrawl(unittest.TestCase):
+    def test_reproducible_and_within_budget(self):
+        events = star_events()
+        a = neighbourhood_crawl(events, 6, seed=5, k=4)
+        b = neighbourhood_crawl(events, 6, seed=5, k=4)
+        self.assertTrue(a.log.equals(b.log))
+        self.assertEqual(len(a.log), 6)
+        self.assertTrue(a.log.event_id.is_unique)
+
+    def test_bfs_frontier_is_wider_than_the_ego_chain(self):
+        events = star_events()
+        bfs = neighbourhood_crawl(events, 16, seed=1, k=8, expansion="bfs")
+        ego = ego_recent_k_snowball(events, 16, seed=1, k=8)
+        self.assertNotEqual(bfs.diagnostics["query_node_order"],
+                            ego.diagnostics["query_node_order"])
+        self.assertLess(bfs.diagnostics["restart_count"],
+                        ego.diagnostics["restart_count"])
+
+    def test_full_burn_probability_reduces_to_bfs(self):
+        events = star_events()
+        bfs = neighbourhood_crawl(events, 12, seed=7, k=4, expansion="bfs")
+        burned = neighbourhood_crawl(events, 12, seed=7, k=4,
+                                     expansion="forest_fire", burn_prob=1.0)
+        self.assertEqual(bfs.diagnostics["query_node_order"],
+                         burned.diagnostics["query_node_order"])
+
+    def test_burning_drops_part_of_the_discovered_frontier(self):
+        got = neighbourhood_crawl(star_events(), 16, seed=2, k=8,
+                                  expansion="forest_fire", burn_prob=0.35)
+        self.assertLess(got.diagnostics["queued_node_count"],
+                        got.diagnostics["discovered_node_count"])
+
+    def test_rejects_an_unknown_expansion(self):
+        with self.assertRaises(ValueError):
+            neighbourhood_crawl(star_events(), 4, seed=0, k=2,
+                                expansion="teleport")
+
+    def test_strategy_names_parse_and_keep_their_own_seed_key(self):
+        self.assertEqual(_parse_strategy("bfs_crawl_k20"), ("bfs_crawl", 20))
+        self.assertEqual(_parse_strategy("forest_fire_kall"),
+                         ("forest_fire", None))
+        self.assertEqual(_strategy_seed_key("bfs_crawl_k5"),
+                         _strategy_seed_key("bfs_crawl_k20"))
+        self.assertNotEqual(_strategy_seed_key("bfs_crawl_k5"),
+                            _strategy_seed_key("ego_recent_k5"))
 
 
 class Diagnostics(unittest.TestCase):

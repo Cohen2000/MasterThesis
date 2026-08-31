@@ -1,17 +1,22 @@
 # LLM noise probe
 
-All five arms complete as of 2026-08-25: Gemini 3.1 Flash Lite, DeepSeek V4
-Flash, Qwen3.6-27B in both modes, and Codex gpt-5.6-sol. 32 graphs, 12 groups,
-`time_agnostic_t`, budget 800, `disclosed`/`mask`, response rate 1.00 and
-validity 1.00 throughout.
+Six arms complete as of 2026-08-25: Gemini 3.1 Flash Lite, DeepSeek V4 Flash,
+DeepSeek V4 Pro non-thinking, Qwen3.6-27B in both modes, and Codex
+gpt-5.6-sol. 32 graphs, 12 groups, `time_agnostic_t`, budget 800,
+`disclosed`/`mask`, response rate 1.00 and validity 1.00 throughout.
+
+A seventh arm, DeepSeek V4 Pro with reasoning effort `high`, stopped at 14 of
+its 60 planned prompts when the API account returned `HTTP 402 Insufficient
+Balance`. It is listed below at the user's request, marked as partial. It is
+not comparable to the full arms and no ranking may be read off it.
 
 The cross-model result is in the next section and **revises the single-model
 conclusion** that the rest of this document was written around. Sections below
 it are the original Gemini reading, kept because the argument they make is
 still the argument, and because the limitation they name is the one the other
-four arms went on to confirm.
+five arms went on to confirm.
 
-## All five arms
+## All six arms
 
 Reproducibility is the mean absolute gap between two generations of the
 identical prompt, divided by the spread between graphs. At 1.00, asking twice
@@ -24,22 +29,45 @@ moves the answer as much as changing the network.
 | Qwen3.6-27B non-thinking | 0.082 | 0.53 | 0.613 | 70% |
 | DeepSeek V4 Flash | 0.102 | 0.91 | 0.220 | 0% |
 | Gemini 3.1 Flash Lite | 0.112 | 0.92 | 0.391 | 0% |
+| DeepSeek V4 Pro non-thinking | 0.116 | 0.83 | 0.404 | 45% |
+| *DeepSeek V4 Pro thinking (partial, 14/60)* | *0.026* | *--* | *--* | *--* |
 
-Two patterns, not a gradient. The two models whose repeated answers barely
-agree show no input noise at all; the three whose answers do agree get 68-71%
-of their within-graph noise from redrawing the walk.
+**The thinking row is not a result.** It is 14 answers on 12 graphs, ended by a
+billing failure rather than by the design, and it is the only row whose two
+scoring rules disagree: complete-case ProfileMAE 0.026, failure-penalized 0.270.
+The gap is the 32% of prompts the account could not pay for, not a property of
+the model. No graph received two generations of the same prompt, so
+reproducibility, pearson and the walk-noise share cannot be computed at all --
+the probe's whole mechanism is missing from this arm. What the 0.026 does say,
+weakly, is that the answers that did arrive were the most accurate in the
+suite; whether that survives the other 46 prompts is exactly what was not
+measured.
 
-That is the outcome the Limits section of this document predicted before those
-arms existed: a model that barely reads the sample is the least likely to show
-input noise. The association is what was measured; the mechanism is not, and a
-model whose own sampling is loud enough can also mask an input effect that is
-present. Either way the design consequence is the same.
+Reading the six complete arms:
 
-**`s2_input` = 0 is a property of Gemini and DeepSeek, not of the probe.** The
-"one walk seed per case" rule below was derived from Gemini alone and does not
-generalise. For Qwen, five walk seeds cut the standard error by 21% while five
-repeated generations cut it by 6%; for Codex the same comparison is 9% against
-3%. Where the model reads the sample, seeds buy more than repeats.
+**The sixth arm breaks the pattern the first five suggested.** With five arms
+the split looked clean: the two models whose repeated answers barely agree
+showed no input noise at all, the three whose answers do agree got 68-71% of
+their within-graph noise from redrawing the walk.  DeepSeek V4 Pro
+non-thinking sits in neither camp -- its repeated answers barely agree (0.83)
+*and* 45% of its within-graph noise comes from the walk redraw.
+
+So reproducibility does not predict input sensitivity, and the earlier reading
+was an artifact of five points.  What survives is the weaker statement the
+Limits section already made: a loud model can mask an input effect, but it does
+not have to, and only the measurement decides.  The design consequence is
+unchanged, and now rests on four of six arms rather than three of five.
+
+It is also the weakest arm in the table despite being the largest DeepSeek
+model, which is worth stating plainly: on this task, without thinking enabled,
+model size bought nothing.
+
+**`s2_input` = 0 is a property of Gemini and DeepSeek V4 Flash, not of the
+probe.** The "one walk seed per case" rule below was derived from Gemini alone
+and does not generalise. For Qwen, five walk seeds cut the standard error by
+21% while five repeated generations cut it by 6%; for Codex the same comparison
+is 9% against 3%; for DeepSeek V4 Pro non-thinking it is 13% against 7%. Where
+the model reads the sample, seeds buy more than repeats.
 
 Doubling the panel remains -29% for every arm, which is still the largest
 single lever and is the one conclusion the extra arms left untouched.

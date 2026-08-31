@@ -42,6 +42,7 @@ Examples
 """
 
 import argparse
+import fcntl
 import glob
 import http.client
 import json
@@ -51,6 +52,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
 
 PRED_KEYS = ["rho_k2", "rho_k3", "rho_k4", "rho_k5", "mean_occupancy",
@@ -245,6 +247,117 @@ def request_cost_upper_bound(prompt, max_tokens, cache_miss_price,
     input_tokens = len(prompt.encode("utf-8"))
     return (input_tokens * cache_miss_price
             + max_tokens * output_price) / 1_000_000.0
+
+
+class SharedApiBudget:
+    """Process-safe API budget shared by parallel runner shards.
+
+    Each request reserves its conservative upper-bound cost before it starts.
+    The reservation is replaced by the actual usage cost after the response.
+    The ledger deliberately does not infer liveness from PIDs: callers may
+    run in different PID namespaces, where a live worker looks dead to a
+    status process. Interrupted runs therefore keep their reservations until
+    they are explicitly released or the ledger is deliberately replaced.
+    """
+
+    def __init__(self, path, limit_usd):
+        self.path = Path(path)
+        self.limit_usd = float(limit_usd)
+        if self.limit_usd <= 0:
+            raise ValueError("shared budget limit must be positive")
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._update(lambda state: None)
+
+    @staticmethod
+    def _pid_alive(pid):
+        try:
+            os.kill(int(pid), 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except (PermissionError, ValueError, TypeError):
+            return True
+
+    def _read_state(self, fh):
+        fh.seek(0)
+        raw = fh.read().strip()
+        if not raw:
+            return {"limit_usd": self.limit_usd, "spent_usd": 0.0,
+                    "reservations": {}}
+        state = json.loads(raw)
+        recorded_limit = float(state["limit_usd"])
+        if abs(recorded_limit - self.limit_usd) > 1e-9:
+            raise ValueError(
+                f"shared budget file has limit ${recorded_limit:.9f}, "
+                f"not requested ${self.limit_usd:.9f}")
+        state.setdefault("spent_usd", 0.0)
+        state.setdefault("reservations", {})
+        return state
+
+    @staticmethod
+    def _write_state(fh, state):
+        fh.seek(0)
+        fh.truncate()
+        json.dump(state, fh, sort_keys=True)
+        fh.write("\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+
+    def _update(self, operation):
+        with open(self.path, "a+") as fh:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+            try:
+                state = self._read_state(fh)
+                result = operation(state)
+                self._write_state(fh, state)
+                return result, state
+            finally:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+    def reserve(self, amount_usd):
+        amount_usd = float(amount_usd)
+        if amount_usd < 0:
+            raise ValueError("reservation cannot be negative")
+        token = f"{os.getpid()}-{uuid.uuid4().hex}"
+
+        def operation(state):
+            reserved = sum(float(x.get("usd") or 0.0)
+                           for x in state["reservations"].values())
+            available = (float(state["limit_usd"])
+                         - float(state["spent_usd"]) - reserved)
+            if amount_usd > available + 1e-12:
+                return None
+            state["reservations"][token] = {
+                "usd": amount_usd, "pid": os.getpid(), "ts": time.time()}
+            return token
+
+        result, _ = self._update(operation)
+        return result
+
+    def settle(self, token, actual_usd):
+        actual_usd = float(actual_usd)
+        if actual_usd < 0:
+            raise ValueError("actual cost cannot be negative")
+
+        def operation(state):
+            if token not in state["reservations"]:
+                raise KeyError(f"unknown budget reservation: {token}")
+            state["reservations"].pop(token)
+            state["spent_usd"] = float(state["spent_usd"]) + actual_usd
+            return float(state["spent_usd"])
+
+        result, _ = self._update(operation)
+        return result
+
+    def release(self, token):
+        def operation(state):
+            state["reservations"].pop(token, None)
+
+        self._update(operation)
+
+    def snapshot(self):
+        _, state = self._update(lambda current: None)
+        return state
 
 
 # ---------------------------------------------------------------- api backend
@@ -667,6 +780,11 @@ def main():
                     help="estimated cost ceiling for this output file; 0 "
                          "disables. Requires explicit token prices and a "
                          "positive explicit --max-tokens")
+    ap.add_argument("--shared-budget-file", default="",
+                    help="JSON ledger for a process-safe budget shared by "
+                         "parallel shards")
+    ap.add_argument("--shared-budget-usd", type=float, default=0.0,
+                    help="total USD ceiling recorded in --shared-budget-file")
     ap.add_argument("--price-input-cache-hit", type=float, default=None,
                     help="USD per 1M cache-hit input tokens")
     ap.add_argument("--price-input-cache-miss", type=float, default=None,
@@ -679,13 +797,31 @@ def main():
               args.price_output)
     if args.max_usd < 0:
         ap.error("--max-usd cannot be negative")
-    if args.max_usd > 0:
+    if args.shared_budget_usd < 0:
+        ap.error("--shared-budget-usd cannot be negative")
+    if bool(args.shared_budget_file) != (args.shared_budget_usd > 0):
+        ap.error("--shared-budget-file and a positive --shared-budget-usd "
+                 "must be supplied together")
+    if args.max_usd > 0 and args.shared_budget_file:
+        ap.error("use either --max-usd or --shared-budget-file, not both")
+    cost_guard_enabled = args.max_usd > 0 or bool(args.shared_budget_file)
+    if cost_guard_enabled:
         if args.backend != "api":
-            ap.error("--max-usd is supported only by the api backend")
+            ap.error("API cost guards are supported only by the api backend")
         if any(x is None or x < 0 for x in prices):
-            ap.error("--max-usd requires all three non-negative token prices")
+            ap.error("API cost guards require all three non-negative token "
+                     "prices")
         if args.max_tokens <= 0:
-            ap.error("--max-usd requires a positive explicit --max-tokens")
+            ap.error("API cost guards require a positive explicit "
+                     "--max-tokens")
+
+    shared_budget = None
+    if args.shared_budget_file:
+        try:
+            shared_budget = SharedApiBudget(
+                args.shared_budget_file, args.shared_budget_usd)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            ap.error(f"cannot open shared budget: {exc}")
 
     only_ids = [x for x in args.ids.split(",") if x.strip()]
     rows = load_prompts(args.prompts, args.shard_index, args.shard_count,
@@ -735,32 +871,58 @@ def main():
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     n_err = 0
-    spent = recorded_cost_usd(args.out) if args.backend == "api" else 0.0
+    if shared_budget is not None:
+        spent = float(shared_budget.snapshot()["spent_usd"])
+    else:
+        spent = recorded_cost_usd(args.out) if args.backend == "api" else 0.0
     with open(args.out, "a") as fh:
         for i, r in enumerate(todo, 1):
-            if args.backend == "api" and args.max_usd > 0:
+            reservation_token = None
+            reserve = None
+            if args.backend == "api" and cost_guard_enabled:
                 reserve = request_cost_upper_bound(
                     r["prompt"], args.max_tokens,
                     args.price_input_cache_miss, args.price_output)
+            if shared_budget is not None:
+                reservation_token = shared_budget.reserve(reserve)
+                if reservation_token is None:
+                    snapshot = shared_budget.snapshot()
+                    reserved = sum(float(x.get("usd") or 0.0) for x in
+                                   snapshot["reservations"].values())
+                    print(f"shared cost cap: ${snapshot['spent_usd']:.6f} "
+                          f"spent and ${reserved:.6f} reserved; next request "
+                          f"may cost up to ${reserve:.6f}; stopping before "
+                          f"${args.shared_budget_usd:.2f}", flush=True)
+                    break
+            elif args.backend == "api" and args.max_usd > 0:
                 if spent + reserve > args.max_usd:
                     print(f"cost cap: ${spent:.6f} spent; next request may "
                           f"cost up to ${reserve:.6f}; stopping before "
                           f"${args.max_usd:.2f}", flush=True)
                     break
             try:
-                res = call(r["prompt"], gen_seed=r.get("gen_seed"))
-            except Exception as e:  # keep going, record the failure
-                res = {"answer": "", "reasoning": None,
-                       "finish_reason": f"error: {e}", "usage": None,
-                       "model_echo": None, "latency_s": None}
-                n_err += 1
+                try:
+                    res = call(r["prompt"], gen_seed=r.get("gen_seed"))
+                except Exception as e:  # keep going, record the failure
+                    res = {"answer": "", "reasoning": None,
+                           "finish_reason": f"error: {e}", "usage": None,
+                           "model_echo": None, "latency_s": None}
+                    n_err += 1
+            except BaseException:
+                if reservation_token is not None:
+                    shared_budget.release(reservation_token)
+                raise
             request_cost = (
                 estimate_api_cost_usd(
                     res.get("usage"), args.price_input_cache_hit,
                     args.price_input_cache_miss, args.price_output)
-                if args.backend == "api" and args.max_usd > 0 else None)
+                if args.backend == "api" and cost_guard_enabled else None)
             if request_cost is not None:
-                spent += request_cost
+                if reservation_token is not None:
+                    spent = shared_budget.settle(
+                        reservation_token, request_cost)
+                else:
+                    spent += request_cost
             rec = {"id": r["prompt_id"], "prompt_id": r["prompt_id"],
                    "case_id": r["case_id"], "condition": r["condition"],
                    "input_kind": r["input_kind"], "strategy": r["strategy"],

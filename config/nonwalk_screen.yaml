@@ -39,3 +39,24 @@ presets:
     node_panel_min_budget: 400
     recent_events_json_limit: 100
     stationarity_bins: 10
+
+  # Crawl-regime extension: strategies that observe the graph under the same
+  # partial-access rule as a random walk -- query a node, follow what it
+  # returns.  The contrast against ego_recent_k* at equal k is the frontier
+  # rule alone; the contrast against the walk arms is the traversal design.
+  crawl_extra:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/nonwalk_crawl_screen/crawl_cases.csv.gz
+    W: 5
+    seed: 20260820
+    budgets: [100, 400, 800, 1600, 3200]
+    seeds: 4
+    strategies:
+      - bfs_crawl_k5
+      - bfs_crawl_k20
+      - forest_fire_k5
+      - forest_fire_k20
+    node_panel_min_budget: 400
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+    forest_fire_burn_prob: 0.35
