@@ -60,3 +60,43 @@ presets:
     recent_events_json_limit: 100
     stationarity_bins: 10
     forest_fire_burn_prob: 0.35
+
+  g0b_panel:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/g0b_headroom_2026_09/panel_candidates.csv.gz
+    W: 5
+    seed: 20260831
+    budgets: [800]
+    seeds: 8
+    strategies:
+      - node_panel_full_history
+      - activity_proportional_dyad_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  g0b_benchmark:
+    manifest: results/g0_headroom_2026_09/regenerated_benchmark_v2/manifest.csv
+    out: results/g0b_headroom_2026_09/benchmark_winner.csv.gz
+    W: 5
+    seed: 20260711
+    budgets: [800]
+    seeds: 4
+    strategies:
+      - activity_proportional_dyad_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10
+
+  g0b_panel_b:
+    manifest: results/final_target_panel/panel32_final.csv
+    out: results/g0b_headroom_2026_09/panel_candidate_b.csv.gz
+    W: 5
+    seed: 20260831
+    budgets: [800]
+    seeds: 8
+    strategies:
+      - activity_proportional_dyad_full_history
+    node_panel_min_budget: 800
+    recent_events_json_limit: 100
+    stationarity_bins: 10

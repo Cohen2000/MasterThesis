@@ -14,11 +14,13 @@ import yaml
 from benchmark_features import build_case_features
 from build_benchmark_data import stable_seed
 from nonwalk_samplers import (
+    activity_proportional_dyad_full_history,
     ego_recent_k_snowball,
     neighbourhood_crawl,
     node_panel_full_history,
     node_selection_diagnostics,
     oracle_reservoir_ht,
+    prepare_dyad_histories,
     prepare_events,
     temporal_nonstationarity_diagnostics,
     time_prefix_events,
@@ -55,7 +57,8 @@ def _parse_strategy(name):
         base, value = match.group(1), match.group(2)
         return base, None if value == "all" else int(value)
     if name in {"uniform_event_reservoir", "time_prefix_events",
-                "time_random_window_events", "node_panel_full_history"}:
+                "time_random_window_events", "node_panel_full_history",
+                "activity_proportional_dyad_full_history"}:
         return name, None
     raise ValueError(f"unknown non-walk strategy {name!r}")
 
@@ -81,6 +84,8 @@ def _sample(events, strategy, budget, seed, burn_prob=0.35):
         return time_random_window_events(events, budget, seed)
     if base == "node_panel_full_history":
         return node_panel_full_history(events, budget, seed)
+    if base == "activity_proportional_dyad_full_history":
+        return activity_proportional_dyad_full_history(events, budget, seed)
     if base == "bfs_crawl":
         return neighbourhood_crawl(events, budget, seed, value,
                                    expansion="bfs")
@@ -133,6 +138,9 @@ def main():
     for pos, (_, meta) in enumerate(manifest.iterrows(), 1):
         events = pd.read_csv(_event_path(manifest_path, meta["path"]))
         prepared = prepare_events(events)
+        prepared_dyads = (prepare_dyad_histories(prepared)
+                          if "activity_proportional_dyad_full_history" in strategies
+                          else None)
         idx = build_index(events, T=1.0, W=W)
         total_edges = len(idx.edge_times)
         full_degrees = {int(n): int(idx.coll_deg[n]) for n in idx.active_nodes}
@@ -150,7 +158,10 @@ def main():
                     if (strategy == "node_panel_full_history" and
                             target_budget < node_panel_min_budget):
                         continue
-                    result = _sample(prepared, strategy, target_budget,
+                    sample_input = (prepared_dyads
+                                    if strategy == "activity_proportional_dyad_full_history"
+                                    else prepared)
+                    result = _sample(sample_input, strategy, target_budget,
                                      seed, burn_prob=burn_prob)
                     actual_budget = len(result.log)
                     features = build_case_features(

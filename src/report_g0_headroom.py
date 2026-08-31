@@ -10,7 +10,7 @@ read-only; every generated artifact is written below ``--out-dir`` and the
 requested gate report is written to ``--report``.
 
 The empirical mechanism model contains mask zero (the dyad was not observed).
-For an observed mask histogram, the design-aware estimator fits the mixture
+For an observed mask histogram, the label-assisted arm-likelihood estimator fits the mixture
 among included dyads and divides out the arm- and K-specific inclusion
 probability.  It is label-assisted and is reported only as a ceiling.
 """
@@ -77,9 +77,10 @@ def true_window_counts(idx, W: int = 5) -> dict[tuple[int, int], int]:
 
 
 def joint_counts_for_log(log: pd.DataFrame, idx, budget: int,
-                         W: int = 5) -> np.ndarray:
+                         W: int = 5,
+                         true_k: dict[tuple[int, int], int] | None = None) -> np.ndarray:
     """Count population dyads by true K and observed mask, including mask 0."""
-    true_k = true_window_counts(idx, W=W)
+    true_k = true_k if true_k is not None else true_window_counts(idx, W=W)
     counts = np.zeros((W + 1, 1 << W), dtype=np.int64)
     for k in true_k.values():
         counts[k, 0] += 1
@@ -210,12 +211,13 @@ def collect_observation_counts(benchmark_cases: pd.DataFrame,
 
 
 def observation_model(counts: pd.DataFrame,
-                      excluded_groups: Iterable[str] = ()) -> dict[str, np.ndarray]:
+                      excluded_groups: Iterable[str] = (),
+                      arms: Iterable[str] = ARMS) -> dict[str, np.ndarray]:
     """Group-balanced empirical q[m|K,arm], including mask zero."""
     excluded = set(map(str, excluded_groups))
     use = counts[~counts["group_id"].astype(str).isin(excluded)].copy()
     models = {}
-    for arm in ARMS:
+    for arm in tuple(arms):
         q = np.zeros((6, 32), dtype=float)
         sub = use[use["arm"] == arm]
         for k in KS:
@@ -234,9 +236,9 @@ def observation_model(counts: pd.DataFrame,
     return models
 
 
-def group_macro_k_weights(counts: pd.DataFrame) -> np.ndarray:
+def group_macro_k_weights(counts: pd.DataFrame, arm: str | None = None) -> np.ndarray:
     """K weights aligned with group-macro evaluation (one distribution/group)."""
-    one_arm = counts[counts["arm"] == ARMS[0]]
+    one_arm = counts[counts["arm"] == (arm or ARMS[0])]
     values = []
     for _, group in one_arm.groupby("group_id"):
         by_k = group.groupby("K")["count"].sum().reindex(KS, fill_value=0).to_numpy(float)
@@ -251,10 +253,12 @@ def total_variation(p: np.ndarray, q: np.ndarray) -> float:
 
 
 def tv_table(models: dict[str, np.ndarray], k_weights: np.ndarray,
-             conditional_observed: bool = False) -> pd.DataFrame:
+             conditional_observed: bool = False,
+             arms: Iterable[str] | None = None) -> pd.DataFrame:
     rows = []
-    for i, arm_a in enumerate(ARMS):
-        for arm_b in ARMS[i + 1:]:
+    arm_names = tuple(arms or models.keys())
+    for i, arm_a in enumerate(arm_names):
+        for arm_b in arm_names[i + 1:]:
             values = []
             for k in KS:
                 a = models[arm_a][k].copy()
@@ -271,8 +275,9 @@ def tv_table(models: dict[str, np.ndarray], k_weights: np.ndarray,
     return pd.DataFrame(rows)
 
 
-def design_aware_profile(observed_masks: np.ndarray, q: np.ndarray,
-                         prior: float = 1e-6, iters: int = 1000) -> np.ndarray:
+def arm_likelihood_profile(observed_masks: np.ndarray, q: np.ndarray,
+                           prior: float = 1e-6,
+                           iters: int = 1000) -> np.ndarray:
     """MLE of population K proportions under empirical q[m|K], m=0..31.
 
     Only nonzero masks are supplied.  EM first fits alpha, the K mixture among
@@ -314,6 +319,12 @@ def design_aware_profile(observed_masks: np.ndarray, q: np.ndarray,
     return np.array([pi[k - 1:].sum() for k in PROFILE_KS], dtype=float)
 
 
+# Compatibility for archived analyses.  The more precise name avoids
+# conflating this label-assisted arm likelihood with the repository's uniform,
+# mechanism-agnostic occupancy and mask MLEs.
+design_aware_profile = arm_likelihood_profile
+
+
 def metric_summary(frame: pd.DataFrame, pred_cols: Iterable[str]) -> dict:
     pred_cols = list(pred_cols)
     truth = frame[list(TRUTH)].to_numpy(float)
@@ -348,12 +359,13 @@ def add_panel_logo_floor(panel: pd.DataFrame) -> list[str]:
 
 
 def extra_trees_transfer(train: pd.DataFrame, panel: pd.DataFrame,
-                         jobs: int = -1) -> list[str]:
+                         jobs: int = -1,
+                         arms: Iterable[str] = ARMS) -> list[str]:
     """Benchmark-trained profile ExtraTrees with each panel group held out."""
     out_cols = [f"g0__extra_trees_rho_k{k}" for k in PROFILE_KS]
     for col in out_cols:
         panel[col] = np.nan
-    for arm in ARMS:
+    for arm in tuple(arms):
         tr_arm = train[train["strategy"] == arm].reset_index(drop=True)
         te_arm = panel[panel["strategy"] == arm]
         cols = input_columns(tr_arm, "combined")
@@ -622,7 +634,7 @@ def main():
             predictions = []
             for _, row in scored.iterrows():
                 hist = mask_histogram(str(row["input__nmask_exact_json"]))
-                profile = design_aware_profile(
+                profile = arm_likelihood_profile(
                     hist, cross_models[str(row["group_id"])][assumed_arm])
                 predictions.append(profile)
             scored[pred_cols] = np.asarray(predictions)
@@ -683,8 +695,10 @@ def main():
     methods = {
         "mean floor (panel LOGO)": floor_cols,
         "naive read-off": [f"est__plugin_rho_k{k}" for k in PROFILE_KS],
-        "occupancy MLE (uniform)": [f"est__occ_mle_rho_k{k}" for k in PROFILE_KS],
-        "mask MLE (uniform)": [f"est__mask_mle_rho_k{k}" for k in PROFILE_KS],
+        "occupancy MLE (uniform; censoring-aware, mechanism-agnostic)":
+            [f"est__occ_mle_rho_k{k}" for k in PROFILE_KS],
+        "mask MLE (uniform; censoring-aware, mechanism-agnostic)":
+            [f"est__mask_mle_rho_k{k}" for k in PROFILE_KS],
         "supervised ExtraTrees (benchmark transfer)": et_cols,
     }
     ladder_rows = []
@@ -695,7 +709,7 @@ def main():
                                 **metric_summary(sample, columns)})
     ladder = pd.DataFrame(ladder_rows)
     naive = ladder[ladder.estimator == "naive read-off"].set_index("arm")
-    mask = ladder[ladder.estimator == "mask MLE (uniform)"].set_index("arm")
+    mask = ladder[ladder.estimator.str.startswith("mask MLE")].set_index("arm")
     headroom = pd.DataFrame({
         "arm": list(ARMS),
         "naive_profile_mae": [naive.loc[a, "profile_mae"] for a in ARMS],
@@ -707,7 +721,7 @@ def main():
     flagged_arms = headroom.loc[
         headroom["naive_to_mask_headroom"] < 0.02, "arm"].tolist()
     ladder.to_csv(out_dir / "estimator_ladder.csv", index=False)
-    headroom.to_csv(out_dir / "mechanism_headroom.csv", index=False)
+    headroom.to_csv(out_dir / "censoring_headroom.csv", index=False)
 
     report = build_report(
         tv=tv, tv_observed=tv_observed, matrix=matrix, penalties=penalties,

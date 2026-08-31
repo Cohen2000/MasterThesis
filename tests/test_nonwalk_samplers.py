@@ -8,6 +8,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from nonwalk_samplers import (  # noqa: E402
+    activity_proportional_dyad_full_history,
     ego_recent_k_snowball,
     neighbourhood_crawl,
     node_panel_full_history,
@@ -61,13 +62,40 @@ class NodePanel(unittest.TestCase):
     def test_expected_budget_calibration(self):
         self.assertEqual(node_panel_size(10, 1000, 200), 5)
 
-    def test_histories_are_induced_and_complete(self):
+    def test_histories_are_incident_complete_and_whole_node_budgeted(self):
         events = toy_events()
         result = node_panel_full_history(events, 5, seed=3)
-        nodes = set(result.log.u).union(result.log.v)
-        expected = events[events.u.isin(nodes) & events.v.isin(nodes)]
+        nodes = set(result.diagnostics["panel_node_order"])
+        expected = events[events.u.isin(nodes) | events.v.isin(nodes)]
         self.assertEqual(len(result.log), len(expected))
         self.assertEqual(set(result.log.event_id), set(expected.index))
+        self.assertLessEqual(len(result.log), 5)
+        self.assertEqual(result.diagnostics["partial_response_count"], 0)
+        self.assertEqual(result.diagnostics["budget_slack"], 5 - len(result.log))
+
+
+class ActivityProportionalDyad(unittest.TestCase):
+    def test_selected_dyad_histories_are_complete_and_within_budget(self):
+        events = toy_events()
+        result = activity_proportional_dyad_full_history(events, 7, seed=4)
+        self.assertLessEqual(len(result.log), 7)
+        self.assertEqual(result.diagnostics["partial_response_count"], 0)
+        for edge, observed in result.log.groupby(["u", "v"]):
+            full = events[(events.u == edge[0]) & (events.v == edge[1])]
+            self.assertEqual(len(observed), len(full))
+        again = activity_proportional_dyad_full_history(events, 7, seed=4)
+        self.assertTrue(result.log.equals(again.log))
+
+    def test_oversize_dyad_does_not_force_an_empty_sample(self):
+        events = pd.DataFrame({
+            "u": [0] * 9 + [2, 4],
+            "v": [1] * 9 + [3, 5],
+            "t": np.linspace(0.0, 1.0, 11),
+        })
+        result = activity_proportional_dyad_full_history(events, 2, seed=1)
+        self.assertEqual(len(result.log), 2)
+        self.assertGreaterEqual(
+            result.diagnostics["skipped_oversize_dyad_count"], 1)
 
 
 class EgoRecent(unittest.TestCase):

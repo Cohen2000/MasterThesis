@@ -37,6 +37,15 @@ class PreparedEvents:
     chronological_order: np.ndarray
 
 
+@dataclass(frozen=True)
+class PreparedDyadHistories:
+    """Reusable complete-dyad index for repeated PPS samples of one graph."""
+    prepared: PreparedEvents
+    edges: tuple
+    event_ids: tuple
+    weights: np.ndarray
+
+
 def _events_with_ids(events) -> pd.DataFrame:
     if isinstance(events, PreparedEvents):
         return events.events
@@ -77,6 +86,19 @@ def prepare_events(events: pd.DataFrame) -> PreparedEvents:
         incident_event_ids=incident,
         chronological_order=chronological.astype(np.int64),
     )
+
+
+def prepare_dyad_histories(events) -> PreparedDyadHistories:
+    prepared = events if isinstance(events, PreparedEvents) else prepare_events(events)
+    edges = []
+    event_ids = []
+    for edge, frame in prepared.events.groupby(["u", "v"], sort=True):
+        edges.append(tuple(map(int, edge)))
+        event_ids.append(frame["event_id"].to_numpy(np.int64))
+    weights = np.asarray([len(ids) for ids in event_ids], dtype=float)
+    return PreparedDyadHistories(
+        prepared=prepared, edges=tuple(edges), event_ids=tuple(event_ids),
+        weights=weights)
 
 
 def _as_log(selected: pd.DataFrame, **extra) -> pd.DataFrame:
@@ -187,34 +209,127 @@ def node_panel_size(n_active_nodes: int, n_events: int,
 
 def node_panel_full_history(events: pd.DataFrame, target_budget: int,
                             seed: int) -> SampleResult:
-    """Uniform node-induced panel retaining complete internal dyad histories.
+    """Uniform node-order panel returning complete incident dyad histories.
 
-    The target budget calibrates panel *size in expectation*.  No panel is
-    chosen or resized using its realized event count, which would leak outcome
-    information into the design.  The realized count is deliberately allowed
-    to vary and is the actual information budget.
+    Nodes are drawn without replacement from every node represented in the
+    event stream.  Selecting either endpoint reveals the dyad's complete event
+    record.  Nodes are consumed in random-priority order and the sampler stops
+    *before* the first node whose previously unseen incident events would
+    exceed ``target_budget``.  Consequently no node or dyad history is ever
+    truncated, although the realized budget can have slack.
+
+    With a fixed panel size, every dyad would have the same inclusion
+    probability.  Here the whole-node budget stop makes panel size a stopping
+    time; diagnostics expose the realized size and slack rather than claiming
+    exact fixed-size inclusion probabilities.
     """
+    if target_budget < 1:
+        raise ValueError("target_budget must be positive")
     prepared = events if isinstance(events, PreparedEvents) else prepare_events(events)
     x = prepared.events
     active = prepared.active_nodes
-    n_panel = node_panel_size(len(active), len(x), int(target_budget))
     rng = np.random.default_rng(seed)
-    panel = rng.permutation(active)[:n_panel]
-    keep = x["u"].isin(panel) & x["v"].isin(panel)
-    selected = x.loc[keep].sort_values(
+    node_order = rng.permutation(active)
+    selected_ids = set()
+    panel = []
+    blocked_node = None
+    blocked_response_size = 0
+    for raw_node in node_order:
+        node = int(raw_node)
+        new_ids = [int(eid) for eid in prepared.incident_event_ids[node]
+                   if int(eid) not in selected_ids]
+        if len(selected_ids) + len(new_ids) > int(target_budget):
+            blocked_node = node
+            blocked_response_size = len(new_ids)
+            break
+        panel.append(node)
+        selected_ids.update(new_ids)
+    selected = x.loc[sorted(selected_ids)].sort_values(
         ["t", "event_id"], kind="mergesort").reset_index(drop=True)
-    expected = len(x) * n_panel * (n_panel - 1) / (len(active) * (len(active) - 1))
+    n_panel = len(panel)
+    if len(active) >= 2:
+        exact_fixed_size_inclusion = 1.0 - (
+            (len(active) - n_panel) * (len(active) - n_panel - 1)
+            / (len(active) * (len(active) - 1)))
+    else:
+        exact_fixed_size_inclusion = float(n_panel > 0)
     return SampleResult(_as_log(selected), {
-        "sampling_design": "uniform_node_induced_full_history",
+        "sampling_design": "uniform_node_incident_full_history_whole_node_stop",
         "target_budget": int(target_budget),
         "realized_event_budget": int(len(selected)),
-        "expected_event_budget": float(expected),
+        "budget_slack": int(target_budget - len(selected)),
         "panel_nodes": int(n_panel),
         "panel_node_order": [int(node) for node in panel],
+        "blocked_node": blocked_node,
+        "blocked_new_event_count": int(blocked_response_size),
         "active_nodes_total": int(len(active)),
         "panel_node_fraction": float(n_panel / len(active)),
+        "fixed_size_dyad_inclusion_probability": float(exact_fixed_size_inclusion),
+        "adaptive_whole_node_stop": True,
+        "partial_response_count": 0,
         "sampling_fraction_events": float(len(selected) / len(x)),
         "task_class": "node_panel_oracle_reference",
+    })
+
+
+def activity_proportional_dyad_full_history(events: pd.DataFrame, budget: int,
+                                            seed: int) -> SampleResult:
+    """PPS-without-replacement dyad sample with complete histories.
+
+    Dyad selection weight is its event count.  An exponential-race weighted
+    permutation implements sequential probability-proportional-to-size
+    sampling without replacement.  Complete dyad histories are appended in
+    that order.  A dyad
+    that does not fit in the remaining unique-event budget is skipped, so one
+    large history cannot turn an otherwise feasible sample into an empty one.
+    No selected dyad is censored; unused budget is reported as slack.
+    """
+    if budget < 1:
+        raise ValueError("budget must be positive")
+    dyads = (events if isinstance(events, PreparedDyadHistories)
+             else prepare_dyad_histories(events))
+    prepared = dyads.prepared
+    x = prepared.events
+    grouped = tuple(zip(dyads.edges, dyads.event_ids))
+    weights = dyads.weights
+    rng = np.random.default_rng(seed)
+    # Independent exponential clocks generate the exact size-biased order:
+    # the next clock is selected with probability w_i / sum_j(w_j), and the
+    # memoryless property repeats this rule after every removal.  This avoids
+    # NumPy's much slower all-items weighted ``choice(..., replace=False)``.
+    clocks = rng.exponential(scale=1.0 / weights)
+    order = np.argsort(clocks, kind="stable")
+    selected_ids = []
+    selected_dyads = []
+    skipped_dyads = []
+    for position in order:
+        edge, ids = grouped[int(position)]
+        if len(selected_ids) + len(ids) > int(budget):
+            skipped_dyads.append((edge, int(len(ids))))
+            continue
+        selected_dyads.append(edge)
+        selected_ids.extend(map(int, ids))
+    selected = x.loc[sorted(selected_ids)].sort_values(
+        ["t", "event_id"], kind="mergesort").reset_index(drop=True)
+    return SampleResult(_as_log(selected), {
+        "sampling_design": "pps_event_count_dyad_full_history_whole_dyad_skip",
+        "selection_unit": "dyad",
+        "selection_weight": "full_event_count",
+        "without_replacement": True,
+        "target_budget": int(budget),
+        "realized_event_budget": int(len(selected)),
+        "budget_slack": int(budget - len(selected)),
+        "selected_dyad_count": int(len(selected_dyads)),
+        "selected_dyads": [[int(a), int(b)] for a, b in selected_dyads],
+        "population_dyad_count": int(len(grouped)),
+        "skipped_oversize_dyad_count": int(len(skipped_dyads)),
+        "first_skipped_dyad": (list(skipped_dyads[0][0])
+                                if skipped_dyads else None),
+        "first_skipped_dyad_event_count": (int(skipped_dyads[0][1])
+                                            if skipped_dyads else 0),
+        "partial_response_count": 0,
+        "sampling_fraction_events": float(len(selected) / len(x)),
+        "task_class": "activity_size_biased_full_history",
     })
 
 

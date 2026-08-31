@@ -45,8 +45,10 @@ TRUTH = [f"rho_W5_k{k}" for k in KS]
 
 METHODS = {
     "naive read-off": [f"est__plugin_rho_k{k}" for k in KS],
-    "occupancy MLE": [f"est__occ_mle_rho_k{k}" for k in KS],
-    "mask MLE": [f"est__mask_mle_rho_k{k}" for k in KS],
+    "occupancy MLE (censoring-aware, mechanism-agnostic)":
+        [f"est__occ_mle_rho_k{k}" for k in KS],
+    "mask MLE (censoring-aware, mechanism-agnostic)":
+        [f"est__mask_mle_rho_k{k}" for k in KS],
 }
 FEATURE_PREFIXES = ("occ__", "pat__", "crawl__", "est__")
 
@@ -255,7 +257,7 @@ def main():
     print("common-mode and cancels in the difference, so this is the SE that")
     print("governs 'is A better than B'.\n")
     names = list(scores)
-    ref = "mask MLE" if "mask MLE" in scores else names[0]
+    ref = next((name for name in names if name.startswith("mask MLE")), names[0])
     header = (f"{'A - B (B = {})'.format(ref):<34}{'diff':>9}{'SE S=1':>9}"
               f"{'SE S=8':>9}{'MDD S=1':>10}")
     print(header)
