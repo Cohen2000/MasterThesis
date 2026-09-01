@@ -594,8 +594,13 @@ def main():
     ap.add_argument("--wait-for-reset", action="store_true",
                     help="on plan exhaustion sleep until the reported reset "
                          "and retry the same prompt instead of stopping")
-    ap.add_argument("--max-waits", type=int, default=8,
-                    help="give up after this many reset waits (default: %(default)s)")
+    ap.add_argument("--max-waits", type=int, default=64,
+                    help="give up after this many CONSECUTIVE reset waits "
+                         "(default: %(default)s). The counter resets on every "
+                         "usable answer, so it guards against a window that "
+                         "never reopens rather than budgeting how long a run "
+                         "may take. A long run legitimately sits out many "
+                         "limits; only being stuck at one is a failure.")
     ap.add_argument("--verify", action="store_true",
                     help="render the model-visible input for the first "
                          "selected prompt and exit; makes no API call")
@@ -742,6 +747,11 @@ def main():
                 tok_spent += meta.get("total_tokens") or 0
                 usd_spent += usd or 0.0
                 usable = usable_record(rec, args.arm)
+                if usable:
+                    # Consecutive, not cumulative: a run long enough to sit out
+                    # several plan windows is normal and must not be stopped by
+                    # having survived earlier ones.
+                    waits = 0
                 ok = "ok " if usable else "INCOMPLETE"
                 print(f"[{i}/{len(todo)}] {r['prompt_id']} {ok} "
                       f"tools={meta.get('n_tool_events')} "
@@ -772,7 +782,8 @@ def main():
                     until = time.strftime("%H:%M", time.localtime(time.time() + delay))
                     print(f"    plan limit ({lim}) -- sleeping {delay / 60:.0f} min "
                           f"until ~{until}, then retrying this prompt "
-                          f"[wait {waits}/{args.max_waits}]", flush=True)
+                          f"immediately [consecutive wait "
+                          f"{waits}/{args.max_waits}]", flush=True)
                     streak = 0  # a refused call is not a model failure
                     time.sleep(delay)
                     continue

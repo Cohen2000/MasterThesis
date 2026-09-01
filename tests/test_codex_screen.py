@@ -314,5 +314,52 @@ class TimeoutPartial(unittest.TestCase):
         self.assertIn("PARTIAL", out.decode("utf-8", "replace"))
 
 
+class WaitForResetBudgetTest(unittest.TestCase):
+    """A long run must survive many plan windows, and only many *in a row*
+    should stop it.
+
+    The counter was previously cumulative with a default of 8, so a run long
+    enough to sit out nine limits stopped even though every one of them had
+    reset normally. The G3 Codex pass is ~29 h of wall clock against a 5 h
+    window, so that ceiling would have been hit routinely.
+    """
+
+    def _source(self):
+        path = (Path(__file__).resolve().parents[1] / "scripts" /
+                "codex_screen" / "run_codex_screen.py")
+        return path.read_text()
+
+    def test_the_counter_resets_after_a_usable_answer(self):
+        source = self._source()
+        anchor = source.index("usable = usable_record(rec, args.arm)")
+        window = source[anchor:anchor + 400]
+        self.assertIn("waits = 0", window,
+                      "the wait counter is not reset on success, so it is "
+                      "still a lifetime budget")
+
+    def test_the_default_allows_a_long_run(self):
+        source = self._source()
+        marker = '"--max-waits", type=int, default='
+        value = int(source.split(marker)[1].split(",")[0].strip())
+        self.assertGreaterEqual(value, 32)
+
+    def test_a_five_hour_window_fits_under_the_sleep_cap(self):
+        # wait_seconds clamps the sleep; a 5 h reset must not be truncated
+        # into an early retry that would burn a wait for nothing.
+        resets_at = time.time() + 5 * 3600
+        delay = wait_seconds(resets_at)
+        self.assertGreater(delay, 5 * 3600)
+        self.assertLess(delay, 6 * 3600 + 1)
+
+    def test_an_unparseable_reset_still_retries_rather_than_spinning(self):
+        delay = wait_seconds(None)
+        self.assertGreaterEqual(delay, 60)
+        self.assertLessEqual(delay, 6 * 3600)
+
+    def test_a_stale_reset_timestamp_does_not_busy_loop(self):
+        delay = wait_seconds(time.time() - 10_000)
+        self.assertGreaterEqual(delay, 60)
+
+
 if __name__ == "__main__":
     unittest.main()
