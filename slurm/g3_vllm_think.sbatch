@@ -44,7 +44,7 @@ python3 run_llm_vllm_g3.py \
     --temperature 1.0 --top-p 0.95 --top-k 20 \
     --max-new-tokens "${MAXTOK:-65536}" \
     --max-num-seqs "${SEQS:-32}" \
-    --chunk "${CHUNK:-256}" \
+    --chunk "${CHUNK:-64}" \
     --shard-index "${SLURM_ARRAY_TASK_ID}" --shard-count "$SHARDS" \
     ${LIMIT:+--limit $LIMIT}
 echo "done: $(wc -l < "$OUT") records in $OUT"

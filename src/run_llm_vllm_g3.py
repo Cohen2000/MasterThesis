@@ -118,7 +118,7 @@ def main():
     parser.add_argument("--shard-count", type=int, default=1)
     parser.add_argument("--ids", default=None)
     parser.add_argument("--limit", type=int, default=0)
-    parser.add_argument("--chunk", type=int, default=256,
+    parser.add_argument("--chunk", type=int, default=64,
                         help="prompts handed to one generate() call. Must be "
                              "much larger than --max-num-seqs: generate() "
                              "returns only when its slowest sequence is done, "
@@ -126,8 +126,11 @@ def main():
                              "single running sequence and wastes the GPU. A "
                              "large chunk lets vLLM refill the running set as "
                              "sequences finish and confines the drain to one "
-                             "tail per chunk. Answers are flushed per chunk, "
-                             "so a job that hits its wall clock keeps them.")
+                             "tail per chunk. But nothing is written until a "
+                             "chunk completes, so a chunk as large as the "
+                             "shard means a job killed at its wall clock loses "
+                             "everything: 64 against a concurrency of 32 keeps "
+                             "the refill while writing several times per job.")
     args = parser.parse_args()
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
