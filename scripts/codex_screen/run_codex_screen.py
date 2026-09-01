@@ -67,6 +67,7 @@ import os
 import shutil
 import subprocess
 import sys
+import re
 import tempfile
 import time
 from pathlib import Path
@@ -171,6 +172,43 @@ def _rate_limit_from(obj):
     return None, None
 
 
+# Codex states the reset in prose rather than in a field: "You've hit your
+# usage limit. ... try again at 6:47 AM." Without parsing it the runner falls
+# back to a blind 30 min poll, which against a two-hour window means four
+# wasted calls and a resume up to 30 min later than necessary.
+_TRY_AGAIN_AT = re.compile(
+    r"try again at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", re.IGNORECASE)
+
+
+def reset_from_prose(text, now=None):
+    """Epoch seconds for a "try again at H:MM AM" message, else None.
+
+    The time is local and carries no date, so it is resolved to the next
+    occurrence: a stated time earlier than now means tomorrow. Returned as an
+    epoch so it joins the same path as a structured `resets_at`.
+    """
+    match = _TRY_AGAIN_AT.search(text or "")
+    if not match:
+        return None
+    hour = int(match.group(1))
+    minute = int(match.group(2) or 0)
+    meridiem = (match.group(3) or "").lower()
+    if not 0 <= hour <= 23 or not 0 <= minute <= 59:
+        return None
+    if meridiem == "pm" and hour < 12:
+        hour += 12
+    elif meridiem == "am" and hour == 12:
+        hour = 0
+    now = time.localtime(now if now is not None else time.time())
+    target = list(now)
+    target[3], target[4], target[5] = hour, minute, 0
+    target[8] = -1  # let mktime resolve DST rather than inheriting it
+    stamp = time.mktime(tuple(target))
+    if stamp <= time.mktime(now):
+        stamp += 24 * 3600
+    return stamp
+
+
 def limit_info(raw, meta=None, *texts):
     """(reason, resets_at_epoch) when a call was refused for plan/rate limits.
 
@@ -195,6 +233,9 @@ def limit_info(raw, meta=None, *texts):
         if blob and ("429" in blob or "rate limit" in blob
                      or "usage limit" in blob or "quota" in blob):
             reason = reason or "error event reports a 429/rate limit"
+            if resets is None:
+                # the human-readable form is the only reset Codex gives here
+                resets = reset_from_prose(json.dumps(obj))
     if isinstance(meta, dict):
         if meta.get("status_code") == 429:
             reason = reason or "status_code=429"
@@ -202,6 +243,11 @@ def limit_info(raw, meta=None, *texts):
         if r and reason is None:
             reason, resets = r, at
     if reason:
+        if resets is None:
+            for t in texts:
+                resets = reset_from_prose(t)
+                if resets:
+                    break
         return reason, resets
     for t in texts:
         low = (t or "").lower()

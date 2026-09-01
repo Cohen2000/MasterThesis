@@ -24,7 +24,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts/codex_scre
 
 from run_codex_screen import (  # noqa: E402
     ALWAYS_OFF, NO_TOOL_FEATURES, attempts_by_id, build_cmd, done_ids,
-    estimate_usd, iter_events, limit_info, parse_events, wait_seconds,
+    estimate_usd, iter_events, limit_info, parse_events, reset_from_prose,
+    wait_seconds,
 )
 
 # VERIFIED -- the 401 probe, trimmed. Note the interleaved plain-text ERROR
@@ -359,6 +360,74 @@ class WaitForResetBudgetTest(unittest.TestCase):
     def test_a_stale_reset_timestamp_does_not_busy_loop(self):
         delay = wait_seconds(time.time() - 10_000)
         self.assertGreaterEqual(delay, 60)
+
+
+class ProseResetTest(unittest.TestCase):
+    """VERIFIED against a real refusal, 2026-09-01 04:44, codex-cli 0.146.0:
+
+    {"type":"error","message":"You've hit your usage limit. Upgrade to Pro
+    (...) or try again at 6:47 AM."}
+
+    Codex states the reset in prose and carries no reset field, so without
+    this the runner polls blindly every 30 min: four wasted calls against a
+    two-hour window, and a resume up to 30 min later than necessary.
+    """
+
+    REAL = ("You've hit your usage limit. Upgrade to Pro "
+            "(https://chatgpt.com/explore/pro), visit "
+            "https://chatgpt.com/codex/settings/usage to purchase more "
+            "credits or try again at 6:47 AM.")
+
+    def _at(self, when):
+        return time.mktime(time.strptime(when, "%Y-%m-%d %H:%M"))
+
+    def test_the_real_message_resolves_to_the_stated_time(self):
+        now = self._at("2026-09-01 04:44")
+        got = reset_from_prose(self.REAL, now)
+        self.assertEqual(time.strftime("%Y-%m-%d %H:%M", time.localtime(got)),
+                         "2026-09-01 06:47")
+
+    def test_limit_info_returns_the_prose_reset_for_the_real_event(self):
+        stream = json.dumps({"type": "error", "message": self.REAL})
+        reason, resets = limit_info(stream)
+        self.assertIsNotNone(reason)
+        self.assertIsNotNone(resets, "the stated reset time was not picked up")
+
+    def test_a_time_already_past_means_tomorrow(self):
+        now = self._at("2026-09-01 08:00")
+        got = reset_from_prose("try again at 6:47 AM.", now)
+        self.assertEqual(time.strftime("%m-%d %H:%M", time.localtime(got)),
+                         "09-02 06:47")
+
+    def test_midnight_and_noon_are_not_swapped(self):
+        now = self._at("2026-09-01 04:00")
+        midnight = reset_from_prose("try again at 12:15 AM.", now)
+        noon = reset_from_prose("try again at 12:30 PM.", now)
+        self.assertEqual(time.strftime("%H:%M", time.localtime(midnight)),
+                         "00:15")
+        self.assertEqual(time.strftime("%H:%M", time.localtime(noon)), "12:30")
+
+    def test_an_hour_without_minutes_is_accepted(self):
+        now = self._at("2026-09-01 04:00")
+        got = reset_from_prose("try again at 9 PM.", now)
+        self.assertEqual(time.strftime("%H:%M", time.localtime(got)), "21:00")
+
+    def test_unrelated_text_yields_no_reset(self):
+        self.assertIsNone(reset_from_prose("some other error"))
+        self.assertIsNone(reset_from_prose(""))
+        self.assertIsNone(reset_from_prose(None))
+
+    def test_a_nonsense_clock_time_is_rejected_rather_than_guessed(self):
+        self.assertIsNone(reset_from_prose("try again at 99:99."))
+
+    def test_the_parsed_reset_drives_the_sleep(self):
+        now = time.time()
+        stream = json.dumps({"type": "error", "message": self.REAL})
+        _, resets = limit_info(stream)
+        delay = wait_seconds(resets)
+        self.assertGreater(delay, 60)
+        self.assertNotAlmostEqual(delay, 1800.0, places=0,
+                                  msg="still using the blind default")
 
 
 if __name__ == "__main__":
