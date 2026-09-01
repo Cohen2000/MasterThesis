@@ -26,6 +26,12 @@ import pandas as pd
 from llm_eval_frozen import PROFILE_PRED, PROFILE_TRUTH, valid_unit
 from run_llm_v2 import extract_last_json, is_complete_record
 
+# A call the provider refused is not a model failure and must not be counted
+# as one: the runner already treats it that way when deciding whether to
+# retry, and the reported response rate has to agree with that.
+REFUSAL_MARKERS = ("usage limit", "rate limit", "429", "quota",
+                   "insufficient credit")
+
 BOOTSTRAP = 10000
 RNG_SEED = 20260901
 
@@ -39,11 +45,15 @@ def load_answers(paths: list[str]) -> pd.DataFrame:
                 continue
             record = json.loads(line)
             parsed = extract_last_json(record.get("answer", "")) or {}
+            finish = str(record.get("finish_reason") or "").lower()
+            refused = (finish.startswith("error")
+                       and any(m in finish for m in REFUSAL_MARKERS))
             row = {
                 "prompt_id": record["prompt_id"],
                 "generation": generation,
                 "structurally_complete": bool(is_complete_record(record)),
-                "responded": not record.get("error"),
+                "provider_refused": refused,
+                "responded": not record.get("error") and not refused,
                 "total_tokens": record.get("total_tokens"),
                 "latency_s": record.get("latency_s"),
                 "prompt_sha256": record.get("prompt_sha256"),
@@ -92,16 +102,23 @@ def rates(merged: pd.DataFrame) -> pd.DataFrame:
     """Response, validity and invalid-profile rates, per arm and condition."""
     rows = []
     for keys, part in merged.groupby(["strategy", "condition"]):
-        valid = part.all_components_valid
+        # Denominator is the calls the provider actually served. A refusal is
+        # an operational event, reported in its own column.
+        served = part[~part.provider_refused]
+        valid = served.all_components_valid
         rows.append({
             "arm": keys[0], "condition": keys[1], "calls": int(len(part)),
-            "response_rate": float(part.responded.mean()),
-            "structural_completeness": float(part.structurally_complete.mean()),
-            "validity_rate": float(valid.mean()),
+            "provider_refusals": int(part.provider_refused.sum()),
+            "served_calls": int(len(served)),
+            "response_rate": float(served.responded.mean()) if len(served) else float("nan"),
+            "structural_completeness": float(
+                served.structurally_complete.mean()) if len(served) else float("nan"),
+            "validity_rate": float(valid.mean()) if len(served) else float("nan"),
             "invalid_profile_rate": float(
-                1.0 - part.loc[valid, "profile_monotone"].mean()
+                1.0 - served.loc[valid, "profile_monotone"].mean()
                 if valid.any() else np.nan),
-            "median_total_tokens": float(part.total_tokens.median()),
+            "median_total_tokens": float(served.total_tokens.median())
+            if len(served) else float("nan"),
         })
     return pd.DataFrame(rows)
 
@@ -113,7 +130,7 @@ def aggregate_generations(merged: pd.DataFrame) -> pd.DataFrame:
     graph -> seed -> condition -> generation and the level that matters is the
     graph group, so the generation axis is averaged away first.
     """
-    usable = merged[merged.all_components_valid]
+    usable = merged[merged.all_components_valid & ~merged.provider_refused]
     return (usable.groupby(["case_id", "instance_id", "group_id", "strategy",
                             "condition", "coverage", "delta_i"], as_index=False)
             .agg(rho2_error=("rho2_error", "mean"),
