@@ -1,0 +1,6 @@
+arm,answers,complete_rate,truncation_rate,validity_rate,monotone_rate,median_completion_tokens
+event_sample_then_full_history,480,0.9479166666666666,0.052083333333333336,0.9479166666666666,1.0,11464.5
+node_panel_full_history,384,0.984375,0.015625,0.984375,1.0,10347.0
+recent_history_k20,384,0.9973958333333334,0.0026041666666666665,0.9973958333333334,1.0,8363.5
+time_agnostic_t,576,1.0,0.0,1.0,1.0,8388.5
+time_respecting,384,1.0,0.0,0.9973958333333334,1.0,8083.5

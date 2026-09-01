@@ -1,0 +1,2 @@
+all,answers,complete_rate,truncation_rate,validity_rate,monotone_rate,median_completion_tokens
+all,2208,0.9855072463768116,0.014492753623188406,0.9850543478260869,1.0,9024.5
