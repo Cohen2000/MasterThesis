@@ -1,0 +1,5 @@
+arm,condition,calls,provider_refusals,served_calls,response_rate,structural_completeness,validity_rate,invalid_profile_rate,median_total_tokens
+event_sample_then_full_history,hidden,32,0,32,1.0,1.0,1.0,0.0,47865.5
+event_sample_then_full_history,mechanism,32,0,32,1.0,1.0,1.0,0.0,63176.5
+time_agnostic_t,hidden,32,0,32,1.0,1.0,1.0,0.0,15218.5
+time_agnostic_t,mechanism,32,0,32,1.0,1.0,1.0,0.0,89104.5

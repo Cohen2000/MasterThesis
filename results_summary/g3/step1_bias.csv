@@ -1,0 +1,5 @@
+arm,condition,cases,group_macro_rho2_bias,group_macro_profile_mae
+event_sample_then_full_history,hidden,32,0.15312611772406862,0.09794843510539712
+event_sample_then_full_history,mechanism,32,-0.003218225317598055,0.0498829335187316
+time_agnostic_t,hidden,32,-0.27618558744537586,0.13934419343164353
+time_agnostic_t,mechanism,32,-0.04366470434537583,0.05767006588800818

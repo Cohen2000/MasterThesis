@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -289,10 +290,11 @@ def build_document(*, rates_table, bias, shifts, slopes, directions,
                    "zero** -- the level-versus-ordering dissociation leads: "
                    "mechanism information shifts calibration without improving "
                    "case-specific inference.")
+    reading = textwrap.fill(reading, width=78)
     return f"""# G3 Step 1: early signal slice
 
 Prepared: **2026-09-01**  
-Scope: **Codex `gpt-5.6-sol`, {generations} generations, arms
+Scope: **Codex `gpt-5.6-sol`, {generations} generation(s), arms
 `time_agnostic_t` and `event_sample_then_full_history`, conditions `hidden` and
 `mechanism`, all 32 graphs.** {answered}/{expected} calls complete.
 
