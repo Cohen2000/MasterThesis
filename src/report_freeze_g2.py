@@ -451,6 +451,100 @@ informative, and **no primary claim rests on a Codex-only result**. If the
 subsets must be version-pinned instead, `qwen3.6-27b_think` is the alternative
 and the totals above do not change.
 
+## Analysis specification, added 2026-09-01
+
+Fixed before any result was read. The Step 1 slice was running at this point
+and its numbers had deliberately not been interpreted; nothing below was chosen
+in response to an observed effect.
+
+### (a) `Delta_i` is measured against the naive plug-in, not against `hidden`
+
+For every condition, including `hidden`, the shift is
+
+    Delta_i(condition) = rho2_model(condition) - rho2_naive_i
+
+rather than a difference from `hidden`. Three things follow. `hidden` acquires
+a `Delta_i` of its own, so "does the model move at all without a mechanism
+description" becomes a measured quantity rather than a definitional zero. The
+analytical estimators land on the same axis, so `occ_mle`, `mask_mle` and the
+supervised reference can be drawn as reference lines against the model
+conditions. And the main figure becomes one plot: the analytical slope as a
+line, the per-condition model slopes beside it.
+
+The paired `mechanism - hidden` contrast is kept as well. The two answer
+different questions -- one asks where a condition sits, the other how much the
+description moved that particular case -- and neither replaces the other.
+
+### (b) The pooled slope is a three-level contrast, and is reported as one
+
+`delta_i` is not a continuous predictor on this panel. It takes three values by
+arm: about +0.28 to +0.30 on the three walks, +0.002 on
+`node_panel_full_history`, -0.16 on `event_sample_then_full_history`. A pooled
+regression of `Delta_i` on `delta_i` is therefore driven almost entirely by the
+between-arm contrast, and calling it a slope over a continuous predictor would
+overstate what it is.
+
+Accordingly: report the pooled slope, and state in the same sentence that it is
+a three-level contrast on the required correction direction. Report **within-arm
+slopes separately, per arm**. If the within-arm slopes are near zero, the honest
+finding is sign classification without magnitude estimation -- the model gets
+the direction right but does not size the correction -- and that is a result to
+be named, not a null to be buried.
+
+Use a cluster bootstrap over graph groups for the pooled statistic and report
+the number of groups. Do **not** additionally cluster on arm: five clusters is
+too few for the bootstrap to be reliable.
+
+### (c) Degenerate-output rate
+
+Per model and condition, the share of answers whose `rho_k2` reproduces the
+naive plug-in value exactly or to within rounding. This measures directly
+whether the model is doing anything with the sample beyond reading a number off
+it, and it costs nothing to compute.
+
+### (d) The direction test runs on `rho_3` as well as `rho_2`
+
+Same analysis, second component. The answers already contain it; this is a
+post-hoc computation on existing data, not a new run. Report whether the
+conclusion holds across k, because a direction effect that appears only on the
+headline component is a weaker claim than one that holds along the profile.
+
+### (e) Ceiling contingency for the interaction
+
+"Is the explicit direction needed" is an interaction in the 2x2, and
+interactions need roughly four times the N of a main effect. If the direction
+hit rate under `mechanism` alone exceeds about 90%, `mechanism_direction` sits
+at ceiling on the sign metric and the interaction is unmeasurable there.
+
+Prespecified: in that case the interaction question moves to the magnitude
+metrics -- the within-arm slope and the magnitude ratio -- where headroom
+remains. The switch is decided from the measured hit rate, not by inspection of
+the interaction itself.
+
+### (f) Model roles: which numbers carry a claim
+
+`qwen3.6-27b_think` and `qwen3.6-27b_nothink` are the **confirmatory** models:
+version-pinned weights, recorded sampling parameters, fully reproducible on the
+cluster. Every headline number is readable off them.
+
+Codex `gpt-5.6-sol` is **exploratory**: its harness injects instructions that
+are not part of the frozen prompt and cannot be version-pinned, so it is a
+product screen. It is the strongest reader in the suite and worth running, but
+a Codex-only finding carries that label wherever it appears. This is stated in
+the results text, not deferred to an appendix caveat.
+
+### (g) What the cells are
+
+`hidden` is the (no mechanism described, no direction stated) cell of the 2x2.
+It is a cell of the factorial, not a separate baseline.
+
+`metadata_only` is **outside** the 2x2 entirely, because it carries no sample
+at all. It is the "metadata plus learned prior" anchor and does not belong in
+any cell count.
+
+A reader counting conditions will otherwise see six and either infer six cells
+or double-count `hidden`; the factorial has four.
+
 ## What is not settled here
 
 - Exact Qwen token counts. The numbers in `docs/PROMPT_CONTRACT_2026-09.md`

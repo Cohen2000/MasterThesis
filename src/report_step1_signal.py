@@ -37,7 +37,13 @@ RNG_SEED = 20260901
 
 
 def load_answers(paths: list[str]) -> pd.DataFrame:
-    """One row per (prompt_id, generation); nothing is repaired."""
+    """One row per (prompt_id, generation); nothing is repaired.
+
+    Files are append-only, so a prompt that was truncated and later retried has
+    two records. The complete one wins, and if none is complete the last
+    attempt stands -- otherwise a raised token cap would silently double-count
+    every case it rescued.
+    """
     rows = []
     for generation, path in enumerate(paths):
         for line in Path(path).read_text().splitlines():
@@ -69,7 +75,16 @@ def load_answers(paths: list[str]) -> pd.DataFrame:
                 bool(np.all(np.diff(values) <= 1e-12))
                 if row["all_components_valid"] else False)
             rows.append(row)
-    return pd.DataFrame(rows)
+    frame = pd.DataFrame(rows)
+    if frame.empty:
+        return frame
+    frame["_order"] = range(len(frame))
+    frame = frame.sort_values(["structurally_complete", "_order"])
+    frame = (frame.drop_duplicates(subset=["prompt_id", "generation"],
+                                   keep="last")
+             .sort_values("_order").drop(columns="_order")
+             .reset_index(drop=True))
+    return frame
 
 
 def merge(answers: pd.DataFrame, prompts_path: str,

@@ -219,3 +219,49 @@ class ChatTemplateTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RetryDeduplicationTest(unittest.TestCase):
+    """A raised token cap rescues truncated prompts by appending a second
+    record. Counting both would inflate every rate it was meant to fix."""
+
+    def _rows(self, records):
+        import tempfile
+        from report_step1_signal import load_answers
+        tmp = Path(tempfile.mkdtemp()) / "a.jsonl"
+        tmp.write_text("".join(json.dumps(r) + "\n" for r in records))
+        return load_answers([str(tmp)])
+
+    def test_a_retried_prompt_appears_once(self):
+        bad = build_record(fake_row("p1"), fake_output("no json", "length"),
+                           fake_args(), "0.28.0", 1.0)
+        good = build_record(fake_row("p1"), fake_output(GOOD_JSON),
+                            fake_args(), "0.28.0", 1.0)
+        rows = self._rows([bad, good])
+        self.assertEqual(len(rows), 1)
+        self.assertTrue(bool(rows.structurally_complete.iloc[0]))
+
+    def test_the_complete_record_wins_regardless_of_file_order(self):
+        bad = build_record(fake_row("p1"), fake_output("no json", "length"),
+                           fake_args(), "0.28.0", 1.0)
+        good = build_record(fake_row("p1"), fake_output(GOOD_JSON),
+                            fake_args(), "0.28.0", 1.0)
+        for order in ([bad, good], [good, bad]):
+            rows = self._rows(order)
+            self.assertEqual(len(rows), 1)
+            self.assertTrue(bool(rows.structurally_complete.iloc[0]))
+
+    def test_two_failed_attempts_still_leave_one_row(self):
+        bad = build_record(fake_row("p1"), fake_output("x", "length"),
+                           fake_args(), "0.28.0", 1.0)
+        rows = self._rows([bad, bad])
+        self.assertEqual(len(rows), 1)
+        self.assertFalse(bool(rows.structurally_complete.iloc[0]))
+
+    def test_distinct_prompts_are_not_collapsed(self):
+        rows = self._rows([
+            build_record(fake_row("p1"), fake_output(GOOD_JSON), fake_args(),
+                         "0.28.0", 1.0),
+            build_record(fake_row("p2"), fake_output(GOOD_JSON), fake_args(),
+                         "0.28.0", 1.0)])
+        self.assertEqual(len(rows), 2)
