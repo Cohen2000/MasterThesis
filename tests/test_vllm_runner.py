@@ -12,6 +12,7 @@ from run_llm_vllm_g3 import (  # noqa: E402
     build_record,
     completed_ids,
     load_prompts,
+    templated_token_ids,
 )
 
 GOOD_JSON = json.dumps({k: 0.5 for k in PRED_KEYS})
@@ -140,6 +141,80 @@ class ShardingTest(unittest.TestCase):
         Path(path).write_text("\n".join(reversed(lines)) + "\n")
         b = [r["prompt_id"] for r in load_prompts(path, 1, 4, None)]
         self.assertEqual(a, b)
+
+
+class FakeTokenizer:
+    """Records how apply_chat_template was called, and refuses a second BOS."""
+
+    def __init__(self):
+        self.calls = []
+
+    def apply_chat_template(self, msgs, tokenize=False,
+                            add_generation_prompt=True, **kwargs):
+        self.calls.append({"msgs": msgs, "tokenize": tokenize,
+                           "add_generation_prompt": add_generation_prompt,
+                           "kwargs": kwargs})
+        thinking = kwargs.get("enable_thinking")
+        tag = "" if thinking is None else f"<think:{thinking}>"
+        return f"<BOS><|user|>{msgs[0]['content']}{tag}<|assistant|>"
+
+    def encode(self, text, add_special_tokens=True):
+        if add_special_tokens:
+            raise AssertionError(
+                "the chat template already carries the special tokens; "
+                "encoding with add_special_tokens=True prepends a second BOS")
+        return [len(text)]
+
+
+class ChatTemplateTest(unittest.TestCase):
+    """The bug this exists to prevent: passing the raw prompt string to vLLM.
+
+    The HF path wraps every prompt with apply_chat_template and the Qwen
+    enable_thinking switch. A vLLM runner that skips it makes the model
+    continue the text instead of answering, and silently turns --thinking off
+    into no switch at all. Measured on a first attempt: 171 of 256 non-thinking
+    generations ran into the token cap and completeness fell to 33% against a
+    historical 53%.
+    """
+
+    def test_the_prompt_is_wrapped_as_a_user_message(self):
+        tok = FakeTokenizer()
+        templated_token_ids(tok, "PROMPT BODY", "off")
+        self.assertEqual(len(tok.calls), 1)
+        call = tok.calls[0]
+        self.assertEqual(call["msgs"],
+                         [{"role": "user", "content": "PROMPT BODY"}])
+        self.assertTrue(call["add_generation_prompt"])
+        self.assertFalse(call["tokenize"])
+
+    def test_thinking_off_reaches_the_template(self):
+        tok = FakeTokenizer()
+        templated_token_ids(tok, "p", "off")
+        self.assertIs(tok.calls[0]["kwargs"]["enable_thinking"], False)
+
+    def test_thinking_on_reaches_the_template(self):
+        tok = FakeTokenizer()
+        templated_token_ids(tok, "p", "on")
+        self.assertIs(tok.calls[0]["kwargs"]["enable_thinking"], True)
+
+    def test_thinking_none_omits_the_switch(self):
+        tok = FakeTokenizer()
+        templated_token_ids(tok, "p", "none")
+        self.assertNotIn("enable_thinking", tok.calls[0]["kwargs"])
+
+    def test_special_tokens_are_not_added_twice(self):
+        # FakeTokenizer.encode raises if add_special_tokens is left at True.
+        tok = FakeTokenizer()
+        self.assertEqual(templated_token_ids(tok, "p", "off"), [len(
+            "<BOS><|user|>p<think:False><|assistant|>")])
+
+    def test_the_two_thinking_modes_produce_different_encodings(self):
+        tok = FakeTokenizer()
+        on = templated_token_ids(tok, "same prompt", "on")
+        off = templated_token_ids(tok, "same prompt", "off")
+        self.assertNotEqual(
+            on, off,
+            "thinking on and off encode identically -- the switch is inert")
 
 
 if __name__ == "__main__":

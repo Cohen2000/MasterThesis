@@ -11,8 +11,14 @@ trade against truncation.
 What is deliberately unchanged: the frozen prompt text, the per-record
 `gen_seed` (vLLM takes a seed per request, so the contract carries over
 exactly), the sampling parameters, the append-only answers file, resume by
-`prompt_id`, and the record schema that `is_complete_record` and the frozen
-evaluation read. The inference stack is a different implementation of the same
+`prompt_id`, the record schema that `is_complete_record` and the frozen
+evaluation read, and -- critically -- the chat templating. The prompt is
+wrapped by `apply_chat_template` with the same `enable_thinking` switch the HF
+path uses and handed to vLLM as token ids, so the model sees exactly the
+conversation it would have seen there. Passing the raw string instead makes
+the model continue the text rather than answer it: measured on a first attempt,
+that drove 171 of 256 non-thinking generations into the token cap and cut
+completeness to 33% against a historical 53%. The inference stack is a different implementation of the same
 sampling definition; that difference is recorded in every record via
 `backend: "vllm"` and the engine version.
 
@@ -60,6 +66,24 @@ def completed_ids(path: Path) -> set[str]:
         if is_complete_record(record):
             done.add(record.get("prompt_id"))
     return done
+
+
+def templated_token_ids(tokenizer, prompt: str, thinking: str) -> list[int]:
+    """The exact encoding `run_llm_v2.HFModel` would have produced.
+
+    The chat template supplies the special tokens, so the follow-up tokenize
+    must not add them again -- a second BOS is a silent quality loss rather
+    than an error. `enable_thinking` is the Qwen3-family hybrid switch and is
+    the only way `--thinking off` has any effect at all; templates without the
+    variable ignore it.
+    """
+    kwargs = {}
+    if thinking in ("on", "off"):
+        kwargs["enable_thinking"] = thinking == "on"
+    text = tokenizer.apply_chat_template(
+        [{"role": "user", "content": prompt}],
+        tokenize=False, add_generation_prompt=True, **kwargs)
+    return tokenizer.encode(text, add_special_tokens=False)
 
 
 def build_record(row: dict, output, args, engine_version: str,
@@ -135,6 +159,7 @@ def main():
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import vllm
+    from transformers import AutoTokenizer
     from vllm import LLM, SamplingParams
 
     only = args.ids.split(",") if args.ids else None
@@ -150,9 +175,11 @@ def main():
     if not todo:
         return 0
 
-    longest_prompt = max(len(r["prompt"]) for r in todo) // 2
+    longest_prompt = max(len(r["prompt"]) for r in todo) // 2 + 512
     max_model_len = args.max_model_len or (longest_prompt + args.max_new_tokens
                                            + 1024)
+    tokenizer = AutoTokenizer.from_pretrained(args.model,
+                                              trust_remote_code=True)
     llm = LLM(model=args.model, dtype="bfloat16",
               gpu_memory_utilization=args.gpu_memory_utilization,
               max_model_len=max_model_len, max_num_seqs=args.max_num_seqs,
@@ -165,8 +192,11 @@ def main():
                                  top_p=args.top_p, top_k=args.top_k,
                                  max_tokens=args.max_new_tokens,
                                  seed=int(r["gen_seed"])) for r in chunk]
+        prompts = [{"prompt_token_ids":
+                    templated_token_ids(tokenizer, r["prompt"], args.thinking)}
+                   for r in chunk]
         t0 = time.time()
-        outputs = llm.generate([r["prompt"] for r in chunk], params)
+        outputs = llm.generate(prompts, params)
         elapsed = (time.time() - t0) / max(1, len(chunk))
         # Append-only: a later failure never overwrites an earlier answer.
         with out_path.open("a") as handle:
