@@ -1,0 +1,4 @@
+removed,prompts,reason,carried_by
+disclosed_historical,96,subset disclosed_historical cut,"nothing -- dropped, ladder rung 2"
+irrelevant_context,64,subset irrelevant_context cut,"nothing -- dropped, ladder rung 1"
+seed_replication,240,subset seed_replication cut,"qwen3.6-27b_think, 3 generations"
