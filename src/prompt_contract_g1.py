@@ -158,6 +158,29 @@ _DIRECTION_WORD = {
 DIRECTION_ONLY = {arm: _direction_text(word)
                   for arm, word in _DIRECTION_WORD.items()}
 
+# The missing cell (added 2026-09-01, before any result had been analysed):
+# the correct process description with a *false* claim about its consequence.
+# `mismatched` swaps the whole description, so a model that reacts to it may be
+# reacting to a process that does not fit the sample. Here the description is
+# right and only the stated direction is wrong, which separates deference to an
+# explicit claim from derivation out of the described process.
+#
+# Only defined where a direction exists to invert. `node_panel_full_history` is
+# approximately unbiased, and the negation of "approximately equal to" is not a
+# direction, so the cell is undefined there and the subset does not use it.
+_OPPOSITE_WORD = {"an underestimate of": "an overestimate of",
+                  "an overestimate of": "an underestimate of"}
+
+WRONG_DIRECTION = {
+    arm: _direction_text(_OPPOSITE_WORD[word])
+    for arm, word in _DIRECTION_WORD.items() if word in _OPPOSITE_WORD
+}
+
+MECHANISM_WRONG_DIRECTION = {
+    arm: f"{MECHANISM_NEUTRAL[arm]}\n\n{WRONG_DIRECTION[arm]}"
+    for arm in WRONG_DIRECTION
+}
+
 MECHANISM_DIRECTION = {
     arm: f"{MECHANISM_NEUTRAL[arm]}\n\n{DIRECTION_ONLY[arm]}"
     for arm in ARMS
@@ -230,6 +253,12 @@ def context_block(arm: str, condition: str, stated_arm: str | None = None) -> st
         return MECHANISM_NEUTRAL[arm]
     if condition == "mechanism_direction":
         return MECHANISM_DIRECTION[arm]
+    if condition == "mechanism_wrong_direction":
+        if arm not in MECHANISM_WRONG_DIRECTION:
+            raise ValueError(
+                f"{arm} has no direction to invert; the cell is undefined "
+                "on an approximately unbiased arm")
+        return MECHANISM_WRONG_DIRECTION[arm]
     if condition == "mismatched":
         if stated_arm is None:
             raise ValueError("mismatched needs the stated (wrong) arm")

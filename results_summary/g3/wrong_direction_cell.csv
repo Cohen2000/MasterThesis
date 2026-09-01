@@ -1,0 +1,2 @@
+condition,added,prompts,arms,models,calls,prompt_set_sha256,frozen_set_touched
+mechanism_wrong_direction,2026-09-01,64,"time_agnostic_t, event_sample_then_full_history","qwen think + nothink, 3 gens each",384,7f16a7b756d119598dda70233f64fd7757991ac3e3d22c3f48284acf132be852,False

@@ -206,3 +206,45 @@ class LengthBandTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WrongDirectionCellTest(unittest.TestCase):
+    """Correct process description, inverted direction claim.
+
+    This is the cell that separates deference to a stated claim from derivation
+    out of the described process; `mismatched` cannot, because it replaces the
+    description as well.
+    """
+
+    ARMS = ("time_agnostic_t", C.TWO_PHASE)
+
+    def test_the_process_description_is_unchanged(self):
+        for arm in self.ARMS:
+            block = C.context_block(arm, "mechanism_wrong_direction")
+            self.assertTrue(block.startswith(C.MECHANISM_NEUTRAL[arm]))
+
+    def test_only_the_direction_word_is_flipped(self):
+        for arm in self.ARMS:
+            right = C.MECHANISM_DIRECTION[arm]
+            wrong = C.context_block(arm, "mechanism_wrong_direction")
+            self.assertNotEqual(right, wrong)
+            # same length band, same template, one word different
+            self.assertEqual(len(right.split()), len(wrong.split()))
+
+    def test_the_claim_contradicts_the_measured_sign(self):
+        self.assertIn("an overestimate of",
+                      C.WRONG_DIRECTION["time_agnostic_t"])
+        self.assertIn("an underestimate of", C.WRONG_DIRECTION[C.TWO_PHASE])
+
+    def test_the_two_arms_are_wrong_in_opposite_ways(self):
+        a, b = self.ARMS
+        self.assertNotEqual(C.WRONG_DIRECTION[a], C.WRONG_DIRECTION[b])
+
+    def test_an_unbiased_arm_has_no_invertible_direction(self):
+        self.assertNotIn(C.NODE_PANEL, C.WRONG_DIRECTION)
+        with self.assertRaises(ValueError):
+            C.context_block(C.NODE_PANEL, "mechanism_wrong_direction")
+
+    def test_the_cell_is_not_in_the_frozen_condition_list(self):
+        # It has its own prompt file and hash; the frozen set is untouched.
+        self.assertNotIn("mechanism_wrong_direction", C.CONDITIONS)

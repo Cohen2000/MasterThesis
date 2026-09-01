@@ -74,9 +74,45 @@ step2_keeper() {
     done
 }
 
+# The wrong-direction cell is bottom of the cut ladder: it must not take GPU
+# from the main run, so it only starts once every main generation is complete.
+wrongdir_keeper() {
+    local out
+    out=$(timeout 90 ssh -o BatchMode=yes uc3 'bash -s' <<'REMOTE' 2>/dev/null
+WS=$(ws_find llm_pilot); cd "$WS" || exit 1
+for tag in think nothink; do
+  [ "$tag" = think ] && total=976 || total=736
+  for g in 0 1 2; do
+    have=$(cat llm_g3/answers_vllm_qwen36-27b_${tag}_g${g}.shard*.jsonl 2>/dev/null            | grep -c '"finish_reason":"stop"')
+    [ "$have" -lt "$total" ] && { echo "MAIN_INCOMPLETE"; exit 0; }
+  done
+done
+[ "$(squeue -u "$USER" -h | wc -l)" -gt 0 ] && { echo "MAIN_INCOMPLETE"; exit 0; }
+started=0
+for tag in qwen36-27b_think qwen36-27b_nothink; do
+  for g in 0 1 2; do
+    f=llm_g3/answers_vllm_wrongdir_${tag}_g${g}.jsonl
+    n=$( [ -f "$f" ] && grep -c '"finish_reason":"stop"' "$f" || echo 0 )
+    if [ "$n" -lt 64 ]; then
+      GEN=$g TAG=$tag sbatch --time=04:00:00 --job-name=g3wd_${g}           g3_vllm_wrongdir.sbatch >/dev/null 2>&1 && started=$((started+1))
+    fi
+  done
+done
+echo "WRONGDIR_STARTED $started"
+REMOTE
+)
+    case "$out" in
+        *WRONGDIR_STARTED*)
+            local n=${out##*WRONGDIR_STARTED }
+            [ "${n:-0}" -gt 0 ] && echo "keeper: main Qwen run complete -- started $n wrong-direction jobs"
+            ;;
+    esac
+}
+
 case "${1:-all}" in
     qwen)  qwen_keeper ;;
+    wrongdir) wrongdir_keeper ;;
     step2) step2_keeper ;;
-    all)   qwen_keeper; step2_keeper ;;
-    *) echo "usage: $0 {qwen|step2|all}" >&2; exit 2 ;;
+    all)   qwen_keeper; step2_keeper; wrongdir_keeper ;;
+    *) echo "usage: $0 {qwen|step2|wrongdir|all}" >&2; exit 2 ;;
 esac
