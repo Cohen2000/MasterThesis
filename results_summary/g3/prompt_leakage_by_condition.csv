@@ -1,0 +1,9 @@
+condition,prompts,prompts_with_a_leak
+direction_only,160,0
+disclosed_historical,96,0
+hidden,280,0
+irrelevant_context,64,0
+mechanism,280,0
+mechanism_direction,160,0
+metadata_only,32,0
+mismatched,64,0
