@@ -51,11 +51,17 @@ def load_prompts(path: str, shard_index: int, shard_count: int,
 
 def completed_ids(path: Path) -> set[str]:
     """prompt_ids already answered completely, so a rerun resumes."""
+    return _scan(path)[0]
+
+
+def _scan(path: Path) -> tuple[set[str], dict[str, int]]:
+    """(complete prompt_ids, attempts per prompt_id)."""
     from run_llm_v2 import is_complete_record
 
-    done = set()
+    done: set[str] = set()
+    attempts: dict[str, int] = {}
     if not path.exists():
-        return done
+        return done, attempts
     for line in path.read_text().splitlines():
         if not line.strip():
             continue
@@ -63,9 +69,11 @@ def completed_ids(path: Path) -> set[str]:
             record = json.loads(line)
         except json.JSONDecodeError:
             continue
+        pid = record.get("prompt_id")
+        attempts[pid] = attempts.get(pid, 0) + 1
         if is_complete_record(record):
-            done.add(record.get("prompt_id"))
-    return done
+            done.add(pid)
+    return done, attempts
 
 
 def templated_token_ids(tokenizer, prompt: str, thinking: str) -> list[int]:
@@ -141,6 +149,15 @@ def main():
     parser.add_argument("--shard-index", type=int, default=0)
     parser.add_argument("--shard-count", type=int, default=1)
     parser.add_argument("--ids", default=None)
+    parser.add_argument("--max-attempts", type=int, default=3,
+                        help="stop retrying a prompt after this many recorded "
+                             "attempts. Some generations do not terminate at "
+                             "any budget -- they truncate at 16k and again at "
+                             "24k -- and without a ceiling a resume loop "
+                             "reloads the model forever for them. A prompt "
+                             "that genuinely cannot be answered is a result "
+                             "under the failure-penalized rule, not a gap to "
+                             "keep filling.")
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--chunk", type=int, default=64,
                         help="prompts handed to one generate() call. Must be "
@@ -167,10 +184,15 @@ def main():
     if args.limit:
         rows = rows[:args.limit]
     out_path = Path(args.out)
-    done = completed_ids(out_path)
+    done, attempts = _scan(out_path)
     todo = [r for r in rows if r["prompt_id"] not in done]
+    burned = [r["prompt_id"] for r in todo
+              if attempts.get(r["prompt_id"], 0) >= args.max_attempts]
+    if burned:
+        todo = [r for r in todo if r["prompt_id"] not in set(burned)]
     print(f"{len(rows)} prompts in shard {args.shard_index + 1}/"
           f"{args.shard_count}; {len(done)} already complete; "
+          f"{len(burned)} given up on after {args.max_attempts} attempts; "
           f"{len(todo)} to run -> {out_path}", flush=True)
     if not todo:
         return 0

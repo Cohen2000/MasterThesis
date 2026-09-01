@@ -28,8 +28,7 @@ for tag in think nothink; do
   # g3no*, so deriving it from the first two letters of $tag is wrong.
   [ "$tag" = think ] && { total=976; shards=4; maxtok=98304; short=th; }                      || { total=736; shards=2; maxtok=24576; short=nt; }
   for g in 0 1 2; do
-    have=$(cat llm_g3/answers_vllm_qwen36-27b_${tag}_g${g}.shard*.jsonl 2>/dev/null \
-           | grep -c '"finish_reason":"stop"')
+    have=$(python3 g3_settled.py "$tag" "$g" 2>/dev/null || echo 0)
     running=$(squeue -u "$USER" -h -o "%j" | grep -c "^g3${short}.*_g${g}$")
     echo "$tag $g $have $total $running $shards $maxtok $short"
   done

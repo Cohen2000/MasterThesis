@@ -265,3 +265,39 @@ class RetryDeduplicationTest(unittest.TestCase):
             build_record(fake_row("p2"), fake_output(GOOD_JSON), fake_args(),
                          "0.28.0", 1.0)])
         self.assertEqual(len(rows), 2)
+
+
+class AttemptCeilingTest(unittest.TestCase):
+    """Some generations never terminate at any budget. Without a ceiling the
+    keeper reloads a 27B model forever for a handful of them."""
+
+    def _file(self, records):
+        import tempfile
+        tmp = Path(tempfile.mkdtemp()) / "a.jsonl"
+        tmp.write_text("".join(json.dumps(r) + "\n" for r in records))
+        return tmp
+
+    def _truncated(self, pid):
+        return build_record(fake_row(pid), fake_output("x", "length"),
+                            fake_args(), "0.28.0", 1.0)
+
+    def test_attempts_are_counted_per_prompt(self):
+        from run_llm_vllm_g3 import _scan
+        path = self._file([self._truncated("p1")] * 2 + [self._truncated("p2")])
+        done, attempts = _scan(path)
+        self.assertEqual(done, set())
+        self.assertEqual(attempts["p1"], 2)
+        self.assertEqual(attempts["p2"], 1)
+
+    def test_a_complete_answer_is_still_recognised(self):
+        from run_llm_vllm_g3 import _scan
+        good = build_record(fake_row("p1"), fake_output(GOOD_JSON),
+                            fake_args(), "0.28.0", 1.0)
+        done, attempts = _scan(self._file([self._truncated("p1"), good]))
+        self.assertEqual(done, {"p1"})
+        self.assertEqual(attempts["p1"], 2)
+
+    def test_completed_ids_still_works_through_the_new_scan(self):
+        good = build_record(fake_row("p1"), fake_output(GOOD_JSON),
+                            fake_args(), "0.28.0", 1.0)
+        self.assertEqual(completed_ids(self._file([good])), {"p1"})
