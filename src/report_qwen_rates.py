@@ -78,12 +78,47 @@ def rates(frame: pd.DataFrame, by: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def truncation_informativeness(frame: pd.DataFrame, cases_path: str
+                               ) -> pd.DataFrame:
+    """Do truncated cases differ systematically from complete ones?
+
+    The rate alone does not say whether the loss is harmless. If truncated
+    cases carry a different `delta_i` -- the correct signed correction -- then
+    a complete-case analysis is biased toward the cases that needed the least
+    correction, which is exactly where the direction test has its power. The
+    join is against the *accepted* case table, not the primary one: the seed
+    replication subset lives in slots 1-3 and would silently drop out.
+    """
+    cases = pd.read_csv(cases_path)[
+        ["case_id", "coverage", "est__plugin_rho_k2", "rho_W5_k2"]
+    ].drop_duplicates("case_id")
+    cases["delta_i"] = cases.rho_W5_k2 - cases.est__plugin_rho_k2
+    work = frame.copy()
+    work["case_id"] = work.prompt_id.str.split("|").str[:4].str.join("|")
+    merged = work.merge(cases, on="case_id", how="left")
+    rows = []
+    for arm, part in merged.groupby("arm"):
+        cut, kept = part[part.truncated], part[~part.truncated]
+        if len(cut) < 3:
+            continue
+        rows.append({
+            "arm": arm, "truncated": len(cut), "complete": len(kept),
+            "coverage_truncated": float(cut.coverage.median()),
+            "coverage_complete": float(kept.coverage.median()),
+            "delta_i_truncated": float(cut.delta_i.median()),
+            "delta_i_complete": float(kept.delta_i.median()),
+        })
+    return pd.DataFrame(rows)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--answers", nargs="+", default=[
         "results/final_run_g2/answers/qwen/answers_vllm_qwen36-27b_*.jsonl"])
     parser.add_argument("--tag", default="all")
     parser.add_argument("--summary-dir", default="results_summary/g3")
+    parser.add_argument("--cases",
+                        default="results/final_run_g2/final_cases.csv.gz")
     args = parser.parse_args()
 
     frame = load(args.answers)
@@ -98,6 +133,15 @@ def main():
         print(f"=== by {by} ===")
         print(table.to_markdown(index=False, floatfmt=".4f"))
         print()
+    informative = truncation_informativeness(frame, args.cases)
+    if len(informative):
+        informative.to_csv(
+            out / f"qwen_truncation_informativeness_{args.tag}.csv",
+            index=False)
+        print("=== truncated vs complete ===")
+        print(informative.to_markdown(index=False, floatfmt=".4f"))
+        print()
+
     overall = rates(frame.assign(all="all"), "all")
     overall.to_csv(out / f"qwen_rates_overall_{args.tag}.csv", index=False)
     print(overall.to_markdown(index=False, floatfmt=".4f"))
