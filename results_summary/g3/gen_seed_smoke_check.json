@@ -1,0 +1,20 @@
+{
+  "summary": {
+    "prompts_compared": 1,
+    "identical_across_generations": 0,
+    "prompts_with_repeated_seed": 0
+  },
+  "rows": [
+    {
+      "prompt_id": "activity__n1500__f0__beta1|event_sample_then_full_history|ss0|b9600|mechanism",
+      "generations": 2,
+      "distinct_answers": 2,
+      "identical": false,
+      "distinct_seeds": 2,
+      "seeds": [
+        1995021868,
+        32419514
+      ]
+    }
+  ]
+}

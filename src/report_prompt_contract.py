@@ -180,7 +180,7 @@ def _fence(text: str) -> str:
 
 
 def build_document(*, blocks, prompts, assignment, identical, graphs,
-                   length_band, panel_n) -> str:
+                   length_band, exact, panel_n) -> str:
     per_arm = "\n\n".join(
         f"#### `{arm}` — {ARM_LABEL[arm]}\n\n"
         f"{_fence(C.MECHANISM_NEUTRAL[arm])}\n\n"
@@ -349,10 +349,7 @@ Whole prompts, rendered on the {panel_n} G0d panel samples:
 
 {_format(prompts)}
 
-**Qwen figures are estimates**, converted from the portable count at the
-measured G0c ratio {QWEN_RATIO}. Decision 4 requires exact counts from the
-BWUniCluster tokenizer before G3; until then no Qwen number here is to be
-quoted as measured.
+{exact}
 
 ## Length band
 
@@ -385,6 +382,41 @@ def _format(frame: pd.DataFrame) -> str:
     return frame.to_markdown(index=False, floatfmt=".4f")
 
 
+def _exact_token_section(path: Path) -> str:
+    """Measured counts replace the calibration once the cluster has run."""
+    if not path.exists():
+        return (f"**Qwen figures are estimates**, converted from the portable "
+                f"count at the measured G0c ratio {QWEN_RATIO}. Exact counts "
+                f"from the BWUniCluster tokenizer replace them before G3; "
+                f"until then no Qwen number here is to be quoted as measured.")
+    frame = pd.read_csv(path)
+    by_arm = (frame.groupby("arm").qwen36_tokens
+              .agg(["count", "median", "p90", "max"]
+                   if False else ["count", "median", "max"]).reset_index())
+    by_arm["p90"] = (frame.groupby("arm").qwen36_tokens
+                     .quantile(.9).round().astype(int).values)
+    by_arm = by_arm[["arm", "count", "median", "p90", "max"]]
+    by_condition = (frame.groupby("condition").qwen36_tokens
+                    .agg(["median", "max"]).reset_index())
+    return f"""### Exact Qwen3.6 counts (measured, superseding the estimates)
+
+Measured on the cluster tokenizer over the {len(frame)} prompts in the
+thinking-model scope, whole prompt as sent. **These supersede the calibrated
+estimates above**, which were derived from the portable count at ratio
+{QWEN_RATIO} and were always labelled as estimates; the calibration turned out
+to be good to under 1% at the maximum, but the measured numbers are what the
+thesis quotes.
+
+{by_arm.to_markdown(index=False)}
+
+{by_condition.to_markdown(index=False)}
+
+The largest prompt in the study is {int(frame.qwen36_tokens.max())} tokens,
+about 2.5% of a 128k context. Input length is therefore not an operational
+constraint on the run; it remains an arm-level confound for cross-arm accuracy
+comparisons, which is a separate point."""
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--panel", nargs="+", default=[
@@ -393,6 +425,9 @@ def main():
                         default="results/panel_seed_probe/cases.csv.gz")
     parser.add_argument("--out", default="docs/PROMPT_CONTRACT_2026-09.md")
     parser.add_argument("--summary-dir", default="results_summary/g1")
+    parser.add_argument("--exact-tokens", default=(
+        "results_summary/g3/qwen_token_counts_exact.csv"),
+        help="measured Qwen counts; supersedes the calibration when present")
     args = parser.parse_args()
 
     accepted = read_globs(args.panel)
@@ -404,6 +439,7 @@ def main():
 
     blocks = block_table()
     prompts = full_prompt_table(panel)
+    exact = _exact_token_section(Path(args.exact_tokens))
     assignment = mismatch_assignment(panel)
     identical, graphs = metadata_identity(panel)
 
@@ -431,7 +467,7 @@ def main():
         blocks=blocks, prompts=prompts, assignment=assignment,
         identical=("identical" if identical else "NOT identical"),
         graphs=graphs, length_band=textwrap.fill(band, width=78),
-        panel_n=len(panel)))
+        exact=exact, panel_n=len(panel)))
     print(f"wrote {args.out}", flush=True)
 
 

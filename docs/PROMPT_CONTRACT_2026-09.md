@@ -440,10 +440,36 @@ Whole prompts, rendered on the 160 G0d panel samples:
 | time_respecting                | metadata_only       |      32 |               447 |            447 |               744 |            744 |
 | time_respecting                | irrelevant_context  |      32 |               739 |            781 |              1229 |           1306 |
 
-**Qwen figures are estimates**, converted from the portable count at the
-measured G0c ratio 1.6637. Decision 4 requires exact counts from the
-BWUniCluster tokenizer before G3; until then no Qwen number here is to be
-quoted as measured.
+### Exact Qwen3.6 counts (measured, superseding the estimates)
+
+Measured on the cluster tokenizer over the 976 prompts in the
+thinking-model scope, whole prompt as sent. **These supersede the calibrated
+estimates above**, which were derived from the portable count at ratio
+1.6637 and were always labelled as estimates; the calibration turned out
+to be good to under 1% at the maximum, but the measured numbers are what the
+thesis quotes.
+
+| arm                            |   count |   median |   p90 |   max |
+|:-------------------------------|--------:|---------:|------:|------:|
+| event_sample_then_full_history |     208 |   1533.5 |  2514 |  3282 |
+| node_panel_full_history        |     176 |   1272   |  1672 |  1933 |
+| recent_history_k20             |     176 |   1090   |  1302 |  1456 |
+| time_agnostic_t                |     240 |    969.5 |  1121 |  1383 |
+| time_respecting                |     176 |   1000.5 |  1137 |  1206 |
+
+| condition           |   median |   max |
+|:--------------------|---------:|------:|
+| direction_only      |   1023   |  3128 |
+| hidden              |    968   |  3080 |
+| mechanism           |   1115   |  3234 |
+| mechanism_direction |   1165.5 |  3282 |
+| metadata_only       |    653   |   655 |
+| mismatched          |   1075   |  3203 |
+
+The largest prompt in the study is 3282 tokens,
+about 2.5% of a 128k context. Input length is therefore not an operational
+constraint on the run; it remains an arm-level confound for cross-arm accuracy
+comparisons, which is a separate point.
 
 ## Length band
 
