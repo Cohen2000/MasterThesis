@@ -9,7 +9,15 @@ the 736-prompt set is not free. This script splits it into
            qualify the claim rather than establish it, and both are deferred
            until quota allows
 
-and it drops from the core anything that already has a usable Codex answer in
+``--instances`` narrows the core further, to a stratified subsample of the
+32 instances. The rule is fixed in advance and reads nothing but the case
+metadata: every group keeps at least one instance, the remaining slots go to
+the smallest groups first, and where a group has more instances than slots the
+choice is drawn by an RNG seeded with the frozen master seed. Groups are the
+resampling unit of the cluster bootstrap, so keeping all twelve matters more
+than keeping every variant within one.
+
+It also drops from the core anything that already has a usable Codex answer in
 the Step 1 files. Step 1 used the same frozen prompts, the same CLI binary,
 the same model and the same effort, so its generation-0 record *is* the Step 2
 generation-0 record for those prompt_ids; re-running them would buy nothing.
@@ -30,6 +38,50 @@ sys.path.insert(0, str(REPO / "scripts" / "codex_screen"))
 from run_codex_screen import usable_record  # noqa: E402
 
 CORE_CONDITIONS = ("hidden", "mechanism", "direction_only", "mechanism_direction")
+MASTER_SEED = 20260901
+
+
+def stratified_instances(rows, target):
+    """``target`` instances, every group represented, drawn reproducibly.
+
+    Slots are handed out one per group first, so no group can fall out of the
+    cluster bootstrap; the leftovers go to the smallest groups, which are the
+    ones a single instance would represent worst. Within a group that has more
+    instances than slots the pick is random but seeded, never by position --
+    prompt_id order tracks the graph family, so taking the first would select
+    on the covariate the analysis is about.
+    """
+    import random
+
+    groups = {}
+    for r in rows:
+        groups.setdefault(r["group_id"], set()).add(r["instance_id"])
+    groups = {g: sorted(v) for g, v in sorted(groups.items())}
+    if target >= sum(len(v) for v in groups.values()):
+        return {i for v in groups.values() for i in v}
+    if target < len(groups):
+        raise SystemExit(f"--instances {target} cannot cover {len(groups)} groups")
+
+    slots = {g: 1 for g in groups}
+    order = sorted(groups, key=lambda g: (len(groups[g]), g))
+    left = target - len(groups)
+    while left:
+        progressed = False
+        for g in order:
+            if not left:
+                break
+            if slots[g] < len(groups[g]):
+                slots[g] += 1
+                left -= 1
+                progressed = True
+        if not progressed:
+            break
+
+    rng = random.Random(MASTER_SEED)
+    keep = set()
+    for g in sorted(groups):
+        keep.update(rng.sample(groups[g], slots[g]))
+    return keep
 
 
 def usable_ids(paths, arm="notools"):
@@ -60,6 +112,9 @@ def main():
     ap.add_argument("--out-core", default=str(REPO / "results/final_run_g2/prompts_codex_core.jsonl"))
     ap.add_argument("--out-hold", default=str(REPO / "results/final_run_g2/prompts_codex_hold.jsonl"))
     ap.add_argument("--arm", default="notools")
+    ap.add_argument("--instances", type=int, default=0,
+                    help="keep only this many of the 32 instances in the core, "
+                         "stratified over groups (0 = all)")
     args = ap.parse_args()
 
     rows = [json.loads(l) for l in open(args.prompts) if l.strip()]
@@ -68,6 +123,14 @@ def main():
 
     core = [r for r in rows if r["condition"] in CORE_CONDITIONS]
     hold = [r for r in rows if r["condition"] not in CORE_CONDITIONS]
+    if args.instances:
+        keep = stratified_instances(core, args.instances)
+        hold += [r for r in core if r["instance_id"] not in keep]
+        core = [r for r in core if r["instance_id"] in keep]
+        print(f"instances     {len(keep)} of "
+              f"{len({r['instance_id'] for r in rows})}: "
+              + ", ".join(sorted(keep)))
+    hold.sort(key=lambda r: r["prompt_id"])
     reused = [r for r in core if r["prompt_id"] in reuse]
     core = [r for r in core if r["prompt_id"] not in reuse]
 
