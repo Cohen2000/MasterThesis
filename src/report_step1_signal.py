@@ -68,6 +68,12 @@ def load_answers(paths: list[str]) -> pd.DataFrame:
             for key in PROFILE_PRED:
                 value = parsed.get(key)
                 row[key] = float(value) if valid_unit(value) else np.nan
+            # The stated 90% interval is the other half of the properness
+            # criterion in freeze (h); it is carried, never used to repair or
+            # override the point prediction.
+            for key in ("lo90", "hi90"):
+                value = parsed.get(key)
+                row[key] = float(value) if valid_unit(value) else np.nan
             row["all_components_valid"] = all(
                 np.isfinite(row[k]) for k in PROFILE_PRED)
             # A mathematically invalid profile is not repaired; it is counted.

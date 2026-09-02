@@ -72,7 +72,7 @@ def main():
     cell["seed_slot"] = cell.case_id.str.extract(r"\|(?:ss|ws)(\d+)\|").astype(int)
     keep = ["model", "case_id", "instance_id", "group_id", "strategy",
             "condition", "coverage", "generation", "seed_slot", "rho_k2",
-            "rho_W5_k2", "est__plugin_rho_k2", "delta_i"]
+            "rho_W5_k2", "est__plugin_rho_k2", "delta_i", "lo90", "hi90"]
     cell[keep].to_csv(out / "g4_cell.csv", index=False)
 
     # Generations are not independent observations; the nesting is
@@ -80,13 +80,13 @@ def main():
     # averaged away before any paired contrast, exactly as in Step 1.
     averaged = (cell.groupby(["model", "case_id", "instance_id", "group_id",
                               "strategy", "condition", "coverage", "seed_slot",
-                              "delta_i"],
+                              "delta_i", "rho_W5_k2"],
                              as_index=False)
                 .agg(rho_k2=("rho_k2", "mean"),
                      generations=("generation", "nunique")))
     wide = averaged.pivot_table(
         index=["model", "case_id", "instance_id", "group_id", "strategy",
-               "coverage", "seed_slot", "delta_i"],
+               "coverage", "seed_slot", "delta_i", "rho_W5_k2"],
         columns="condition", values="rho_k2").reset_index()
     wide = wide.dropna(subset=["hidden", "mechanism"])
     wide["Delta_i"] = wide.mechanism - wide.hidden
