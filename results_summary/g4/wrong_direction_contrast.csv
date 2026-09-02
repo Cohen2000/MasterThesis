@@ -1,0 +1,2 @@
+model,n_up,n_down,mean_shift_down_arm,mean_shift_up_arm,between_arm_gap,ci_lo,ci_hi,share_positive_draws
+qwen36-27b_nothink,32,31,0.06919962365591398,-0.23719635416666668,0.30639597782258066,0.24184219942876345,0.3687149096774193,1.0
