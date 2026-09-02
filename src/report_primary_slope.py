@@ -22,6 +22,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from report_null_baselines import permutation_null
+
 REPO = Path(__file__).resolve().parents[1]
 BOOTSTRAP = 4000
 SEED = 20260901
@@ -65,6 +67,31 @@ def _boot_slope(frame, n=BOOTSTRAP, seed=SEED):
             float(np.mean(np.asarray(draws) > 0)))
 
 
+# Freeze (f): which numbers carry a claim.
+ROLE = {"qwen36-27b_think": "confirmatory",
+        "qwen36-27b_nothink": "confirmatory",
+        "codex-gpt-5.6-sol": "exploratory"}
+
+
+def n2_lookup_slope(cases: pd.DataFrame) -> float:
+    """The arm-lookup null: knows its arm's typical bias, nothing case-level.
+
+    `P_hidden = naive_i`, `P_mech = naive_i + mean(delta | arm)`, so the paired
+    response is constant within an arm. Within one arm it therefore coincides
+    with N0 at exactly zero; pooled it is Var_between / Var_total, which is a
+    far sterner line than N0 and is the null a reader should have in mind when
+    a pooled slope is quoted. A model cannot beat it by having memorised a
+    per-arm correction -- only by ordering cases inside an arm.
+    """
+    delta = cases.delta_i.to_numpy(float)
+    if len(delta) < 3 or np.var(delta, ddof=1) == 0:
+        return np.nan
+    c = cases.groupby("strategy").delta_i.transform("mean").to_numpy(float)
+    if np.allclose(c, c[0]):
+        return 0.0
+    return float(np.cov(c, delta, ddof=1)[0, 1] / np.var(delta, ddof=1))
+
+
 def n1_slope(cases: pd.DataFrame) -> float:
     """1 - Cov(true, delta)/Var(delta), the prior-fallback reference."""
     true = cases.rho_W5_k2.to_numpy(float)
@@ -89,8 +116,21 @@ def slope_table(paired: pd.DataFrame, seed_slot: int = 0) -> pd.DataFrame:
             fit = _fit(sub.delta_i, sub.Delta_i)
             lo, hi, pos = _boot_slope(sub)
             blanked = scope in NO_SLOPE
+            # The permutation reference keeps the between-arm structure and
+            # destroys the within-arm pairing, so it only exists where there is
+            # more than one arm to stratify on.
+            perm = {"null_perm_mean": np.nan, "null_perm_lo": np.nan,
+                    "null_perm_hi": np.nan, "null_perm_analytic": np.nan}
+            if sub.strategy.nunique() > 1:
+                table = permutation_null(sub, "delta_i", "Delta_i", "strategy")
+                row = table.iloc[0]
+                perm = {"null_perm_mean": float(row["mean"]),
+                        "null_perm_lo": float(row["lo2.5"]),
+                        "null_perm_hi": float(row["hi97.5"]),
+                        "null_perm_analytic": float(row["analytic"])}
             rows.append({
-                "model": model, "scope": scope,
+                "model": model, "role": ROLE.get(model, "exploratory"),
+                "scope": scope,
                 "arms": sub.strategy.nunique(),
                 "graph_groups": sub.group_id.nunique(),
                 "n": fit["n"],
@@ -102,18 +142,28 @@ def slope_table(paired: pd.DataFrame, seed_slot: int = 0) -> pd.DataFrame:
                 "rmse": np.nan if blanked else fit["rmse"],
                 "null_N0": 0.0,
                 "null_N1": n1_slope(sub),
+                "null_N2_lookup": n2_lookup_slope(sub),
+                **perm,
                 "slope_not_reportable": blanked,
             })
     return pd.DataFrame(rows)
 
 
-def skill_table(cell: pd.DataFrame) -> pd.DataFrame:
+def skill_table(cell: pd.DataFrame, seed_slot: int = 0) -> pd.DataFrame:
     """1 - MSE(model) / MSE(best constant), against the truth.
 
     The best constant is the in-sample mean of the truth over the same scope --
     the most generous denominator available, and exactly what N1 emits, so N1
     scores 0 by construction and the artefact cannot enter.
+
+    Restricted to one seed slot, as `slope_table` is. Without that the thinking
+    panel scores `hidden` and `mechanism` on 56 cases and every other condition
+    on 32, because the seed-replication subset only covers two of them -- and
+    the conditions are then not comparable, which is the entire point of the
+    table.
     """
+    if "seed_slot" in cell:
+        cell = cell[cell.seed_slot == seed_slot]
     averaged = (cell.groupby(["model", "case_id", "strategy", "condition",
                               "rho_W5_k2"], as_index=False)
                 .agg(rho_k2=("rho_k2", "mean")))
@@ -129,7 +179,8 @@ def skill_table(cell: pd.DataFrame) -> pd.DataFrame:
         mse_const = float(((true.mean() - true) ** 2).mean())
         mse_model = float(((pred - true) ** 2).mean())
         rows.append({
-            "model": model, "strategy": arm, "condition": condition,
+            "model": model, "role": ROLE.get(model, "exploratory"),
+            "strategy": arm, "condition": condition,
             "n": len(true), "mse_model": mse_model,
             "mse_best_constant": mse_const,
             "skill_score": float(1 - mse_model / mse_const)
@@ -138,13 +189,15 @@ def skill_table(cell: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values(["model", "strategy", "condition"])
 
 
-def interval_table(cell: pd.DataFrame) -> pd.DataFrame:
+def interval_table(cell: pd.DataFrame, seed_slot: int = 0) -> pd.DataFrame:
     """Stated interval width and its empirical coverage, per (h).
 
     The other operationalization of properness. Reported beside the realized
     dispersion, never merged with it: a model whose stated intervals widen with
     missing information while its answers do not is calibrated in rhetoric only.
     """
+    if "seed_slot" in cell:
+        cell = cell[cell.seed_slot == seed_slot]
     frame = cell.dropna(subset=["lo90", "hi90"]).copy()
     if frame.empty:
         return pd.DataFrame()
@@ -157,7 +210,8 @@ def interval_table(cell: pd.DataFrame) -> pd.DataFrame:
         if len(part) < 8:
             continue
         rows.append({
-            "model": model, "strategy": arm, "n": len(part),
+            "model": model, "role": ROLE.get(model, "exploratory"),
+            "strategy": arm, "n": len(part),
             "median_width": float(part.width.median()),
             "empirical_coverage": float(part.covers.mean()),
             "width_vs_log_coverage_slope": _fit(part.log_coverage,

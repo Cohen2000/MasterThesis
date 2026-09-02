@@ -84,6 +84,70 @@ def twins(paired: pd.DataFrame, seed_slot: int = 0) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def coverage_confound(paired: pd.DataFrame, seed_slot: int = 0) -> pd.DataFrame:
+    """Does a coverage rule of thumb explain the twin gap?
+
+    The twins differ in dyad coverage (0.138 against 0.076) at nearly identical
+    required correction, so "saw less, correct more" is a rival explanation
+    that would produce a gap without any reading of the mechanism.
+
+    It makes a directional prediction. `time_respecting` is the *lower*
+    coverage arm, so the heuristic corrects more there, which is a **negative**
+    model gap under this module's A - B convention. One number decides it: the
+    sign of the observed gap.
+    """
+    part = paired[paired.seed_slot == seed_slot] if "seed_slot" in paired else paired
+    rows = []
+    for model, sub in sorted(part.groupby("model")):
+        wide = sub[sub.strategy.isin((A, B))].pivot_table(
+            index="instance_id", columns="strategy",
+            values=["Delta_i", "coverage"])
+        wide = wide.dropna()
+        if wide.empty:
+            continue
+        gap = float((wide[("Delta_i", A)] - wide[("Delta_i", B)]).mean())
+        cov_gap = float((wide[("coverage", A)] - wide[("coverage", B)]).mean())
+        # The heuristic corrects more where coverage is lower, so it predicts
+        # a gap with the opposite sign to the coverage gap.
+        predicted = -np.sign(cov_gap)
+        rows.append({
+            "model": model, "instances": len(wide),
+            "coverage_A": float(wide[("coverage", A)].mean()),
+            "coverage_B": float(wide[("coverage", B)].mean()),
+            "coverage_gap_A_minus_B": cov_gap,
+            "model_gap_A_minus_B": gap,
+            "heuristic_predicts_sign": float(predicted),
+            "observed_sign": float(np.sign(gap)),
+            "consistent_with_heuristic": bool(np.sign(gap) == predicted),
+        })
+    return pd.DataFrame(rows)
+
+
+def coverage_association(paired: pd.DataFrame, seed_slot: int = 0
+                         ) -> pd.DataFrame:
+    """The same rival explanation across all five arms, as a supporting check.
+
+    Arm-level: mean model correction against mean coverage over the five arms.
+    Case-level: the within-arm correlation, pooled after centring each arm, so
+    the arm means cannot manufacture it.
+    """
+    part = paired[paired.seed_slot == seed_slot] if "seed_slot" in paired else paired
+    rows = []
+    for model, sub in sorted(part.groupby("model")):
+        arm = sub.groupby("strategy").agg(Delta_i=("Delta_i", "mean"),
+                                          coverage=("coverage", "mean"))
+        centred = sub.copy()
+        for col in ("Delta_i", "coverage"):
+            centred[col] = centred[col] - centred.groupby("strategy")[col].transform("mean")
+        rows.append({
+            "model": model, "arms": len(arm), "cases": len(sub),
+            "arm_level_corr": float(arm.Delta_i.corr(arm.coverage))
+            if len(arm) > 2 else np.nan,
+            "within_arm_corr": float(centred.Delta_i.corr(centred.coverage)),
+        })
+    return pd.DataFrame(rows)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -95,9 +159,20 @@ def main():
 
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    table = twins(pd.read_csv(args.paired))
+    paired = pd.read_csv(args.paired)
+    table = twins(paired)
     table.to_csv(out / "twin_arms.csv", index=False)
     print(table.round(4).to_string(index=False))
+
+    confound = coverage_confound(paired)
+    confound.to_csv(out / "twin_coverage_confound.csv", index=False)
+    print("\n== coverage rival explanation, directional test\n",
+          confound.round(4).to_string(index=False))
+
+    assoc = coverage_association(paired)
+    assoc.to_csv(out / "coverage_association.csv", index=False)
+    print("\n== correction against coverage, all five arms\n",
+          assoc.round(4).to_string(index=False))
 
 
 if __name__ == "__main__":
