@@ -42,7 +42,7 @@ REMOTE
             echo "keeper: resubmit qwen $tag gen$g ($have/$total complete)"
             timeout 90 ssh -o BatchMode=yes uc3 \
                 "WS=\$(ws_find llm_pilot); cd \$WS && GEN=$g SHARDS=$shards \
-                 SEQS=32 CHUNK=64 MAXTOK=$maxtok sbatch --array=0-$((shards-1)) \
+                 SEQS=32 CHUNK=8 MAXTOK=$maxtok sbatch --array=0-$((shards-1)) \
                  --time=12:00:00 --job-name=g3${short}_g${g} \
                  g3_vllm_${tag}.sbatch" >/dev/null 2>&1
         fi
@@ -64,7 +64,7 @@ step2_keeper() {
         nohup env PYTHONPATH=src .venv/bin/python -u \
             scripts/codex_screen/run_codex_screen.py \
             --arm notools --codex-bin "$CODEX_BIN" \
-            --prompts results/final_run_g2/prompts_codex.jsonl \
+            --prompts results/final_run_g2/prompts_codex_core.jsonl \
             --condition "" --input-kind "" --out "$out" \
             --max-total-tokens 200000000 --wait-for-reset --max-waits 128 \
             --max-attempts 3 \
@@ -82,7 +82,9 @@ WS=$(ws_find llm_pilot); cd "$WS" || exit 1
 for tag in think nothink; do
   [ "$tag" = think ] && total=976 || total=736
   for g in 0 1 2; do
-    have=$(cat llm_g3/answers_vllm_qwen36-27b_${tag}_g${g}.shard*.jsonl 2>/dev/null            | grep -c '"finish_reason":"stop"')
+    # Settled, not complete: a dozen prompts per generation never terminate at
+    # any budget, and gating on completeness would hold this cell shut forever.
+    have=$(python3 g3_settled.py "$tag" "$g" 2>/dev/null || echo 0)
     [ "$have" -lt "$total" ] && { echo "MAIN_INCOMPLETE"; exit 0; }
   done
 done

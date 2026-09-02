@@ -15,6 +15,9 @@ import glob
 import json
 import sys
 
+sys.path.insert(0, "llm_g3")
+from run_llm_v2 import is_complete_record  # noqa: E402
+
 MAX_ATTEMPTS = 3
 
 
@@ -33,7 +36,11 @@ def main():
                     continue
                 pid = record.get("prompt_id")
                 tries[pid] = tries.get(pid, 0) + 1
-                if record.get("finish_reason") == "stop":
+                # `finish_reason == "stop"` is not completeness: a stopped
+                # generation whose final JSON is unparseable or missing keys
+                # is still retryable, and counting it as done would stop the
+                # keeper while real work remains.
+                if is_complete_record(record):
                     done.add(pid)
     burned = {p for p, n in tries.items() if n >= MAX_ATTEMPTS}
     print(len(done | burned))
