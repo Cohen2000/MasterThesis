@@ -43,8 +43,16 @@ def _boot(values, groups, n=BOOTSTRAP, seed=SEED):
     return float(np.nanpercentile(draws, 2.5)), float(np.nanpercentile(draws, 97.5))
 
 
-def twins(paired: pd.DataFrame) -> pd.DataFrame:
-    """`paired` carries one row per (model, case) with delta_i and Delta_i."""
+def twins(paired: pd.DataFrame, seed_slot: int = 0) -> pd.DataFrame:
+    """`paired` carries one row per (model, case) with delta_i and Delta_i.
+
+    Restricted to one seed slot. The thinking prompt set contains the
+    seed-replication subset, so eight of the graphs appear at four slots and
+    the rest at one; pooling them would weight those eight four times as
+    heavily in a contrast that is supposed to be per instance.
+    """
+    if "seed_slot" in paired:
+        paired = paired[paired.seed_slot == seed_slot]
     rows = []
     for model, part in sorted(paired.groupby("model")):
         wide = part[part.strategy.isin((A, B))].pivot_table(
@@ -63,7 +71,7 @@ def twins(paired: pd.DataFrame) -> pd.DataFrame:
         ratio = (float(np.mean(model_gap) / np.mean(required_gap))
                  if abs(np.mean(required_gap)) > 1e-6 else np.nan)
         rows.append({
-            "model": model, "instances": len(wide),
+            "model": model, "seed_slot": seed_slot, "instances": len(wide),
             "graph_groups": len(np.unique(groups)),
             "model_gap_mean": float(np.mean(model_gap)),
             "model_gap_lo": lo, "model_gap_hi": hi,
