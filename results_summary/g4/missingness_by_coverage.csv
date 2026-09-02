@@ -1,0 +1,13 @@
+model,coverage_quartile,attempted,lost_structural,lost_invalid,lost,loss_rate
+codex-gpt-5.6-sol,q1_lowest,86,0,0,0,0.0
+codex-gpt-5.6-sol,q2,107,0,0,0,0.0
+codex-gpt-5.6-sol,q3,123,0,0,0,0.0
+codex-gpt-5.6-sol,q4_highest,106,0,0,0,0.0
+qwen36-27b_nothink,q1_lowest,564,14,0,14,0.024822695035460994
+qwen36-27b_nothink,q2,564,11,1,12,0.02127659574468085
+qwen36-27b_nothink,q3,563,7,0,7,0.012433392539964476
+qwen36-27b_nothink,q4_highest,529,0,0,0,0.0
+qwen36-27b_think,q1_lowest,744,3,0,3,0.004032258064516129
+qwen36-27b_think,q2,738,6,0,6,0.008130081300813009
+qwen36-27b_think,q3,696,22,0,22,0.031609195402298854
+qwen36-27b_think,q4_highest,750,1,0,1,0.0013333333333333333

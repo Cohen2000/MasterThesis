@@ -1164,6 +1164,7 @@ qwen36-27b_think,controlled__sp_hospital__bursty__contiguous__rho0.55__r0|time_r
 qwen36-27b_think,controlled__sp_hospital__bursty__contiguous__rho0.55__r0|time_respecting|ws3|b800,real::sp_hospital,time_respecting,mechanism,0.1685689201053555,3,0.032514446931468155,0.028166666666666652,0.06454444444444443
 qwen36-27b_think,controlled__sp_hypertext2009__bursty__contiguous__rho0.15__r0|event_sample_then_full_history|ss0|b9600,real::sp_hypertext2009,event_sample_then_full_history,hidden,0.0724043715846994,3,0.03053462515462296,0.026999999999999996,0.15123333333333333
 qwen36-27b_think,controlled__sp_hypertext2009__bursty__contiguous__rho0.15__r0|event_sample_then_full_history|ss0|b9600,real::sp_hypertext2009,event_sample_then_full_history,mechanism,0.0724043715846994,3,0.0005773502691896263,0.0005000000000000004,0.11666666666666668
+qwen36-27b_think,controlled__sp_hypertext2009__bursty__contiguous__rho0.15__r0|event_sample_then_full_history|ss0|b9600,real::sp_hypertext2009,event_sample_then_full_history,mechanism_direction,0.0724043715846994,3,0.0005773502691896263,0.0005000000000000004,0.11666666666666668
 qwen36-27b_think,controlled__sp_hypertext2009__bursty__contiguous__rho0.15__r0|event_sample_then_full_history|ss0|b9600,real::sp_hypertext2009,event_sample_then_full_history,mismatched,0.0724043715846994,3,0.0498077637857125,0.0476,0.20793333333333333
 qwen36-27b_think,controlled__sp_hypertext2009__bursty__contiguous__rho0.15__r0|node_panel_full_history|ss0|b2500,real::sp_hypertext2009,node_panel_full_history,direction_only,0.0837887067395264,3,0.0036143233576055867,0.0033500000000000058,0.09133333333333334
 qwen36-27b_think,controlled__sp_hypertext2009__bursty__contiguous__rho0.15__r0|node_panel_full_history|ss0|b2500,real::sp_hypertext2009,node_panel_full_history,hidden,0.0837887067395264,3,0.016835775400418397,0.016549999999999995,0.07456666666666667
@@ -1480,6 +1481,7 @@ qwen36-27b_think,real__snap_email_eu|event_sample_then_full_history|ss0|b9600,re
 qwen36-27b_think,real__snap_email_eu|event_sample_then_full_history|ss0|b9600,real::snap_email_eu,event_sample_then_full_history,mismatched,0.0026767928286852,3,0.010408329997330672,0.010000000000000009,0.9916666666666667
 qwen36-27b_think,real__snap_email_eu|node_panel_full_history|ss0|b2500,real::snap_email_eu,node_panel_full_history,direction_only,0.0166210159362549,3,6.798699777552591e-17,0.0,0.4568999999999999
 qwen36-27b_think,real__snap_email_eu|node_panel_full_history|ss0|b2500,real::snap_email_eu,node_panel_full_history,hidden,0.0166210159362549,3,0.16385203691135486,0.14195000000000002,0.2677
+qwen36-27b_think,real__snap_email_eu|node_panel_full_history|ss0|b2500,real::snap_email_eu,node_panel_full_history,mechanism,0.0166210159362549,3,0.1628735808329065,0.14154999999999995,0.3618666666666667
 qwen36-27b_think,real__snap_email_eu|node_panel_full_history|ss0|b2500,real::snap_email_eu,node_panel_full_history,mechanism_direction,0.0166210159362549,3,1.6743157806499868e-05,1.4500000000028379e-05,0.4569096666666666
 qwen36-27b_think,real__snap_email_eu|recent_history_k20|ws0|b800,real::snap_email_eu,recent_history_k20,direction_only,0.0328685258964143,3,0.4240908078859212,0.3824,0.3617333333333333
 qwen36-27b_think,real__snap_email_eu|recent_history_k20|ws0|b800,real::snap_email_eu,recent_history_k20,hidden,0.0328685258964143,3,0.02894083694366837,0.025063499999999996,0.051808999999999994
@@ -1496,6 +1498,9 @@ qwen36-27b_think,real__snap_email_eu|time_respecting|ws0|b800,real::snap_email_e
 qwen36-27b_think,real__snap_email_eu|time_respecting|ws0|b800,real::snap_email_eu,time_respecting,mechanism,0.0288844621513944,3,0.0,0.0,0.056
 qwen36-27b_think,real__snap_email_eu|time_respecting|ws0|b800,real::snap_email_eu,time_respecting,mechanism_direction,0.0288844621513944,3,0.5138813903356818,0.4687500000000001,0.4031666666666667
 qwen36-27b_think,real__snap_mathoverflow|event_sample_then_full_history|ss0|b9600,real::snap_mathoverflow,event_sample_then_full_history,direction_only,0.0083197684933984,3,0.08793368713600797,0.08199999999999999,0.17633333333333331
+qwen36-27b_think,real__snap_mathoverflow|event_sample_then_full_history|ss0|b9600,real::snap_mathoverflow,event_sample_then_full_history,hidden,0.0083197684933984,3,0.020412332873371762,0.017850000000000033,0.22956666666666667
+qwen36-27b_think,real__snap_mathoverflow|event_sample_then_full_history|ss0|b9600,real::snap_mathoverflow,event_sample_then_full_history,mechanism,0.0083197684933984,3,0.0012055427546683413,0.0011999999999999927,0.07286666666666668
+qwen36-27b_think,real__snap_mathoverflow|event_sample_then_full_history|ss0|b9600,real::snap_mathoverflow,event_sample_then_full_history,mismatched,0.0083197684933984,3,0.39757766536866734,0.36499999999999994,0.424
 qwen36-27b_think,real__snap_mathoverflow|node_panel_full_history|ss0|b2500,real::snap_mathoverflow,node_panel_full_history,direction_only,0.0070111604055621,3,0.0012418808316420702,0.0010760000000000006,0.051634000000000006
 qwen36-27b_think,real__snap_mathoverflow|node_panel_full_history|ss0|b2500,real::snap_mathoverflow,node_panel_full_history,hidden,0.0070111604055621,3,0.018749466659081265,0.01625,0.041550000000000004
 qwen36-27b_think,real__snap_mathoverflow|node_panel_full_history|ss0|b2500,real::snap_mathoverflow,node_panel_full_history,mechanism,0.0070111604055621,3,2.8867513459482116e-05,2.5000000000004186e-05,0.05236666666666667
@@ -1539,9 +1544,11 @@ qwen36-27b_think,real__sp_highschool2013|time_respecting|ws0|b800,real::sp_highs
 qwen36-27b_think,real__sp_highschool2013|time_respecting|ws0|b800,real::sp_highschool2013,time_respecting,mechanism_direction,0.0522516328635269,3,0.18248287590894657,0.16499999999999998,0.26999999999999996
 qwen36-27b_think,real__sp_hospital|event_sample_then_full_history|ss0|b9600,real::sp_hospital,event_sample_then_full_history,direction_only,0.0553116769095698,3,0.014730919862656249,0.013000000000000012,0.457
 qwen36-27b_think,real__sp_hospital|event_sample_then_full_history|ss0|b9600,real::sp_hospital,event_sample_then_full_history,hidden,0.0553116769095698,3,0.17009703113223346,0.15249999999999986,0.596
+qwen36-27b_think,real__sp_hospital|event_sample_then_full_history|ss0|b9600,real::sp_hospital,event_sample_then_full_history,mechanism,0.0553116769095698,3,0.0,0.0,0.443
 qwen36-27b_think,real__sp_hospital|event_sample_then_full_history|ss0|b9600,real::sp_hospital,event_sample_then_full_history,mechanism_direction,0.0553116769095698,3,0.0,0.0,0.443
 qwen36-27b_think,real__sp_hospital|event_sample_then_full_history|ss0|b9600,real::sp_hospital,event_sample_then_full_history,mismatched,0.0553116769095698,3,0.0,0.0,0.6825
 qwen36-27b_think,real__sp_hospital|node_panel_full_history|ss0|b2500,real::sp_hospital,node_panel_full_history,direction_only,0.0482879719051799,3,0.0,0.0,0.5273
+qwen36-27b_think,real__sp_hospital|node_panel_full_history|ss0|b2500,real::sp_hospital,node_panel_full_history,hidden,0.0482879719051799,3,0.17295653596592797,0.15415,0.4184333333333334
 qwen36-27b_think,real__sp_hospital|node_panel_full_history|ss0|b2500,real::sp_hospital,node_panel_full_history,mechanism,0.0482879719051799,3,0.00017320508075686865,0.00014999999999998348,0.5272
 qwen36-27b_think,real__sp_hospital|node_panel_full_history|ss0|b2500,real::sp_hospital,node_panel_full_history,mechanism_direction,0.0482879719051799,3,0.009902693236354104,0.008650000000000047,0.5214333333333333
 qwen36-27b_think,real__sp_hospital|recent_history_k20|ws0|b800,real::sp_hospital,recent_history_k20,direction_only,0.2370500438981563,3,0.07919741157386394,0.07684999999999997,0.2621
@@ -1559,10 +1566,15 @@ qwen36-27b_think,real__sp_hospital|time_respecting|ws0|b800,real::sp_hospital,ti
 qwen36-27b_think,real__sp_hospital|time_respecting|ws0|b800,real::sp_hospital,time_respecting,mechanism,0.1913959613696224,3,0.08640794716536976,0.0825,0.12266666666666666
 qwen36-27b_think,real__sp_hospital|time_respecting|ws0|b800,real::sp_hospital,time_respecting,mechanism_direction,0.1913959613696224,3,0.02886751345948128,0.024999999999999994,0.13333333333333333
 qwen36-27b_think,real__sp_hypertext2009|event_sample_then_full_history|ss0|b9600,real::sp_hypertext2009,event_sample_then_full_history,direction_only,0.0842440801457194,3,0.015099668870541512,0.015000000000000013,0.264
+qwen36-27b_think,real__sp_hypertext2009|event_sample_then_full_history|ss0|b9600,real::sp_hypertext2009,event_sample_then_full_history,mechanism_direction,0.0842440801457194,3,0.0011547005383792527,0.0010000000000000009,0.26133333333333336
+qwen36-27b_think,real__sp_hypertext2009|event_sample_then_full_history|ss2|b9600,real::sp_hypertext2009,event_sample_then_full_history,mechanism,0.0742258652094717,3,0.010440306508910526,0.009499999999999953,0.285
+qwen36-27b_think,real__sp_hypertext2009|node_panel_full_history|ss0|b2500,real::sp_hypertext2009,node_panel_full_history,direction_only,0.1193078324225865,3,0.011893415545306294,0.010300000000000031,0.4129333333333333
 qwen36-27b_think,real__sp_hypertext2009|node_panel_full_history|ss0|b2500,real::sp_hypertext2009,node_panel_full_history,hidden,0.1193078324225865,3,0.0,0.0,0.4198
+qwen36-27b_think,real__sp_hypertext2009|node_panel_full_history|ss0|b2500,real::sp_hypertext2009,node_panel_full_history,mechanism_direction,0.1193078324225865,3,0.0027712812921102193,0.0024000000000000132,0.41819999999999996
 qwen36-27b_think,real__sp_hypertext2009|node_panel_full_history|ss1|b2500,real::sp_hypertext2009,node_panel_full_history,hidden,0.0979052823315118,3,0.0,0.0,0.3349
 qwen36-27b_think,real__sp_hypertext2009|node_panel_full_history|ss2|b2500,real::sp_hypertext2009,node_panel_full_history,hidden,0.1470856102003643,3,0.0021126602503321015,0.0020999999999999908,0.18406666666666668
 qwen36-27b_think,real__sp_hypertext2009|node_panel_full_history|ss2|b2500,real::sp_hypertext2009,node_panel_full_history,mechanism,0.1470856102003643,3,0.0013228756555322965,0.0012500000000000011,0.1868
+qwen36-27b_think,real__sp_hypertext2009|node_panel_full_history|ss3|b2500,real::sp_hypertext2009,node_panel_full_history,hidden,0.1370673952641165,3,0.02055780468175853,0.01915,0.36346666666666666
 qwen36-27b_think,real__sp_hypertext2009|node_panel_full_history|ss3|b2500,real::sp_hypertext2009,node_panel_full_history,mechanism,0.1370673952641165,3,0.007522189397597846,0.007500000000000062,0.3642666666666667
 qwen36-27b_think,real__sp_hypertext2009|recent_history_k20|ws0|b800,real::sp_hypertext2009,recent_history_k20,direction_only,0.1325136612021858,3,0.0001732050807568847,0.00014999999999999736,0.0927
 qwen36-27b_think,real__sp_hypertext2009|recent_history_k20|ws0|b800,real::sp_hypertext2009,recent_history_k20,hidden,0.1325136612021858,3,0.0,0.0,0.0928

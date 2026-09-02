@@ -20,21 +20,61 @@ import pandas as pd
 REPO = Path(__file__).resolve().parents[1]
 BASE = REPO / "results/final_run_g2"
 
+_Q = str(BASE / "answers/qwen")
 
-def load_model(name: str, patterns: list[str], prompts: str,
-               cases: str) -> pd.DataFrame:
+# name -> one entry per generation, each a list of glob patterns. The grouping
+# is data, not a glob order, so that every analysis reading these answer files
+# agrees on what counts as an independent generation.
+MODEL_GROUPS: dict[str, list[list[str]]] = {
+    "qwen36-27b_think": [
+        [f"{_Q}/answers_vllm_qwen36-27b_think_g{g}.shard*.jsonl"]
+        for g in (0, 1, 2)],
+    "qwen36-27b_nothink": [
+        [f"{_Q}/answers_vllm_qwen36-27b_nothink_g{g}.shard*.jsonl"]
+        for g in (0, 1, 2)],
+    # Step 1 and Step 2 are two independent draws from the same model on the
+    # prompts they share, so they are two generations, not two shards.
+    "codex-gpt-5.6-sol": [[str(BASE / "answers/step1_codex_gen0.jsonl")],
+                          [str(BASE / "answers/step2_codex_gen0.jsonl")]],
+}
+
+
+def load_raw(name: str, groups: list[list[str]], prompts: str,
+             cases: str) -> pd.DataFrame:
+    """Every answer record, valid or not; one generation per entry in `groups`.
+
+    One generation per entry in `groups`; a group may span several shards.
+
+    `load_answers` numbers generations by file index, which is right when one
+    file is one generation and wrong for the sharded Qwen runs, where three
+    generations arrive as twelve files. Nothing downstream reads the label
+    today -- only the count of distinct generations per case -- but a wrong
+    label is a trap for the next analysis, so the grouping is stated here
+    rather than inferred from a glob order.
+    """
     from report_step1_signal import load_answers, merge
 
-    paths = []
-    for pattern in patterns:
-        hits = sorted(glob.glob(pattern))
-        if not hits:
-            raise SystemExit(f"no answer files match {pattern}")
-        paths.extend(hits)
-    frame = merge(load_answers(paths), prompts, cases)
-    frame = frame[frame.all_components_valid & ~frame.provider_refused]
+    frames = []
+    for generation, patterns in enumerate(groups):
+        paths = []
+        for pattern in patterns:
+            hits = sorted(glob.glob(pattern))
+            if not hits:
+                raise SystemExit(f"no answer files match {pattern}")
+            paths.extend(hits)
+        part = merge(load_answers(paths), prompts, cases)
+        part["generation"] = generation
+        frames.append(part)
+    frame = pd.concat(frames, ignore_index=True)
     frame["model"] = name
     return frame
+
+
+def load_model(name: str, groups: list[list[str]], prompts: str,
+               cases: str) -> pd.DataFrame:
+    """`load_raw` restricted to records the frozen validity rules admit."""
+    frame = load_raw(name, groups, prompts, cases)
+    return frame[frame.all_components_valid & ~frame.provider_refused]
 
 
 def main():
@@ -45,16 +85,8 @@ def main():
     ap.add_argument("--out-dir", default=str(REPO / "results_summary/g4"))
     args = ap.parse_args()
 
-    q = str(BASE / "answers/qwen")
-    models = {
-        "qwen36-27b_think": [f"{q}/answers_vllm_qwen36-27b_think_g*.shard*.jsonl"],
-        "qwen36-27b_nothink": [f"{q}/answers_vllm_qwen36-27b_nothink_g*.shard*.jsonl"],
-        "codex-gpt-5.6-sol": [str(BASE / "answers/step1_codex_gen0.jsonl"),
-                              str(BASE / "answers/step2_codex_gen0.jsonl")],
-    }
-
     frames = []
-    for name, patterns in models.items():
+    for name, patterns in MODEL_GROUPS.items():
         try:
             frames.append(load_model(name, patterns, args.prompts, args.cases))
             print(f"{name}: {len(frames[-1])} valid records")
