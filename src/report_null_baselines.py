@@ -1,28 +1,33 @@
 """Degenerate-reference check for the `Delta_i ~ delta_i` regression.
 
-A model that ignores the sample and answers with a constant is not neutral in
-this regression. Which value it produces depends entirely on how `Delta_i` is
-defined, and the suite defines it two ways:
+A model that stops reading the sample is not neutral in this regression, and
+there are two ways for it to stop, with different consequences.
 
-  position   Delta_i(condition) = rho2_model(condition) - rho2_naive_i
-             -- freeze section (a), the axis of the main figure
-  paired     Delta_i            = rho2_model(mechanism) - rho2_model(hidden)
-             -- freeze section (a), and the headline slope in step1_slopes.csv
+  N0  no movement.      P_hidden = P_mechanism, whatever that common value is
+                        -- the plug-in, a prior, anything.
+                        Delta_i = 0 identically, slope = 0.
 
-Under `position`, a constant predictor P_i = c gives Delta_i = c - naive_i, so
+  N1  prior fallback.   P_hidden = naive_i, P_mechanism = c.
+                        Delta_i = c - naive_i = (c - true_i) + delta_i
+                        slope = 1 + Cov(delta, c - true) / Var(delta)
+                              = 1 - Cov(true, delta) / Var(delta)
 
-    slope = [Var(naive) - Cov(naive, true)] / Var(delta)
-          = 1 + Cov(naive - true, true) / Var(delta)
+N1 is the one that matters, and it is not a straw man. It is the strategy "the
+text tells me this sample is biased, so I distrust it and answer something
+generic" -- exactly what a model trained to treat bias warnings as a cue to back
+off would do. It is also the empirically live option: the measured correlation
+between the `hidden` prediction and the plug-in is 0.81 to 1.00 across every arm
+and model, so the hidden leg is pinned to the plug-in rather than free.
 
-which is near 1 whenever the naive bias is roughly uncorrelated with the truth.
-Under `paired` the same constant gives Delta_i = c - c = 0 identically, and the
-slope is exactly zero with nothing left to explain.
+N1's slope is not zero **under the paired contrast either**. `naive_i` appears
+inside both `delta_i` and `Delta_i`, so the two share a term and the regression
+inherits it. Only N0, where both legs move together, collapses to zero.
 
-So the artefact is real, but it is a property of one of the two definitions.
-This module computes the reference for both, so no reported slope has to be
-read against an assumed zero.
+The constant `c` cancels in N1: it is absorbed into the intercept. So the
+reference does not depend on which constant a model emits, and a
+pooled-mean and an arm-mean constant give the same slope by construction.
 
-Everything here except the two model-dependent tables is analytic: it needs the
+Everything here except the model-dependent tables is analytic: it needs the
 ground truth and the plug-in estimate, no model output at all.
 """
 from __future__ import annotations
@@ -90,87 +95,98 @@ def variance_table(cases: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def null_baselines(cases: pd.DataFrame, n_perm: int = 1000) -> pd.DataFrame:
-    """The three falsification baselines, under both Delta definitions.
+def null_baselines(cases: pd.DataFrame) -> pd.DataFrame:
+    """N0 and N1 per scope, analytically and numerically.
 
-    Two properties of this panel make the constant baselines simpler than they
-    look, and both are worth stating rather than discovering later.
-
-    The slope of `c - naive_i` on `delta_i` does not depend on `c` at all: the
-    constant is absorbed into the intercept. So `constant_pooled` and
-    `constant_arm` cannot differ in slope by construction, and the degenerate
-    reference is robust to *which* constant a model happens to emit -- which
-    makes the artefact stronger, not weaker.
-
-    They also cannot differ in intercept here, because the truth is a property
-    of the instance and every arm sees the same 32 instances; the pooled mean
-    of `rho_W5_k2` and its per-arm mean are the same number. Both rows are kept
-    anyway, so the table shows this rather than asserting it.
-
-    The permutation baseline needs a response to permute against. Analytically
-    the strongest available response is the perfect corrector, whose `position`
-    shift is exactly `delta_i`; permuting `delta_i` within arm destroys the
-    within-case pairing while leaving each arm's marginal distribution intact.
-    What survives is the between-arm component, and on a pooled fit that is
-    not zero -- which is the real reference for the pooled slope.
-
-    The `paired` definition has no analytic permutation counterpart: the
-    mechanism-minus-hidden contrast is not determined by the ground truth, so
-    that row belongs with the model-dependent tables and is not invented here.
+    Reported for the paired contrast, which is what the headline slope uses.
+    N1 applies there too -- see the module docstring -- and the two columns
+    exist so that no slope is ever read against an assumed zero.
     """
-    rng = np.random.default_rng(SEED)
     rows = []
     for scope, part in [("pooled", cases)] + sorted(cases.groupby("strategy")):
         true = part.rho_W5_k2.to_numpy(float)
         naive = part.est__plugin_rho_k2.to_numpy(float)
         delta = true - naive
-        arm = part.strategy.to_numpy()
+        # The constant cancels out of the slope; the pooled mean of the truth
+        # is used so the intercept is reported at a meaningful value.
+        const = float(cases.rho_W5_k2.mean())
 
-        for name, const in (("constant_pooled", cases.rho_W5_k2.mean()),
-                            ("constant_arm", part.rho_W5_k2.mean())):
-            rows.append({"scope": scope, "baseline": name,
-                         "definition": "position", "constant": float(const),
-                         **_fit(delta, const - naive)})
-            # Both conditions return the same constant, so the contrast is
-            # identically zero whatever the case looks like.
-            rows.append({"scope": scope, "baseline": name,
-                         "definition": "paired", "constant": float(const),
-                         **_fit(delta, np.zeros_like(delta)),
-                         })
+        rows.append({"scope": scope, "null": "N0_no_movement",
+                     "constant": np.nan,
+                     **_fit(delta, np.zeros_like(delta)),
+                     "slope_analytic": 0.0})
 
-        # The degenerate model this panel actually contains. Under `hidden`
-        # the measured correlation between prediction and plug-in is 0.95 to
-        # 1.00 in every arm and model, so the empirically relevant "ignores
-        # the mechanism" predictor is not a constant -- it is the plug-in
-        # itself. Its position shift is identically zero, and so is its slope.
-        rows.append({"scope": scope, "baseline": "plugin_reproducer",
-                     "definition": "position", "constant": np.nan,
-                     **_fit(delta, naive - naive)})
+        analytic = 1.0 - (np.cov(true, delta, ddof=1)[0, 1]
+                          / np.var(delta, ddof=1))
+        rows.append({"scope": scope, "null": "N1_prior_fallback",
+                     "constant": const,
+                     **_fit(delta, const - naive),
+                     "slope_analytic": float(analytic)})
 
-        # Reference at the other end: a model that corrects perfectly.
-        rows.append({"scope": scope, "baseline": "perfect_corrector",
-                     "definition": "position", "constant": np.nan,
-                     **_fit(delta, delta)})
-
-        slopes = []
-        for _ in range(n_perm):
-            shuffled = np.empty_like(delta)
-            for a in np.unique(arm):
-                idx = np.flatnonzero(arm == a)
-                shuffled[idx] = rng.permutation(delta[idx])
-            slopes.append(_fit(shuffled, delta)["slope"])
-        slopes = np.asarray(slopes, float)
-        rows.append({
-            "scope": scope,
-            "baseline": "permutation_within_arm_perfect_corrector",
-            "definition": "position", "constant": np.nan,
-            "slope": float(np.nanmean(slopes)),
-            "intercept": np.nan, "r2": np.nan, "rmse": np.nan,
-            "n": len(part),
-            "perm_lo": float(np.nanpercentile(slopes, 2.5)),
-            "perm_hi": float(np.nanpercentile(slopes, 97.5)),
-        })
+        rows.append({"scope": scope, "null": "perfect_corrector",
+                     "constant": np.nan,
+                     **_fit(delta, delta),
+                     "slope_analytic": 1.0})
     return pd.DataFrame(rows)
+
+
+def permutation_null(frame: pd.DataFrame, x: str, y: str, stratum: str,
+                     draws: int = 4000, seed: int = SEED) -> pd.DataFrame:
+    """Permutation reference for a pooled slope. Schema fixed, not implied.
+
+    Permuted:   the predictor `x` (`delta_i`), never the response.
+    Strata:     `stratum` (the arm). Permuting within arm destroys the
+                within-case pairing and leaves each arm's marginal
+                distribution and its mean exactly where they were.
+    Response:   the *observed* `y`. A synthetic response -- the perfect
+                corrector, say -- answers a different question and must not be
+                substituted; an earlier version of this module did exactly
+                that on a different panel and reported 0.559 for what is
+                0.519 here.
+    Draws:      `draws`, seeded.
+    Reported:   the mean, with the standard deviation and the 2.5/97.5
+                percentiles of the null distribution. The mean is the
+                reference line; the band is what "near it" means.
+
+    Why it is not zero: what survives permutation is the between-stratum
+    structure, and the closed form is
+
+        slope_between x Var_between / (Var_between + Var_within)
+
+    which is reported alongside so a reader need not rerun the resampling.
+    """
+    rng = np.random.default_rng(seed)
+    xv = frame[x].to_numpy(float)
+    yv = frame[y].to_numpy(float)
+    groups = frame[stratum].to_numpy()
+    idx = [np.flatnonzero(groups == g) for g in np.unique(groups)]
+
+    slopes = np.empty(draws)
+    for d in range(draws):
+        shuffled = np.empty_like(xv)
+        for i in idx:
+            shuffled[i] = rng.permutation(xv[i])
+        slopes[d] = _fit(shuffled, yv)["slope"]
+
+    means = frame.groupby(stratum)[[x, y]].mean()
+    centred = xv - frame.groupby(stratum)[x].transform("mean").to_numpy(float)
+    var_between = float(np.var(xv - centred, ddof=0))
+    var_within = float(np.var(centred, ddof=0))
+    slope_between = _fit(means[x], means[y])["slope"]
+
+    return pd.DataFrame([{
+        "permuted": x, "response": y, "stratum": stratum,
+        "draws": draws, "seed": seed,
+        "mean": float(slopes.mean()),
+        "sd": float(slopes.std(ddof=1)),
+        "lo2.5": float(np.percentile(slopes, 2.5)),
+        "hi97.5": float(np.percentile(slopes, 97.5)),
+        "slope_between": slope_between,
+        "var_between_share": var_between / (var_between + var_within),
+        "analytic": slope_between * var_between / (var_between + var_within),
+        "n": len(frame),
+        "strata": int(len(idx)),
+    }])
 
 
 def between_within_arm(frame: pd.DataFrame, x: str, y: str) -> pd.DataFrame:
@@ -260,7 +276,7 @@ def main():
     ap.add_argument("--cases", default=str(REPO / "results/final_run_g2/final_cases.csv.gz"))
     ap.add_argument("--seed-slot", type=int, default=0)
     ap.add_argument("--out-dir", default=str(REPO / "results_summary/g3"))
-    ap.add_argument("--permutations", type=int, default=1000)
+    ap.add_argument("--permutations", type=int, default=4000)
     ap.add_argument("--paired-cases", default=None,
                     help="a paired-cases CSV (case_id, strategy, delta_i, "
                          "Delta_i); adds the observed decomposition, which "
@@ -279,13 +295,20 @@ def main():
     var.to_csv(out / "null_variance_decomposition.csv", index=False)
     print(var.to_string(index=False))
 
-    nulls = null_baselines(cases, args.permutations)
+    nulls = null_baselines(cases)
     nulls.to_csv(out / "null_baseline_slopes.csv", index=False)
     print()
     print(nulls.to_string(index=False))
 
     if args.paired_cases:
         observed = pd.read_csv(args.paired_cases)
+        perm = permutation_null(observed, "delta_i", "Delta_i", "strategy",
+                                draws=args.permutations)
+        perm.insert(0, "source", Path(args.paired_cases).name)
+        perm.to_csv(out / "null_permutation.csv", index=False)
+        print()
+        print(perm.to_string(index=False))
+
         parts = between_within_arm(observed, "delta_i", "Delta_i")
         parts.insert(0, "source", Path(args.paired_cases).name)
         parts.to_csv(out / "null_between_within_arm.csv", index=False)

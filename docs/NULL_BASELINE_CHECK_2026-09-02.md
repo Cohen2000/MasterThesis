@@ -29,42 +29,54 @@ Replacing the proxy with the real column, `est__plugin_rho_k2`, moves the nulls
 by almost nothing — 0.883 pooled, 0.210 and 1.588 within arm. The proxy was not
 the problem.
 
-## Where it goes wrong
+## Where the first reading of this check went wrong
 
-The two numbers being compared come from two different regressions.
+The check originally concluded that because the headline slope uses the paired
+contrast `Delta_i = rho2_model(mechanism) - rho2_model(hidden)`, a
+sample-ignoring model gives `c - c = 0` and the artefact does not reach it.
 
-The observed 0.826 is the **paired** contrast, `Delta_i = rho2_model(mechanism)
-- rho2_model(hidden)`. This is verifiable in the file itself: across all 64
-Step 1 cases, `|Delta_i - (mechanism - hidden)|` has a maximum of 1.4e-16.
+That is true of only one of the two ways to ignore the sample, and not the one
+this data supports. It assumes the model is constant in **both** legs. The
+measured correlation between the `hidden` prediction and the plug-in is 0.81 to
+1.00 across every arm and model, so the hidden leg is pinned to the plug-in, not
+free. A model that backs off only under `mechanism` therefore produces
 
-The null 0.872 is the **position** definition, `Delta_i = c - rho2_naive_i`.
+    Delta_i = c - naive_i = (c - true_i) + delta_i
 
-Under the definition the headline slope actually uses, a constant predictor
-returns the same value in both conditions, so `Delta_i = c - c = 0` for every
-case. The constant-output null for the reported 0.826 is **exactly zero**, not
-0.872. The summary CSV contains `hidden`, `mechanism` and `delta_i` but neither
-the truth nor the plug-in, so this could not have been checked from it.
+whose slope is `1 - Cov(true, delta)/Var(delta)`, not zero, because `naive_i`
+sits inside both the predictor and the response. Freeze (i) now carries both
+nulls under the names N0 (no movement, slope 0) and N1 (prior fallback), and
+reports N1 for the paired contrast as well as the position axis.
 
-## Where it is right, and matters
+The review's calculation was N1. It was labelled here as the position axis,
+which was wrong; the two are algebraically the same expression, so the numbers
+were right and the label was not.
 
-Freeze section (a) also defines a position axis, `rho2_model(condition) -
-rho2_naive_i`, and makes it the axis of the main figure. There the artefact is
-real, large, and sign-varying across arms: +1.59, +1.13, +0.21, -0.11, -0.21.
-A figure on that axis without its null would be misleading. That is what
-amendment (i) fixes.
+## What separates N1 from the observed result
 
-## The empirical correction that changes the reading
+Not the slope: +0.826 observed against +0.883 for N1 on the Step 1 slice. The
+discriminators are the fit and the skill score.
 
-The artefact requires a model that does not read the sample. Measured
-correlation between the `hidden` prediction and the naive plug-in, across arms:
-0.960–0.988 for Qwen thinking, 0.812–0.995 for Qwen non-thinking, 0.953–1.000
-for Codex — which reaches exactly 1.000 on two arms with matching standard
-deviations to six digits.
+| | slope | R^2 | RMSE | skill score |
+|---|---|---|---|---|
+| observed | +0.826 | 0.797 | 0.117 | **+0.721** |
+| N1 | +0.883 | 0.543 | 0.228 | **0.000** |
 
-These models are not emitting a prior under `hidden`. They are computing the
-plug-in. The plug-in reproducer's slope is 0 on both definitions, so the
-degenerate reference that actually applies to this data is zero, and the
-constant-output slope is a worst-case bound rather than the expected null.
+N1 scores exactly zero by construction: its prediction is the best constant, so
+it is the denominator of the skill score. The observed +0.721 is out of reach
+for any model that has stopped reading the sample. N1 is rejected, on the
+statistic built to reject it rather than on the slope.
+
+## Permutation reference
+
+Reproduced under the schema now fixed in (i) -- predictor permuted within arm,
+observed response, 4,000 draws, seed 20260901: mean **+0.519**, sd 0.051, 95%
+band [0.420, 0.619]. Closed form `slope_between x Var_between/(Var_between +
+Var_within)` = 0.836 x 0.6218 = **+0.520**.
+
+An earlier figure of 0.559 from this module is withdrawn: it was computed on the
+five-arm panel with a synthetic perfect-corrector response, which answers a
+different question than a reference line for an observed slope.
 
 ## Reproducing
 

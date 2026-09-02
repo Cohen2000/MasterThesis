@@ -1,0 +1,2 @@
+source,permuted,response,stratum,draws,seed,mean,sd,lo2.5,hi97.5,slope_between,var_between_share,analytic,n,strata
+step1_paired_cases.csv,delta_i,Delta_i,strategy,4000,20260901,0.5190299703066141,0.051198610034123244,0.41984783013598215,0.619461683236214,0.8359693536846453,0.6217705656119313,0.5197811378747426,64,2
