@@ -1,5 +1,11 @@
 # Crawl-regime extension: is a walk the best local observer?
 
+> **Framing note, 2026-09-02.** This document records an earlier screen and
+> its findings stand as measured. It argues about arms partly in terms of
+> realism; the design rationale that supersedes that framing is
+> `docs/SAMPLING_RATIONALE.md`, which defends the arms by channel coverage
+> instead. Numbers here were not changed.
+
 Added 2026-08-25.  Exploratory, like the non-walk screen it extends; it does
 not touch the frozen panel, its truth values, or any frozen LLM artifact.
 
@@ -84,15 +90,23 @@ carried by the idealized arm.**  The time-agnostic walk (0.0571) is the only
 design that clearly leads.  Behind it, BFS crawl k=20 (0.0669), the
 recency-biased walk (0.0676), forest fire k=20 (0.0682) and the recent-history
 walk (0.0687) sit inside a range of 0.002 on twelve groups, which this design
-cannot resolve.  Stated carefully: *a realistic biased walk and a good crawl
+cannot resolve.  Stated carefully: *a forward-biased walk and a good crawl
 are indistinguishable here once a learned model reads the features*; what the
 walk keeps is the analytical route in reading 1.
 
 The time-agnostic walk earns its lead by ignoring the arrow of time -- it may
 traverse an edge at any of its event times, so its sample is spread over the
 horizon rather than pulled towards one end.  That is an access assumption, not
-a free improvement, and it is the least realistic of the five walk arms.  A
-comparison that quotes only this arm overstates how much the walk design buys.
+a free improvement.  A comparison that quotes only this arm overstates how much
+the walk design buys.
+
+*(Note added 2026-09-02: this passage called the time-agnostic walk "the least
+realistic of the five walk arms", as a demerit.  Under the design rationale in
+`docs/SAMPLING_RATIONALE.md` that is no longer a criticism but the arm's
+purpose -- it is included because its observation model is exactly specifiable,
+which is what makes it the panel's clean censoring instrument, and it is not
+offered as a collection method anyone would use.  The measurement above is
+unchanged; only what it counts against is.)*
 
 **3. Frontier geometry moves the crawl arms less than depth does.**  At `k=20`,
 BFS beats ego retrieval (0.0669 against 0.0717) and forest fire lands between

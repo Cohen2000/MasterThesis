@@ -6,7 +6,7 @@ predictions get joined against on `case_id` -- it must exist BEFORE any LLM
 call is made, and must not be re-tuned afterwards.
 
 Design (matches HANDOFF.md sections 4.7 and 7):
-  - walks: time_agnostic_t (clean control) and time_respecting (the realistic
+  - walks: time_agnostic_t (clean control) and time_respecting (the opposed-channel
     forward-biased crawl). recency_biased is left out here to keep the case
     pool focused; add it back with --walks if needed.
   - budgets: 400 / 1600 / 3200, which is what naturally spreads coverage

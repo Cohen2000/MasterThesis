@@ -3,7 +3,7 @@
 
 Selection design (supervisor-aligned):
 * three access models: clean historical reference, biased causal forward walk,
-  realistic recent-history retrieval;
+  recent-history retrieval;
 * fixed block shares with the real block first (real 8, real_controlled 7,
   DAR 6, synthetic twins 4, renewal 3 per strategy), every present real source
   guaranteed at least once per strategy;

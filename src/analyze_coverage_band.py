@@ -33,7 +33,7 @@ warnings.filterwarnings("ignore")
 WALKS = [("time_agnostic", "negative control (no timestamps)"),
          ("time_agnostic_t", "unbiased observation (clean reference)"),
          ("recency_biased", "recency-weighted (intermediate bias)"),
-         ("time_respecting", "forward-time (the realistic biased crawl)")]
+         ("time_respecting", "forward-time (the opposed-channel twin)")]
 
 
 def _mae(a, b):
