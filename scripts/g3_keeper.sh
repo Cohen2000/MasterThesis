@@ -29,7 +29,13 @@ for tag in think nothink; do
   [ "$tag" = think ] && { total=976; shards=4; maxtok=98304; short=th; }                      || { total=736; shards=2; maxtok=24576; short=nt; }
   for g in 0 1 2; do
     have=$(python3 g3_settled.py "$tag" "$g" 2>/dev/null || echo 0)
-    running=$(squeue -u "$USER" -h -o "%j" | grep -c "^g3${short}.*_g${g}$")
+    # Deliberately matched on the generation alone, not on the tag. A job
+    # submitted by hand under some other name -- a mop-up array, say -- would
+    # otherwise look like an idle generation and be resubmitted on top of
+    # itself, which is the expensive mistake here. Holding a resubmit for one
+    # cycle because the other tag happens to occupy the same generation costs
+    # 15 minutes; duplicating a shard costs GPU-hours.
+    running=$(squeue -u "$USER" -h -o "%j" | grep -cE "_g${g}$")
     echo "$tag $g $have $total $running $shards $maxtok $short"
   done
 done
