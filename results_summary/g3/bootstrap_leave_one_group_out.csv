@@ -1,0 +1,13 @@
+source,dropped,n_left,slope
+step1_paired_cases.csv,activity::n1500::f0,60,0.8020674732669169
+step1_paired_cases.csv,activity::n500::f0,60,0.8087615909195395
+step1_paired_cases.csv,dar::dcsbm::n1500::f0,60,0.8092533926481578
+step1_paired_cases.csv,real::snap_collegemsg,58,0.8113152635427519
+step1_paired_cases.csv,real::snap_bitcoin_otc,58,0.8138590041947535
+step1_paired_cases.csv,real::sp_hypertext2009,58,0.8206752116077581
+step1_paired_cases.csv,real::snap_mathoverflow,58,0.8264892723123035
+step1_paired_cases.csv,dar::dcsbm::n500::f0,60,0.8305143897107485
+step1_paired_cases.csv,real::sp_primaryschool,58,0.8374019389047812
+step1_paired_cases.csv,real::sp_hospital,58,0.8389858778088436
+step1_paired_cases.csv,real::snap_email_eu,58,0.8584237969796649
+step1_paired_cases.csv,real::sp_highschool2013,58,0.8633326540116938
