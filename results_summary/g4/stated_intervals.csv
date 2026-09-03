@@ -18,8 +18,8 @@ codex-gpt-5.6-sol,exploratory,time_agnostic_t,mechanism,39,0.23500000000000004,0
 codex-gpt-5.6-sol,exploratory,time_agnostic_t,mechanism_direction,18,0.20630000000000004,0.7777777777777778,-0.20281906005761385,0.0
 codex-gpt-5.6-sol,exploratory,time_agnostic_t,mismatched,17,0.010296,0.058823529411764705,-0.22613809208095723,0.0
 codex-gpt-5.6-sol,exploratory,time_respecting,direction_only,18,0.40249999999999997,0.5555555555555556,-0.03409744842966656,0.0
-codex-gpt-5.6-sol,exploratory,time_respecting,hidden,18,1.0,0.7222222222222222,-0.34429411510271024,0.0
-codex-gpt-5.6-sol,exploratory,time_respecting,mechanism,17,1.0,0.5294117647058824,-0.38778352173655317,0.0
+codex-gpt-5.6-sol,exploratory,time_respecting,hidden,32,1.0,0.84375,-0.21353599351342034,0.0
+codex-gpt-5.6-sol,exploratory,time_respecting,mechanism,32,1.0,0.625,-0.16945453650340764,0.0
 codex-gpt-5.6-sol,exploratory,time_respecting,mechanism_direction,17,0.21999999999999997,0.4117647058823529,0.07394269206864232,0.0
 qwen36-27b_nothink,confirmatory,event_sample_then_full_history,direction_only,87,0.12,0.5172413793103449,-0.08119911230626968,0.0
 qwen36-27b_nothink,confirmatory,event_sample_then_full_history,hidden,93,0.062000000000000055,0.3010752688172043,-0.07442102208727207,0.0

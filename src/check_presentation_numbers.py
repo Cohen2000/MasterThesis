@@ -115,6 +115,16 @@ CLAIMS = [
      {"model": "qwen36-27b_think", "arm": "time_agnostic_t"},
      "follows_evidence_rate"),
 
+    ("metadata_only codex", -0.450, "skill_scores.csv",
+     {"model": "codex-gpt-5.6-sol", "strategy": "time_agnostic_t",
+      "condition": "metadata_only"}, "skill_score"),
+    ("metadata_only think", -1.819, "skill_scores.csv",
+     {"model": "qwen36-27b_think", "strategy": "time_agnostic_t",
+      "condition": "metadata_only"}, "skill_score"),
+    ("mismatched think ta", -1.467, "skill_scores.csv",
+     {"model": "qwen36-27b_think", "strategy": "time_agnostic_t",
+      "condition": "mismatched"}, "skill_score"),
+
     ("profile slope think k3", 0.641, "profile_component_slopes.csv",
      {"model": "qwen36-27b_think", "scope": "clean_arms", "k": 3}, "slope"),
     ("profile slope think k5", 0.421, "profile_component_slopes.csv",

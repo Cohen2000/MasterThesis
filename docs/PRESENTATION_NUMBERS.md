@@ -113,8 +113,26 @@ was measured on:
 > than nothing. Where the bias is one modest selection term, naming the
 > direction is enough and the description adds nothing.
 
-Codex `metadata_only` (n=7) and `mismatched` (n=7) are too small for a slide
-claim; quote them only as "not estimated at this n" if asked.
+**The two anchor conditions, now measurable.** `metadata_only` carries no
+sample at all — freeze (i)(4) makes it the empirical N1 — and `mismatched`
+gives a deliberately wrong description of the right sample. Both sat at n=7 for
+Codex and could carry nothing; the hold-A completion took them to n=17.
+
+| condition / arm | think | nothink | Codex |
+|---|---|---|---|
+| `metadata_only`, `time_agnostic_t` | −1.819 | −2.242 | −0.450 |
+| `mismatched`, `time_agnostic_t` | −1.467 | −1.466 | −1.811 |
+| `mismatched`, `event_sample` | −1.846 | −0.944 | −2.751 |
+
+No model beats the best constant without a sample, and every model is hurt by a
+wrong description far more than by no description at all — `hidden` scores
+−1.216 where `mismatched` scores −1.467 to −2.751.
+
+*Correction, 2026-09-03: at n=7 Codex `metadata_only` read +0.177, which would
+have supported "the strongest reader's bare prior already beats the best
+constant". At n=17 it is −0.450. That reading was an artefact of seven cases
+and is withdrawn; running the completion removed a claim rather than adding
+one.*
 
 ## 3b. It is a `rho_2` result, not a profile result
 
