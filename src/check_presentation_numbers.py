@@ -97,11 +97,11 @@ CLAIMS = [
      {"model": "qwen36-27b_think"}, "model_gap_mean"),
     ("twin gap nothink", 0.221, "twin_arms.csv",
      {"model": "qwen36-27b_nothink"}, "model_gap_mean"),
-    ("twin gap codex", 0.159, "twin_arms.csv",
+    ("twin gap codex", 0.163, "twin_arms.csv",
      {"model": "codex-gpt-5.6-sol"}, "model_gap_mean"),
     ("twin required qwen", -0.021, "twin_arms.csv",
      {"model": "qwen36-27b_think"}, "required_gap_mean"),
-    ("twin required codex", -0.053, "twin_arms.csv",
+    ("twin required codex", -0.021, "twin_arms.csv",
      {"model": "codex-gpt-5.6-sol"}, "required_gap_mean"),
 
     ("wrongdir gap nothink", 0.309, "wrong_direction_contrast.csv",

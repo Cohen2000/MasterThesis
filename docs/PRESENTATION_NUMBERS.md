@@ -206,13 +206,18 @@ conditions and is withdrawn.
 `time_respecting`: nearly the same required correction from very different
 channel compositions.
 
+All three models on the **same 32 instances and 12 graph groups**, against the
+same required gap — the Codex row was on 17 instances until the hold-B
+completion, so this is the first like-for-like version of the table.
+
 | model | n instances | model gap | 95% CI | required gap |
 |---|---|---|---|---|
 | `qwen36-27b_think` | 32 | **+0.207** | [0.125, 0.286] | −0.021 |
 | `qwen36-27b_nothink` | 32 | +0.221 | [0.170, 0.277] | −0.021 |
-| `codex-gpt-5.6-sol` | 17 | +0.159 | [0.070, 0.257] | −0.053 |
+| `codex-gpt-5.6-sol` | 32 | +0.163 | [0.073, 0.239] | −0.021 |
 
-The models shift by 0.21 between two arms whose correct answers differ by 0.02 (Qwen) or 0.05 (Codex, 17 instances).
+The models shift by 0.16 to 0.22 between two arms whose correct answers differ
+by 0.02. Zero is outside every model's interval, and so is the required gap.
 The required gap is outside the model CI for every model.
 
 **The coverage objection, answered** (`twin_coverage_confound.csv`): the twins
