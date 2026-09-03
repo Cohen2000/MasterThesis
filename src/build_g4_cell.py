@@ -34,8 +34,15 @@ MODEL_GROUPS: dict[str, list[list[str]]] = {
         for g in (0, 1, 2)],
     # Step 1 and Step 2 are two independent draws from the same model on the
     # prompts they share, so they are two generations, not two shards.
+    #
+    # The hold-A completion runs the same protocol on prompts neither step
+    # reached -- `mismatched` and `metadata_only`, which sat at n=7 and could
+    # carry no claim. Its prompt ids are disjoint from Step 2's, so it belongs
+    # in Step 2's generation rather than inventing a third draw that exists for
+    # 30 prompts and nothing else.
     "codex-gpt-5.6-sol": [[str(BASE / "answers/step1_codex_gen0.jsonl")],
-                          [str(BASE / "answers/step2_codex_gen0.jsonl")]],
+                          [str(BASE / "answers/step2_codex_gen0.jsonl"),
+                           str(BASE / "answers/step2_codex_holdA.jsonl")]],
 }
 
 
