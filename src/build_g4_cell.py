@@ -40,13 +40,17 @@ MODEL_GROUPS: dict[str, list[list[str]]] = {
     # carry no claim. B: the `time_respecting` leg of the twin contrast on the
     # 15 instances that had the other twin and not this one, which took the
     # Codex twin from 17 matched instances to 32 -- the same n as Qwen, so the
-    # three-model agreement is finally like for like. Their prompt ids are
+    # three-model agreement is finally like for like. C: `direction_only` on
+    # the two clean arms, which sat at 18 instances against `mechanism`'s 32,
+    # so the arm reversal -- the finding the external review forced into the
+    # headline -- was being read off unequal case sets. Their prompt ids are
     # disjoint from Step 2's, so they belong in Step 2's generation rather than
     # inventing further draws that exist for thirty prompts and nothing else.
     "codex-gpt-5.6-sol": [[str(BASE / "answers/step1_codex_gen0.jsonl")],
                           [str(BASE / "answers/step2_codex_gen0.jsonl"),
                            str(BASE / "answers/step2_codex_holdA.jsonl"),
-                           str(BASE / "answers/step2_codex_holdB.jsonl")]],
+                           str(BASE / "answers/step2_codex_holdB.jsonl"),
+                           str(BASE / "answers/step2_codex_holdC.jsonl")]],
 }
 
 
