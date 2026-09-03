@@ -102,14 +102,38 @@ probability approaches 1 the true weight stops being proportional to `1/n` and
 the most active pairs are under-corrected. Without `f` that residual cannot be
 removed.
 
+**Measured 2026-09-03, and the limit binds harder than this section implied.**
+Across the 32 primary cases the realized sampling fraction has median 0.270 and
+mean 0.295, reaches 1.0 in four cases, and `max(n) * f > 1` holds in **29 of
+32**. The small-`f` regime is therefore the exception on this panel, not the
+rule. The heading "feasible, and demonstrated" stands for the demonstration —
+94% of the bias is removed — but "no external parameter is required" was the
+wrong sentence: the parameter is not required only because it is being
+approximated away, and the approximation is out of its regime in most cases.
+Read the Hájek row as a strong empirical reference, never as an identified
+prompt-only estimator.
+
 ### `time_agnostic_t` — already solved, and its name should say so
 
 Its mechanism text states the observation model verbatim: one timestamp per
 traversal, drawn uniformly from the pair's complete history, independently and
-with replacement, `n` = number of traversals. That is exactly the occupancy
-model `src/corrected_estimator.py` inverts. The label-free occupancy MLE is
-therefore *the* mechanism-aware estimator for this arm, with no bias parameter
-to supply, and it is already frozen in the case table.
+with replacement, `n` = number of traversals. `src/corrected_estimator.py`
+inverts an occupancy model in which draws land uniformly over the pair's `K`
+**active windows**.
+
+**Corrected 2026-09-03: those are not the same likelihood.** Uniform over
+events equals uniform over active windows only when a pair's events are spread
+equally across the windows it is active in, and the `(n, mask)` input carries no
+per-window counts, so the prompt cannot verify it. The MLE is identified under
+that auxiliary assumption, not from prompt content alone.
+
+How much that costs on this panel is measurable, and the answer is: very
+little. Over the 584 primary-case pairs with at least two active windows, the
+ratio of the largest to the smallest per-window event count is exactly 1 in
+**80%** of them, with median 1.00, mean 1.25 and 90th percentile 2.00; only
+3.6% exceed 2. The assumption is nearly satisfied here, which is why the MLE
+removes 80% of the bias. Say "identified under a stated homogeneity assumption
+that this panel nearly satisfies" — not "identified from the prompt".
 
 | estimator | rho_2 bias | rho_2 MAE | ProfileMAE |
 |---|---|---|---|

@@ -189,15 +189,28 @@ def skill_table(cell: pd.DataFrame, seed_slot: int = 0) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values(["model", "strategy", "condition"])
 
 
+# `metadata_only` shows no sample at all -- it is the "metadata plus learned
+# prior" anchor. An empirical coverage rate for it would be a coverage rate for
+# a sample that was never shown, so it is excluded from the interval analysis
+# rather than pooled into it.
+NO_SAMPLE = ("metadata_only",)
+
+
 def interval_table(cell: pd.DataFrame, seed_slot: int = 0) -> pd.DataFrame:
     """Stated interval width and its empirical coverage, per (h).
 
     The other operationalization of properness. Reported beside the realized
     dispersion, never merged with it: a model whose stated intervals widen with
     missing information while its answers do not is calibrated in rhetoric only.
+
+    Grouped by **condition** as well as arm. Pooling conditions averages a
+    `mechanism` interval against a `hidden` one and a deliberately misdescribed
+    `mismatched` one, which differ by an order of magnitude in coverage; the
+    pooled number is a mixture nobody stated a hypothesis about.
     """
     if "seed_slot" in cell:
         cell = cell[cell.seed_slot == seed_slot]
+    cell = cell[~cell.condition.isin(NO_SAMPLE)]
     frame = cell.dropna(subset=["lo90", "hi90"]).copy()
     if frame.empty:
         return pd.DataFrame()
@@ -206,19 +219,20 @@ def interval_table(cell: pd.DataFrame, seed_slot: int = 0) -> pd.DataFrame:
                        & (frame.rho_W5_k2 <= frame.hi90))
     frame["log_coverage"] = np.log10(frame.coverage.where(frame.coverage > 0))
     rows = []
-    for (model, arm), part in frame.groupby(["model", "strategy"]):
+    for (model, arm, condition), part in frame.groupby(
+            ["model", "strategy", "condition"]):
         if len(part) < 8:
             continue
         rows.append({
             "model": model, "role": ROLE.get(model, "exploratory"),
-            "strategy": arm, "n": len(part),
+            "strategy": arm, "condition": condition, "n": len(part),
             "median_width": float(part.width.median()),
             "empirical_coverage": float(part.covers.mean()),
             "width_vs_log_coverage_slope": _fit(part.log_coverage,
                                                 part.width)["slope"],
             "inverted_share": float((part.width < 0).mean()),
         })
-    return pd.DataFrame(rows).sort_values(["model", "strategy"])
+    return pd.DataFrame(rows).sort_values(["model", "strategy", "condition"])
 
 
 def main():

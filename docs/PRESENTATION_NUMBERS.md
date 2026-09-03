@@ -71,11 +71,15 @@ its Var(delta) is 0.0026 and the within-arm slope is not a point estimate.
 nothink −0.013 [−0.089, +0.074]. Where the sign of the correction is a net
 quantity nobody could derive from the text, the models do not derive it.
 
-## 3. Skill score
+## 3. Skill score — and the arm reversal
 
 `results_summary/g4/skill_scores.csv`. `1 − MSE(model)/MSE(best constant)`;
 the best constant is the in-sample mean of the truth, so N1 scores exactly 0
-and the constant-output artefact cannot enter. All n = 32, `time_agnostic_t`.
+and the constant-output artefact cannot enter. All n = 32, seed slot 0.
+
+**Both clean arms belong on the slide. Showing only the first is selective.**
+
+`time_agnostic_t` — censoring-driven, required correction +0.280:
 
 | condition | think | nothink | Codex (exploratory) |
 |---|---|---|---|
@@ -83,40 +87,100 @@ and the constant-output artefact cannot enter. All n = 32, `time_agnostic_t`.
 | `direction_only` | −0.655 | −0.324 | −1.164 (n=18) |
 | `mechanism` | **+0.811** | **+0.627** | +0.831 |
 | `mechanism_direction` | +0.783 | +0.683 | +0.773 (n=18) |
-| `metadata_only` | −1.819 | −2.242 | +0.177 (n=7) |
-| `mismatched` | −1.467 | −1.466 | −1.039 (n=7) |
 
-The headline: describing the process moves the thinking model from −1.216 to
-+0.811, a swing of **2.03**, while naming the direction alone (−0.655) does
-not help. Adding the direction on top of the description buys nothing
-(+0.783 against +0.811).
+`event_sample_then_full_history` — single selection term, required
+correction −0.163:
+
+| condition | think | nothink |
+|---|---|---|
+| `hidden` | +0.390 | +0.467 |
+| `direction_only` | **+0.760** | **+0.840** |
+| `mechanism` | +0.613 | +0.601 |
+| `mechanism_direction` | +0.740 | +0.683 |
+
+**The ordering reverses.** On `time_agnostic_t` the mechanism description is
+worth 1.47 skill points over naming the direction; on
+`event_sample_then_full_history` naming the direction beats the description by
+0.15 (think) and 0.24 (nothink), in both models.
+
+**The sentence for the slide** — this replaces "naming the direction alone does
+not help; the gain comes from the process", which was true only of the arm it
+was measured on:
+
+> What a mechanism description buys depends on the channel structure. Where the
+> bias is censoring-driven and the required correction is large, the
+> description is worth a great deal and a bare direction sentence is worth less
+> than nothing. Where the bias is one modest selection term, naming the
+> direction is enough and the description adds nothing.
 
 Codex `metadata_only` (n=7) and `mismatched` (n=7) are too small for a slide
 claim; quote them only as "not estimated at this n" if asked.
 
+## 3b. It is a `rho_2` result, not a profile result
+
+`results_summary/g4/profile_component_slopes.csv` and
+`profile_mae_by_condition.csv`, freeze (l). The frozen target is the joint
+profile with ProfileMAE as its loss; `rho_2` is the headline component only.
+
+Paired slope by component, clean arms:
+
+| model | k=2 | k=3 | k=4 | k=5 |
+|---|---|---|---|---|
+| `qwen36-27b_think` | 0.826 | 0.641 | 0.558 | 0.421 |
+| `qwen36-27b_nothink` | 0.685 | 0.506 | 0.366 | 0.383 |
+| `codex-gpt-5.6-sol` *(expl.)* | 0.830 | 0.846 | 0.764 | 0.775 |
+
+**Any slide showing 0.826 must say "`rho_2`".** Say in the same breath that the
+mean required correction also collapses across k (+0.040, +0.001, −0.009,
+−0.001), so there is progressively less to correct — the decay is not purely a
+failure of the model.
+
+Frozen group-macro ProfileMAE, clean arms:
+
+| condition | think | nothink |
+|---|---|---|
+| `hidden` | 0.0892 | 0.0920 |
+| `direction_only` | 0.0768 | **0.0648** |
+| `mechanism` | **0.0509** | **0.0652** |
+
+On the frozen loss, "mechanism beats direction" holds for the thinking model
+and **not** for the non-thinking one (0.0652 against 0.0648).
+
 ## 4. Properness: the two operationalizations disagree
 
-Freeze (h) asks for both halves. They must appear together — either alone
-misleads.
+Freeze (h) with its 2026-09-03 correction. Both halves appear together; either
+alone misleads.
 
-**Stated intervals** (`results_summary/g4/stated_intervals.csv`), nominal 90%:
+**Stated intervals**, nominal 90%, `results_summary/g4/stated_intervals.csv`.
+Grouped **by condition** — the earlier pooled-by-arm numbers were a mixture and
+are withdrawn. `metadata_only` is excluded: no sample was shown, so a sample
+coverage rate for it is meaningless.
 
-| model | arm | n | empirical coverage | width vs log coverage |
-|---|---|---|---|---|
-| `qwen36-27b_think` | `time_agnostic_t` | 576 | **0.255** | −0.037 |
-| `qwen36-27b_think` | `recent_history_k20` | 384 | **0.042** | +0.017 |
-| `qwen36-27b_think` | `node_panel_full_history` | 370 | 0.732 | −0.060 |
-| `qwen36-27b_nothink` | `time_agnostic_t` | 579 | 0.212 | −0.042 |
-| `codex-gpt-5.6-sol` | `time_agnostic_t` | 122 | 0.738 | −0.096 |
+`qwen36-27b_think`, `time_agnostic_t`:
+
+| condition | n | median width | empirical coverage |
+|---|---|---|---|
+| `hidden` | 96 | 0.016 | **0.031** |
+| `direction_only` | 96 | 0.058 | 0.062 |
+| `mechanism` | 96 | 0.160 | **0.625** |
+| `mechanism_direction` | 96 | 0.170 | 0.625 |
+| `mismatched` | 96 | 0.008 | 0.021 |
 
 **Realized dispersion across generations**
-(`results_summary/g4/dispersion_vs_coverage.csv`), sd against `log10(coverage)`,
-pooled: think −0.005 [−0.020, +0.004], nothink +0.001 [−0.009, +0.009]. Both
-contain zero.
+(`dispersion_vs_coverage.csv`), sd against `log10(coverage)`, pooled: think
+−0.005 [−0.020, +0.004], nothink +0.001 [−0.009, +0.009]. Both contain zero.
 
-**The sentence:** stated interval width *does* widen as coverage falls, but the
-answers themselves do not spread out at all. The uncertainty is **calibrated in
-rhetoric only**. Nominal 90% intervals achieve 0.04 to 0.73 empirical coverage.
+**The two sentences, and do not shorten them into one:**
+
+1. Stated uncertainty *does* respond to information, strongly and in the right
+   direction: the mechanism description widens the interval tenfold and takes
+   coverage from 0.03 to 0.63. No condition reaches the nominal 0.90, and under
+   `hidden` and `mismatched` the intervals are absurdly overconfident.
+2. Resampling spread across generations does **not** respond to how much of the
+   network was shown. That is a statement about decoding variance.
+
+The earlier line "calibrated in rhetoric only" was an artefact of pooling
+conditions and is withdrawn.
 
 ## 5. The twin contrast
 
@@ -128,9 +192,9 @@ channel compositions.
 |---|---|---|---|---|
 | `qwen36-27b_think` | 32 | **+0.207** | [0.125, 0.286] | −0.021 |
 | `qwen36-27b_nothink` | 32 | +0.221 | [0.170, 0.277] | −0.021 |
-| `codex-gpt-5.6-sol` | 17 | +0.159 | [0.070, 0.257] | −0.002 |
+| `codex-gpt-5.6-sol` | 17 | +0.159 | [0.070, 0.257] | −0.053 |
 
-The models shift by 0.21 between two arms whose correct answers differ by 0.02.
+The models shift by 0.21 between two arms whose correct answers differ by 0.02 (Qwen) or 0.05 (Codex, 17 instances).
 The required gap is outside the model CI for every model.
 
 **The coverage objection, answered** (`twin_coverage_confound.csv`): the twins
@@ -192,7 +256,29 @@ generation; this number does not go on a slide without that label.
   shows the gap it would have filled.
 - The pooled slope does not clear N1; only the per-arm result does.
 - `qwen36-27b_nothink` pooled is consistent with an arm lookup table.
-- The wrong-direction result is half a cell.
+- **The effect is strongest at `rho_2` and decays across the profile**, and on
+  the frozen profile loss the non-thinking model gains nothing from the
+  description over the direction sentence.
+- **The mechanism description is not uniformly better than naming the
+  direction** — the ordering reverses on the selection arm.
+- **The correction is not identified from the prompt**, and the two arms fail
+  differently. On `time_agnostic_t` the reference estimator inverts an
+  occupancy model with draws uniform over *active windows*, while the prompt
+  says an event is drawn uniformly from the pair's *full history*; those agree
+  only under equal event counts per active window, which the `(n, mask)` input
+  does not carry. Measured on this panel, that assumption is nearly satisfied —
+  exactly equal in 80% of pairs with ≥2 active windows, median ratio 1.00 —
+  so say "identified under a homogeneity assumption this panel nearly
+  satisfies". On `event_sample_then_full_history` the inclusion probability
+  depends on the unshown phase-1 fraction `f` and the code approximates it away
+  via `1/n`, which needs `n·f ≪ 1`; here `f` has median 0.270 and
+  `max(n)·f > 1` in **29 of 32** cases, so that argument is out of its regime
+  and the 94% bias removal is empirical, not guaranteed. The benchmark tests
+  empirical direction sensitivity, not exact derivation.
+- The wrong-direction result is one generation for the thinking model, and the
+  prompt states the false direction as fact rather than as a fallible hint — so
+  it measures how a model weighs an explicit textual claim against derivable
+  structure, not blind obedience.
 - Codex is a product screen, not evidence about a pinned model.
 
 ---

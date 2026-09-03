@@ -20,7 +20,14 @@ in the small-f regime the probability is proportional to n, and in the Hajek
 
 so the estimator needs no external parameter. `n_d` is in the prompt, and under
 this arm the full history is retrieved, so the observed window mask is the true
-one. The correction is identified.
+one.
+
+**Corrected 2026-09-03: this is an approximation, not an identification.** The
+cancellation needs `n*f << 1`. On the 32 primary cases the realized fraction has
+median 0.270 and `max(n)*f > 1` in 29 of 32, so the regime the argument assumes
+is the exception here rather than the rule. The estimator still removes 94% of
+the bias, which is an empirical result about this panel; it is not a guarantee,
+and the most active pairs are systematically under-corrected.
 
 `time_agnostic_t` -- near-pure censoring. Its mechanism text states the
 observation model outright: each traversal returns one timestamp drawn
