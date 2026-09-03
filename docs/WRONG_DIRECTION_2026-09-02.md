@@ -4,13 +4,11 @@
 fixed first, as freeze (k), before any of its answers were looked at; this
 document reports against that rule and adds nothing to it.*
 
-**Updated 2026-09-03. Both models now appear, but not equally.** The
-non-thinking half is complete (3 generations). The thinking half has **one** of
-three: `g1` completed, `g0` and `g2` were killed at their four hour wall clock
-having written nothing -- the job batches all 64 prompts into a single
-`generate()` call and writes only when it returns. Every thinking number below
-therefore rests on one draw while its `mechanism` reference is averaged over
-three, and it is not final.
+**Complete as of 2026-09-03.** Both models, three generations each. The two
+thinking generations that had been lost to a four hour wall clock were rerun
+with a resumable chunk size and finished at 64/64. The one-generation reading
+recorded earlier understated the effect: it is stronger and tighter with all
+three.
 
 ## The manipulation
 
@@ -36,8 +34,10 @@ is therefore the quantity that separates them, and neither arm alone does.
 
 | model | shift on the down arm | shift on the up arm | between-arm gap | 95% CI |
 |---|---|---|---|---|
-| `qwen36-27b_nothink` (3 gens) | +0.072 | -0.237 | **0.309** | [0.250, 0.365] |
-| `qwen36-27b_think` (1 gen) | +0.109 | -0.198 | **0.307** | [0.181, 0.422] |
+| `qwen36-27b_nothink` | +0.072 | -0.237 | **0.309** | [0.250, 0.365] |
+| `qwen36-27b_think` | +0.127 | -0.226 | **0.352** | [0.271, 0.429] |
+
+The thinking model defers *more*, not less.
 
 Opposite signs, and the gap is far from zero with every bootstrap draw
 positive. By the rule fixed in (k) this is the deference outcome, not the
@@ -56,12 +56,18 @@ Non-thinking, 3 generations:
 | `time_agnostic_t` | 0.558 [0.337, 0.775] | **0.193** [0.034, 0.374] | +0.237 [0.207, 0.269] |
 | `event_sample_then_full_history` | 0.635 [0.369, 0.913] | **0.340** [0.149, 0.659] | +0.072 [0.033, 0.110] |
 
-Thinking, 1 generation, not final:
+Thinking:
 
 | arm | `mechanism` slope | + false direction | shift toward the stated claim |
 |---|---|---|---|
-| `time_agnostic_t` | 1.036 | **0.256** [-0.010, 0.635] | +0.198 [0.103, 0.283] |
-| `event_sample_then_full_history` | 0.664 | **0.296** [-0.145, 0.747] | +0.109 [0.055, 0.168] |
+| `time_agnostic_t` | 1.036 | **0.098** [-0.021, 0.226] | +0.226 [0.162, 0.286] |
+| `event_sample_then_full_history` | 0.664 | **0.075** [-0.149, 0.318] | +0.127 [0.086, 0.168] |
+
+This is the sharpest result in the cell. The thinking model is the panel's best
+case-specific corrector -- position slope 1.036 on `time_agnostic_t` from the
+mechanism description alone. Add one sentence asserting the opposite direction
+and the slope is 0.098 with an interval containing zero, on both arms. The
+correction does not shrink; it stops existing.
 
 One false sentence removes roughly two thirds to three quarters of the slope
 the correct description had bought, and on three of the four rows the remaining
@@ -72,13 +78,12 @@ The share of cases whose correction still goes the way the evidence requires:
 | model | `time_agnostic_t` | `event_sample_then_full_history` |
 |---|---|---|
 | `qwen36-27b_nothink` | 0.438 | 0.781 |
-| `qwen36-27b_think` (1 gen) | **0.156** | 0.467 |
+| `qwen36-27b_think` | **0.344** | 0.548 |
 
-Read with its caveat, that is the sharpest number in the cell: the thinking
-model, the best case-specific corrector in the panel (slope 1.058 on
-`time_agnostic_t`, `mechanism` position slope 1.036), is also the one that
-abandons the evidence most completely when the prompt asserts the opposite. On
-that arm it follows the evidence in 5 cases out of 32.
+Both models follow the false instruction more often than the evidence on
+`time_agnostic_t`. The single-generation reading recorded here earlier put the
+thinking figure at 0.156; with all three generations it is 0.344, so that
+number was an outlier of one draw and is corrected.
 
 ## What this licenses
 
@@ -94,14 +99,15 @@ model relies on when the two disagree.
 
 ## What it does not license
 
-- **The thinking rows are one generation.** Freeze (k) specifies three, and
-  the deference shift is a paired difference against a three-generation
-  reference, so those rows mix a single draw with an average. The between-arm
-  gap agrees with the non-thinking one to three decimals (0.307 against 0.309),
-  which is reassuring and is not a substitute for the two missing generations.
+- **No claim that this is blind obedience.** The prompt states the false
+  direction as fact, not as a hint that might be wrong, so a model that trusts
+  stated premises is behaving reasonably by one standard. What the cell
+  measures is which source wins when an explicit textual claim contradicts the
+  structure derivable from the described process -- and the text wins.
 - **No explanation of the asymmetry.** Obedience is 3.3x stronger on
   `time_agnostic_t` (0.237) than on `event_sample_then_full_history` (0.072)
-  in the non-thinking model, and 1.8x in the thinking one.
+  in the non-thinking model, and 1.8x in the thinking one (0.226 against
+  0.127).
   The obvious guess, that the false claim points back towards the naive anchor,
   fails: it points that way in *both* arms. Freeze (k) rules out subgroup
   slopes from this cell -- 32 instances, one seed slot -- so the asymmetry is

@@ -35,14 +35,18 @@ MODEL_GROUPS: dict[str, list[list[str]]] = {
     # Step 1 and Step 2 are two independent draws from the same model on the
     # prompts they share, so they are two generations, not two shards.
     #
-    # The hold-A completion runs the same protocol on prompts neither step
-    # reached -- `mismatched` and `metadata_only`, which sat at n=7 and could
-    # carry no claim. Its prompt ids are disjoint from Step 2's, so it belongs
-    # in Step 2's generation rather than inventing a third draw that exists for
-    # 30 prompts and nothing else.
+    # The hold completions run the same protocol on prompts neither step
+    # reached. A: `mismatched` and `metadata_only`, which sat at n=7 and could
+    # carry no claim. B: the `time_respecting` leg of the twin contrast on the
+    # 15 instances that had the other twin and not this one, which took the
+    # Codex twin from 17 matched instances to 32 -- the same n as Qwen, so the
+    # three-model agreement is finally like for like. Their prompt ids are
+    # disjoint from Step 2's, so they belong in Step 2's generation rather than
+    # inventing further draws that exist for thirty prompts and nothing else.
     "codex-gpt-5.6-sol": [[str(BASE / "answers/step1_codex_gen0.jsonl")],
                           [str(BASE / "answers/step2_codex_gen0.jsonl"),
-                           str(BASE / "answers/step2_codex_holdA.jsonl")]],
+                           str(BASE / "answers/step2_codex_holdA.jsonl"),
+                           str(BASE / "answers/step2_codex_holdB.jsonl")]],
 }
 
 

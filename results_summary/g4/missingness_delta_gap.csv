@@ -1,12 +1,12 @@
 model,scope,n,n_lost,delta_gap,ci_lo,ci_hi,share_positive_draws,mean_delta_lost,mean_delta_kept
-codex-gpt-5.6-sol,all_conditions,465,0,,,,,,0.14927545652706295
+codex-gpt-5.6-sol,all_conditions,495,0,,,,,,0.15113790955863884
 codex-gpt-5.6-sol,paired_legs,265,0,,,,,,0.13121320738273098
 codex-gpt-5.6-sol,leg:hidden,133,0,,,,,,0.13252531237446102
 codex-gpt-5.6-sol,leg:mechanism,132,0,,,,,,0.12989116220166966
-codex-gpt-5.6-sol,arm:event_sample_then_full_history,123,0,,,,,,-0.1436097955295359
+codex-gpt-5.6-sol,arm:event_sample_then_full_history,133,0,,,,,,-0.14744617399437682
 codex-gpt-5.6-sol,arm:node_panel_full_history,72,0,,,,,,0.002130958687564819
 codex-gpt-5.6-sol,arm:recent_history_k20,72,0,,,,,,0.34372748189476326
-codex-gpt-5.6-sol,arm:time_agnostic_t,128,0,,,,,,0.2834157956916497
+codex-gpt-5.6-sol,arm:time_agnostic_t,148,0,,,,,,0.29475497355467783
 codex-gpt-5.6-sol,arm:time_respecting,70,0,,,,,,0.3699723223536915
 qwen36-27b_nothink,all_conditions,2220,33,-0.2783089968597212,-0.34000015741940426,-0.2238073954234302,0.0,-0.13519055970096788,0.14311843715875333
 qwen36-27b_nothink,paired_legs,965,7,-0.23420364404594804,-0.2611162590941404,-0.20079916281224147,0.0,-0.09259095846829468,0.14161268557765336

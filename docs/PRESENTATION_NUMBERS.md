@@ -209,32 +209,39 @@ correlation (−0.24 to −0.66) as support — coverage and the required correc
 are collinear at −0.629 across arms, so a model tracking the requirement
 produces it too.
 
-## 6. The wrong-direction cell — PROVISIONAL for the thinking model
+## 6. The wrong-direction cell — now complete
 
 `results_summary/g4/wrong_direction.csv`, freeze (k). Correct process
-description, inverted direction sentence.
-
-**Non-thinking is complete (3 generations). Thinking rests on 1 generation of
-3** — two jobs were killed at their wall clock having written nothing. The
-thinking rows carry "one generation" on the slide itself.
+description, inverted direction sentence. **Both models, three generations
+each.** The two thinking generations lost to a wall clock were rerun and
+finished at 64/64; the provisional label is gone.
 
 | model | arm | `mechanism` slope | with false direction | shift toward the false claim |
 |---|---|---|---|---|
-| nothink | `time_agnostic_t` (correct: up) | 0.558 [0.337, 0.775] | **0.193** [0.034, 0.374] | +0.237 [0.207, 0.269] |
-| nothink | `event_sample` (correct: down) | 0.635 [0.369, 0.913] | 0.340 [0.149, 0.659] | +0.072 [0.033, 0.110] |
-| think *(1 gen)* | `time_agnostic_t` | 1.036 | **0.256** [−0.010, 0.635] | +0.198 [0.103, 0.283] |
-| think *(1 gen)* | `event_sample` | 0.664 | 0.296 [−0.145, 0.747] | +0.109 [0.055, 0.168] |
+| think | `time_agnostic_t` (correct: up) | 1.036 | **0.098** [−0.021, 0.226] | +0.226 [0.162, 0.286] |
+| think | `event_sample` (correct: down) | 0.664 | **0.075** [−0.149, 0.318] | +0.127 [0.086, 0.168] |
+| nothink | `time_agnostic_t` | 0.558 [0.337, 0.775] | 0.193 [0.034, 0.374] | +0.237 [0.207, 0.269] |
+| nothink | `event_sample` | 0.635 [0.369, 0.913] | 0.340 [0.149, 0.659] | +0.072 [0.033, 0.110] |
 
-Between-arm contrast **+0.309 [0.250, 0.365]** (nothink) and **+0.307
-[0.181, 0.422]** (think, 1 gen); all draws positive in both. The two arms carry
-opposite correct directions, so opposite shifts identify deference to the claim
-rather than a reaction to prompt length.
+Between-arm contrast **+0.352 [0.271, 0.429]** (think) and **+0.309
+[0.250, 0.365]** (nothink), every draw positive in both. The arms carry opposite
+correct directions, so opposite shifts identify deference to the claim rather
+than a reaction to prompt length. **The thinking model defers more, not less.**
 
-**Follows the evidence rather than the instruction:** nothink 0.438 / 0.781;
-think 0.156 / 0.467, on `time_agnostic_t` / `event_sample`. The best
-case-specific corrector in the panel is the one that abandons the evidence most
-completely when the prompt asserts the opposite — 5 cases of 32. One
-generation; this number does not go on a slide without that label.
+**The strongest single statement available from this panel:** the thinking
+model is its best case-specific corrector — position slope 1.036 on
+`time_agnostic_t` from the mechanism description alone. One sentence asserting
+the opposite direction takes that to **0.098, with an interval containing
+zero**, on both arms. The correction does not shrink, it stops existing.
+
+Follows the evidence rather than the instruction: think 0.344 / 0.548, nothink
+0.438 / 0.781 on `time_agnostic_t` / `event_sample`. Both models follow the
+false instruction more often than the evidence on `time_agnostic_t`.
+
+**Say it this way, not more strongly:** the prompt states the false direction
+as fact rather than as a fallible hint, so this is not a demonstration of blind
+obedience. It measures which source wins when an explicit textual claim
+contradicts the structure derivable from the described process. The text wins.
 
 ## 7. Design numbers (context slides)
 
@@ -288,6 +295,6 @@ generation; this number does not go on a slide without that label.
 | item | status |
 |---|---|
 | Qwen main run, both branches, 3 generations | **final** — all six generations settled at 976/736, verified byte-identical to the cluster |
-| Wrong-direction, non-thinking | **final** — 3 generations |
-| Wrong-direction, thinking | **1 of 3 generations** — `g0` and `g2` timed out writing nothing; whether to rerun them is an open decision |
+| Wrong-direction, both models | **final** — 3 generations each, 64/64 |
 | Codex Step 2 | **final** — 256 of 256 core prompts, 0 errors |
+| Codex hold-A completion | **final** — 30 of 30, `mismatched` and `metadata_only` off n=7 |

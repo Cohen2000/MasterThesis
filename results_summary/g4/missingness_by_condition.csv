@@ -3,8 +3,8 @@ codex-gpt-5.6-sol,direction_only,90,0,0,0,0.0
 codex-gpt-5.6-sol,hidden,133,0,0,0,0.0
 codex-gpt-5.6-sol,mechanism,132,0,0,0,0.0
 codex-gpt-5.6-sol,mechanism_direction,89,0,0,0,0.0
-codex-gpt-5.6-sol,metadata_only,7,0,0,0,0.0
-codex-gpt-5.6-sol,mismatched,14,0,0,0,0.0
+codex-gpt-5.6-sol,metadata_only,17,0,0,0,0.0
+codex-gpt-5.6-sol,mismatched,34,0,0,0,0.0
 qwen36-27b_nothink,direction_only,485,12,1,13,0.026804123711340205
 qwen36-27b_nothink,hidden,481,4,0,4,0.008316008316008316
 qwen36-27b_nothink,mechanism,484,3,0,3,0.006198347107438017

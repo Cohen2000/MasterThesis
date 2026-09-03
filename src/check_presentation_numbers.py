@@ -106,12 +106,12 @@ CLAIMS = [
 
     ("wrongdir gap nothink", 0.309, "wrong_direction_contrast.csv",
      {"model": "qwen36-27b_nothink"}, "between_arm_gap"),
-    ("wrongdir gap think", 0.307, "wrong_direction_contrast.csv",
+    ("wrongdir gap think", 0.352, "wrong_direction_contrast.csv",
      {"model": "qwen36-27b_think"}, "between_arm_gap"),
     ("wrongdir shift nothink ta", 0.237, "wrong_direction.csv",
      {"model": "qwen36-27b_nothink", "arm": "time_agnostic_t"},
      "shift_toward_stated"),
-    ("wrongdir evidence think ta", 0.156, "wrong_direction.csv",
+    ("wrongdir evidence think ta", 0.344, "wrong_direction.csv",
      {"model": "qwen36-27b_think", "arm": "time_agnostic_t"},
      "follows_evidence_rate"),
 

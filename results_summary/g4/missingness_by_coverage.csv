@@ -1,8 +1,8 @@
 model,coverage_quartile,attempted,lost_structural,lost_invalid,lost,loss_rate
-codex-gpt-5.6-sol,q1_lowest,92,0,0,0,0.0
-codex-gpt-5.6-sol,q2,109,0,0,0,0.0
-codex-gpt-5.6-sol,q3,127,0,0,0,0.0
-codex-gpt-5.6-sol,q4_highest,137,0,0,0,0.0
+codex-gpt-5.6-sol,q1_lowest,100,0,0,0,0.0
+codex-gpt-5.6-sol,q2,112,0,0,0,0.0
+codex-gpt-5.6-sol,q3,134,0,0,0,0.0
+codex-gpt-5.6-sol,q4_highest,149,0,0,0,0.0
 qwen36-27b_nothink,q1_lowest,576,14,0,14,0.024305555555555556
 qwen36-27b_nothink,q2,552,11,1,12,0.021739130434782608
 qwen36-27b_nothink,q3,575,7,0,7,0.01217391304347826
