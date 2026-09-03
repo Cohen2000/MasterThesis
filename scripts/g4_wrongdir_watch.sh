@@ -12,19 +12,28 @@ LOG=results/final_run_g2/logs/wrongdir_watch.log
 INTERVAL="${INTERVAL:-600}"
 
 while :; do
+    # Done means: no wrong-direction job left in the queue AND all three
+    # generation files exist. Counting records against 3 x 64 would never fire,
+    # because a dozen prompts per generation burn at the token cap and a
+    # settled generation stops short of 64 by design.
     n=$(timeout 90 ssh -o BatchMode=yes uc3 'bash -s' <<'REMOTE' 2>/dev/null
 WS=$(ws_find llm_pilot); cd "$WS" || exit 1
-total=0
+queued=$(squeue -u "$USER" -h -o "%j" | grep -c "g3wd" || true)
+files=0; total=0
 for g in 0 1 2; do
   f=llm_g3/answers_vllm_wrongdir_qwen36-27b_think_g${g}.jsonl
-  n=$( [ -f "$f" ] && wc -l < "$f" || echo 0 )
-  total=$((total + n))
+  if [ -s "$f" ]; then
+    files=$((files + 1))
+    total=$((total + $(wc -l < "$f")))
+  fi
 done
-echo "$total"
+echo "$queued $files $total"
 REMOTE
 )
-    echo "$(date '+%H:%M:%S') think wrongdir records: ${n:-unreachable}/192" >> "$LOG"
-    if [ "${n:-0}" -ge 192 ]; then
+    set -- ${n:-}
+    queued=${1:-}; files=${2:-0}; total=${3:-0}
+    echo "$(date '+%H:%M:%S') wrongdir jobs queued=${queued:-?} files=$files/3 records=$total" >> "$LOG"
+    if [ -n "$queued" ] && [ "$queued" -eq 0 ] && [ "$files" -eq 3 ]; then
         echo "$(date '+%H:%M:%S') complete -- syncing and rebuilding" >> "$LOG"
         bash scripts/g4_sync.sh >> "$LOG" 2>&1
         bash scripts/g4_rebuild.sh >> "$LOG" 2>&1
