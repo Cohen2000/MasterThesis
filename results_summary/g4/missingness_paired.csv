@@ -1,9 +1,9 @@
 model,strategy,pairs,both_kept,only_hidden_lost,only_mechanism_lost,both_lost,mean_delta_pairs_kept,asymmetric,pair_loss_rate
 codex-gpt-5.6-sol,event_sample_then_full_history,40,40,0,0,0,-0.1482185752997151,0,0.0
-codex-gpt-5.6-sol,node_panel_full_history,16,16,0,0,0,0.007586953281595213,0,0.0
-codex-gpt-5.6-sol,recent_history_k20,15,15,0,0,0,0.3397022606273815,0,0.0
+codex-gpt-5.6-sol,node_panel_full_history,18,18,0,0,0,0.0021309586875648177,0,0.0
+codex-gpt-5.6-sol,recent_history_k20,18,18,0,0,0,0.34372748189476326,0,0.0
 codex-gpt-5.6-sol,time_agnostic_t,39,39,0,0,0,0.27216731842381925,0,0.0
-codex-gpt-5.6-sol,time_respecting,14,14,0,0,0,0.3469845318158563,0,0.0
+codex-gpt-5.6-sol,time_respecting,17,17,0,0,0,0.36672935727047895,0,0.0
 qwen36-27b_nothink,event_sample_then_full_history,96,92,4,0,0,-0.1631425929040395,4,0.04166666666666663
 qwen36-27b_nothink,node_panel_full_history,96,93,0,3,0,0.0021736547236592325,3,0.03125
 qwen36-27b_nothink,recent_history_k20,96,96,0,0,0,0.2781316078494657,0,0.0

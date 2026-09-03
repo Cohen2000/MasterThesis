@@ -1,6 +1,6 @@
 # Numbers cleared for slides
 
-*2026-09-02, for the Thursday idea presentation. Every number that may appear
+*2026-09-02, updated 2026-09-03. For the Thursday idea presentation. Every number that may appear
 on a slide is here, with its source table, its n, its interval and its model
 role. **Nothing that is not in this file goes on a slide.** Numbers still
 moving are marked PROVISIONAL with the reason.*
@@ -28,7 +28,7 @@ corrector.
 |---|---|---|---|---|---|---|
 | `qwen36-27b_think` | confirmatory | clean arms | 95 | **0.826** | [0.725, 0.989] | 0.75 |
 | `qwen36-27b_nothink` | confirmatory | clean arms | 95 | **0.685** | [0.570, 0.846] | 0.64 |
-| `codex-gpt-5.6-sol` | exploratory | clean arms | 79 | **0.832** | [0.748, 0.964] | 0.82 |
+| `codex-gpt-5.6-sol` | exploratory | clean arms | 81 | **0.830** | [0.747, 0.960] | 0.82 |
 
 **The four nulls, same scope.** These belong on the same slide as the slope;
 quoting a slope without them is the thing the external review caught.
@@ -36,7 +36,7 @@ quoting a slope without them is the thing the external review caught.
 | null | what it is | clean-arm value |
 |---|---|---|
 | N0 | both legs move together | 0.000 |
-| N1 | hidden leg pinned to the plug-in, mechanism leg a constant | 0.888 (Qwen), 0.894 (Codex) |
+| N1 | hidden leg pinned to the plug-in, mechanism leg a constant | 0.888 (Qwen), 0.902 (Codex) |
 | N2 lookup | knows its arm's typical bias, nothing case-specific | 0.617 (Qwen), 0.623 (Codex) |
 | permutation | predictor permuted within arm, 4000 draws | 0.516 [0.408, 0.625] (think) |
 
@@ -80,9 +80,9 @@ and the constant-output artefact cannot enter. All n = 32, `time_agnostic_t`.
 | condition | think | nothink | Codex (exploratory) |
 |---|---|---|---|
 | `hidden` | −1.216 | −1.149 | −1.208 |
-| `direction_only` | −0.655 | −0.324 | −1.499 (n=15) |
+| `direction_only` | −0.655 | −0.324 | −1.164 (n=18) |
 | `mechanism` | **+0.811** | **+0.627** | +0.831 |
-| `mechanism_direction` | +0.783 | +0.683 | +0.763 (n=15) |
+| `mechanism_direction` | +0.783 | +0.683 | +0.773 (n=18) |
 | `metadata_only` | −1.819 | −2.242 | +0.177 (n=7) |
 | `mismatched` | −1.467 | −1.466 | −1.039 (n=7) |
 
@@ -128,7 +128,7 @@ channel compositions.
 |---|---|---|---|---|
 | `qwen36-27b_think` | 32 | **+0.207** | [0.125, 0.286] | −0.021 |
 | `qwen36-27b_nothink` | 32 | +0.221 | [0.170, 0.277] | −0.021 |
-| `codex-gpt-5.6-sol` | 14 | +0.162 | [0.064, 0.265] | −0.002 |
+| `codex-gpt-5.6-sol` | 17 | +0.159 | [0.070, 0.257] | −0.002 |
 
 The models shift by 0.21 between two arms whose correct answers differ by 0.02.
 The required gap is outside the model CI for every model.
@@ -145,23 +145,32 @@ correlation (−0.24 to −0.66) as support — coverage and the required correc
 are collinear at −0.629 across arms, so a model tracking the requirement
 produces it too.
 
-## 6. The wrong-direction cell — PROVISIONAL
+## 6. The wrong-direction cell — PROVISIONAL for the thinking model
 
 `results_summary/g4/wrong_direction.csv`, freeze (k). Correct process
-description, inverted direction sentence. **Non-thinking model only; the
-thinking half was still running on the cluster at the time of writing.** If the
-thinking half has not landed by Thursday, this slide says "non-thinking model,
-thinking pending" on its face.
+description, inverted direction sentence.
 
-| arm | correct direction | `mechanism` slope | with false direction | shift toward the false claim |
+**Non-thinking is complete (3 generations). Thinking rests on 1 generation of
+3** — two jobs were killed at their wall clock having written nothing. The
+thinking rows carry "one generation" on the slide itself.
+
+| model | arm | `mechanism` slope | with false direction | shift toward the false claim |
 |---|---|---|---|---|
-| `time_agnostic_t` | upward | 0.558 [0.337, 0.775] | **0.193** [0.034, 0.374] | +0.237 [0.207, 0.269] |
-| `event_sample_then_full_history` | downward | 0.635 [0.369, 0.913] | 0.239 [−0.029, 0.676] | +0.069 [0.025, 0.111] |
+| nothink | `time_agnostic_t` (correct: up) | 0.558 [0.337, 0.775] | **0.193** [0.034, 0.374] | +0.237 [0.207, 0.269] |
+| nothink | `event_sample` (correct: down) | 0.635 [0.369, 0.913] | 0.340 [0.149, 0.659] | +0.072 [0.033, 0.110] |
+| think *(1 gen)* | `time_agnostic_t` | 1.036 | **0.256** [−0.010, 0.635] | +0.198 [0.103, 0.283] |
+| think *(1 gen)* | `event_sample` | 0.664 | 0.296 [−0.145, 0.747] | +0.109 [0.055, 0.168] |
 
-Between-arm contrast **+0.306 [0.242, 0.369]**, all draws positive. The two
-arms carry opposite correct directions, so opposite shifts identify deference
-to the claim rather than a reaction to prompt length. One false sentence
-removes about two thirds of the slope the correct description bought.
+Between-arm contrast **+0.309 [0.250, 0.365]** (nothink) and **+0.307
+[0.181, 0.422]** (think, 1 gen); all draws positive in both. The two arms carry
+opposite correct directions, so opposite shifts identify deference to the claim
+rather than a reaction to prompt length.
+
+**Follows the evidence rather than the instruction:** nothink 0.438 / 0.781;
+think 0.156 / 0.467, on `time_agnostic_t` / `event_sample`. The best
+case-specific corrector in the panel is the one that abandons the evidence most
+completely when the prompt asserts the opposite — 5 cases of 32. One
+generation; this number does not go on a slide without that label.
 
 ## 7. Design numbers (context slides)
 
@@ -188,11 +197,11 @@ removes about two thirds of the slope the correct description bought.
 
 ---
 
-## Provisional status, as of 2026-09-02 12:5x
+## Provisional status, as of 2026-09-03
 
 | item | status |
 |---|---|
 | Qwen main run, both branches, 3 generations | **final** — all six generations settled at 976/736, verified byte-identical to the cluster |
-| Wrong-direction, non-thinking | **final** |
-| Wrong-direction, thinking | **running** — 3 SLURM jobs, watcher will sync and recompute |
-| Codex Step 2 | **running** — 213 of 256 core prompts; every Codex number here may move |
+| Wrong-direction, non-thinking | **final** — 3 generations |
+| Wrong-direction, thinking | **1 of 3 generations** — `g0` and `g2` timed out writing nothing; whether to rerun them is an open decision |
+| Codex Step 2 | **final** — 256 of 256 core prompts, 0 errors |

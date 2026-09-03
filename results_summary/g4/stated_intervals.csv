@@ -1,9 +1,9 @@
 model,role,strategy,n,median_width,empirical_coverage,width_vs_log_coverage_slope,inverted_share
-codex-gpt-5.6-sol,exploratory,event_sample_then_full_history,119,0.09905999999999998,0.5546218487394958,-0.12513194690474339,0.0
-codex-gpt-5.6-sol,exploratory,node_panel_full_history,59,0.06343599999999999,0.8983050847457628,-0.0775235691065651,0.0
-codex-gpt-5.6-sol,exploratory,recent_history_k20,60,0.27,0.55,0.012861883815099907,0.0
-codex-gpt-5.6-sol,exploratory,time_agnostic_t,122,0.30659899999999995,0.7377049180327869,-0.09587106297233682,0.0
-codex-gpt-5.6-sol,exploratory,time_respecting,58,0.51,0.5862068965517241,-0.16540489380734122,0.0
+codex-gpt-5.6-sol,exploratory,event_sample_then_full_history,123,0.09905999999999998,0.5528455284552846,-0.12820520992839382,0.0
+codex-gpt-5.6-sol,exploratory,node_panel_full_history,68,0.06364999504999996,0.9117647058823529,-0.06555486151269536,0.0
+codex-gpt-5.6-sol,exploratory,recent_history_k20,72,0.265,0.5555555555555556,-0.04282129684861619,0.0
+codex-gpt-5.6-sol,exploratory,time_agnostic_t,128,0.30659899999999995,0.734375,-0.1287421905388726,0.0
+codex-gpt-5.6-sol,exploratory,time_respecting,70,0.43,0.5571428571428572,-0.17599991289894848,0.0
 qwen36-27b_nothink,confirmatory,event_sample_then_full_history,458,0.09999999999999998,0.39082969432314413,-0.07634949054905048,0.0
 qwen36-27b_nothink,confirmatory,node_panel_full_history,368,0.06749999999999998,0.6902173913043478,-0.06178332977291466,0.0
 qwen36-27b_nothink,confirmatory,recent_history_k20,385,0.07700000000000001,0.11168831168831168,0.01201129973620113,0.0

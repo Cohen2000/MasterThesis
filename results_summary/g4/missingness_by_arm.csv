@@ -1,9 +1,9 @@
 model,strategy,attempted,lost_structural,lost_invalid,lost,loss_rate
-codex-gpt-5.6-sol,event_sample_then_full_history,119,0,0,0,0.0
-codex-gpt-5.6-sol,node_panel_full_history,63,0,0,0,0.0
-codex-gpt-5.6-sol,recent_history_k20,60,0,0,0,0.0
-codex-gpt-5.6-sol,time_agnostic_t,122,0,0,0,0.0
-codex-gpt-5.6-sol,time_respecting,58,0,0,0,0.0
+codex-gpt-5.6-sol,event_sample_then_full_history,123,0,0,0,0.0
+codex-gpt-5.6-sol,node_panel_full_history,72,0,0,0,0.0
+codex-gpt-5.6-sol,recent_history_k20,72,0,0,0,0.0
+codex-gpt-5.6-sol,time_agnostic_t,128,0,0,0,0.0
+codex-gpt-5.6-sol,time_respecting,70,0,0,0,0.0
 qwen36-27b_nothink,event_sample_then_full_history,483,25,0,25,0.051759834368530024
 qwen36-27b_nothink,node_panel_full_history,386,6,0,6,0.015544041450777202
 qwen36-27b_nothink,recent_history_k20,386,1,0,1,0.0025906735751295338
