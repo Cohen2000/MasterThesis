@@ -1,0 +1,144 @@
+{
+  "date": "2026-09-11",
+  "phase": 1,
+  "starting_commit": "277d820b75b5d828639bd9c98709372dcb1bcc76",
+  "final_commit": "277d820b75b5d828639bd9c98709372dcb1bcc76",
+  "integrity": {
+    "verified_original_files": 2557,
+    "verified_regular_file_sha256s": 2549,
+    "verified_symlinks": 8,
+    "verified_original_bytes": 2753767728,
+    "archived_files": 2198,
+    "raw_files_verified": 18,
+    "support_snapshots_verified": 5,
+    "previously_tracked_archive_paths_checked": 482,
+    "errors": []
+  },
+  "tests": {
+    "pytest": {
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m pytest tests",
+      "exit_code": 1,
+      "output": "/home/albert/Dokumente/MasterArbeit/.venv/bin/python: No module named pytest\n"
+    },
+    "unittest": {
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "output": "test_absent_registry_entries_remain_visible_without_download (data.test_census.EmpiricalLoading) ... ok\ntest_counts_and_physical_window_length (data.test_census.EmpiricalLoading) ... ok\ntest_gzip_comments_and_bipartite_namespaces (data.test_census.EmpiricalLoading) ... ok\ntest_undirected_dyads_self_loops_and_duplicate_events (data.test_census.EmpiricalLoading) ... ok\ntest_unknown_dataset_key_is_rejected (data.test_census.EmpiricalLoading) ... ok\ntest_free_reasoning_before_final_json (evaluation.test_metrics.RawProfileEvaluation) ... ok\ntest_no_clipping_sorting_or_raw_response_rewrite (evaluation.test_metrics.RawProfileEvaluation) ... ok\ntest_non_monotone_in_range_values_are_not_repaired (evaluation.test_metrics.RawProfileEvaluation) ... ok\ntest_occupancy_is_derived (evaluation.test_metrics.RawProfileEvaluation) ... ok\ntest_profile_mae_uses_all_four_components (evaluation.test_metrics.RawProfileEvaluation) ... ok\ntest_repeats_can_be_scored_individually_without_collapsing (evaluation.test_metrics.RawProfileEvaluation) ... ok\ntest_schema_numbers_duplicates_and_final_line_are_strict (evaluation.test_metrics.RawProfileEvaluation) ... ok\ntest_unparseable_response_keeps_raw_text_and_has_no_invented_score (evaluation.test_metrics.RawProfileEvaluation) ... ok\ntest_empirical_backbone_counts_nodes_and_timestamps_are_preserved (generators.test_generators.ControlledTiming) ... ok\ntest_activity_driven_modes_are_seeded_and_undirected (generators.test_generators.MechanisticGenerators) ... ok\ntest_dar_event_layer (generators.test_generators.MechanisticGenerators) ... ok\ntest_dar_full_memory_keeps_active_edges_in_all_windows (generators.test_generators.MechanisticGenerators) ... ok\ntest_dcsbm_preserves_requested_nodes_and_seed (generators.test_generators.MechanisticGenerators) ... ok\ntest_access_semantics_cannot_be_omitted (prompting.test_prompt.GenericPrompt) ... ok\ntest_sections_target_and_schema (prompting.test_prompt.GenericPrompt) ... ok\ntest_full_budget_retains_all_events (sampling.test_primitives.EventReservoir) ... ok\ntest_reproducible_uniform_prefix (sampling.test_primitives.EventReservoir) ... ok\ntest_histories_are_incident_complete_and_whole_node_budgeted (sampling.test_primitives.PreservedPanelPrimitive) ... ok\ntest_seed_is_deterministic (sampling.test_primitives.PreservedPanelPrimitive) ... ok\ntest_index_and_transitions_ignore_event_multiplicity (sampling.test_primitives.SimpleWalkPrimitive) ... ok\ntest_derived_occupancy_identity (targets.test_persistence.PersistenceTarget) ... ok\ntest_dyads_have_equal_weight_regardless_of_event_counts (targets.test_persistence.PersistenceTarget) ... ok\ntest_five_window_boundaries (targets.test_persistence.PersistenceTarget) ... ok\ntest_preserved_endpoint_and_epsilon_compatibility (targets.test_persistence.PersistenceTarget) ... ok\n\n----------------------------------------------------------------------\nRan 29 tests in 0.132s\n\nOK\n",
+      "count": 29
+    },
+    "scope": "Tiny in-memory and temporary fixtures only; no empirical inputs or historical result files read by tests."
+  },
+  "static_checks": {
+    "python_files": 22,
+    "broken_current_links": [],
+    "imports_to_archived_only_modules": [],
+    "census_help": "passed; no census run",
+    "git_diff_check_output": ""
+  },
+  "git": {
+    "shortstat": "482 files changed, 239 insertions(+), 82218 deletions(-)",
+    "status_counts": {
+      " M": 4,
+      " D": 478,
+      "??": 521
+    },
+    "staged_diff": "",
+    "stat_file": "docs/repo_cleanup_git_stat.txt",
+    "status_file": "docs/repo_cleanup_git_status.txt",
+    "note": "The index was not written. Standard git diff excludes all untracked archived destinations and new files; D denotes removal of old path, not loss of content."
+  },
+  "new_current_paths": [
+    ".gitignore",
+    "README.md",
+    "archive/README.md",
+    "archive/legacy_pre_current_design/README.md",
+    "config/study.yaml",
+    "docs/DATASETS.md",
+    "docs/README.md",
+    "docs/REPO_CLEANUP_MANIFEST.md",
+    "docs/REPO_CLEANUP_VALIDATION.md",
+    "docs/REPRODUCIBILITY.md",
+    "docs/SAMPLING.md",
+    "docs/STUDY_DESIGN.md",
+    "docs/repo_cleanup_git_stat.txt",
+    "docs/repo_cleanup_git_status.txt",
+    "docs/repo_cleanup_inventory.json",
+    "docs/repo_cleanup_validation.json",
+    "figures/README.md",
+    "pytest.ini",
+    "results/README.md",
+    "scripts/census_datasets.py",
+    "src/README.md",
+    "src/dataset_census.py",
+    "src/persistence_evaluation.py",
+    "src/persistence_prompt.py",
+    "tests/README.md",
+    "tests/__init__.py",
+    "tests/data/__init__.py",
+    "tests/data/test_census.py",
+    "tests/evaluation/__init__.py",
+    "tests/evaluation/test_metrics.py",
+    "tests/generators/__init__.py",
+    "tests/generators/test_generators.py",
+    "tests/prompting/__init__.py",
+    "tests/prompting/test_prompt.py",
+    "tests/sampling/__init__.py",
+    "tests/sampling/test_primitives.py",
+    "tests/targets/__init__.py",
+    "tests/targets/test_persistence.py"
+  ],
+  "uncertain": [
+    {
+      "path": ".claude/RESUME.md",
+      "reason": "Local agent settings/session state: checked for project references but environment-owned preferences and permissions must not be relocated as experiment code."
+    },
+    {
+      "path": ".claude/settings.local.json",
+      "reason": "Local agent settings/session state: checked for project references but environment-owned preferences and permissions must not be relocated as experiment code."
+    },
+    {
+      "path": "src/benchmark_generators.py",
+      "reason": "Mixed module: empirical normalization/family extraction, homogeneous DAR and activity-driven functions coexist with legacy surrogates and DAR screens. Preserve unchanged pending separation."
+    },
+    {
+      "path": "src/census.py",
+      "reason": "Mixed module: parsing, dyad normalization and rho/window helpers are shared by both generator modules; legacy metrics and plotting CLI remain coupled. Preserve unchanged in Phase 1."
+    },
+    {
+      "path": "src/generator.py",
+      "reason": "Mixed module: controlled-timing Family/make_instance and DCSBM share allocation and census internals with historical ER/BA/LFR controls. Preserve implementation and seeds unchanged."
+    },
+    {
+      "path": "src/nonwalk_samplers.py",
+      "reason": "Mixed module: uniform event reservoir and prepared-event indices are reusable; node-panel budget stopping differs from a fixed-size reference, and historical crawl families share internals. Preserve unchanged."
+    },
+    {
+      "path": "src/walks.py",
+      "reason": "Mixed module: collapsed-graph index and simple RW transitions are reusable; timestamp-return and reverse/forward-time strategies do not implement the new full-history RW or recency truncation. Preserve unchanged."
+    }
+  ],
+  "limitations": [
+    "Phase 2 deferred; five mixed modules retained byte-identically.",
+    "Current full-history SRW, recency truncation, fixed-panel operational rule, panel CLI and repeat-storage orchestration are not implemented by this cleanup.",
+    "Inherited closed endpoint/EPS and generation-vs-realized horizon discrepancy require explicit scientific review.",
+    "Historical cwd/cluster/metadata paths were preserved, not retargeted.",
+    "Pytest is unavailable; no installation or network access was attempted."
+  ],
+  "safety": {
+    "raw_data_modified": false,
+    "historical_files_deleted": false,
+    "historical_results_recomputed": false,
+    "registry_modified": false,
+    "shared_scientific_source_modified": false,
+    "external_network_or_api_calls": false,
+    "census_run": false,
+    "experiments_run": false,
+    "dependencies_installed": false,
+    "git_index_written": false,
+    "committed": false
+  },
+  "verification_notes": [
+    "All final original-file metadata comparisons use lstat, so symlink metadata is compared with the inventoried link rather than the target. An initial verifier pass using stat reported eight false link size/mtime mismatches; final verification resolves all eight without modifying the links.",
+    "Preflight move-check adjustments are recorded in repo_cleanup_inventory.json."
+  ]
+}
