@@ -74,13 +74,13 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m pytest tests
 Pytest is not installed in this workspace; the standard-library runner executes
 the same current test cases. `pytest.ini` excludes the historical archive.
 
-The following census command is for the **next task**; it was not run during
-cleanup. It reads locally available registry entries, reports missing entries,
-never downloads inputs, and refuses to overwrite its output:
+The census has been computed; see [results/dataset_census/](results/dataset_census/README.md).
+The command reads locally available registry entries, reports missing entries,
+never downloads inputs, and refuses to overwrite existing outputs:
 
 ```bash
 .venv/bin/python scripts/census_datasets.py --help
-.venv/bin/python scripts/census_datasets.py --out results/dataset_census.csv
+.venv/bin/python scripts/census_datasets.py --realized-twins --out-dir <new-dir>
 ```
 
 Future panel construction follows the census and timing-feasibility review.

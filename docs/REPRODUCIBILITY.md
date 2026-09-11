@@ -38,8 +38,10 @@ details remain explicitly unresolved:
 
 The current census adapter preserves these helpers and publishes their W=5
 rho values under `rho_2..rho_5`. It does not silently substitute a new boundary
-rule. It has only been exercised on miniature test fixtures. Physical duration
-columns preserve source units pending unit verification in the census.
+rule. On all 17 local datasets and W=2..20, its window assignment was checked
+against exact `min(floor(W*(t-t_min)/(t_max-t_min)), W-1)` arithmetic with no
+mismatch (see [the census README](../results/dataset_census/README.md)).
+Physical durations are reported only for timestamps documented as seconds.
 
 `make_instance` retains its `span_layout="legacy"` default and the previous
 allocation/capacity behavior. The intended controlled use must choose layout

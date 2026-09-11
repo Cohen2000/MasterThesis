@@ -32,6 +32,12 @@ CLAUDE.local.md
 /data/benchmark_*/
 /results/**
 !/results/README.md
+!/results/dataset_census/
+!/results/dataset_census/README.md
+!/results/dataset_census/empirical_census.csv
+!/results/dataset_census/window_sensitivity.csv
+!/results/dataset_census/twin_feasibility.csv
+!/results/dataset_census/twin_realized_feasibility.csv
 /figures/generated/
 
 # Transient execution artifacts and prompt/output shards

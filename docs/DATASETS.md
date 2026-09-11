@@ -22,24 +22,24 @@ preprocessing, number of events `M`, `M/|E_full|`, `P(m_e>=2)`, `P(m_e>=3)`,
 duration of one of the five windows. The current census adapter exposes these
 columns and a derived occupancy column. It reports absent inputs explicitly.
 
-Run later, into a new output path:
+**Census status:** computed for all 17 local datasets; outputs, conventions
+and warnings are in [results/dataset_census/](../results/dataset_census/README.md).
+No panel has been selected from it. To reproduce into a new directory:
 
 ```bash
-.venv/bin/python scripts/census_datasets.py --out results/dataset_census.csv
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/census_datasets.py --realized-twins --out-dir <new-dir>
 ```
 
-The adapter uses the existing registry parser and census window helpers.
-Comments, skipped headers, bipartite namespaces and column positions remain
-registry controlled. Input events are not deduplicated. Raw files are never
+The adapter uses the registry's column positions, headers, comment markers and
+bipartite namespaces. Input events are not deduplicated. Raw files are never
 rewritten. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md) for the retained boundary
 convention and other preprocessing caveats.
 
-Duration columns are in **source timestamp units**. The registry currently
-describes units in prose rather than a complete machine-readable field; the
-census review must verify each unit before converting durations to seconds or
-days. The Digg registry's prose note also warns that releases can differ in
-column layout; its configured time column is unchanged and should be verified
-against the local file during that review.
+Each registry entry's `census_audit` block records the reviewed field width,
+header, original direction and timestamp unit. Physical durations are reported
+only where the unit is documented as seconds; otherwise they are `UNKNOWN`.
+The Digg file was verified locally: `u v weight t`, weight 1 on every row, so
+the configured time column 3 is correct.
 
 Matched timing variants will be checked for node-set, topology and per-edge
 event-count equality with each chosen empirical backbone. Event-count ceilings
