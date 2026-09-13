@@ -1,0 +1,76 @@
+summary_type,W,mechanism,target_event_fraction,n_cells,median_normalized_profile_error,rank_lowest_error_first,mechanism_ordering,same_ordering_as_W5,share_dataset_severity_cells_same_ordering_as_W5
+mechanism,4,node_panel_full_history,all,16,0.00408776482293396,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,4,recency_truncation,all,16,0.10190218997766282,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,4,sampled_event_stream,all,16,0.013972867225719554,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,4,simple_random_walk_full_history,all,16,0.0025399952256889118,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+severity,4,all,0.25,32,0.008796422692254675,NA,NA,NA,NA
+mechanism_within_severity,4,node_panel_full_history,0.25,8,0.00408776482293396,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,4,recency_truncation,0.25,8,0.1597069285550662,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,4,sampled_event_stream,0.25,8,0.018677171962233768,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,4,simple_random_walk_full_history,0.25,8,0.003286221191182415,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+severity,4,all,0.5,32,0.006514307925677657,NA,NA,NA,NA
+mechanism_within_severity,4,node_panel_full_history,0.5,8,0.0035644692159305562,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,4,recency_truncation,0.5,8,0.08153715504892342,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,4,sampled_event_stream,0.5,8,0.008124374421921352,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,4,simple_random_walk_full_history,0.5,8,0.0019758237988651943,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+dataset_severity_ordering_agreement,4,all,all,16,NA,NA,NA,NA,0.6875
+mechanism,5,node_panel_full_history,all,16,0.003929734085304729,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,5,recency_truncation,all,16,0.09145486138513281,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,5,sampled_event_stream,all,16,0.012906516968008985,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,5,simple_random_walk_full_history,all,16,0.0027909280659498548,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+severity,5,all,0.25,32,0.00969723825183948,NA,NA,NA,NA
+mechanism_within_severity,5,node_panel_full_history,0.25,8,0.003929734085304729,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,5,recency_truncation,0.25,8,0.11563613797157608,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,5,sampled_event_stream,0.25,8,0.022676512513883806,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,5,simple_random_walk_full_history,0.25,8,0.003177866992161226,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+severity,5,all,0.5,32,0.008098028615999602,NA,NA,NA,NA
+mechanism_within_severity,5,node_panel_full_history,0.5,8,0.003484664874971926,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,5,recency_truncation,0.5,8,0.06869523391190162,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,5,sampled_event_stream,0.5,8,0.008390381676998933,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,5,simple_random_walk_full_history,0.5,8,0.00245373629981959,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+dataset_severity_ordering_agreement,5,all,all,16,NA,NA,NA,NA,1.0
+mechanism,6,node_panel_full_history,all,16,0.003778623566163361,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,6,recency_truncation,all,16,0.08668127560266435,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,6,sampled_event_stream,all,16,0.011500575506122409,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,6,simple_random_walk_full_history,all,16,0.00272635485894448,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+severity,6,all,0.25,32,0.01000243580949057,NA,NA,NA,NA
+mechanism_within_severity,6,node_panel_full_history,0.25,8,0.004132484982712509,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,6,recency_truncation,0.25,8,0.12629740948213009,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,6,sampled_event_stream,0.25,8,0.02256199594989943,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,6,simple_random_walk_full_history,0.25,8,0.0035002917643390916,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+severity,6,all,0.5,32,0.007334611193367632,NA,NA,NA,NA
+mechanism_within_severity,6,node_panel_full_history,0.5,8,0.002939565981915432,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,6,recency_truncation,0.5,8,0.07965950517117139,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,6,sampled_event_stream,0.5,8,0.009159996148797287,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,6,simple_random_walk_full_history,0.5,8,0.0020958883751494147,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+dataset_severity_ordering_agreement,6,all,all,16,NA,NA,NA,NA,0.75
+mechanism,8,node_panel_full_history,all,16,0.00339420425932205,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,8,recency_truncation,all,16,0.07017160744899176,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,8,sampled_event_stream,all,16,0.011411315019445256,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,8,simple_random_walk_full_history,all,16,0.002631680891779577,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+severity,8,all,0.25,32,0.009887128417155076,NA,NA,NA,NA
+mechanism_within_severity,8,node_panel_full_history,0.25,8,0.003711102119149931,1,node_panel_full_history < simple_random_walk_full_history < sampled_event_stream < recency_truncation,False,NA
+mechanism_within_severity,8,recency_truncation,0.25,8,0.10593912364434804,4,node_panel_full_history < simple_random_walk_full_history < sampled_event_stream < recency_truncation,False,NA
+mechanism_within_severity,8,sampled_event_stream,0.25,8,0.022783497401830118,3,node_panel_full_history < simple_random_walk_full_history < sampled_event_stream < recency_truncation,False,NA
+mechanism_within_severity,8,simple_random_walk_full_history,0.25,8,0.003874121676044274,2,node_panel_full_history < simple_random_walk_full_history < sampled_event_stream < recency_truncation,False,NA
+severity,8,all,0.5,32,0.006141140518664226,NA,NA,NA,NA
+mechanism_within_severity,8,node_panel_full_history,0.5,8,0.0027220034816790627,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,8,recency_truncation,0.5,8,0.06577267441944439,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,8,sampled_event_stream,0.5,8,0.01022323431079598,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,8,simple_random_walk_full_history,0.5,8,0.001970836118339836,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+dataset_severity_ordering_agreement,8,all,all,16,NA,NA,NA,NA,0.625
+mechanism,10,node_panel_full_history,all,16,0.0030710131029539596,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,10,recency_truncation,all,16,0.06261074128055076,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,10,sampled_event_stream,all,16,0.010203965434922902,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism,10,simple_random_walk_full_history,all,16,0.002375144930778399,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+severity,10,all,0.25,32,0.009198563304416197,NA,NA,NA,NA
+mechanism_within_severity,10,node_panel_full_history,0.25,8,0.0033319334928937805,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,10,recency_truncation,0.25,8,0.08903516462875617,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,10,sampled_event_stream,0.25,8,0.01833506332817101,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,10,simple_random_walk_full_history,0.25,8,0.0031617584946382143,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+severity,10,all,0.5,32,0.005557289524340118,NA,NA,NA,NA
+mechanism_within_severity,10,node_panel_full_history,0.5,8,0.0023131864934536465,2,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,10,recency_truncation,0.5,8,0.049480818156875814,4,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,10,sampled_event_stream,0.5,8,0.009317483629561637,3,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+mechanism_within_severity,10,simple_random_walk_full_history,0.5,8,0.0016323619184615435,1,simple_random_walk_full_history < node_panel_full_history < sampled_event_stream < recency_truncation,True,NA
+dataset_severity_ordering_agreement,10,all,all,16,NA,NA,NA,NA,0.75
