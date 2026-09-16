@@ -21,12 +21,21 @@ being identifiable. The panel size follows the same rule as R, from
 E[M_obs] = n(n−1)/(N(N−1)) · M_suffix, so H needs the larger panel by the factor
 M_full/M_suffix.
 
-*Why the panel does not disturb the model.* The panel is drawn over nodes without
+*What the panel does and does not preserve.* The panel is drawn over nodes without
 reference to any event, so a dyad is included with probability n(n−1)/(N(N−1))
-independently of its activity. Conditional on inclusion its window pattern is
-exactly what it was, so J | q ~ Bin(3, q) truncated at J ≥ 1 continues to hold and
-both the homogeneous suffix corrector and the Beta-Binomial candidate remain valid
-unchanged. Checked empirically: over 30 draws the observed window-count
+independently of its activity, and conditional on inclusion its window pattern is
+untouched. **Under the model's own assumptions** this preserves the marginal law of
+the observed window count — J | q ~ Bin(3, q) truncated at J ≥ 1 — so the
+homogeneous suffix corrector and the Beta-Binomial candidate keep the same working
+likelihood. That is a statement about the marginal, not a proof that either
+estimator is correct or unbiased. Uniform dyad inclusion does **not** make a ratio
+estimator exactly unbiased: the ratio of two random totals is biased in finite
+samples regardless of how uniformly the numerator and denominator were drawn.
+Because a panel includes all dyads among the selected nodes, dyads sharing a node
+enter together, so the per-dyad contributions are dependent and the likelihood is a
+composite one in the sense of Varin, Reid & Firth (2011): consistent as an
+estimating equation, but with standard errors that an independence assumption
+understates. Checked empirically: over 30 draws the observed window-count
 distribution moves by at most 0.005 from the full-suffix reference
 (`test_panel_leaves_the_window_count_distribution_alone`). Dyads sharing a node are
 included together, so dyads are **not** independent; that inflates the variance of
@@ -73,16 +82,36 @@ An offline decomposition splits the plug-in error into the part caused by *which
 dyads a mechanism reaches and the part caused by what it loses about them. Full
 histories are used for this evaluation only and never feed an estimator.
 
-| Arm | selection | lost history | share of absolute error from lost history |
-| --- | --- | --- | --- |
-| R | −0.0002 | 0 | 0 % |
-| S | **+0.134** | 0 | 0 % |
-| H | +0.060 | **−0.161** | 72 % |
-| B | +0.133 | **−0.517** | 80 % |
+**The formula, stated exactly.** With `oracle` the profile over the observed dyads
+computed from their complete histories,
 
-R and S retrieve complete histories, so their entire error is selection; for H and
-B the lost windows dominate. This is the evidence for the split in the design:
-simple methods on R and S, mixture models that address history loss on H and B.
+    selection = oracle − truth,  history = plugin − oracle,  total = selection + history
+
+is an exact identity. The share below is |history| / (|selection| + |history|): a
+share of the **summed absolute components, not an additive share of |total|**. On
+H and B the two components carry opposite signs and largely cancel, so their sum of
+absolute values exceeds the net error several times over; `cancellation` reports
+(|selection| + |history|) / |total|.
+
+An earlier version of this report quoted 72 % and 80 % as if they were general.
+They are the **development-graph** values. On the main observations, real and
+synthetic separately:
+
+| stratum | Arm | selection | history | net | history share | cancellation |
+| --- | --- | --- | --- | --- | --- | --- |
+| real | R | −0.0019 | 0 | −0.0019 | 0 % | 1.0 |
+| real | S | +0.3222 | 0 | +0.3222 | 0 % | 1.0 |
+| real | H | +0.127 | −0.192 | −0.065 | 60 % | **4.4** |
+| real | B | +0.185 | −0.268 | −0.082 | 59 % | **5.5** |
+| synthetic | H | +0.055 | −0.148 | −0.094 | 72 % | 2.2 |
+| synthetic | B | +0.120 | −0.483 | −0.363 | 80 % | 1.7 |
+
+R and S retrieve complete histories, so their entire error is selection and the
+identity is trivial there. On H and B both components are large and of opposite
+sign; on the real sources they are four to five times the net error. That is the
+evidence for the design split — simple methods on R and S, mixture models on H and
+B — but it also means the net error understates how much each mechanism actually
+distorts.
 
 ## 4. Which baselines work, and under which conditions
 
@@ -205,10 +234,20 @@ the chat template rather than of the models:
   `<think>`, the model reasons and closes with `</think>`, and the final answer
   field contains the JSON alone. **840 of 840 answers are valid under the frozen
   rule** (606 bare, 234 after removing a whole-answer markdown fence).
-* **Non-thinking mode** has no such channel: the template writes
-  `<think>\n\n</think>` into the prompt, so the block is closed before generation
-  starts. The model therefore derives *inside the answer field* and appends the
-  JSON at the end. **0 of 840 answers are valid under the frozen rule.**
+* **Non-thinking mode** has the block closed in the prompt: the template writes
+  `<think>\n\n</think>` before generation starts. The model then derives *inside the
+  answer field* and appends the JSON at the end. **0 of 840 answers are valid under
+  the frozen rule.**
+
+  An earlier version of this report presented the closed channel as the *cause*.
+  That over-claimed. The archived rendered prompts show the two modes differ only
+  in those four tokens, and the system instruction — "Do not include explanations,
+  additional keys, or Markdown in the final answer" — is byte-identical in both.
+  Nothing forces a derivation into the answer field; the non-thinking mode simply
+  does not follow the format instruction where the thinking mode does. This is an
+  instruction-following difference under an otherwise identical prompt, which is
+  why it is reported with a strict and a relaxed count in the manner of IFEval
+  (arXiv:2311.07911) rather than resolved by choosing one number.
 
 Under the frozen parser rule the non-thinking mode never produces a parseable
 answer, so all 840 of its estimates become plug-in replacements and its MAE₂ is
@@ -230,14 +269,40 @@ was not modified.
 
 ### MAE₂ on the six real sources, against the offline baselines
 
-| Arm | Qwen thinking | Qwen non-thinking* | plug-in | best corrector | ExtraTrees pooled |
+| Arm | Qwen thinking | Qwen non-thinking* | plug-in | primary corrector | ExtraTrees pooled |
 | --- | --- | --- | --- | --- | --- |
 | R | 0.0199 | 0.0198 | **0.0197** | = plug-in | 0.0299 |
-| S | 0.1384 | 0.1626 | 0.3222 | 0.0972 | **0.0615** |
+| S | 0.1384 | 0.1626 | 0.3222 | **0.0972** | 0.0615 |
 | H | 0.2083 | 0.2250 | 0.0721 | 0.0779 (candidate) | **0.0590** |
-| B | 0.1214 | 0.1145 | 0.0823 | 0.0555 | **0.0524** |
+| B | 0.1214 | 0.1145 | 0.0823 | 0.0585 (candidate) | **0.0524** |
 
-\* secondary analysis. Monte-Carlo standard errors are 0.001–0.025.
+\* sensitivity analysis under rule v3.
+
+Paired differences against the **decided** references (CORRECTOR_DECISION.md:
+corrector for R and S, the mixture candidate for H and B; pooled ExtraTrees as the
+trained reference), Qwen thinking on the real sources:
+
+| Arm | vs primary corrector | vs plug-in | vs ExtraTrees pooled |
+| --- | --- | --- | --- |
+| R | +0.0001 | +0.0001 | **−0.0100** |
+| S | +0.0413 | **−0.1838** | +0.0770 |
+| H | +0.1229 | +0.1362 | +0.1493 |
+| B | +0.0623 | +0.0391 | +0.0690 |
+
+An earlier version of this report compared against `run/baselines/*.json`, which
+holds the *homogeneous* corrector and the real-only ExtraTrees — both development
+references. On arm H that understated the gap by a factor of three: the reported
++0.038 was against the homogeneous corrector (0.171); against the decided candidate
+(0.078) it is **+0.123**. Arm R is the one place the model beats the pooled learned
+baseline, by 0.010.
+
+**Two uncertainties, kept apart.** With the six sources held fixed, the
+Monte-Carlo error of the source mean (variance over the five sampler draws' repeat
+means, per Morris, White & Crowther 2019) is 0.004 / 0.018 / 0.025 / 0.013 for
+R / S / H / B. The between-source standard error at n = 6 is 0.008 / 0.043 / 0.007 /
+0.012. Neither dominates uniformly, they answer different questions, and no
+equivalence is claimed anywhere from a difference that fails to reach significance
+— per-source results are in `source_results.csv`.
 
 The pattern is the same in both modes and it is the substantive result:
 
@@ -248,18 +313,32 @@ The pattern is the same in both modes and it is the substantive result:
 * **Arm S: the model corrects a large bias, but not as well as a dedicated estimator.**
   It takes 0.322 down to 0.138 — a real correction of the walk's over-sampling —
   while the ratio corrector reaches 0.097 and the learned baseline 0.062.
-* **Arms H and B: the model over-corrects and ends up worse than doing nothing.**
-  On H it is three times the plug-in error, on B one and a half times. These are
-  exactly the arms where the decomposition attributes 72–80 % of the error to lost
-  history, so they require a model of what was lost, and the LLM's implicit model
-  is worse than both the plug-in and the fitted ones.
+* **Arm H: genuine over-correction.** The signed error flips sign — the plug-in
+  underestimates by −0.065, the model overestimates by +0.128 — so it does not
+  merely miss, it corrects past the target.
+* **Arm B: not over-correction.** An earlier version of this report claimed it was.
+  The signed error does **not** flip: the plug-in underestimates by −0.082, the
+  model by −0.017, so the bias is reduced by about 80 %. MAE₂ nevertheless rises
+  from 0.082 to 0.121 because the dispersion across draws is 0.168. Higher MAE₂
+  alone never establishes over-correction, and here it does not.
 
-On the synthetic strata the same ordering holds, with arm B on the high-persistence
-families the worst case (thinking 0.37 on dar_a08 and 0.46 on ad_memory).
+**The ranking is not the same on real and synthetic data.** That claim, also in an
+earlier version, is false. Plug-in against Qwen thinking, by family:
 
-So on this task the LLM is useful exactly where the naive reading fails badly and
-harmful where the naive reading is already decent. It never beats a purpose-built
-estimator on any arm.
+| family | R | S | H | B |
+| --- | --- | --- | --- | --- |
+| real | plug-in | **Qwen** | plug-in | plug-in |
+| dar_a0 | plug-in | **Qwen** | plug-in | **Qwen** |
+| dar_a08 | Qwen | **Qwen** | plug-in | **Qwen** (0.523 → 0.370) |
+| ad_memoryless | Qwen | **Qwen** | plug-in | plug-in |
+| ad_memory | Qwen | **Qwen** | **Qwen** | **Qwen** |
+
+Arm S is the only one where the model wins everywhere. On arm B it wins exactly
+where the plug-in error is large (0.31–0.57) and loses where it is small (0.04–0.08).
+Arm H is the only arm where the model loses almost everywhere. So the useful summary
+is not "the model is worse on H and B" but: **the model helps when the naive reading
+is badly wrong and hurts when it is already close**, with arm H the exception where
+it hurts regardless.
 
 ## 7. Limits
 
@@ -274,3 +353,74 @@ estimator on any arm.
   into independent multinomial significance tests.
 * The walk corrector on arm S is not claimed to be unbiased at finite, short walk
   lengths; at this budget the walk is short (median 276 discovered dyads).
+
+## 8. Acceptance round of 2026-09-17
+
+A review of commit `830dfb4` raised eight points. Six were confirmed defects, two
+were claims of mine that the evidence does not support. Nothing below changes the
+design, the estimator choice or any numerical rule in a direction that improves a
+main-test result; the two changes that move a number move it the wrong way.
+
+### Confirmed defects and what they changed
+
+| # | Defect | Effect on results |
+| --- | --- | --- |
+| 1 | The response evaluator compared against `run/baselines/*.json`, the homogeneous corrector, not the corrector the decision record designates. | Arm H's paired difference was **+0.038**, against the decided candidate it is **+0.123**. Arm B: +0.066 → +0.062. |
+| 2 | `_classify` returned the first matching label, so a boundary hit hid a start disagreement, and the fallback rule — which keys on the disagreement — never fired for those fits. | 17 of 1000 development fits changed prediction; fallbacks rose 94 → 111 (H 14 → 19, B 80 → 92). Development MAE₂ moved by +0.0004 (B) and +0.00002 (H), i.e. slightly **worse**. |
+| 3 | `_flatness` accepted any finite profile objective, including the invalid-region penalty, and ignored `success`. A failed profile optimisation could therefore be read as a reliable identifiability diagnosis. | A `flatness_unavailable` flag now marks the absent diagnosis instead of it passing as good identifiability. |
+| 4 | The `valid_only` path still used `range(1, 2 if arm=='H' else 6)`, evaluating arm H on its first sample only. | The conditional side analysis now uses all five samples for every arm. |
+| 5 | The manifest payload declared `response_format: json_object` and streaming; the runner used the offline batch API with free generation and no streaming. | Payload now records what was executed and what was planned but unused. |
+| 6 | The scratch workspace expires 2026-10-24 and held the only copy of the answers. | Archived; see below. |
+
+### Claims of mine that the evidence does not support
+
+* **"72 % / 80 % of the error comes from lost history."** Those are development-graph
+  values and they are shares of the summed absolute components, not additive shares
+  of the net error. On the real sources the shares are 60 % and 59 %, and the
+  components are four to five times the net error because they cancel. Corrected in §3.
+* **"The model over-corrects on H and B."** Only on H. On B the signed error does not
+  flip; the bias falls from −0.082 to −0.017 and MAE₂ rises through dispersion.
+* **"The ranking is the same on real and synthetic data."** False; arm B on dar_a08
+  is a counterexample (plug-in 0.523 → Qwen 0.370). Corrected in §6.
+* **"A closed thinking channel forces the derivation into the answer field."**
+  Over-claimed. The rendered prompts differ only in four tokens and carry the same
+  system instruction; this is an instruction-following difference, not a mechanism.
+* **"Uniform dyad inclusion keeps the model valid."** Restated in §1 as preservation
+  of the marginal law under the model's assumptions, with the composite-likelihood
+  dependence and the finite-sample ratio bias named.
+
+### Parser rules, versioned
+
+| rule | fixed | thinking | non-thinking |
+| --- | --- | --- | --- |
+| v1 bare JSON | original contract | 606/840 | 0/840 |
+| **v2 one whole-answer fence** | **before the run — main result** | **840/840** | **0/840** |
+| v3 trailing JSON object | after the run — sensitivity | 840/840 | 785/840 |
+
+v3 is applied identically to both configurations, not only to the one that prompted
+it. Invalid answers keep the frozen replacement rule; the valid-only analysis is
+reported separately and labelled as conditional. Mechanically selected examples —
+first request ids in sort order, never chosen by outcome — with prompt tail, output
+head and output tail are in `parser_rule_audit.json`.
+
+### Archive
+
+`results/main_experiment/qwen_archive/` and `$HOME/mainexp_archive_20261001` on the
+cluster, outside the expiring workspace: **2 078 files, 94.2 MB**, containing the
+1 680 raw answers, the 560 prompts as the tokenizer actually rendered them per mode,
+the request manifest, all observation blocks, the model/tokenizer/template and all
+26 weight-shard hashes, the pinned environment and 104 job logs. Every file is
+listed in `CHECKSUMS.json`; read-back verification reports **zero mismatches** both
+on the cluster and after transfer (tarball SHA-256 identical at both ends).
+
+### Does any of this require a new Qwen run?
+
+**No.** The 1 680 stored answers remain fully usable. Evidence: the model path,
+architecture and dtype in every job log are the pinned ones; all 1 680 raw texts are
+distinct and all 560 repeat-triples differ, so the per-request seeds took effect;
+199 of 200 sampled answers quote their own `D_obs`; generated output tokens in the
+job logs equal stored output tokens exactly (14 082 293), so nothing was generated
+and discarded into the result set; and of 104 job attempts, 48 completed a shard,
+44 found their shard already complete, and 12 produced no completed chunk at all —
+**no shard generated in two attempts**, so no request was computed twice. Every
+defect above is in the offline evaluation, not in the generation.

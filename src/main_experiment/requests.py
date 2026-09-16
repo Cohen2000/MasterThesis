@@ -15,12 +15,26 @@ def payload(config,messages,request_seed):
                 'stream_options':{'include_usage':True}}
     if config not in CONFIGS: raise ValueError(config)
     thinking=config=='qwen_thinking'
+    # What was actually executed, recorded as such. The earlier payload declared
+    # response_format json_object and streaming for a server transport; the run
+    # used vLLM's offline batch API with free-form generation and no streaming.
+    #
+    # The reason for free generation is narrower than previously claimed. A JSON
+    # grammar does not truncate reasoning in general: with a reasoning parser
+    # configured, vLLM applies structured output to the final answer only. In the
+    # offline LLM API used here no reasoning parser is attached, so a grammar
+    # would start at the first generated token -- which in thinking mode is inside
+    # the <think> block. Free generation plus the frozen strict parser avoids that
+    # without relying on a server-side parser.
     return {'model':QWEN,'messages':messages,'max_tokens':258048,
             'temperature':1. if thinking else .7,'top_p':.95 if thinking else .80,
             'top_k':20,'min_p':0.,'presence_penalty':1.5,'repetition_penalty':1.,
             'chat_template_kwargs':{'enable_thinking':thinking},'seed':request_seed,
-            'response_format':{'type':'json_object'},'stream':True,
-            'stream_options':{'include_usage':True}}
+            'executed_transport':'vllm offline batch api',
+            'executed_structured_output':None,
+            'executed_streaming':False,
+            'planned_but_not_used':{'response_format':{'type':'json_object'},
+                                    'stream':True,'stream_options':{'include_usage':True}}}
 
 
 def planned(observations):

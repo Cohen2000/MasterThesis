@@ -2,12 +2,12 @@
   "dev": {
     "diagnostics": {
       "B": {
-        "fallbacks_to_homogeneous": 80,
-        "flat_per_decade_median": 0.5370439144510328,
+        "fallbacks_to_homogeneous": 92,
+        "flat_per_decade_median": 0.5542858667427026,
         "n": 500,
-        "seconds_max": 0.19778361899079755,
-        "seconds_mean": 0.07614391509589041,
-        "seconds_total": 38.0719575479452,
+        "seconds_max": 0.1620592580002267,
+        "seconds_mean": 0.0745853630923084,
+        "seconds_total": 37.2926815461542,
         "status_counts": {
           "boundary_homogeneous": 31,
           "boundary_other": 26,
@@ -18,12 +18,12 @@
         "weakly_identified_or_boundary": 321
       },
       "H": {
-        "fallbacks_to_homogeneous": 14,
-        "flat_per_decade_median": 4.9666964892089425,
+        "fallbacks_to_homogeneous": 19,
+        "flat_per_decade_median": 4.974527916416605,
         "n": 500,
-        "seconds_max": 0.08428247300616931,
-        "seconds_mean": 0.02607121344812913,
-        "seconds_total": 13.035606724064564,
+        "seconds_max": 0.09100094399764203,
+        "seconds_mean": 0.02504368377587525,
+        "seconds_total": 12.521841887937626,
         "status_counts": {
           "boundary_homogeneous": 25,
           "boundary_other": 61,
@@ -34,10 +34,10 @@
         "weakly_identified_or_boundary": 156
       }
     },
-    "elapsed_seconds": 142.22972762100108,
+    "elapsed_seconds": 138.46583607699722,
     "graphs": 100,
     "observations": 2000,
     "records": 11000
   },
-  "elapsed_seconds": 142.6452324819984
+  "elapsed_seconds": 138.96772489498835
 }

@@ -231,3 +231,17 @@ data/tokenizers/
 !/results/main_experiment/qwen_evaluation_trailing/summary.csv
 !/results/main_experiment/qwen_evaluation_trailing/source_results.csv
 !/results/main_experiment/qwen_evaluation_trailing/report.json
+
+# Acceptance round 2026-09-17: the durable record of the Qwen run.
+# The tarball is the primary experimental data of the thesis and is versioned here
+# on purpose; the unpacked copy and the bulk answers stay local.
+!/results/main_experiment/qwen_archive_20261001.tgz
+!/results/main_experiment/qwen_archive_20261001.tgz.sha256
+!/results/main_experiment/qwen_archive/
+/results/main_experiment/qwen_archive/*
+!/results/main_experiment/qwen_archive/CHECKSUMS.json
+!/results/main_experiment/qwen_archive/ARCHIVE_REPORT.json
+!/results/main_experiment/qwen_archive/model_identity.json
+!/results/main_experiment/parser_rule_audit.json
+!/results/baseline_revision_20261001/primary_baselines.json
+!/results/baseline_revision_20261001/error_decomposition_main.json

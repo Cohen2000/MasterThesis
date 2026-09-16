@@ -14,10 +14,14 @@ from main_experiment.evaluation import resolve,errors,paired_summary
 from main_experiment.pipeline import csv_write
 
 
-def evaluate(run,response_file,out,mock=False):
+def evaluate(run,response_file,out,mock=False,baselines=None):
     run=Path(run); out=Path(out)
     if mock and 'mock' not in str(out).lower(): raise ValueError('mock output directory must contain mock')
     if out.resolve()==run.resolve(): raise ValueError('evaluation must have its own output directory')
+    # The decided reference per CORRECTOR_DECISION.md. Without it the comparison
+    # silently used run/baselines/*.json, which holds the homogeneous corrector and
+    # the real-only ExtraTrees -- both development references, not the primary ones.
+    primary=read_json(baselines) if baselines else None
     planned=[json.loads(line) for line in (run/'requests.jsonl').read_text().splitlines()]
     known={r['id']:r for r in planned}; records={}
     if response_file:
@@ -42,14 +46,28 @@ def evaluate(run,response_file,out,mock=False):
         median=read_json(run/'models'/fold/'manifest.json')['median']
         o=parse(obs['block']); outcome=resolve(o,median,records.get(request['id']))
         bases=read_json(run/'baselines'/(obs['id']+'.json'))
-        base_error=errors(bases['corrector']['prediction'],obs['truth'])
+        if primary:
+            e=primary['observations'][obs['id']]
+            ref=e['primary_corrector']['prediction']; ref_name=e['primary_corrector_name']
+            trained=e['extratrees_pooled']['prediction']
+        else:
+            ref=bases['corrector']['prediction']; ref_name='corrector'; trained=None
+        base_error=errors(ref,obs['truth'])
+        plug_error=errors(bases['plugin']['prediction'],obs['truth'])
+        trained_error=errors(trained,obs['truth']) if trained else {'AE2':None,'ProfileAE':None}
         err=errors(outcome['prediction'],obs['truth'])
         rows.append({k:request[k] for k in ['id','graph_id','arm','sample_index','repeat_index','config_id','stratum']} |
                     outcome | err | {'empty':obs['empty'],'baseline_AE2':base_error['AE2'],
                     'baseline_ProfileAE':base_error['ProfileAE'],
                     'delta_AE2':None if err['AE2'] is None else err['AE2']-base_error['AE2'],
                     'delta_ProfileAE':None if err['ProfileAE'] is None else err['ProfileAE']-base_error['ProfileAE'],
-                    'budget_matched':obs['budget_matched'],'mock':mock})
+                    'budget_matched':obs['budget_matched'],'mock':mock,
+                    'reference_name':ref_name,
+                    'plugin_AE2':plug_error['AE2'],
+                    'delta_AE2_vs_plugin':None if err['AE2'] is None else err['AE2']-plug_error['AE2'],
+                    'extratrees_pooled_AE2':trained_error['AE2'],
+                    'delta_AE2_vs_extratrees':None if err['AE2'] is None or trained_error['AE2'] is None
+                                              else err['AE2']-trained_error['AE2']})
     csv_write(out/'answer_errors.csv',rows)
     summary=[]; source_rows=[]; conditional=[]
     for stratum in ['real','dar_a0','dar_a08','ad_memoryless','ad_memory']:
@@ -77,7 +95,8 @@ def evaluate(run,response_file,out,mock=False):
                         'empty_fraction':sum(r['empty'] for r in group)/len(group),'complete':complete}
                 sources=sorted({r['graph_id'] for r in group})
                 if stratum=='real' and set(sources)!=set(REAL_TEST): complete=False; result['complete']=False
-                for metric in ['AE2','ProfileAE','delta_AE2','delta_ProfileAE']:
+                for metric in ['AE2','ProfileAE','delta_AE2','delta_ProfileAE',
+                               'delta_AE2_vs_plugin','delta_AE2_vs_extratrees']:
                     cells={}
                     for source in sources:
                         # Sample count comes from the design, not from a literal:
@@ -105,7 +124,10 @@ def evaluate(run,response_file,out,mock=False):
                 per_source=[]
                 for source in sources:
                     per_obs=[]
-                    for ix in range(1,2 if arm=='H' else 6):
+                    # Replication count from the design, not a literal: every arm
+                    # is stochastic since the ten-percent revision, and the old
+                    # literal evaluated arm H on its first sample only.
+                    for ix in range(1,SAMPLES_PER_ARM+1):
                         vs=[r for r in valid if r['graph_id']==source and r['sample_index']==ix]
                         if vs: per_obs.append([np.mean([r[k] for r in vs]) for k in ['AE2','baseline_AE2','delta_AE2','ProfileAE','baseline_ProfileAE']])
                     if per_obs: per_source.append(np.mean(per_obs,axis=0))
@@ -121,6 +143,6 @@ def evaluate(run,response_file,out,mock=False):
          'metric_label':'MAE2 with fixed replacement rule'})
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(); p.add_argument('--run',required=True); p.add_argument('--responses')
+    p=argparse.ArgumentParser(); p.add_argument('--run',required=True); p.add_argument('--baselines'); p.add_argument('--responses')
     p.add_argument('--out',required=True); p.add_argument('--mock',action='store_true')
-    a=p.parse_args(); evaluate(a.run,a.responses,a.out,a.mock)
+    a=p.parse_args(); evaluate(a.run,a.responses,a.out,a.mock,a.baselines)

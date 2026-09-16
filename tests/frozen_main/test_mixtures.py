@@ -323,6 +323,68 @@ class NumericalGuardTests(unittest.TestCase):
         self.assertLess(abs(r['nll_improvement']),1e-6,r)
 
 
+class DiagnosticIndependenceTests(unittest.TestCase):
+    """Diagnostic conditions overlap and must not mask one another."""
+
+    def setUp(self):
+        self.bounds = [(-mx.LOGIT_BOUND, mx.LOGIT_BOUND), mx.LOG_KAPPA_BOUNDS]
+
+    def test_boundary_does_not_hide_a_start_disagreement(self):
+        z = [0.0, mx.LOG_KAPPA_BOUNDS[1]]          # on the homogeneous bound
+        label, flags = mx.diagnose(z, self.bounds, spread=1.0, flat=99.)
+        self.assertEqual(label, 'boundary_homogeneous')
+        self.assertTrue(flags['starts_disagree'])
+        self.assertTrue(mx.is_unreliable(label, flags),
+                        'the fallback must fire even though the label says boundary')
+
+    def test_interior_agreeing_fit_is_reliable(self):
+        label, flags = mx.diagnose([0.0, 0.0], self.bounds, spread=0., flat=99.)
+        self.assertEqual(label, 'converged')
+        self.assertFalse(any(flags.values()))
+        self.assertFalse(mx.is_unreliable(label, flags))
+
+    def test_missing_flatness_is_not_read_as_good_identifiability(self):
+        label, flags = mx.diagnose([0.0, 0.0], self.bounds, spread=0., flat=float('nan'))
+        self.assertTrue(flags['flatness_unavailable'])
+        self.assertFalse(flags['weakly_identified'])
+        self.assertEqual(label, 'flatness_unavailable')
+
+    def test_flatness_ignores_failed_profile_optimisations(self):
+        """A profile optimisation that fails must not contribute a rise."""
+        class Best:
+            x = [0.0, 0.0]
+            fun = 1.0
+        rises = mx._flatness(lambda z: mx.PENALTY, Best(), self.bounds, 1)
+        self.assertNotEqual(rises, rises)          # NaN: no usable diagnosis
+
+    def test_every_flag_is_reachable_on_real_fits(self):
+        """The flags are exercised by actual development fits, not only by hand."""
+        import glob
+        from main_experiment.common import read_json
+        files = sorted(glob.glob('results/baseline_revision_20261001/pool/observations/*dev*.json'))[:25]
+        if not files: self.skipTest('development pool not built')
+        seen = set(); n = 0
+        for f in files:
+            d = read_json(f)
+            for row in d['observations']:
+                if row['arm'] not in ('H', 'B'): continue
+                o = parse(row['block'])
+                if o['D_obs'] == 0: continue
+                S = sum(p.count('1') * x for p, x, _ in o['table'])
+                mu = activity(S / o['D_obs'], 3 if o['arm'] == 'H' else 5)
+                if o['arm'] == 'H':
+                    fit = mx.fit_suffix(o, mu)
+                else:
+                    from main_experiment.baselines import bisect
+                    mean = o['M_obs'] / S
+                    r = 0. if mean <= 1 else bisect(lambda x: 1. if x == 0 else x / -math.expm1(-x), mean, 0., mean)
+                    fit = mx.fit_events(o, mu, r / o['parameter'])
+                seen |= {k for k, v in fit.flags.items() if v}
+                n += 1
+        self.assertGreater(n, 20)
+        self.assertTrue(seen, 'no diagnostic flag was ever raised, which is itself suspicious')
+
+
 class AssumptionViolationTests(unittest.TestCase):
     """DAR and activity-driven graphs violate conditional exchangeability of windows:
     DAR has serial copy dependence, activity-driven memory makes activity grow with

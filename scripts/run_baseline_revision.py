@@ -9,7 +9,7 @@ import argparse,math,os,sys,time
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from main_experiment.common import write_json,read_json,digest
-from main_experiment.common import REAL_TEST as REAL_TEST_LIST
+from main_experiment.common import REAL_TEST as REAL_TEST_LIST, SYNTH as SYNTH_LIST
 from main_experiment import pool as poolmod
 from main_experiment.training import fit_folds,TRAINING_REVISION
 from main_experiment.observation import parse,features,FEATURE_NAMES
@@ -19,6 +19,7 @@ from main_experiment import mixtures
 # Current design run. frozen_20260916 holds the superseded suffix-budget design
 # and is kept as the development history, not read here.
 FROZEN=Path(os.environ.get('MAIN_RUN','results/main_experiment/budget10_20261001'))
+_FOLD={}
 
 
 def load_real_training():
@@ -93,11 +94,14 @@ def _predict(o,models,medians,graph_truth,arm):
         mu0,lam0=_homogeneous_start(o)
         fit=mixtures.fit_suffix(o,mu0) if arm=='H' else mixtures.fit_events(o,mu0,lam0)
         pred=list(fit.prediction); fallback=''
-        if fit.status in mixtures.UNRELIABLE_STATUSES:
+        if mixtures.is_unreliable(fit.status,fit.flags):
             # Pre-registered: an unreliable fit does not contribute a mixture
-            # prediction at all; it falls back to the homogeneous corrector.
+            # prediction at all; it falls back to the homogeneous corrector. The
+            # condition reads the independent flags, so a disagreement that
+            # coincides with a boundary hit is not masked by the summary label.
             pred=list(out['corrector']['prediction']); fallback='homogeneous_corrector'
         out['candidate']={'prediction':pred,'status':fit.status,'fallback':fallback,
+                          'flags':dict(fit.flags),
                           'seconds':fit.seconds,'kappa':fit.kappa,'mu':fit.mu,
                           'lam':fit.lam,'lam_event_only':fit.lam_event_only,
                           'flat_per_decade':fit.flat_per_decade,'nll_spread':fit.nll_spread}
@@ -133,6 +137,9 @@ def stage_dev(out):
                          'AE2':float(abs(e[0])),'ProfileAE':float(np.mean(np.abs(e))),
                          'signed_rho2':float(e[0]),'status':d['status'],
                          'fallback':d.get('fallback',''),
+                         'flag_starts_disagree':bool(d.get('flags',{}).get('starts_disagree')),
+                         'flag_boundary':bool(d.get('flags',{}).get('boundary_homogeneous') or d.get('flags',{}).get('boundary_other')),
+                         'flag_flatness_unavailable':bool(d.get('flags',{}).get('flatness_unavailable')),
                          'seconds':d.get('seconds',0.),'kappa':d.get('kappa',''),
                          'flat_per_decade':d.get('flat_per_decade',''),
                          'lam':d.get('lam',''),'lam_event_only':d.get('lam_event_only','')})
@@ -250,11 +257,13 @@ def stage_main(out):
     for name,folder in (('pooled','models_pooled'),('real_only','models_real_only')):
         with open(out/folder/'synthetic'/'model.pkl','rb') as f: models[name]=pickle.load(f)
     med_syn=read_json(out/'models_pooled'/'synthetic'/'manifest.json')['median']
+    global _FOLD
     fold_models={}; fold_med={}
     for src in REAL_TEST_LIST:
         for name,folder in (('pooled','models_pooled'),('real_only','models_real_only')):
             with open(out/folder/src/'model.pkl','rb') as f: fold_models[(src,name)]=pickle.load(f)
         fold_med[src]=read_json(out/'models_pooled'/src/'manifest.json')['median']
+    _FOLD=fold_models
     recs=[]; t0=time.time()
     for r in rows:
         o=parse(r['block']); g=r['graph_id']; truth=man[g]['truth']
@@ -280,6 +289,7 @@ def stage_main(out):
                 'seconds':d.get('seconds',0.),'budget_matched':True})
     with open(out/'main_observations.csv','w',newline='') as f:
         w=csv.DictWriter(f,fieldnames=list(recs[0])); w.writeheader(); w.writerows(recs)
+    write_json(out/'primary_baselines.json',_primary_baselines(rows,man,models,fold_med,med_syn))
     summary=_aggregate_main(recs)
     write_json(out/'main_summary.json',summary)
     fields=list(dict.fromkeys(k for row in summary['rows'] for k in row))
@@ -287,6 +297,45 @@ def stage_main(out):
         w=csv.DictWriter(f,fieldnames=fields,restval=''); w.writeheader(); w.writerows(summary['rows'])
     return {'observations':len(rows),'records':len(recs),'seconds':time.time()-t0,
             'coverage':summary['coverage']}
+
+
+# Which corrector is primary for which arm. Fixed in CORRECTOR_DECISION.md before
+# the real sources were evaluated and not revised since.
+PRIMARY_CORRECTOR={'R':'corrector','S':'corrector','H':'candidate','B':'candidate'}
+
+
+def _primary_baselines(rows,man,models,fold_med,med_syn):
+    """Per-observation predictions of every baseline, with the primary one named.
+
+    The response evaluator needs the *decided* reference, not whichever baseline
+    happened to be stored in the run's own baselines directory. That directory
+    holds the homogeneous corrector and the real-only ExtraTrees, which are
+    development references here, so comparing the LLM against them would silently
+    use a reference the decision record does not designate.
+    """
+    import numpy as np
+    out={'decision':'results/baseline_revision_20261001/CORRECTOR_DECISION.md',
+         'primary_corrector_by_arm':PRIMARY_CORRECTOR,
+         'primary_trained_reference':'extratrees_pooled',
+         'observations':{}}
+    for r in rows:
+        o=parse(r['block']); g=r['graph_id']; truth=man[g]['truth']
+        real=g in REAL_TEST_LIST
+        m={'pooled':models['pooled'] if not real else None,'real_only':models['real_only'] if not real else None}
+        # stage_main already resolved the right fold model; recompute identically
+        from main_experiment.common import REAL_TEST as RT
+        if real:
+            import pickle
+            m={'pooled':_FOLD[(g,'pooled')],'real_only':_FOLD[(g,'real_only')]}
+        med=fold_med[g] if real else med_syn
+        pred=_predict(o,m,med,truth,r['arm'])
+        entry={k:{'prediction':v['prediction'],'status':v['status']} for k,v in pred.items()}
+        entry['primary_corrector']=dict(entry[PRIMARY_CORRECTOR[r['arm']]])
+        entry['primary_corrector_name']=PRIMARY_CORRECTOR[r['arm']]
+        entry['arm']=r['arm']; entry['stratum']='real' if real else 'synthetic'
+        entry['truth']=list(truth)
+        out['observations'][r['id']]=entry
+    return out
 
 
 def _aggregate_main(recs):
@@ -340,6 +389,77 @@ def _aggregate_main(recs):
                 'D_obs_min':int(np.min([r['D_obs'] for r in sel])),
                 'M_obs_median':float(np.median([r['M_obs'] for r in sel]))})
     return {'rows':rows,'coverage':cov}
+
+
+def stage_decompose_main(out):
+    """The same selection/history split on the main observations.
+
+    The development version regenerates pool graphs; here the graphs are on disk,
+    so the draw is replayed from the stored seeds instead. Real and synthetic
+    strata are kept apart. Full histories are used for evaluation only.
+    """
+    import csv, time
+    import numpy as np
+    from main_experiment.data import load_graph
+    from main_experiment.sampling import calibrate, draw
+    rows=[]; t0=time.time()
+    for gd in sorted((FROZEN/'graphs').iterdir()):
+        if not (gd/'manifest.json').exists(): continue
+        key=gd.name
+        if key not in REAL_TEST_LIST and key not in SYNTH_LIST: continue
+        g=load_graph(gd)
+        budget,walk=calibrate(g,FROZEN/'calibration'/key,FROZEN/'build')
+        truth=np.array(g.truth,float)
+        for arm in ('R','S','H','B'):
+            for ix in range(1,6):
+                counts,_=draw(g,arm,ix,'sample',budget,walk)
+                seen=counts.sum(1)>0
+                if not seen.any(): continue
+                Kf=(g.counts[seen]>0).sum(1); Ko=(counts[seen]>0).sum(1)
+                oracle=np.array([float((Kf>=k).mean()) for k in range(2,6)])
+                plug=np.array([float((Ko>=k).mean()) for k in range(2,6)])
+                rows.append({'graph_id':key,
+                    'stratum':'real' if key in REAL_TEST_LIST else 'synthetic',
+                    'arm':arm,'sample_index':ix,'D_full':g.D,'D_obs':int(seen.sum()),
+                    'dyad_coverage':float(seen.mean()),
+                    'truth_rho2':float(truth[0]),'oracle_rho2':float(oracle[0]),
+                    'plugin_rho2':float(plug[0]),
+                    'selection_rho2':float(oracle[0]-truth[0]),
+                    'history_rho2':float(plug[0]-oracle[0]),
+                    'total_rho2':float(plug[0]-truth[0])})
+    with open(out/'error_decomposition_main.csv','w',newline='') as f:
+        w=csv.DictWriter(f,fieldnames=list(rows[0])); w.writeheader(); w.writerows(rows)
+    summary=[]
+    for stratum in ('real','synthetic'):
+        for arm in ('R','S','H','B'):
+            sel=[r for r in rows if r['arm']==arm and r['stratum']==stratum]
+            if not sel: continue
+            per={}
+            for r in sel: per.setdefault(r['graph_id'],[]).append(r)
+            agg=lambda k: float(np.mean([np.mean([x[k] for x in v]) for v in per.values()]))
+            abs_sel=float(np.mean([abs(x['selection_rho2']) for x in sel]))
+            abs_his=float(np.mean([abs(x['history_rho2']) for x in sel]))
+            abs_tot=float(np.mean([abs(x['total_rho2']) for x in sel]))
+            summary.append({'stratum':stratum,'arm':arm,'graphs':len(per),
+                'dyad_coverage':agg('dyad_coverage'),
+                'selection_rho2':agg('selection_rho2'),'history_rho2':agg('history_rho2'),
+                'total_rho2':agg('total_rho2'),
+                'abs_selection':abs_sel,'abs_history':abs_his,'abs_total':abs_tot,
+                # Share of the SUM OF ABSOLUTE COMPONENTS, not an additive share of
+                # the total: selection and history have opposite signs on H and B and
+                # partly cancel, so |selection| + |history| exceeds |total| there.
+                'history_share_of_abs_components':abs_his/(abs_sel+abs_his) if (abs_sel+abs_his) else None,
+                'cancellation_ratio':(abs_sel+abs_his)/abs_tot if abs_tot else None})
+    write_json(out/'error_decomposition_main.json',
+               {'formula':'selection = oracle - truth; history = plugin - oracle; '
+                          'total = selection + history exactly. history_share_of_abs_components '
+                          '= |history| / (|selection| + |history|) is a share of the summed '
+                          'absolute components, NOT an additive share of |total|; the two '
+                          'components have opposite signs on H and B and partly cancel, '
+                          'which cancellation_ratio = (|sel|+|hist|)/|total| quantifies.',
+                'rows':summary})
+    return {'observations':len(rows),'graphs':len({r['graph_id'] for r in rows}),
+            'seconds':time.time()-t0}
 
 
 def stage_decompose(out):
@@ -410,7 +530,7 @@ def stage_decompose(out):
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--out',required=True)
-    ap.add_argument('--stage',default='all',choices=['pool','train','dev','decompose','main','all'])
+    ap.add_argument('--stage',default='all',choices=['pool','train','dev','decompose','decompose_main','main','all'])
     a=ap.parse_args()
     out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
     start=time.perf_counter(); report={}
@@ -420,6 +540,9 @@ def main():
     if a.stage in ('train','all'):
         report['train']=stage_train(out)
         print('train:',report['train'],flush=True)
+    if a.stage=='decompose_main':
+        report['decompose_main']=stage_decompose_main(out)
+        print('decompose_main:',report['decompose_main'],flush=True)
     if a.stage=='main':
         report['main']=stage_main(out)
         print('main:',report['main'],flush=True)

@@ -1,5 +1,5 @@
 {
-  "elapsed_seconds": 21.09753921799711,
+  "elapsed_seconds": 43.84087102000194,
   "main": {
     "coverage": [
       {
@@ -85,6 +85,6 @@
     ],
     "observations": 280,
     "records": 1540,
-    "seconds": 19.19761371612549
+    "seconds": 41.53759527206421
   }
 }

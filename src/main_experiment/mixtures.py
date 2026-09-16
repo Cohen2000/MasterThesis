@@ -124,11 +124,12 @@ FLAT_DECADE_TOL=0.5                 # profile nll rise per decade of kappa below
 START_KAPPAS=(2.,20.,200.)
 PENALTY=1e18                        # objective value returned on the invalid region
 CLAMP_TOL=1e-9                      # a larger clamp is an error, not a repair
-# Pre-registered before the main evaluation: an observation whose fit carries one
-# of these statuses does not use the mixture prediction at all; it falls back to
-# the existing homogeneous corrector and is counted. Boundary and weak-
-# identifiability cases keep their fit, because there the fitted value is the
-# answer the model actually implies.
+# Pre-registered before the main evaluation: an observation whose fit did not
+# converge, or whose starts disagree, does not use the mixture prediction at all;
+# it falls back to the existing homogeneous corrector and is counted. Boundary and
+# weak-identifiability cases keep their fit, because there the fitted value is the
+# answer the model actually implies. The condition is evaluated by is_unreliable()
+# on the independent flags, never on the summary label.
 UNRELIABLE_STATUSES=('not_converged','starts_disagree')
 COMB=[[math.comb(n,k) for k in range(n+1)] for n in range(6)]
 
@@ -220,20 +221,50 @@ class Fit:
     nll: float=float('nan')
     nll_spread: float=float('nan')
     flat_per_decade: float=float('nan')
+    flags: dict=field(default_factory=dict)
     n_starts: int=0
     n_accepted: int=0
     seconds: float=0.
     notes: list=field(default_factory=list)
 
 
-def _classify(z,bounds,spread,flat):
-    at=[abs(z[i]-bounds[i][0])<BOUNDARY_TOL or abs(z[i]-bounds[i][1])<BOUNDARY_TOL
-        for i in range(len(z))]
-    if abs(z[1]-bounds[1][1])<BOUNDARY_TOL: return 'boundary_homogeneous'
-    if any(at): return 'boundary_other'
-    if spread>AGREEMENT_TOL: return 'starts_disagree'
-    if flat<FLAT_DECADE_TOL: return 'weakly_identified'
-    return 'converged'
+def diagnose(z,bounds,spread,flat):
+    """Independent diagnostic flags, plus a label derived from them.
+
+    These conditions are not mutually exclusive and must not be reported as if
+    they were: a fit can sit on a parameter bound *and* have disagreeing starts.
+    An earlier version returned the first matching label, so a boundary hit
+    silently hid a disagreement, and the fallback rule -- which keys on the
+    disagreement -- never fired for those fits. The flags are therefore computed
+    independently and the label is only a summary of them.
+    """
+    hom=abs(z[1]-bounds[1][1])<BOUNDARY_TOL
+    at_any=any(abs(z[i]-bounds[i][0])<BOUNDARY_TOL or abs(z[i]-bounds[i][1])<BOUNDARY_TOL
+               for i in range(len(z)))
+    flags={'boundary_homogeneous':bool(hom),
+           'boundary_other':bool(at_any and not hom),
+           'starts_disagree':bool(spread>AGREEMENT_TOL),
+           # flat is NaN when every profile re-optimisation failed; that is an
+           # absent diagnosis, not evidence of good identifiability.
+           'flatness_unavailable':bool(flat!=flat),
+           'weakly_identified':bool(flat==flat and flat<FLAT_DECADE_TOL)}
+    if flags['boundary_homogeneous']: label='boundary_homogeneous'
+    elif flags['boundary_other']: label='boundary_other'
+    elif flags['starts_disagree']: label='starts_disagree'
+    elif flags['weakly_identified']: label='weakly_identified'
+    elif flags['flatness_unavailable']: label='flatness_unavailable'
+    else: label='converged'
+    return label,flags
+
+
+def is_unreliable(status,flags):
+    """The pre-registered fallback condition, evaluated on the flags.
+
+    Reading it off the summary label would reinstate exactly the masking bug:
+    a disagreeing fit that also sits on a bound is labelled boundary_* but is
+    still unreliable.
+    """
+    return status=='not_converged' or bool(flags.get('starts_disagree'))
 
 
 def _solve(nll,starts,bounds):
@@ -319,8 +350,8 @@ def fit_suffix(o,homogeneous_mu,decades=0.):
     a,b=_unpack(best.x)
     flat=_flatness(nll,best,bounds,1)
     spread=max(values)-min(values)
-    st=_classify(best.x,bounds,spread,flat)
-    return Fit(predict_profile(a,b),st,a=a,b=b,mu=a/(a+b),kappa=a+b,nll=float(best.fun),
+    st,flags=diagnose(best.x,bounds,spread,flat)
+    return Fit(predict_profile(a,b),st,flags=flags,a=a,b=b,mu=a/(a+b),kappa=a+b,nll=float(best.fun),
                nll_spread=spread,flat_per_decade=flat,n_starts=len(starts),
                n_accepted=len(values),notes=rejected,seconds=time.perf_counter()-t0)
 
@@ -358,8 +389,8 @@ def fit_events(o,homogeneous_mu,homogeneous_lambda,decades=0.):
     a,b=_unpack(best.x[:2]); lam=math.exp(best.x[2])
     flat=_flatness(nll,best,bounds,1)
     spread=max(values)-min(values)
-    st=_classify(best.x,bounds,spread,flat)
-    return Fit(predict_profile(a,b),st,a=a,b=b,mu=a/(a+b),kappa=a+b,lam=lam,
+    st,flags=diagnose(best.x,bounds,spread,flat)
+    return Fit(predict_profile(a,b),st,flags=flags,a=a,b=b,mu=a/(a+b),kappa=a+b,lam=lam,
                lam_event_only=homogeneous_lambda,nll=float(best.fun),nll_spread=spread,
                flat_per_decade=flat,n_starts=len(starts),n_accepted=len(values),
                notes=rejected,seconds=time.perf_counter()-t0)
@@ -385,6 +416,12 @@ def _flatness(nll,best,bounds,index):
         try:
             r=minimize(sub,[best.x[i] for i in free],method='L-BFGS-B',
                        bounds=[bounds[i] for i in free],options={'ftol':1e-12,'maxiter':300})
-            if np.isfinite(r.fun): rises.append(float(r.fun)-float(best.fun))
-        except (FloatingPointError,ValueError): pass
+        except (FloatingPointError,ValueError,ArithmeticError):
+            continue
+        # A failed or penalty-region profile optimisation says nothing about
+        # identifiability; treating it as a rise would report a flat likelihood
+        # as well determined, or a failed one as flat.
+        if not r.success or not np.isfinite(r.fun) or r.fun>=PENALTY/2:
+            continue
+        rises.append(float(r.fun)-float(best.fun))
     return min(rises) if rises else float('nan')
