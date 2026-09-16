@@ -33,6 +33,19 @@ are tracked in git; bulk artifacts stay local.
 Everything below runs on allocated compute nodes; the login node is used only for
 data transfer and package installation.
 
+Workspace layout the job scripts assume:
+
+```
+$WS/src/main_experiment/     the package, uploaded from this repository
+$WS/mainexp/                 scripts, run/, answers/, logs/
+$WS/mainexp/run/             requests.jsonl and observations/sample from the offline run
+$WS/models/Qwen3.6-35B-A3B/  the pinned snapshot
+$WS/venv_mainexp/            the pinned environment
+```
+
+`run_qwen_batch.py` finds the package relative to its own location, so the package
+must sit at `$WS/src` and the script at `$WS/mainexp`.
+
 ```bash
 # once: environment and pinned model snapshot
 bash cluster/install_vllm.sh                 # venv on module Python 3.12, vLLM 0.29.0
@@ -43,8 +56,10 @@ python cluster/verify_model.py               # shard index vs. what is on disk
 sbatch cluster/qwen_probe.sbatch
 
 # one generation pass per submission, four shards
-MODE=thinking    REPEAT=1 sbatch --array=0-3 cluster/qwen_main.sbatch
-MODE=nonthinking REPEAT=1 sbatch --array=0-3 cluster/qwen_main.sbatch
+# arguments, not --export: see the note below
+sbatch --array=0-3 qwen_main.sbatch thinking    1 4 16 16
+sbatch --array=0-3 qwen_main.sbatch nonthinking 1 4 16 16
+bash submit_all.sh          # all six passes at once
 
 # collect and evaluate
 python scripts/collect_qwen_answers.py --run <run> --answers <answers> --out responses.jsonl
@@ -64,6 +79,9 @@ Three things about this cluster that cost time to find and are easy to hit again
 * Long wall times sit behind shorter ones at equal priority and do not get
   backfilled. Jobs use eight hours and rely on resume, which costs one model
   reload per pass.
+* Passing variables with `--export` makes Slurm build a fresh login environment
+  for the job, which fails here with `user env retrieval failed requeued held`.
+  The jobs take positional arguments and inherit the environment instead.
 
 Resume is per request id, and each generation index writes into its own directory.
 A repeat written into another repeat's directory would see every id as done and

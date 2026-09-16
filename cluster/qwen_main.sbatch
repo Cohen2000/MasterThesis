@@ -28,9 +28,16 @@
 set -euo pipefail
 
 WS=/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot
-MODE="${MODE:?set MODE to thinking or nonthinking}"
-REPEAT="${REPEAT:?set REPEAT to 1, 2 or 3}"
-SHARDS="${SHARDS:-4}"
+# Positional arguments, not --export: passing variables through --export makes
+# Slurm build a fresh login environment for the job, which fails on this cluster
+# with "user env retrieval failed requeued held". The default (inherit) works.
+#   sbatch --array=0-3 qwen_main.sbatch <mode> <repeat> [shards] [maxseq] [chunk] [limit]
+MODE="${1:?set mode: thinking or nonthinking}"
+REPEAT="${2:?set repeat: 1, 2 or 3}"
+SHARDS="${3:-4}"
+MAXSEQ="${4:-16}"
+CHUNK="${5:-16}"
+LIMIT="${6:-}"
 IDX="${SLURM_ARRAY_TASK_ID:-0}"
 
 module load devel/python/3.12.3-gnu-14.2
@@ -70,7 +77,7 @@ srun python run_qwen_batch.py \
     --mode "$MODE" --repeat "$REPEAT" \
     --shard-index "$IDX" --shard-count "$SHARDS" \
     --tensor-parallel-size "${TP:-1}" \
-    --max-num-seqs "${MAXSEQ:-16}" \
-    --chunk "${CHUNK:-16}" \
+    --max-num-seqs "$MAXSEQ" \
+    --chunk "$CHUNK" \
     --deadline-seconds "$LIMIT_S" \
     ${LIMIT:+--limit "$LIMIT"}

@@ -132,7 +132,62 @@ positive-Poisson closed form was stated for k ≥ 0 when it holds only for k ≥
 claim of "no clipping anywhere" contradicted a clamp in `predict_profile`, which
 now raises beyond last-bit noise.
 
-## 5. Limits
+## 5. Serving Qwen on bwUniCluster
+
+Everything below was verified on the cluster rather than assumed.
+
+**Model.** `Qwen/Qwen3.6-35B-A3B` at the pinned revision
+`995ad96eacd98c81ed38be0c5b274b04031597b0`, 26 shards, 71.9 GB in BF16, checked
+against the shard index. The archived Qwen3.6-27B in the same workspace is *not*
+used. Architecture `Qwen3_5MoeForConditionalGeneration`: 40 layers, 256 experts
+with 8 active, 16 attention heads over 2 KV heads, native context 262 144.
+
+**Stack.** vLLM **0.29.0**, transformers 5.17.0, torch 2.13.0+cu130, pinned in
+`requirements.pinned.txt`. vLLM 0.11.0 — the newest release that resolves against
+Python 3.9 — does not know this architecture; the model card asks for >= 0.19.0.
+Sampling follows the card exactly: thinking `temperature 1.0, top_p 0.95, top_k 20,
+presence_penalty 1.5`, non-thinking `0.7 / 0.80 / 20 / 1.5`.
+
+**Measured configuration** (one H100, TP=1, `max_model_len` 262 144, max output
+258 048, text-only):
+
+| max_num_seqs | prompts | wall | output tokens | tok/s | s per answer | finish reasons |
+| --- | --- | --- | --- | --- | --- | --- |
+| 4 | 4 | 46 s | 19 767 | 428 | 11.5 | 4 × stop |
+| **16** | 16 | 182 s | 149 348 | **819** | 11.4 | 16 × stop |
+
+Model load 124 s, KV cache 851 196 tokens. Median output 9 546 tokens, maximum
+14 224 — every generation ended on a regular end-of-sequence and **not one hit the
+output limit**, so the 258 048 allowance is never the binding constraint. The
+sixteen-sequence setting is the one used; it is measured rather than extrapolated.
+
+**Three cluster problems that cost real time**, recorded because they will recur:
+
+1. The modulefiles are Lmod `.lua`. A non-interactive shell loads classic Tcl
+   modules, fails with `Magic cookie '#%Module' missing`, and silently leaves the
+   system Python 3.9 in place — which then resolves cp39 wheels and an obsolete
+   vLLM. Every script starts with `#!/bin/bash -l`.
+2. The Qwen Triton kernels are JIT-compiled and need `nvcc`. The cluster modules
+   stop at CUDA 12.8 while torch here is cu130; the matching 13.4 toolchain ships
+   inside the venv as `nvidia-cuda-nvcc`, so the jobs point `CUDA_HOME` at it.
+3. flashinfer 0.6.18 bundles its own CCCL headers and JIT-compiles against them.
+   They are incompatible with that nvcc, so both its all-reduce kernel (reached
+   only at TP > 1) and its sampler kernel kill the engine at startup.
+   `VLLM_USE_FLASHINFER_SAMPLER=0` and TP=1 avoid both paths; vLLM's native
+   sampler needs no compilation. TP=1 is possible at all because one H100 here has
+   94 GB and the weights need about 66 GB.
+
+**A correctness bug caught before any production run.** The probe reported zero
+closed thinking blocks. The chat template opens the block in the *prompt*: with
+thinking enabled the generation prompt ends with `<think>\n`, so the output
+contains only the closing `</think>`; with thinking disabled the template writes
+`<think>\n\n</think>\n\n` into the prompt and the output carries no marker at
+all. The original split required a matched pair and would have handed the entire
+reasoning text to the strict answer parser for every thinking answer. The split now
+mirrors the template's own parsing and treats a missing closing tag in thinking
+mode as "stopped inside the reasoning, no final answer exists".
+
+## 6. Limits
 
 * Six real test sources. Most differences on them are not statistically resolvable.
 * The development graphs come from the same two generator families as the training
