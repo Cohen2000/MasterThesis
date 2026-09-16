@@ -97,6 +97,9 @@ def main():
     ap.add_argument('--max-tokens', type=int, default=258048)
     ap.add_argument('--gpu-memory-utilization', type=float, default=0.90)
     ap.add_argument('--max-num-seqs', type=int, default=16)
+    # Chunk size is the resume granularity: llm.generate is all-or-nothing for a
+    # batch, so a chunk that does not finish before the deadline loses its work.
+    # Smaller chunks give up a little throughput for finer-grained progress.
     ap.add_argument('--chunk', type=int, default=16)
     ap.add_argument('--deadline-seconds', type=float, default=0.0,
                     help='stop starting new chunks this many seconds from now')
@@ -110,11 +113,13 @@ def main():
 
     requests = load_requests(run, a.mode, a.repeat, a.shard_index, a.shard_count)
     done = {p.stem for p in out.glob('*.json')}
+    mine = sum(1 for r in requests if r['id'] in done)   # of this shard's slice
     todo = [r for r in requests if r['id'] not in done]
     if a.limit:
         todo = todo[:a.limit]
     print(f'shard {a.shard_index}/{a.shard_count} mode={a.mode} repeat={a.repeat}: '
-          f'{len(requests)} planned, {len(done)} already done, {len(todo)} to run', flush=True)
+          f'{len(requests)} planned, {mine} already done, {len(todo)} to run '
+          f'({len(done)} in the directory across all shards)', flush=True)
     if not todo:
         print('NOTHING_TO_DO', flush=True)
         return
