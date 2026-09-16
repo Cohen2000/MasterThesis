@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from dataset_census import parse_audited
-from .common import ROOT, sha, write_json, atomic_npz, read_json
+from .common import ROOT, sha, write_json, atomic_npz, read_json, BUDGET_FRACTION
 
 @dataclass
 class Graph:
@@ -29,7 +29,13 @@ class Graph:
     @property
     def truth(self): return [float(np.mean(self.K>=k)) for k in range(2,6)]
     @property
-    def B(self): return int(self.counts[:,2:].sum())
+    def M_suffix(self):
+        """Events in windows 3-5. The previous design used this as the budget."""
+        return int(self.counts[:,2:].sum())
+    @property
+    def B(self):
+        """Expected observed event volume: a fixed share of the full archive."""
+        return int(round(BUDGET_FRACTION*self.M))
     @property
     def m(self): return self.counts.sum(axis=1)
 
@@ -57,7 +63,10 @@ def canonical(key, frame, proximity=False, horizon=None):
     w=np.searchsorted(cuts,t,side='right').astype(np.int64)
     counts=np.bincount(pair*5+w,minlength=len(ends)*5).reshape(-1,5).astype(np.int64)
     g=Graph(key,u,v,t,w,pair.astype(np.int64),ends,counts,bounds)
-    if g.N<2 or g.D<1 or g.B<=0: raise ValueError(f'{key}: invalid full archive or B<=0')
+    # Graph-level validity, independent of whichever budget the design uses:
+    # the suffix must contain events, otherwise arm H is degenerate. Budget
+    # feasibility itself is checked in budget_parameters.
+    if g.N<2 or g.D<1 or g.M_suffix<=0: raise ValueError(f'{key}: invalid full archive or empty suffix')
     return g,x,{'self_events_removed':self_count,'same_dyad_time_duplicates':dup,
                 'duplicates_removed':dup if proximity else 0,'deduplicate_proximity':proximity}
 

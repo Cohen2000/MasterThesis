@@ -31,7 +31,9 @@ every (a,b,d). The equivalent expansion in the plain moments E[q^r] is the same
 identity but cancels catastrophically when qd concentrates near one. Checked
 against exact rational arithmetic over a wide (a,b,d) grid in
 tests/frozen_main/test_mixtures.py; worst relative error 8.3e-16. No quadrature
-and no regularisation is used anywhere.
+and no regularisation is used anywhere. predict_profile does clamp its four
+outputs into [0,1]; the clamp is a guard against last-bit excursions only and
+raises if it ever has to move a value by more than CLAMP_TOL.
 
 Candidate 1 -- suffix (arm H), d = 1
 ------------------------------------
@@ -56,12 +58,22 @@ five-window profile is an untestable extrapolation. Both are reported, not hidde
 Candidate 2 -- Bernoulli event sampling (arm B), d = d(lambda,p)
 ---------------------------------------------------------------
 Given a truly active window the true event count is N ~ ZTP(lambda), and arm B
-retains each event independently with the known probability p. For k >= 0,
+retains each event independently with the known probability p. For k >= 1,
 
     Pr{K=k} = sum_{n>=k} [lambda^n e^-lambda / (n! (1-e^-lambda))] C(n,k) p^k (1-p)^(n-k)
-            = (p lambda)^k e^(-p lambda) / (k! (1 - e^-lambda)),
+            = (p lambda)^k e^(-p lambda) / (k! (1 - e^-lambda)).
 
-so that
+The closed form does NOT extend to k = 0: summing the same series from n = 1
+omits the n = 0 term of the untruncated Poisson, so
+
+    Pr{K=0} = (e^(lambda(1-p)) - 1) / (e^lambda - 1),
+
+which is the k = 0 expression above minus 1/(e^lambda - 1). Only k >= 1 enters
+anywhere below, and d(lambda,p) = 1 - Pr{K=0} reduces to the same expression
+either way, so the distinction is a statement about the formula rather than
+about any computed quantity. It is pinned by a test.
+
+With that,
 
   (i)  Pr{window observed active | truly active} = (1-e^(-p lambda))/(1-e^-lambda)
        = d(lambda,p), exactly the retention factor of the task statement;
@@ -89,8 +101,12 @@ event-only lambda alongside, so the difference is visible rather than assumed.
 Homogeneous limit
 -----------------
 kappa = a+b -> infinity at fixed mu = a/(a+b) collapses the mixture onto a point
-mass, recovering the existing homogeneous correctors. The upper bound on log kappa
-is therefore a genuine model boundary and is reported as such.
+mass, recovering the existing homogeneous correctors. The limit is approached at
+order 1/kappa, so the upper bound kappa = 1e6 is an approximation to that
+boundary and not the boundary itself: at mu = 0.3, d = 0.7 the cell probabilities
+still differ from the exact Binomial by about 6e-7. A fit that lands there is
+reported as boundary_homogeneous, meaning "numerically indistinguishable from the
+homogeneous model at this sample size", not "exactly homogeneous".
 """
 import math
 from dataclasses import dataclass, field
@@ -106,6 +122,14 @@ AGREEMENT_TOL=1e-4                  # nll spread across starts that still counts
 FLAT_DECADE_TOL=0.5                 # profile nll rise per decade of kappa below which
                                     # the concentration is called weakly identified
 START_KAPPAS=(2.,20.,200.)
+PENALTY=1e18                        # objective value returned on the invalid region
+CLAMP_TOL=1e-9                      # a larger clamp is an error, not a repair
+# Pre-registered before the main evaluation: an observation whose fit carries one
+# of these statuses does not use the mixture prediction at all; it falls back to
+# the existing homogeneous corrector and is counted. Boundary and weak-
+# identifiability cases keep their fit, because there the fitted value is the
+# answer the model actually implies.
+UNRELIABLE_STATUSES=('not_converged','starts_disagree')
 COMB=[[math.comb(n,k) for k in range(n+1)] for n in range(6)]
 
 
@@ -143,11 +167,22 @@ def cell_probs(a,b,d,n):
 
 
 def predict_profile(a,b):
-    """rho_2..rho_5 for K ~ BetaBinomial(5,a,b) conditioned on K>=1."""
+    """rho_2..rho_5 for K ~ BetaBinomial(5,a,b) conditioned on K>=1.
+
+    The clamp guards against last-bit excursions outside [0,1] only. Anything
+    larger would be a genuine numerical failure and raises instead of being
+    silently repaired.
+    """
     pk=cell_probs(a,b,1.,5)
     den=math.fsum(pk[1:])
     if den<=0: return [0.,0.,0.,0.]
-    return [min(1.,max(0.,math.fsum(pk[k:])/den)) for k in range(2,6)]
+    raw=[math.fsum(pk[k:])/den for k in range(2,6)]
+    out=[]
+    for x in raw:
+        y=min(1.,max(0.,x))
+        if abs(y-x)>CLAMP_TOL: raise ArithmeticError(f'profile outside [0,1] by {x-y:.3e}')
+        out.append(y)
+    return out
 
 
 def _pack(mu,kappa): return [math.log(mu/(1-mu)),math.log(kappa)]
@@ -186,6 +221,7 @@ class Fit:
     nll_spread: float=float('nan')
     flat_per_decade: float=float('nan')
     n_starts: int=0
+    n_accepted: int=0
     seconds: float=0.
     notes: list=field(default_factory=list)
 
@@ -201,17 +237,61 @@ def _classify(z,bounds,spread,flat):
 
 
 def _solve(nll,starts,bounds):
-    best=None; values=[]
+    """Run every start and accept only results that are genuinely optimiser output.
+
+    A finite objective is not sufficient evidence of a fit: the invalid region
+    returns PENALTY, which is finite, so a run that never left it would otherwise
+    be accepted and would win whenever every start failed. Acceptance therefore
+    requires that the optimiser reports success and that the objective is not in
+    the penalty region. Rejections are returned rather than dropped.
+    """
+    best=None; values=[]; rejected=[]
     for z0 in starts:
-        try: r=minimize(nll,z0,method='L-BFGS-B',bounds=bounds,options={'ftol':1e-12,'gtol':1e-10,'maxiter':500})
-        except (FloatingPointError,ValueError): continue
-        if not np.isfinite(r.fun): continue
+        try:
+            r=minimize(nll,z0,method='L-BFGS-B',bounds=bounds,
+                       options={'ftol':1e-12,'gtol':1e-10,'maxiter':500})
+        except (FloatingPointError,ValueError,ArithmeticError) as e:
+            rejected.append(f'exception:{type(e).__name__}'); continue
+        if not np.isfinite(r.fun): rejected.append('nonfinite_objective'); continue
+        if r.fun>=PENALTY/2: rejected.append('penalty_region'); continue
+        if not r.success:
+            rejected.append(f'status{int(r.status)}:{str(r.message)[:40]}'); continue
         values.append(float(r.fun))
         if best is None or r.fun<best.fun: best=r
-    return best,values
+    return best,values,rejected
 
 
-def fit_suffix(o,homogeneous_mu):
+def _widen(bounds,decades):
+    """Widen every box constraint by the given number of decades in log space."""
+    out=[]
+    for i,(lo,hi) in enumerate(bounds):
+        d=decades*math.log(10)
+        out.append((lo-d,hi+d) if i else (lo-decades,hi+decades))
+    return out
+
+
+def bound_sensitivity(o,mu0,lam0=None,decades=2.0):
+    """How much does the answer depend on the artificial parameter box?
+
+    Refits with every bound widened by `decades` and reports the movement of the
+    objective and of the predicted persistence. A fit that is pinned by a bound
+    shows up here as a large profile shift, which is a problem to report rather
+    than a result to keep.
+    """
+    base=fit_events(o,mu0,lam0) if lam0 is not None else fit_suffix(o,mu0)
+    wide=(fit_events(o,mu0,lam0,decades=decades) if lam0 is not None
+          else fit_suffix(o,mu0,decades=decades))
+    if base.status=='empty_sample' or wide.status=='empty_sample':
+        return {'status':'empty_sample'}
+    shift=max(abs(x-y) for x,y in zip(base.prediction,wide.prediction))
+    return {'status':base.status,'status_widened':wide.status,
+            'nll':base.nll,'nll_widened':wide.nll,
+            'nll_improvement':float(base.nll-wide.nll),
+            'max_profile_shift':float(shift),
+            'kappa':base.kappa,'kappa_widened':wide.kappa}
+
+
+def fit_suffix(o,homogeneous_mu,decades=0.):
     """Candidate 1: zero-truncated Beta-Binomial on the three observed windows."""
     import time; t0=time.perf_counter()
     counts,n=window_counts(o)
@@ -219,32 +299,33 @@ def fit_suffix(o,homogeneous_mu):
     if D<=0: return Fit([0.,0.,0.,0.],'empty_sample')
     def nll(z):
         a,b=_unpack(z)
-        if not (a>0 and b>0 and math.isfinite(a) and math.isfinite(b)): return 1e18
+        if not (a>0 and b>0 and math.isfinite(a) and math.isfinite(b)): return PENALTY
         p=cell_probs(a,b,1.,n)
         tr=math.fsum(p[1:])
-        if tr<=0: return 1e18
+        if tr<=0: return PENALTY
         s=0.
         for j in range(1,n+1):
             if counts[j]:
-                if p[j]<=0: return 1e18
+                if p[j]<=0: return PENALTY
                 s+=counts[j]*(math.log(p[j])-math.log(tr))
         return -s
-    bounds=[(-LOGIT_BOUND,LOGIT_BOUND),LOG_KAPPA_BOUNDS]
+    bounds=_widen([(-LOGIT_BOUND,LOGIT_BOUND),LOG_KAPPA_BOUNDS],decades) if decades else [(-LOGIT_BOUND,LOGIT_BOUND),LOG_KAPPA_BOUNDS]
     mu0=min(max(homogeneous_mu,1e-6),1-1e-6)
     starts=[_pack(mu0,k) for k in START_KAPPAS]
-    best,values=_solve(nll,starts,bounds)
-    if best is None: return Fit([0.,0.,0.,0.],'not_converged',n_starts=len(starts),
-                                seconds=time.perf_counter()-t0)
+    best,values,rejected=_solve(nll,starts,bounds)
+    if best is None:
+        return Fit([0.,0.,0.,0.],'not_converged',n_starts=len(starts),
+                   n_accepted=0,notes=rejected,seconds=time.perf_counter()-t0)
     a,b=_unpack(best.x)
     flat=_flatness(nll,best,bounds,1)
     spread=max(values)-min(values)
     st=_classify(best.x,bounds,spread,flat)
     return Fit(predict_profile(a,b),st,a=a,b=b,mu=a/(a+b),kappa=a+b,nll=float(best.fun),
                nll_spread=spread,flat_per_decade=flat,n_starts=len(starts),
-               seconds=time.perf_counter()-t0)
+               n_accepted=len(values),notes=rejected,seconds=time.perf_counter()-t0)
 
 
-def fit_events(o,homogeneous_mu,homogeneous_lambda):
+def fit_events(o,homogeneous_mu,homogeneous_lambda,decades=0.):
     """Candidate 2: Beta-mixed activity with the ZTP event layer and known retention p."""
     import time; t0=time.perf_counter()
     counts,n=window_counts(o)
@@ -252,33 +333,36 @@ def fit_events(o,homogeneous_mu,homogeneous_lambda):
     if D<=0: return Fit([0.,0.,0.,0.],'empty_sample')
     def nll(z):
         a,b=_unpack(z[:2]); lam=math.exp(z[2])
-        if not (a>0 and b>0 and math.isfinite(a) and math.isfinite(b)): return 1e18
+        if not (a>0 and b>0 and math.isfinite(a) and math.isfinite(b)): return PENALTY
         mu_ev=p*lam
         d=-math.expm1(-mu_ev)/-math.expm1(-lam) if lam>0 else p
-        if not (0<d<=1): return 1e18
+        if not (0<d<=1): return PENALTY
         pr=cell_probs(a,b,d,n)
         tr=math.fsum(pr[1:])
-        if tr<=0: return 1e18
+        if tr<=0: return PENALTY
         s=0.
         for j in range(1,n+1):
             if counts[j]:
-                if pr[j]<=0: return 1e18
+                if pr[j]<=0: return PENALTY
                 s+=counts[j]*(math.log(pr[j])-math.log(tr))
         return -s+_ztp_event_nll(M,S,mu_ev)
     bounds=[(-LOGIT_BOUND,LOGIT_BOUND),LOG_KAPPA_BOUNDS,LOG_LAMBDA_BOUNDS]
+    if decades: bounds=_widen(bounds,decades)
     mu0=min(max(homogeneous_mu,1e-6),1-1e-6)
     lam0=min(max(homogeneous_lambda,1e-6),1e3)
     starts=[_pack(mu0,k)+[math.log(lam0)] for k in START_KAPPAS]
-    best,values=_solve(nll,starts,bounds)
-    if best is None: return Fit([0.,0.,0.,0.],'not_converged',n_starts=len(starts),
-                                seconds=time.perf_counter()-t0)
+    best,values,rejected=_solve(nll,starts,bounds)
+    if best is None:
+        return Fit([0.,0.,0.,0.],'not_converged',n_starts=len(starts),
+                   n_accepted=0,notes=rejected,seconds=time.perf_counter()-t0)
     a,b=_unpack(best.x[:2]); lam=math.exp(best.x[2])
     flat=_flatness(nll,best,bounds,1)
     spread=max(values)-min(values)
     st=_classify(best.x,bounds,spread,flat)
     return Fit(predict_profile(a,b),st,a=a,b=b,mu=a/(a+b),kappa=a+b,lam=lam,
                lam_event_only=homogeneous_lambda,nll=float(best.fun),nll_spread=spread,
-               flat_per_decade=flat,n_starts=len(starts),seconds=time.perf_counter()-t0)
+               flat_per_decade=flat,n_starts=len(starts),n_accepted=len(values),
+               notes=rejected,seconds=time.perf_counter()-t0)
 
 
 def _flatness(nll,best,bounds,index):

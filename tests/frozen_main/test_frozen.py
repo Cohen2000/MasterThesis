@@ -80,15 +80,20 @@ class FrozenTests(unittest.TestCase):
             np.testing.assert_array_equal(corrector(obs),expected)
 
     def test_component_cap_and_validation_freeze(self):
-        # Every start component has two events; B=3 is unreachable at any length.
-        g=fixture([('a','b',0.),('a','b',1.),('c','d',.6),('c','d',.9)])
+        # Twelve disjoint dyads of three events each: M=36, so the ten-percent
+        # budget is 4, while no start component can ever yield more than 3.
+        rows=[]
+        for i in range(12):
+            a,b=f'n{2*i}',f'n{2*i+1}'
+            rows += [(a,b,.5),(a,b,.7),(a,b,.9)]
+        g=fixture(rows)
         with tempfile.TemporaryDirectory() as d:
             b,w=calibrate(g,Path(d)/'cal',Path(d)/'build')
             self.assertEqual(b['L'],b['C']); self.assertFalse(b['budget_matched'])
             self.assertIn('calibration_cap',b['unmatched_reasons'])
             b2,_=calibrate(g,Path(d)/'cal',Path(d)/'build')
             self.assertEqual(b2['L'],b['L'])
-            self.assertEqual(b2['validation_mean'],2.)
+            self.assertEqual(b2['validation_mean'],3.)
 
     def test_sampling_exact_expectations(self):
         g=fixture(); b=budget_parameters(g); n=b['n_panel']
@@ -101,11 +106,14 @@ class FrozenTests(unittest.TestCase):
         p=b['p']; expected=0.
         for bits in itertools.product([0,1],repeat=g.M):
             k=sum(bits); expected+=k*p**k*(1-p)**(g.M-k)
-        self.assertAlmostEqual(expected,g.B)
+        # The Bernoulli arm hits the nominal budget exactly; g.B is that value
+        # rounded to an integer, which on a six-event fixture is a visible gap.
+        self.assertAlmostEqual(expected,p*g.M)
+        self.assertEqual(g.B,round(p*g.M))
         # Fixed seeds, conservative six-standard-error test of production draws.
         volumes=[draw(g,'B',i,'sample',b)[0].sum() for i in range(1,4001)]
         se=math.sqrt(g.M*p*(1-p)/4000)
-        self.assertLess(abs(np.mean(volumes)-g.B),6*se)
+        self.assertLess(abs(np.mean(volumes)-p*g.M),6*se)
 
     def test_serialization_features_and_masks(self):
         g=fixture(); b=budget_parameters(g)|{'L':7}

@@ -5,7 +5,7 @@ import time
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
-from .common import ROOT, seed, rng, sha, write_json, read_json, atomic_npz
+from .common import ROOT, seed, rng, sha, write_json, read_json, atomic_npz, BUDGET_FRACTION
 
 class Walk:
     def __init__(self,g,build_dir):
@@ -45,18 +45,50 @@ class Walk:
         return np.cumsum(delta),volumes,counts,executed
 
 
+def _panel_for(total,B,N):
+    """Integer panel size whose expected observed volume is closest to the budget.
+
+    A uniform node panel of size n includes a dyad with probability
+    n(n-1)/(N(N-1)), independently of that dyad's activity, so the expected
+    observed event count is that share of `total`.
+    """
+    n=np.arange(N+1,dtype=np.int64)
+    expected=total*(n.astype(float)*(n-1))/(N*(N-1))
+    panel=int(np.argmin(abs(expected-B)))
+    return panel,float(expected[panel])
+
+
 def budget_parameters(g):
+    """Budget and per-arm parameters for the fixed-share design.
+
+    B is BUDGET_FRACTION of the full archive. Arm B keeps each event with exactly
+    that probability. Arms R and H use uniform node panels; H draws its panel over
+    the same node set but only retains events in windows 3-5, so its panel has to
+    be larger by the factor M_full/M_suffix to reach the same budget.
+    """
     B=g.B
     if B<=0 or B>g.M or g.N<2: raise ValueError('undefined budget')
-    n=np.arange(g.N+1,dtype=np.int64)
-    expected=g.M*(n.astype(float)*(n-1))/(g.N*(g.N-1))
-    panel=int(np.argmin(abs(expected-B)))
-    return {'B':B,'p':B/g.M,'n_panel':panel,'node_expected_events':float(expected[panel]),
-            'node_relative_budget_error':float((expected[panel]-B)/B)}
+    panel,exp_r=_panel_for(g.M,B,g.N)
+    suffix=g.M_suffix
+    reasons=[]
+    if suffix<B:
+        # The suffix simply does not contain enough events for this budget.
+        panel_h,exp_h=g.N,float(suffix)
+        reasons.append('suffix_smaller_than_budget')
+    else:
+        panel_h,exp_h=_panel_for(suffix,B,g.N)
+    return {'B':B,'p':BUDGET_FRACTION,'budget_fraction':BUDGET_FRACTION,
+            'M_suffix':suffix,'suffix_share':suffix/g.M,
+            'n_panel':panel,'node_expected_events':exp_r,
+            'node_relative_budget_error':float((exp_r-B)/B),
+            'n_panel_suffix':panel_h,'suffix_expected_events':exp_h,
+            'suffix_relative_budget_error':float((exp_h-B)/B),
+            'panel_unmatched_reasons':reasons}
 
 
 def calibrate(g,out,build):
     out=Path(out); out.mkdir(parents=True,exist_ok=True)
+    params=budget_parameters(g)          # raises early on an undefined budget
     engine=Walk(g,build); C=min(100*g.D,1_000_000); B=g.B
     seeds=[seed('walk_calibration',g.key,'S',i) for i in range(1,257)]
     calfile=out/'calibrated.json'; timefile=out/'timing.json'
@@ -121,25 +153,32 @@ def calibrate(g,out,build):
     if cal['search_limit_reached_without_budget']: reasons.append('calibration_cap')
     if abs(mean-B)/B>.05: reasons.append('validation_mean_outside_5_percent')
     if se/B>.01: reasons.append('validation_mcse_above_1_percent')
-    result={**budget_parameters(g),**cal,'validation_n':len(volumes),'validation_mean':mean,
+    result={**params,**cal,'validation_n':len(volumes),'validation_mean':mean,
             'validation_mcse':se,'validation_relative_error':(mean-B)/B,
             'budget_matched':not reasons,'unmatched_reasons':reasons}
     write_json(out/'budget.json',result)
     return result,engine
 
 
+def _panel_mask(g,r,size):
+    panel=np.zeros(g.N,dtype=bool); panel[r.choice(g.N,size,replace=False)]=True
+    return panel[g.ends[:,0]] & panel[g.ends[:,1]]
+
+
 def draw(g,arm,index,domain,budget,walk=None):
-    r=rng(domain,g.key,arm,index) if arm!='H' else None
+    r=rng(domain,g.key,arm,index)
     counts=None; re=None
     if arm=='R':
-        panel=np.zeros(g.N,dtype=bool); panel[r.choice(g.N,budget['n_panel'],replace=False)]=True
-        selected=panel[g.ends[:,0]] & panel[g.ends[:,1]]
-        counts=g.counts*selected[:,None]
+        counts=g.counts*_panel_mask(g,r,budget['n_panel'])[:,None]
     elif arm=='S':
         _,_,rr,_=walk.run([seed(domain,g.key,arm,index)],int(budget['L']),True)
         re=rr[0]; counts=g.counts*(re>0)[:,None]
     elif arm=='H':
-        counts=g.counts.copy(); counts[:,:2]=0
+        # Uniform node panel, then only windows 3-5. The panel is drawn without
+        # looking at any event, so dyad inclusion is uniform and independent of
+        # activity; conditional on inclusion the window pattern is untouched.
+        counts=g.counts*_panel_mask(g,r,budget['n_panel_suffix'])[:,None]
+        counts=counts.copy(); counts[:,:2]=0
     elif arm=='B':
         keep=r.random(g.M)<budget['p']
         counts=np.bincount(g.pair[keep]*5+g.w[keep],minlength=g.D*5).reshape(-1,5)

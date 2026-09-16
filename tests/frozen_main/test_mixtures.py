@@ -13,6 +13,8 @@ from main_experiment import mixtures as mx
 from main_experiment.baselines import activity, plugin, corrector, profile
 from main_experiment.observation import validate, serialize, parse
 
+N_PANEL=4096   # panel size for synthetic suffix fixtures; only has to exceed N_obs
+
 
 def make_observation(arm, patterns, counts, parameter):
     """A valid observation block from per-dyad window patterns and event counts.
@@ -36,6 +38,8 @@ def make_observation(arm, patterns, counts, parameter):
     else: epw=[int(x) for x in per]
     N=max(2,math.ceil((1+math.sqrt(1+8*D))/2))
     N=min(N,2*D) if D else 0
+    # Arm H now carries an integer panel size; any value at least N_obs is valid.
+    if arm=='H' and parameter is not None and parameter<N: parameter=N
     o={'arm':arm,'N_obs':int(N),'D_obs':int(D),'M_obs':int(M),
        'Temporal_access':[0,0,1,1,1] if arm=='H' else [1]*width,
        'Events_per_window':epw,'Walk_A':None,'parameter':parameter,'table':rows}
@@ -138,7 +142,7 @@ class SuffixCandidateTests(unittest.TestCase):
         rng=np.random.default_rng(20260916)
         a,b=2.,3.
         obs,ev,true_active=simulate(rng,20000,a,b,3)
-        o=make_observation('H',obs,np.maximum(ev,1),.60)
+        o=make_observation('H',obs,np.maximum(ev,1),N_PANEL)
         mu=sum(p.count('1')*d for p,d,e in o['table'])/o['D_obs']
         fit=mx.fit_suffix(o,activity(mu,3))
         want=mx.predict_profile(a,b)
@@ -151,7 +155,7 @@ class SuffixCandidateTests(unittest.TestCase):
         q=.4
         act=rng.random((20000,3))<q
         act=act[act.any(1)]
-        o=make_observation('H',act,act.astype(int),.60)
+        o=make_observation('H',act,act.astype(int),N_PANEL)
         mu=sum(p.count('1')*d for p,d,e in o['table'])/o['D_obs']
         fit=mx.fit_suffix(o,activity(mu,3))
         self.assertIn(fit.status,('boundary_homogeneous','weakly_identified','converged'))
@@ -164,7 +168,7 @@ class SuffixCandidateTests(unittest.TestCase):
         rng=np.random.default_rng(11)
         a,b=.2,.2
         obs,ev,_=simulate(rng,20000,a,b,3)
-        o=make_observation('H',obs,np.maximum(ev,1),.60)
+        o=make_observation('H',obs,np.maximum(ev,1),N_PANEL)
         mu=sum(p.count('1')*d for p,d,e in o['table'])/o['D_obs']
         fit=mx.fit_suffix(o,activity(mu,3))
         want=mx.predict_profile(a,b)
@@ -174,7 +178,7 @@ class SuffixCandidateTests(unittest.TestCase):
     def test_low_information_is_flagged_not_hidden(self):
         rng=np.random.default_rng(3)
         obs,ev,_=simulate(rng,12,2.,3.,3)
-        o=make_observation('H',obs,np.maximum(ev,1),.60)
+        o=make_observation('H',obs,np.maximum(ev,1),N_PANEL)
         mu=sum(p.count('1')*d for p,d,e in o['table'])/o['D_obs']
         fit=mx.fit_suffix(o,activity(mu,3))
         self.assertNotEqual(fit.status,'converged')
@@ -182,7 +186,7 @@ class SuffixCandidateTests(unittest.TestCase):
 
     def test_empty_sample(self):
         o={'arm':'H','N_obs':0,'D_obs':0,'M_obs':0,'Temporal_access':[0,0,1,1,1],
-           'Events_per_window':[None,None,0,0,0],'Walk_A':None,'parameter':.60,
+           'Events_per_window':[None,None,0,0,0],'Walk_A':None,'parameter':N_PANEL,
            'table':[('??'+f'{p:03b}',0,0) for p in range(1,8)]}
         validate(o)
         fit=mx.fit_suffix(o,.5)
@@ -263,6 +267,62 @@ class EventCandidateTests(unittest.TestCase):
         self.assertEqual(fit.status,'empty_sample')
 
 
+class NumericalGuardTests(unittest.TestCase):
+    """The guards the main evaluation relies on, pinned so they cannot regress."""
+
+    def test_penalty_region_is_never_accepted_as_a_fit(self):
+        """A finite objective is not a fit: the invalid region returns PENALTY."""
+        best,values,rejected=mx._solve(lambda z: mx.PENALTY,[[0.,0.]],
+                                       [(-1.,1.),(-1.,1.)])
+        self.assertIsNone(best); self.assertEqual(values,[])
+        self.assertTrue(any('penalty' in r for r in rejected),rejected)
+
+    def test_failed_optimiser_is_rejected_with_its_status(self):
+        def nll(z): return float('nan')
+        best,values,rejected=mx._solve(nll,[[0.,0.]],[(-1.,1.),(-1.,1.)])
+        self.assertIsNone(best)
+        self.assertTrue(rejected)
+
+    def test_zero_class_of_the_thinned_positive_poisson(self):
+        """The closed form holds for k>=1 only; k=0 needs its own expression."""
+        for lam in (.3,1.5,4.):
+            for p in (.2,.6,.95):
+                direct=0.; term=1.
+                for n in range(1,300):
+                    term*=lam/n
+                    direct+=term*(1-p)**n
+                direct/=math.expm1(lam)
+                naive=math.exp(-p*lam)/(1-math.exp(-lam))
+                self.assertAlmostEqual(naive-direct,1/math.expm1(lam),places=12)
+                d=-math.expm1(-p*lam)/-math.expm1(-lam)
+                self.assertAlmostEqual(1-direct,d,places=12)
+
+    def test_profile_clamp_only_absorbs_last_bit_noise(self):
+        rng=np.random.default_rng(4)
+        for _ in range(300):
+            a,b=np.exp(rng.uniform(-6,12,2))
+            r=mx.predict_profile(float(a),float(b))   # raises on a material clamp
+            self.assertTrue(all(0.<=x<=1. for x in r))
+
+    def test_kappa_upper_bound_is_an_approximation_not_the_limit(self):
+        """kappa=1e6 is close to, but not equal to, the homogeneous model."""
+        mu,d=.3,.7
+        got=mx.cell_probs(mu*1e6,(1-mu)*1e6,d,5)
+        exact=[math.comb(5,j)*(mu*d)**j*(1-mu*d)**(5-j) for j in range(6)]
+        err=max(abs(x-y) for x,y in zip(got,exact))
+        self.assertGreater(err,0.)          # not exact
+        self.assertLess(err,1e-5)           # but numerically indistinguishable
+
+    def test_bound_sensitivity_reports_a_stable_fit_as_stable(self):
+        rng=np.random.default_rng(6)
+        obs,ev,_=simulate(rng,4000,2.,3.,3)
+        o=make_observation('H',obs,np.maximum(ev,1),N_PANEL)
+        mu=sum(p.count('1')*d for p,d,e in o['table'])/o['D_obs']
+        r=mx.bound_sensitivity(o,activity(mu,3),decades=2.)
+        self.assertLess(r['max_profile_shift'],1e-4,r)
+        self.assertLess(abs(r['nll_improvement']),1e-6,r)
+
+
 class AssumptionViolationTests(unittest.TestCase):
     """DAR and activity-driven graphs violate conditional exchangeability of windows:
     DAR has serial copy dependence, activity-driven memory makes activity grow with
@@ -271,8 +331,8 @@ class AssumptionViolationTests(unittest.TestCase):
     def test_real_generator_observations(self):
         import glob
         from main_experiment.common import read_json
-        files=sorted(glob.glob('results/baseline_revision_20260916/pool/observations/*.json'))[:6]
-        if not files: self.skipTest('pool not built')
+        files=sorted(glob.glob('results/baseline_revision_20261001/pool/observations/*.json'))[:6]
+        if not files: self.skipTest('current pool not built')
         checked=0
         for f in files:
             d=read_json(f)

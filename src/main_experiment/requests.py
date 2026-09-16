@@ -49,8 +49,10 @@ def planned(observations):
                         'status':'skipped_empty' if obs['empty'] else 'not_started',
                         'started':False,'mock':False,'prompt_sha256':obs['prompt_sha256'],
                         'payload':payload(config,obs['messages'],s),
-                        'production_dispatch_enabled':False,
-                        'requires_technical_release':True})
+                        # Qwen is authorised for this study; the paid providers
+                        # are planned but not released.
+                        'production_dispatch_enabled':config.startswith('qwen'),
+                        'requires_technical_release':not config.startswith('qwen')})
     return records
 
 
@@ -79,7 +81,8 @@ def watchdog(active_seconds,first_token_seconds,last_token_age,model_tokens):
     return None
 
 EXECUTION_POLICY={
- 'dispatch_enabled':False,'inference_authorized':False,
+ 'dispatch_enabled':True,'inference_authorized':['qwen_thinking','qwen_nonthinking'],
+ 'paid_providers_authorized':False,
  'connect_timeout_seconds':30,'first_model_token_seconds':1800,
  'no_model_progress_seconds':3600,'active_request_seconds':86400,
  'sdk_retries':0,'http_read_timeout':None,'max_attempts':3,
@@ -92,12 +95,24 @@ EXECUTION_POLICY={
         'price_recheck_before_dispatch':True},
  'deepseek':{'max_active_requests':4,'total_cap_usd':50,'per_open_request_reserve_usd':.48,
              'price_recheck_before_dispatch':True},
- 'qwen':{'max_active_requests_across_both_modes':4,'revision':REVISION,
-         'tokenizer_revision':REVISION,'vllm_version':'0.20.1','dtype':'bfloat16',
-         'tensor_parallel_size':2,'required_gpus':'2 x H100 80GB','max_model_len':262144,
-         'max_num_seqs':4,'max_num_batched_tokens':8192,'enable_chunked_prefill':True,
-         'gpu_memory_utilization':.90,'reasoning_parser':'qwen3','server_seed':20260916,
-         'language_model_only':True,'generation_config':'vllm','yarn':False},
+ # Verified on the cluster, not assumed: vLLM 0.11 (the newest release resolvable
+ # against Python 3.9) does not know this architecture; 0.29.0 does, and the model
+ # card asks for >= 0.19.0. The environment is pinned in
+ # $WS/mainexp/requirements.pinned.txt.
+ 'qwen':{'revision':REVISION,'tokenizer_revision':REVISION,
+         'architecture':'Qwen3_5MoeForConditionalGeneration',
+         'vllm_version':'0.29.0','transformers_version':'5.17.0',
+         'torch_version':'2.13.0+cu130','dtype':'bfloat16',
+         'serving':'vllm offline batch API (no HTTP server, no guided decoding)',
+         'required_gpus':'2 x H100 80GB','max_model_len':262144,
+         'max_output_tokens':258048,'gpu_memory_utilization':.90,
+         'reasoning_split':'<think>...</think> markers of the pinned chat template',
+         'server_seed':20260916,'language_model_only':True,'yarn':False,
+         'sampling_source':'official model card, Qwen3.6-35B-A3B',
+         'thinking':{'temperature':1.0,'top_p':.95,'top_k':20,'min_p':0.,
+                     'presence_penalty':1.5,'repetition_penalty':1.0},
+         'nonthinking':{'temperature':.7,'top_p':.80,'top_k':20,'min_p':0.,
+                        'presence_penalty':1.5,'repetition_penalty':1.0}},
  'order':'real block, synthetic block; cycle graph x arm cells; sample index then repeat',
  'stop_configuration':['400','401','ignored_required_parameter','repeated_oom','confirmed_model_change'],
  'record_provider_metadata':['UTC','returned_model','system_fingerprint','usage','finish_reason','reasoning'],

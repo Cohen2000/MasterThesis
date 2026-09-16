@@ -2,14 +2,17 @@ import math
 import numpy as np
 from .common import ARMS, ROOT
 
-PARAMS=dict(R='n_panel',S='L',H='tau',B='p')
+# One parameter line per arm; the names must stay distinct because the parser
+# identifies the arm by which one is present. H carries its own panel size.
+PARAMS=dict(R='n_panel',S='L',H='n_panel_suffix',B='p')
+INTEGER_PARAM_ARMS=('R','S','H')
 # The first 88 entries are the original absolute counts and indicators. The 45
 # derived entries that follow are scale-free transforms of exactly the same
 # serialized observation input; none of them uses full-graph sizes, ground truth,
 # realised coverage, source names, generator parameters or generator families.
 BASE_FEATURE_NAMES=(['N_obs','D_obs','M_obs']+[f'window_{i}' for i in range(1,6)]+
  [f'access_{i}' for i in range(1,6)]+[f'{p:05b}_{x}' for p in range(1,32) for x in ['dyads','events']]+
- [f'A_{i}' for i in range(1,6)]+[f'arm_{a}' for a in ARMS]+['n_panel','L','tau','p'])
+ [f'A_{i}' for i in range(1,6)]+[f'arm_{a}' for a in ARMS]+['n_panel','L','n_panel_suffix','p'])
 DERIVED_FEATURE_NAMES=([f'share_{p:05b}_dyads' for p in range(1,32)]+
  [f'share_window_{i}' for i in range(1,6)]+['events_per_dyad']+
  [f'plugin_rho_{k}' for k in range(2,6)]+[f'corrector_rho_{k}' for k in range(2,6)])
@@ -29,7 +32,7 @@ def make(g,arm,budget,counts,traversals):
     obs={'arm':arm,'N_obs':int(len(np.unique(g.ends[occupied]))),'D_obs':int(occupied.sum()),
          'M_obs':int(counts.sum()),'Temporal_access':[0,0,1,1,1] if arm=='H' else [1]*5,
          'Events_per_window':([None,None]+counts.sum(0)[2:].tolist()) if arm=='H' else counts.sum(0).tolist(),
-         'Walk_A':A,'parameter':.60 if arm=='H' else budget[PARAMS[arm]],'table':table}
+         'Walk_A':A,'parameter':budget[PARAMS[arm]],'table':table}
     validate(obs)
     return obs
 
@@ -62,11 +65,9 @@ def validate(o):
         if N!=0 or M!=0: raise ValueError('empty counts')
     elif N<2 or N>2*D or D>N*(N-1)//2: raise ValueError('endpoint count')
     par=o['parameter']
-    if arm in ('R','S'):
+    if arm in INTEGER_PARAM_ARMS:
         if not integer(par): raise ValueError('integer parameter')
-        if arm=='R' and N>par: raise ValueError('panel smaller than observed nodes')
-    elif arm=='H':
-        if par!=.6: raise ValueError('tau')
+        if arm in ('R','H') and N>par: raise ValueError('panel smaller than observed nodes')
     elif not isinstance(par,(int,float)) or not 0<par<=1: raise ValueError('p')
     A=o['Walk_A']
     if arm=='S':
@@ -81,7 +82,7 @@ def serialize(o):
     lines=['W=5','Temporal_access='+','.join(map(str,o['Temporal_access']))]
     lines += [f'{k}={o[k]}' for k in ['N_obs','D_obs','M_obs']]
     lines += ['Events_per_window='+','.join(map(fmt,o['Events_per_window'])),
-              PARAMS[o['arm']]+'='+('0.60' if o['arm']=='H' else fmt(o['parameter'])),
+              PARAMS[o['arm']]+'='+fmt(o['parameter']),
               'Walk_A='+('NA' if o['Walk_A'] is None else ','.join(map(fmt,o['Walk_A']))),
               'pattern,dyads,events']
     lines += [f'{p},{d},{e}' for p,d,e in o['table']]
@@ -95,7 +96,7 @@ def parse(text):
     params=set(fields)&set(PARAMS.values())
     if len(params)!=1: raise ValueError('parameter count')
     name=params.pop(); arm=next(a for a,p in PARAMS.items() if p==name)
-    o={'arm':arm,'parameter':int(fields[name]) if arm in ('R','S') else float(fields[name]),
+    o={'arm':arm,'parameter':int(fields[name]) if arm in INTEGER_PARAM_ARMS else float(fields[name]),
        **{k:int(fields[k]) for k in ['N_obs','D_obs','M_obs']},
        'Temporal_access':list(map(int,fields['Temporal_access'].split(','))),
        'Events_per_window':[None if x=='NA' else int(x) for x in fields['Events_per_window'].split(',')],

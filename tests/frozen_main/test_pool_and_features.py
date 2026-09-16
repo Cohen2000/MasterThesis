@@ -13,6 +13,9 @@ from main_experiment.synthetic import generate_pair
 from main_experiment.training import fold_rows, BLOCK_WEIGHTS
 
 FROZEN=pathlib.Path('results/main_experiment/frozen_20260916')
+# Observation blocks follow the current design; the superseded suffix design is
+# kept under frozen_20260916 and is not read for contract checks any more.
+RUN=pathlib.Path('results/main_experiment/budget10_20261001')
 
 
 class PoolDefinitionTests(unittest.TestCase):
@@ -80,7 +83,10 @@ class FrozenGeneratorTests(unittest.TestCase):
             for rep in (1,2):
                 for g,x,meta in generate_pair(fam,rep):
                     m=json.loads((FROZEN/'graphs'/g.key/'manifest.json').read_text())
-                    self.assertEqual((m['N_full'],m['D_full'],m['M_full'],m['B']),(g.N,g.D,g.M,g.B),g.key)
+                    self.assertEqual((m['N_full'],m['D_full'],m['M_full']),(g.N,g.D,g.M),g.key)
+                    # m['B'] is the superseded suffix budget of the previous
+                    # design; it must still equal this graph's suffix volume.
+                    self.assertEqual(m['B'],g.M_suffix,g.key)
                     self.assertEqual(m['truth'],list(g.truth),g.key)
                     self.assertEqual(m.get('shared_latents'),meta.get('shared_latents'),g.key)
                     self.assertEqual(m.get('states_sha256'),meta.get('states_sha256'),g.key)
@@ -95,13 +101,15 @@ class FeatureTests(unittest.TestCase):
         self.assertEqual(len(FEATURE_NAMES),133)
         self.assertEqual(len(set(FEATURE_NAMES)),133)
 
-    def test_first_88_are_unchanged(self):
+    def test_base_block_structure(self):
         self.assertEqual(BASE_FEATURE_NAMES[:3],['N_obs','D_obs','M_obs'])
-        self.assertEqual(BASE_FEATURE_NAMES[-4:],['n_panel','L','tau','p'])
+        # One parameter slot per arm; H carries a panel size since the design
+        # revision, so the slot is named for it instead of the former tau.
+        self.assertEqual(BASE_FEATURE_NAMES[-4:],['n_panel','L','n_panel_suffix','p'])
 
     def test_derived_block_is_scale_free_and_consistent(self):
-        if not (FROZEN/'observations').exists(): self.skipTest('frozen run not present')
-        f=sorted((FROZEN/'observations'/'sample').glob('*__B__*.json'))[0]
+        if not (RUN/'observations').exists(): self.skipTest('current run not present')
+        f=sorted((RUN/'observations'/'sample').glob('*__B__*.json'))[0]
         o=parse(json.loads(f.read_text())['block'])
         v=features(o); names=list(FEATURE_NAMES)
         share=[v[names.index(f'share_{p:05b}_dyads')] for p in range(1,32)]
@@ -125,8 +133,8 @@ class FeatureTests(unittest.TestCase):
 
     def test_missing_windows_stay_distinguishable(self):
         """A suffix observation codes windows 1-2 as zero but access_1/2 stay 0."""
-        if not (FROZEN/'observations').exists(): self.skipTest('frozen run not present')
-        f=sorted((FROZEN/'observations'/'sample').glob('*__H__*.json'))[0]
+        if not (RUN/'observations').exists(): self.skipTest('current run not present')
+        f=sorted((RUN/'observations'/'sample').glob('*__H__*.json'))[0]
         o=parse(json.loads(f.read_text())['block'])
         v=features(o); names=list(FEATURE_NAMES)
         self.assertEqual(v[names.index('access_1')],0.)
@@ -145,11 +153,11 @@ class FeatureTests(unittest.TestCase):
 class WeightingTests(unittest.TestCase):
     def _rows(self):
         real=[{'id':f'{s}__{a}__s{i}','source_family':s,'arm':a,'sample_index':i,'block':''}
-              for s in TRAIN for a,n in (('R',5),('S',5),('H',1),('B',5)) for i in range(1,n+1)]
+              for s in TRAIN for a,n in (('R',5),('S',5),('H',5),('B',5)) for i in range(1,n+1)]
         pool=[{'id':f'{g}__{a}__s{i}','source_family':g,'arm':a,'sample_index':i,'block':'',
                'block_group':'dar' if g.startswith('d') else 'ad'}
               for g in [f'd{k}' for k in range(200)]+[f'a{k}' for k in range(200)]
-              for a,n in (('R',5),('S',5),('H',1),('B',5)) for i in range(1,n+1)]
+              for a,n in (('R',5),('S',5),('H',5),('B',5)) for i in range(1,n+1)]
         return real,pool
 
     def test_block_shares_are_exact(self):

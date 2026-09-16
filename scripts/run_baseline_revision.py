@@ -5,17 +5,20 @@ and the bounded development check of the two mixture correctors.
 Runs offline only. No LLM call, no API access, no paid job. The frozen main run
 in results/main_experiment/frozen_20260916 is never written to.
 """
-import argparse,math,sys,time
+import argparse,math,os,sys,time
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from main_experiment.common import write_json,read_json,digest
+from main_experiment.common import REAL_TEST as REAL_TEST_LIST
 from main_experiment import pool as poolmod
 from main_experiment.training import fit_folds,TRAINING_REVISION
 from main_experiment.observation import parse,features,FEATURE_NAMES
 from main_experiment.baselines import plugin,corrector,activity,bisect
 from main_experiment import mixtures
 
-FROZEN=Path('results/main_experiment/frozen_20260916')
+# Current design run. frozen_20260916 holds the superseded suffix-budget design
+# and is kept as the development history, not read here.
+FROZEN=Path(os.environ.get('MAIN_RUN','results/main_experiment/budget10_20261001'))
 
 
 def load_real_training():
@@ -89,7 +92,12 @@ def _predict(o,models,medians,graph_truth,arm):
     if arm in ('H','B'):
         mu0,lam0=_homogeneous_start(o)
         fit=mixtures.fit_suffix(o,mu0) if arm=='H' else mixtures.fit_events(o,mu0,lam0)
-        out['candidate']={'prediction':list(fit.prediction),'status':fit.status,
+        pred=list(fit.prediction); fallback=''
+        if fit.status in mixtures.UNRELIABLE_STATUSES:
+            # Pre-registered: an unreliable fit does not contribute a mixture
+            # prediction at all; it falls back to the homogeneous corrector.
+            pred=list(out['corrector']['prediction']); fallback='homogeneous_corrector'
+        out['candidate']={'prediction':pred,'status':fit.status,'fallback':fallback,
                           'seconds':fit.seconds,'kappa':fit.kappa,'mu':fit.mu,
                           'lam':fit.lam,'lam_event_only':fit.lam_event_only,
                           'flat_per_decade':fit.flat_per_decade,'nll_spread':fit.nll_spread}
@@ -124,6 +132,7 @@ def stage_dev(out):
                          'sample_index':r['sample_index'],'method':method,
                          'AE2':float(abs(e[0])),'ProfileAE':float(np.mean(np.abs(e))),
                          'signed_rho2':float(e[0]),'status':d['status'],
+                         'fallback':d.get('fallback',''),
                          'seconds':d.get('seconds',0.),'kappa':d.get('kappa',''),
                          'flat_per_decade':d.get('flat_per_decade',''),
                          'lam':d.get('lam',''),'lam_event_only':d.get('lam_event_only','')})
@@ -190,7 +199,8 @@ def _aggregate(recs):
         for r in sub: st[r['status']]=st.get(r['status'],0)+1
         secs=[r['seconds'] for r in sub]
         flat=[r['flat_per_decade'] for r in sub if isinstance(r['flat_per_decade'],float) and r['flat_per_decade']==r['flat_per_decade']]
-        diag[arm]={'n':len(sub),'status_counts':st,'seconds_total':float(sum(secs)),
+        diag[arm]={'n':len(sub),'status_counts':st,
+                   'fallbacks_to_homogeneous':sum(1 for r in sub if r.get('fallback')),'seconds_total':float(sum(secs)),
                    'seconds_mean':float(sum(secs)/len(sub)),'seconds_max':float(max(secs)),
                    'flat_per_decade_median':float(sorted(flat)[len(flat)//2]) if flat else None,
                    'weakly_identified_or_boundary':sum(v for k,v in st.items()
@@ -226,10 +236,181 @@ def _aggregate(recs):
 
 
 
+def stage_main(out):
+    """All baselines on the main run: six real sources and eight synthetic instances.
+
+    Runs only after the development check has fixed the corrector choice. The
+    ranking here must not feed back into that choice; it is reported as is.
+    """
+    import csv, pickle, time
+    import numpy as np
+    rows=[read_json(f) for f in sorted((FROZEN/'observations'/'sample').glob('*.json'))]
+    man={m['key']:m for m in (read_json(f) for f in (FROZEN/'graphs').glob('*/manifest.json'))}
+    models={}
+    for name,folder in (('pooled','models_pooled'),('real_only','models_real_only')):
+        with open(out/folder/'synthetic'/'model.pkl','rb') as f: models[name]=pickle.load(f)
+    med_syn=read_json(out/'models_pooled'/'synthetic'/'manifest.json')['median']
+    fold_models={}; fold_med={}
+    for src in REAL_TEST_LIST:
+        for name,folder in (('pooled','models_pooled'),('real_only','models_real_only')):
+            with open(out/folder/src/'model.pkl','rb') as f: fold_models[(src,name)]=pickle.load(f)
+        fold_med[src]=read_json(out/'models_pooled'/src/'manifest.json')['median']
+    recs=[]; t0=time.time()
+    for r in rows:
+        o=parse(r['block']); g=r['graph_id']; truth=man[g]['truth']
+        real=g in REAL_TEST_LIST
+        # Leave-one-source-out for a real test source; the all-real model otherwise.
+        m={'pooled':fold_models[(g,'pooled')] if real else models['pooled'],
+           'real_only':fold_models[(g,'real_only')] if real else models['real_only']}
+        med=fold_med[g] if real else med_syn
+        pred=_predict(o,m,med,truth,r['arm'])
+        S_full=man[g]['D_full']*(1+sum(truth))
+        S_obs=sum(pat.count('1')*dy for pat,dy,_ in o['table'])
+        for method,d in pred.items():
+            e=np.asarray(d['prediction'],float)-np.asarray(truth,float)
+            recs.append({'graph_id':g,'stratum':'real' if real else 'synthetic',
+                'arm':r['arm'],'sample_index':r['sample_index'],'method':method,
+                'AE2':float(abs(e[0])),'ProfileAE':float(np.mean(np.abs(e))),
+                'signed_rho2':float(e[0]),'status':d['status'],
+                'fallback':d.get('fallback',''),
+                'D_obs':o['D_obs'],'M_obs':o['M_obs'],
+                'dyad_coverage':o['D_obs']/man[g]['D_full'],
+                'window_coverage':S_obs/S_full,
+                'event_coverage':o['M_obs']/man[g]['M_full'],
+                'seconds':d.get('seconds',0.),'budget_matched':True})
+    with open(out/'main_observations.csv','w',newline='') as f:
+        w=csv.DictWriter(f,fieldnames=list(recs[0])); w.writeheader(); w.writerows(recs)
+    summary=_aggregate_main(recs)
+    write_json(out/'main_summary.json',summary)
+    fields=list(dict.fromkeys(k for row in summary['rows'] for k in row))
+    with open(out/'main_summary.csv','w',newline='') as f:
+        w=csv.DictWriter(f,fieldnames=fields,restval=''); w.writeheader(); w.writerows(summary['rows'])
+    return {'observations':len(rows),'records':len(recs),'seconds':time.time()-t0,
+            'coverage':summary['coverage']}
+
+
+def _aggregate_main(recs):
+    """Hierarchical aggregation: observations within a source, then sources equally.
+
+    Repeats and dyads are never counted as extra independent graphs; a source
+    contributes exactly once to its stratum mean.
+    """
+    import numpy as np
+    methods=['plugin','corrector','median','extratrees_pooled','extratrees_real_only','candidate']
+    rows=[]
+    for stratum in ('real','synthetic'):
+        for arm in ('R','S','H','B'):
+            for method in methods:
+                sel=[r for r in recs if r['stratum']==stratum and r['arm']==arm and r['method']==method]
+                if not sel: continue
+                per={}
+                for r in sel: per.setdefault(r['graph_id'],[]).append(r)
+                src_ae=[np.mean([x['AE2'] for x in v]) for v in per.values()]
+                src_pe=[np.mean([x['ProfileAE'] for x in v]) for v in per.values()]
+                src_sg=[np.mean([x['signed_rho2'] for x in v]) for v in per.values()]
+                row={'stratum':stratum,'arm':arm,'method':method,'sources':len(per),
+                     'MAE2':float(np.mean(src_ae)),
+                     'MAE2_se':float(np.std(src_ae,ddof=1)/np.sqrt(len(src_ae))) if len(src_ae)>1 else float('nan'),
+                     'ProfileMAE':float(np.mean(src_pe)),
+                     'signed_rho2':float(np.mean(src_sg)),
+                     'worst_source_AE2':float(np.max(src_ae)),
+                     'fallbacks':sum(1 for r in sel if r['fallback'])}
+                for ref in ('plugin','corrector'):
+                    if method==ref: continue
+                    base={}
+                    for r in recs:
+                        if r['stratum']==stratum and r['arm']==arm and r['method']==ref:
+                            base.setdefault(r['graph_id'],[]).append(r['AE2'])
+                    common=sorted(set(per)&set(base))
+                    if common:
+                        d=[np.mean([x['AE2'] for x in per[g]])-np.mean(base[g]) for g in common]
+                        row[f'paired_vs_{ref}']=float(np.mean(d))
+                        row[f'paired_vs_{ref}_se']=float(np.std(d,ddof=1)/np.sqrt(len(d))) if len(d)>1 else float('nan')
+                rows.append(row)
+    cov=[]
+    for stratum in ('real','synthetic'):
+        for arm in ('R','S','H','B'):
+            sel=[r for r in recs if r['stratum']==stratum and r['arm']==arm and r['method']=='plugin']
+            if not sel: continue
+            cov.append({'stratum':stratum,'arm':arm,
+                'dyad_coverage_median':float(np.median([r['dyad_coverage'] for r in sel])),
+                'window_coverage_median':float(np.median([r['window_coverage'] for r in sel])),
+                'event_coverage_median':float(np.median([r['event_coverage'] for r in sel])),
+                'D_obs_median':float(np.median([r['D_obs'] for r in sel])),
+                'D_obs_min':int(np.min([r['D_obs'] for r in sel])),
+                'M_obs_median':float(np.median([r['M_obs'] for r in sel]))})
+    return {'rows':rows,'coverage':cov}
+
+
+def stage_decompose(out):
+    """Split the plug-in error into a selection part and a lost-history part.
+
+    For one observation, let
+      truth  = the profile over all dyads of the graph,
+      oracle = the profile over the *observed* dyads but computed from their
+               complete five-window histories,
+      plugin = the profile actually computable from the observation.
+    Then oracle - truth is the error from which dyads the mechanism happened to
+    reach, and plugin - oracle is the error from what it lost about the dyads it
+    did reach. Full histories are used here for evaluation only; nothing in this
+    function feeds an estimator.
+    """
+    import csv, time
+    import numpy as np
+    from main_experiment.pool import pool_definition
+    from main_experiment.synthetic import generate_one
+    from main_experiment.sampling import calibrate, draw
+    specs={g['key']:g for g in pool_definition()['graphs'] if g['partition']=='dev'}
+    rows=[]; t0=time.time()
+    for key,sp in sorted(specs.items()):
+        params={k:v for k,v in sp['parameters'].items() if v is not None and k!='mean_degree'}
+        g,_,_=generate_one(key,sp['family'],params,domain='pool')
+        budget,walk=calibrate(g,out/'pool'/'calibration'/key,out/'pool'/'build')
+        truth=np.array(g.truth,float)
+        for arm in ('R','S','H','B'):
+            for ix in range(1,6):
+                counts,_=draw(g,arm,ix,'pool_dev',budget,walk)
+                seen=counts.sum(1)>0
+                if not seen.any(): continue
+                Kf=(g.counts[seen]>0).sum(1)              # full histories, observed dyads
+                Ko=(counts[seen]>0).sum(1)                # what the observation shows
+                oracle=np.array([float((Kf>=k).mean()) for k in range(2,6)])
+                plug=np.array([float((Ko>=k).mean()) for k in range(2,6)])
+                rows.append({'graph_id':key,'family':sp['family'],'arm':arm,'sample_index':ix,
+                    'D_full':g.D,'D_obs':int(seen.sum()),'dyad_coverage':float(seen.mean()),
+                    'truth_rho2':float(truth[0]),'oracle_rho2':float(oracle[0]),
+                    'plugin_rho2':float(plug[0]),
+                    'selection_rho2':float(oracle[0]-truth[0]),
+                    'history_rho2':float(plug[0]-oracle[0]),
+                    'total_rho2':float(plug[0]-truth[0]),
+                    'selection_profile':float(np.mean(oracle-truth)),
+                    'history_profile':float(np.mean(plug-oracle)),
+                    'total_profile':float(np.mean(plug-truth))})
+    path=out/'error_decomposition.csv'
+    with open(path,'w',newline='') as f:
+        w=csv.DictWriter(f,fieldnames=list(rows[0])); w.writeheader(); w.writerows(rows)
+    summary=[]
+    for fam in ('all','dar','ad'):
+        for arm in ('R','S','H','B'):
+            sel=[r for r in rows if r['arm']==arm and (fam=='all' or r['family']==fam)]
+            if not sel: continue
+            per={}
+            for r in sel: per.setdefault(r['graph_id'],[]).append(r)
+            agg=lambda k:float(np.mean([np.mean([x[k] for x in v]) for v in per.values()]))
+            summary.append({'family':fam,'arm':arm,'graphs':len(per),
+                'dyad_coverage':agg('dyad_coverage'),
+                'selection_rho2':agg('selection_rho2'),'history_rho2':agg('history_rho2'),
+                'total_rho2':agg('total_rho2'),
+                'abs_selection':float(np.mean([abs(x['selection_rho2']) for x in sel])),
+                'abs_history':float(np.mean([abs(x['history_rho2']) for x in sel]))})
+    write_json(out/'error_decomposition.json',{'rows':summary})
+    return {'observations':len(rows),'graphs':len(specs),'seconds':time.time()-t0}
+
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--out',required=True)
-    ap.add_argument('--stage',default='all',choices=['pool','train','dev','all'])
+    ap.add_argument('--stage',default='all',choices=['pool','train','dev','decompose','main','all'])
     a=ap.parse_args()
     out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
     start=time.perf_counter(); report={}
@@ -239,6 +420,12 @@ def main():
     if a.stage in ('train','all'):
         report['train']=stage_train(out)
         print('train:',report['train'],flush=True)
+    if a.stage=='main':
+        report['main']=stage_main(out)
+        print('main:',report['main'],flush=True)
+    if a.stage in ('decompose','all'):
+        report['decompose']=stage_decompose(out)
+        print('decompose:',report['decompose'],flush=True)
     if a.stage in ('dev','all'):
         report['dev']=stage_dev(out)
         print('dev:',report['dev'],flush=True)

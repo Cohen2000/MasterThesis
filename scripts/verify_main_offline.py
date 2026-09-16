@@ -8,7 +8,7 @@ import sys
 import pickle
 import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
-from main_experiment.common import REAL_TEST,TRAIN,SYNTH,CONFIGS,sha,digest,read_json,seed
+from main_experiment.common import REAL_TEST,TRAIN,SYNTH,CONFIGS,sha,digest,read_json,seed, MAIN_OBSERVATIONS, TRAINING_OBSERVATIONS, PLANNED_CALLS
 from main_experiment.observation import parse,features,messages,FEATURE_NAMES
 from main_experiment.baselines import plugin,corrector
 from main_experiment.data import load_graph
@@ -21,7 +21,7 @@ def verify(root):
         if sha(root/f)!=h: raise AssertionError(f'checksum {f}')
     obs=list((root/'observations/sample').glob('*.json'))
     train=list((root/'observations/training').glob('*.json'))
-    assert len(obs)==224 and len(train)==256
+    assert len(obs)==MAIN_OBSERVATIONS and len(train)==TRAINING_OBSERVATIONS
     keys=set(REAL_TEST)|set(SYNTH); counts={k:0 for k in keys}
     source_truth={}
     for key in list(TRAIN)+list(SYNTH):
@@ -73,7 +73,7 @@ def verify(root):
             assert all(0<=v<=1 for v in values)
             assert all(a>=b for a,b in zip(values,values[1:]))
     requests=[json.loads(x) for x in (root/'requests.jsonl').read_text().splitlines()]
-    assert len(requests)==2688 and len({r['id'] for r in requests})==2688
+    assert len(requests)==PLANNED_CALLS and len({r['id'] for r in requests})==PLANNED_CALLS
     for config in CONFIGS: assert sum(r['config_id']==config for r in requests)==672
     assert all(not r['started'] and r['status'] in ['not_started','skipped_empty'] for r in requests)
     for row in requests:
@@ -85,7 +85,7 @@ def verify(root):
     assert len({r['seed'] for r in seeds})==len(seeds)
     for r in seeds: assert seed(*r['fields'][1:])==r['seed']
     sizes=list(csv.DictReader(open(root/'prompt_sizes.csv')))
-    assert len(sizes)==224
+    assert len(sizes)==MAIN_OBSERVATIONS
     assert all(max(int(r[k]) for k in ['qwen_thinking','qwen_nonthinking','deepseek_message_texts','sol_o200k_message_proxy'])<=4096 for r in sizes)
     cns=read_json(root/'graphs/copenhagen_bluetooth/manifest.json')
     assert cns['copenhagen']['legacy_export_matches'] and cns['copenhagen']['release_md5_verified']=='98892459f73e774cf79e7977edfeee3e'

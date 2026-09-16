@@ -184,7 +184,7 @@ def build_pool(out,specs=None,limit=None,progress=True):
             g,x,meta=generate_one(key,sp['family'],params,domain='pool')
             budget,walk=calibrate(g,out/'calibration'/key,out/'build')
             rows=[]
-            for arm,n in (('R',5),('S',5),('H',1),('B',5)):
+            for arm,n in (('R',5),('S',5),('H',5),('B',5)):
                 for ix in range(1,n+1):
                     counts,traversals=draw(g,arm,ix,domain,budget,walk)
                     block=serialize(make(g,arm,budget,counts,traversals))

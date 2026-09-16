@@ -5,14 +5,16 @@ target:
   components: [rho_2, rho_3, rho_4, rho_5]
   primary_error: MAE2_with_fixed_replacement
   secondary_error: ProfileMAE
+design_version: budget10-20261001
 sampling:
   R: uniform_fixed_node_panel_full_history
   S: event_weighted_walk_full_history
-  H: fixed_suffix_tau_0.60
+  H: uniform_node_panel_within_suffix_windows_3_4_5
   B: independent_bernoulli_events
 budget:
   name: expected_observed_event_volume
-  target: events_in_windows_3_4_5
+  target: fixed_share_of_full_archive
+  fraction: 0.10
   calibration_walks: 256
   validation_walks: 1024
   extended_validation_walks: 4096
@@ -20,16 +22,17 @@ budget:
   max_relative_mcse: 0.01
   walk_cap: min(100*D_full,1000000)
 replication:
-  observations_per_arm: {R: 5, S: 5, H: 1, B: 5}
+  observations_per_arm: {R: 5, S: 5, H: 5, B: 5}
   llm_repeats: 3
-  main_observations: 224
-  maximum_main_calls: 2688
+  main_observations: 280
+  maximum_main_calls: 3360
+  maximum_qwen_calls: 1680
 training:
   sources: 16
   real_test: leave_one_source_out
   synthetic_test: all_real_sources
-  observations_per_source: 16
-  features: 88
+  observations_per_source: 20
+  features: 133
   estimators: 500
   n_jobs: 1
   random_state: 0

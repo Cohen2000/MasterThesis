@@ -1,0 +1,26 @@
+{
+  "baseline_rows": 1120,
+  "elapsed_seconds_this_invocation": 110.53404413099634,
+  "eligible_unstarted_calls": 3360,
+  "empty_observations": 0,
+  "failed_responses": 0,
+  "fitted_models": 7,
+  "llm_study_conducted": false,
+  "offline_ready": true,
+  "planned_logical_calls": 3360,
+  "planned_observations": 280,
+  "prepared_observations": 280,
+  "prompt_failures": {},
+  "prompt_sizes_checked": 280,
+  "provider_release_ready": false,
+  "request_manifest_rows": 3360,
+  "source_failures": {},
+  "started_calls": 0,
+  "technical_start_conditions": [
+    "API authentication and current prices/reserves",
+    "Provider framing: exact DeepSeek and Sol input size verification",
+    "Qwen BF16 serving under vLLM 0.29.0 (verified to know the architecture)",
+    "Authorized technical inference tests, streaming, usage and transport recovery"
+  ],
+  "training_observations": 320
+}

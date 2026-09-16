@@ -10,7 +10,7 @@ import subprocess
 import time
 import numpy as np
 import yaml
-from .common import ROOT,REAL_TEST,TRAIN,SYNTH,ARMS,SEEDS,seed,sha,digest,read_json,write_json,verify_immutable_checkpoints
+from .common import ROOT,REAL_TEST,TRAIN,SYNTH,ARMS,SEEDS,seed,sha,digest,read_json,write_json,verify_immutable_checkpoints, MAIN_OBSERVATIONS, TRAINING_OBSERVATIONS, PLANNED_CALLS
 from .data import prepare_real,load_graph,save_graph
 from .synthetic import generate_pair
 from .sampling import calibrate,Walk,draw
@@ -94,10 +94,10 @@ def run(args):
             for domain in (['training'] if key in TRAIN and key not in REAL_TEST else
                            ['training','sample'] if key in REAL_TEST else ['sample']):
                 for arm in ARMS:
-                    for ix in range(1,2 if arm=='H' else 6):
+                    for ix in range(1,6):
                         oid=f'{key}__{arm}__s{ix}'; dest=out/'observations'/domain/(oid+'.json')
-                        # Register seeds also on resume; suffix is deterministic.
-                        if arm!='H': seed(domain,key,arm,ix)
+                        # Register seeds also on resume; every arm now draws.
+                        seed(domain,key,arm,ix)
                         if dest.exists(): row=read_json(dest)
                         else:
                             counts,re=draw(g,arm,ix,domain,budget,walk)
@@ -181,17 +181,19 @@ def run(args):
                     'planned_logical_calls':12,'actual_calls':0,'empty':row['empty'] if row else None})
     csv_write(out/'observation_status.csv',status)
     write_json(out/'seed_manifest.json',[{'seed':s,'fields':json.loads(v)} for s,v in sorted(SEEDS.items())])
-    report={'planned_observations':224,'prepared_observations':len(all_obs),'training_observations':len(train_rows),
-        'planned_logical_calls':2688,'request_manifest_rows':len(requests),
+    report={'planned_observations':MAIN_OBSERVATIONS,'prepared_observations':len(all_obs),'training_observations':len(train_rows),
+        'planned_logical_calls':PLANNED_CALLS,'request_manifest_rows':len(requests),
         'empty_observations':sum(r['empty'] for r in all_obs),
         'eligible_unstarted_calls':sum(not r['empty'] for r in all_obs)*12,'started_calls':0,'failed_responses':0,
         'baseline_rows':len(baseline_rows),'fitted_models':7 if baseline_rows else 0,
         'prompt_sizes_checked':len(sizes),'prompt_failures':prompt_failures,'source_failures':failures,
-        'offline_ready':len(train_rows)==256 and complete_sources and len(all_obs)==224 and len(baseline_rows)==896 and len(sizes)==224 and not prompt_failures,
+        'offline_ready':(len(train_rows)==TRAINING_OBSERVATIONS and complete_sources
+                         and len(all_obs)==MAIN_OBSERVATIONS and len(sizes)==MAIN_OBSERVATIONS
+                         and len(baseline_rows)==MAIN_OBSERVATIONS*4 and not prompt_failures),
         'provider_release_ready':False,'llm_study_conducted':False,
         'technical_start_conditions':['API authentication and current prices/reserves',
           'Provider framing: exact DeepSeek and Sol input size verification',
-          'Qwen BF16 vLLM 0.20.1 serving and reasoning/JSON separation',
+          'Qwen BF16 serving under vLLM 0.29.0 (verified to know the architecture)',
           'Authorized technical inference tests, streaming, usage and transport recovery'],
         'elapsed_seconds_this_invocation':time.perf_counter()-start}
     write_json(out/'report.json',report)

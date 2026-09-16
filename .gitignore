@@ -192,3 +192,29 @@ data/tokenizers/
 !/results/baseline_revision_20260916/report_pool.json
 !/results/baseline_revision_20260916/report_train.json
 !/results/baseline_revision_20260916/report_dev.json
+
+# Design revision budget10-20261001: compact reports and machine-readable tables.
+# Graphs, observations, calibration checkpoints and models stay local.
+!/results/baseline_revision_20261001/
+/results/baseline_revision_20261001/*
+!/results/baseline_revision_20261001/CORRECTOR_DECISION.md
+!/results/baseline_revision_20261001/development_summary.csv
+!/results/baseline_revision_20261001/development_summary.json
+!/results/baseline_revision_20261001/main_summary.csv
+!/results/baseline_revision_20261001/main_summary.json
+!/results/baseline_revision_20261001/error_decomposition.json
+!/results/baseline_revision_20261001/pool_definition.json
+!/results/baseline_revision_20261001/report_*.json
+!/results/main_experiment/
+/results/main_experiment/*
+!/results/main_experiment/ACCEPTANCE.md
+!/results/main_experiment/evidence/
+!/results/main_experiment/evidence/**
+!/results/main_experiment/budget10_20261001/
+/results/main_experiment/budget10_20261001/*
+!/results/main_experiment/budget10_20261001/report.json
+!/results/main_experiment/budget10_20261001/data_summary.csv
+!/results/main_experiment/budget10_20261001/budget_summary.csv
+!/results/main_experiment/budget10_20261001/baseline_summary.csv
+!/results/main_experiment/budget10_20261001/observation_status.csv
+!/results/main_experiment/budget10_20261001/prompt_sizes.csv

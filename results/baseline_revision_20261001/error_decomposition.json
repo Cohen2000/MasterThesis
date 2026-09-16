@@ -1,0 +1,136 @@
+{
+  "rows": [
+    {
+      "abs_history": 0.0,
+      "abs_selection": 0.017608210303664683,
+      "arm": "R",
+      "dyad_coverage": 0.10016243368721682,
+      "family": "all",
+      "graphs": 100,
+      "history_rho2": 0.0,
+      "selection_rho2": -0.00019223413941273307,
+      "total_rho2": -0.00019223413941273307
+    },
+    {
+      "abs_history": 0.0,
+      "abs_selection": 0.13685900824325728,
+      "arm": "S",
+      "dyad_coverage": 0.07768333686882643,
+      "family": "all",
+      "graphs": 100,
+      "history_rho2": 0.0,
+      "selection_rho2": 0.13361347405309112,
+      "total_rho2": 0.13361347405309112
+    },
+    {
+      "abs_history": 0.16098893562350827,
+      "abs_selection": 0.06206119314238585,
+      "arm": "H",
+      "dyad_coverage": 0.13291351265065718,
+      "family": "all",
+      "graphs": 100,
+      "history_rho2": -0.16098893562350827,
+      "selection_rho2": 0.06026799433496373,
+      "total_rho2": -0.10072094128854457
+    },
+    {
+      "abs_history": 0.5167283121519508,
+      "abs_selection": 0.13284694212120612,
+      "arm": "B",
+      "dyad_coverage": 0.35436329386098786,
+      "family": "all",
+      "graphs": 100,
+      "history_rho2": -0.5167283121519508,
+      "selection_rho2": 0.13284694212120612,
+      "total_rho2": -0.38388137003074474
+    },
+    {
+      "abs_history": 0.0,
+      "abs_selection": 0.01995234192265996,
+      "arm": "R",
+      "dyad_coverage": 0.09988205924823475,
+      "family": "dar",
+      "graphs": 50,
+      "history_rho2": 0.0,
+      "selection_rho2": -0.0009522883144896249,
+      "total_rho2": -0.0009522883144896249
+    },
+    {
+      "abs_history": 0.0,
+      "abs_selection": 0.14165841025792314,
+      "arm": "S",
+      "dyad_coverage": 0.08104418178576216,
+      "family": "dar",
+      "graphs": 50,
+      "history_rho2": 0.0,
+      "selection_rho2": 0.13516734187759089,
+      "total_rho2": 0.13516734187759089
+    },
+    {
+      "abs_history": 0.18982951570706783,
+      "abs_selection": 0.08327051742672428,
+      "arm": "H",
+      "dyad_coverage": 0.1292463153962093,
+      "family": "dar",
+      "graphs": 50,
+      "history_rho2": -0.18982951570706783,
+      "selection_rho2": 0.08260943781084501,
+      "total_rho2": -0.10722007789622282
+    },
+    {
+      "abs_history": 0.5586824453174436,
+      "abs_selection": 0.141687223520967,
+      "arm": "B",
+      "dyad_coverage": 0.42295272415748314,
+      "family": "dar",
+      "graphs": 50,
+      "history_rho2": -0.5586824453174436,
+      "selection_rho2": 0.14168722352096702,
+      "total_rho2": -0.4169952217964765
+    },
+    {
+      "abs_history": 0.0,
+      "abs_selection": 0.015264078684669412,
+      "arm": "R",
+      "dyad_coverage": 0.10044280812619888,
+      "family": "ad",
+      "graphs": 50,
+      "history_rho2": 0.0,
+      "selection_rho2": 0.0005678200356641582,
+      "total_rho2": 0.0005678200356641582
+    },
+    {
+      "abs_history": 0.0,
+      "abs_selection": 0.13205960622859134,
+      "arm": "S",
+      "dyad_coverage": 0.07432249195189072,
+      "family": "ad",
+      "graphs": 50,
+      "history_rho2": 0.0,
+      "selection_rho2": 0.13205960622859134,
+      "total_rho2": 0.13205960622859134
+    },
+    {
+      "abs_history": 0.13214835553994875,
+      "abs_selection": 0.04085186885804741,
+      "arm": "H",
+      "dyad_coverage": 0.136580709905105,
+      "family": "ad",
+      "graphs": 50,
+      "history_rho2": -0.13214835553994875,
+      "selection_rho2": 0.03792655085908243,
+      "total_rho2": -0.0942218046808663
+    },
+    {
+      "abs_history": 0.47477417898645813,
+      "abs_selection": 0.12400666072144526,
+      "arm": "B",
+      "dyad_coverage": 0.2857738635644925,
+      "family": "ad",
+      "graphs": 50,
+      "history_rho2": -0.4747741789864582,
+      "selection_rho2": 0.12400666072144528,
+      "total_rho2": -0.35076751826501285
+    }
+  ]
+}

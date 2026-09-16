@@ -1,0 +1,43 @@
+{
+  "dev": {
+    "diagnostics": {
+      "B": {
+        "fallbacks_to_homogeneous": 80,
+        "flat_per_decade_median": 0.5370439144510328,
+        "n": 500,
+        "seconds_max": 0.19778361899079755,
+        "seconds_mean": 0.07614391509589041,
+        "seconds_total": 38.0719575479452,
+        "status_counts": {
+          "boundary_homogeneous": 31,
+          "boundary_other": 26,
+          "converged": 179,
+          "starts_disagree": 80,
+          "weakly_identified": 184
+        },
+        "weakly_identified_or_boundary": 321
+      },
+      "H": {
+        "fallbacks_to_homogeneous": 14,
+        "flat_per_decade_median": 4.9666964892089425,
+        "n": 500,
+        "seconds_max": 0.08428247300616931,
+        "seconds_mean": 0.02607121344812913,
+        "seconds_total": 13.035606724064564,
+        "status_counts": {
+          "boundary_homogeneous": 25,
+          "boundary_other": 61,
+          "converged": 344,
+          "starts_disagree": 14,
+          "weakly_identified": 56
+        },
+        "weakly_identified_or_boundary": 156
+      }
+    },
+    "elapsed_seconds": 142.22972762100108,
+    "graphs": 100,
+    "observations": 2000,
+    "records": 11000
+  },
+  "elapsed_seconds": 142.6452324819984
+}

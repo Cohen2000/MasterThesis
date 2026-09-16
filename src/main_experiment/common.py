@@ -12,10 +12,25 @@ TRAIN = ('sp_hospital','sp_primaryschool','sp_highschool2013','sp_workplace',
          'snap_bitcoin_otc','nr_radoslaw_email','nr_digg_reply','jodie_wikipedia',
          'jodie_reddit','jodie_lastfm','jodie_mooc','copenhagen_bluetooth')
 ARMS = ('R','S','H','B')
+# Design revision: the budget is now a fixed share of the full event archive
+# instead of the suffix event count, so every arm can be calibrated to it.
+DESIGN_VERSION = 'budget10-20261001'
+BUDGET_FRACTION = 0.10
+SAMPLES_PER_ARM = 5          # every arm is stochastic under this design
+LLM_REPEATS = 3
 CONFIGS = ('sol','deepseek','qwen_thinking','qwen_nonthinking')
 SYNTH = tuple(f'{family}_{mode}_r{r}' for family,modes in
               [('dar',('a0','a08')),('ad',('memoryless','memory'))]
               for r in (1,2) for mode in modes)
+# Derived design sizes. Everything downstream reads these instead of literals,
+# so a change to the replication scheme cannot leave a stale number behind.
+MAIN_GRAPHS = len(REAL_TEST)+len(SYNTH)
+OBSERVATIONS_PER_GRAPH = len(ARMS)*SAMPLES_PER_ARM
+MAIN_OBSERVATIONS = MAIN_GRAPHS*OBSERVATIONS_PER_GRAPH
+TRAINING_OBSERVATIONS = len(TRAIN)*OBSERVATIONS_PER_GRAPH
+PLANNED_CALLS = MAIN_OBSERVATIONS*len(CONFIGS)*LLM_REPEATS
+QWEN_CALLS = MAIN_OBSERVATIONS*2*LLM_REPEATS
+
 SEEDS = {}
 
 def seed(domain, graph_id='', arm_id='', sample_index=0, repeat_index=0, config_id=''):
