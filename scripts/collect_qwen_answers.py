@@ -6,9 +6,13 @@ requests in flight and completeness is a directory count rather than a claim.
 This collects them, maps the runner's end states onto the fields the frozen
 evaluator expects, and refuses to emit a file that is silently incomplete.
 """
-import argparse, json, sys
+import argparse, json, re, sys
 from collections import Counter
 from pathlib import Path
+
+# A JSON object carrying rho_2 at the very end of the answer, optionally inside a
+# markdown fence. Used only by the clearly-labelled secondary evaluation.
+TRAILING = re.compile(r'(?:```[A-Za-z0-9_+-]*\s*\n)?(\{[^{}]*"rho_2"[^{}]*\})\s*(?:\n```)?\s*\Z', re.S)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from main_experiment.common import read_json
@@ -21,6 +25,13 @@ def main():
     ap.add_argument('--out', required=True)
     ap.add_argument('--configs', default='qwen_thinking,qwen_nonthinking')
     ap.add_argument('--allow-incomplete', action='store_true')
+    ap.add_argument('--extract-trailing-json', action='store_true',
+                    help='SECONDARY analysis only: replace final_text by a JSON object '
+                         'found at the very end of the answer. Decided after seeing that '
+                         'the non-thinking mode derives in the answer field, because the '
+                         'chat template closes its reasoning channel in the prompt and '
+                         'leaves it nowhere else to put the derivation. The frozen rule '
+                         'stays frozen; this produces a second, separately reported result.')
     a = ap.parse_args()
 
     run = Path(a.run)
@@ -52,7 +63,8 @@ def main():
                                         and not d.get('reasoning_closed', True)),
               'empty_final_text': sum(1 for d in found.values()
                                       if d.get('status') == 'completed'
-                                      and not (d.get('final_text') or '').strip())}
+                                      and not (d.get('final_text') or '').strip()),
+              'extract_trailing_json': bool(a.extract_trailing_json)}
     print(json.dumps(report, indent=1))
     if missing and not a.allow_incomplete:
         Path(a.out + '.missing.txt').write_text('\n'.join(missing) + '\n')
@@ -80,7 +92,14 @@ def main():
         if completed:
             # Only the final answer is ever parsed; the reasoning is carried
             # alongside for the record and never fed to the parser.
-            rec['final_text'] = d.get('final_text', '')
+            text = d.get('final_text', '')
+            if a.extract_trailing_json:
+                m = TRAILING.search(text.rstrip())
+                if m:
+                    rec['extraction'] = 'trailing_json'
+                    rec['extracted_from_chars'] = len(text)
+                    text = m.group(1)
+            rec['final_text'] = text
         lines.append(json.dumps(rec, sort_keys=True))
     Path(a.out).write_text('\n'.join(lines) + '\n')
     print(f'wrote {len(lines)} records to {a.out}')

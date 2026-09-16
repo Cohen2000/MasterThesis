@@ -219,3 +219,15 @@ data/tokenizers/
 !/results/main_experiment/budget10_20261001/baseline_summary.csv
 !/results/main_experiment/budget10_20261001/observation_status.csv
 !/results/main_experiment/budget10_20261001/prompt_sizes.csv
+
+# Qwen main run: compact evaluation tables only. Raw answers stay local.
+!/results/main_experiment/qwen_evaluation/
+/results/main_experiment/qwen_evaluation/*
+!/results/main_experiment/qwen_evaluation/summary.csv
+!/results/main_experiment/qwen_evaluation/source_results.csv
+!/results/main_experiment/qwen_evaluation/report.json
+!/results/main_experiment/qwen_evaluation_trailing/
+/results/main_experiment/qwen_evaluation_trailing/*
+!/results/main_experiment/qwen_evaluation_trailing/summary.csv
+!/results/main_experiment/qwen_evaluation_trailing/source_results.csv
+!/results/main_experiment/qwen_evaluation_trailing/report.json

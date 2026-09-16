@@ -187,7 +187,81 @@ reasoning text to the strict answer parser for every thinking answer. The split 
 mirrors the template's own parsing and treats a missing closing tag in thinking
 mode as "stopped inside the reasoning, no final answer exists".
 
-## 6. Limits
+## 6. Qwen results
+
+1 680 of 1 680 planned Qwen calls completed: two modes x three repeats x 280
+observations, no empty observations, nothing missing. Every answer ended on a
+regular end-of-sequence; **no output-limit hit, no technical failure, no unclosed
+reasoning block, no empty answer.** Output length 1 785 to 79 129 tokens, median
+7 896, 13.8 million tokens in total, about 5.5 GPU-hours on H100s. The longest
+answer used 31 % of the 258 048 allowance, so the limit never bound.
+
+### The answer-format problem, and how it is handled
+
+The two modes differ in where they put their derivation, and this is a property of
+the chat template rather than of the models:
+
+* **Thinking mode** gets a reasoning channel. The template ends the prompt with
+  `<think>`, the model reasons and closes with `</think>`, and the final answer
+  field contains the JSON alone. **840 of 840 answers are valid under the frozen
+  rule** (606 bare, 234 after removing a whole-answer markdown fence).
+* **Non-thinking mode** has no such channel: the template writes
+  `<think>\n\n</think>` into the prompt, so the block is closed before generation
+  starts. The model therefore derives *inside the answer field* and appends the
+  JSON at the end. **0 of 840 answers are valid under the frozen rule.**
+
+Under the frozen parser rule the non-thinking mode never produces a parseable
+answer, so all 840 of its estimates become plug-in replacements and its MAE₂ is
+identical to the plug-in by construction. That is a real statement about
+instruction following, but it measures the template's asymmetry rather than the
+model's estimation.
+
+Both readings are therefore reported, and the second is labelled for what it is:
+
+| | frozen rule | trailing-JSON extraction |
+| --- | --- | --- |
+| thinking | 840/840 valid | 840/840 (unchanged) |
+| non-thinking | 0/840 valid | 785 valid, 51 with no JSON at the end, 4 non-monotone |
+
+**The extraction rule was decided after seeing that the frozen rule yields zero
+valid non-thinking answers.** It is a secondary analysis, kept in its own output
+directory, and it changes nothing about the thinking mode. The frozen rule itself
+was not modified.
+
+### MAE₂ on the six real sources, against the offline baselines
+
+| Arm | Qwen thinking | Qwen non-thinking* | plug-in | best corrector | ExtraTrees pooled |
+| --- | --- | --- | --- | --- | --- |
+| R | 0.0199 | 0.0198 | **0.0197** | = plug-in | 0.0299 |
+| S | 0.1384 | 0.1626 | 0.3222 | 0.0972 | **0.0615** |
+| H | 0.2083 | 0.2250 | 0.0721 | 0.0779 (candidate) | **0.0590** |
+| B | 0.1214 | 0.1145 | 0.0823 | 0.0555 | **0.0524** |
+
+\* secondary analysis. Monte-Carlo standard errors are 0.001–0.025.
+
+The pattern is the same in both modes and it is the substantive result:
+
+* **Arm R: the model matches the plug-in** (0.0199 against 0.0197). The decomposition
+  showed arm R has no history loss and a selection error of −0.0002, so the correct
+  behaviour is to report what one sees. The model does exactly that and does not
+  invent a correction it does not need.
+* **Arm S: the model corrects a large bias, but not as well as a dedicated estimator.**
+  It takes 0.322 down to 0.138 — a real correction of the walk's over-sampling —
+  while the ratio corrector reaches 0.097 and the learned baseline 0.062.
+* **Arms H and B: the model over-corrects and ends up worse than doing nothing.**
+  On H it is three times the plug-in error, on B one and a half times. These are
+  exactly the arms where the decomposition attributes 72–80 % of the error to lost
+  history, so they require a model of what was lost, and the LLM's implicit model
+  is worse than both the plug-in and the fitted ones.
+
+On the synthetic strata the same ordering holds, with arm B on the high-persistence
+families the worst case (thinking 0.37 on dar_a08 and 0.46 on ad_memory).
+
+So on this task the LLM is useful exactly where the naive reading fails badly and
+harmful where the naive reading is already decent. It never beats a purpose-built
+estimator on any arm.
+
+## 7. Limits
 
 * Six real test sources. Most differences on them are not statistically resolvable.
 * The development graphs come from the same two generator families as the training

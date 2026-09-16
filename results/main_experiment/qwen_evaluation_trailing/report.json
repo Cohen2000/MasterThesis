@@ -1,0 +1,10 @@
+{
+  "complete_main_result": false,
+  "empty_skips": 0,
+  "input_sha256": "45dfa9daf3ca614ff1e369b885397c34ff8c0f919fcce287d1943765d4acd1c9",
+  "logical_requests": 3360,
+  "metric_label": "MAE2 with fixed replacement rule",
+  "mock": false,
+  "not_started": 1680,
+  "started": 1680
+}
