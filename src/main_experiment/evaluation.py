@@ -1,11 +1,31 @@
 """Strict final-answer parsing and hierarchical error aggregation; no transport."""
 import json
 import math
+import re
 import numpy as np
 from .baselines import plugin
 from .common import SAMPLES_PER_ARM, LLM_REPEATS
 
 KEYS=tuple(f'rho_{k}' for k in range(2,6))
+FENCE=re.compile(r'\A```[A-Za-z0-9_+-]*\s*\n(.*?)\n?```\s*\Z',re.S)
+
+
+def strip_fence(raw):
+    """Remove one surrounding markdown code fence, if the whole answer is one.
+
+    Decided before the main run, after a smoke test showed the model wrapping its
+    JSON in ```json ... ``` in about half of the answers despite the instruction
+    not to. A fence is a transport wrapper, not content: everything inside is
+    still validated exactly as strictly as before -- the key set, finiteness, the
+    [0,1] range, monotonicity and the rejection of duplicate keys all still apply,
+    and nothing but a single enclosing fence is ever removed. Counting a fenced
+    but otherwise perfect answer as invalid would measure markdown compliance
+    rather than estimation, so the evaluation reports it as `valid_after_fence`
+    and the share is stated alongside the results.
+    """
+    m=FENCE.match(raw.strip())
+    return (m.group(1),True) if m else (raw,False)
+
 
 def parse_final(raw):
     def pairs(items):
@@ -15,14 +35,15 @@ def parse_final(raw):
             d[k]=v
         return d
     def constant(_): raise ValueError('non_json_number')
+    text,fenced=strip_fence(raw)
     try:
-        obj=json.loads(raw.strip(),object_pairs_hook=pairs,parse_constant=constant)
+        obj=json.loads(text.strip(),object_pairs_hook=pairs,parse_constant=constant)
         if type(obj) is not dict or set(obj)!=set(KEYS): return None,'keys_or_object'
         values=[obj[k] for k in KEYS]
         if any(type(x) not in (int,float) or not math.isfinite(x) for x in values): return None,'nonfinite_or_type'
         if any(not 0<=x<=1 for x in values): return None,'range'
         if any(a<b for a,b in zip(values,values[1:])): return None,'monotonicity'
-        return values,'valid'
+        return values,('valid_after_fence' if fenced else 'valid')
     except (ValueError,TypeError,AttributeError,OverflowError) as e:
         return None,'invalid_json:'+str(e)
 

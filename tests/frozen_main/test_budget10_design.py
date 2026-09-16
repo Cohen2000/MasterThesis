@@ -218,6 +218,49 @@ class RunnerChainTests(unittest.TestCase):
             self.assertEqual(r['messages'][0]['role'], 'system')
 
 
+class FinalAnswerParsingTests(unittest.TestCase):
+    """A markdown fence is a wrapper; everything inside stays strictly validated."""
+
+    def setUp(self):
+        from main_experiment.evaluation import parse_final
+        self.parse = parse_final
+        self.good = '{"rho_2": 0.1, "rho_3": 0.05, "rho_4": 0.01, "rho_5": 0.0}'
+
+    def test_bare_and_fenced_agree_on_the_values(self):
+        for wrapper in ('%s', '```json\n%s\n```', '```\n%s\n```'):
+            v, r = self.parse(wrapper % self.good)
+            self.assertEqual(v, [0.1, 0.05, 0.01, 0.0], wrapper)
+            self.assertIn(r, ('valid', 'valid_after_fence'))
+        self.assertEqual(self.parse(self.good)[1], 'valid')
+        self.assertEqual(self.parse('```json\n%s\n```' % self.good)[1], 'valid_after_fence')
+
+    def test_a_fence_with_prose_around_it_is_still_invalid(self):
+        v, r = self.parse('Here is my answer:\n```json\n%s\n```' % self.good)
+        self.assertIsNone(v)
+
+    def test_every_content_check_still_applies_inside_a_fence(self):
+        bad = {
+            'monotonicity': '{"rho_2": 0.1, "rho_3": 0.5, "rho_4": 0.01, "rho_5": 0.0}',
+            'range':        '{"rho_2": 1.5, "rho_3": 0.5, "rho_4": 0.01, "rho_5": 0.0}',
+            'keys_or_object': '{"rho_2": 0.1, "rho_3": 0.05, "rho_4": 0.01}',
+        }
+        for reason, body in bad.items():
+            v, r = self.parse('```json\n%s\n```' % body)
+            self.assertIsNone(v, reason)
+            self.assertEqual(r, reason)
+
+    def test_duplicate_keys_are_rejected_inside_a_fence(self):
+        v, r = self.parse('```json\n{"rho_2": 0.1, "rho_2": 0.2, "rho_3": 0.05,'
+                          ' "rho_4": 0.01, "rho_5": 0.0}\n```')
+        self.assertIsNone(v)
+
+    def test_only_one_enclosing_fence_is_removed(self):
+        from main_experiment.evaluation import strip_fence
+        text, fenced = strip_fence('```json\n```json\n%s\n```\n```' % self.good)
+        self.assertTrue(fenced)
+        self.assertIn('```json', text)      # the inner one survives and then fails
+
+
 class DataSeparationTests(unittest.TestCase):
     def test_development_graphs_never_enter_training(self):
         from main_experiment.pool import pool_definition

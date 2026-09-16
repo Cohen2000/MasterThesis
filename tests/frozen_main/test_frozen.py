@@ -182,7 +182,12 @@ class FrozenTests(unittest.TestCase):
     def test_parser_and_replacements(self):
         good=' {"rho_5":0,"rho_2":0.5,"rho_4":0.1,"rho_3":0.2}\n'
         self.assertEqual(parse_final(good)[0],[.5,.2,.1,0])
-        invalid=['{}','[]','```json\n'+good+'```',good+' {}',
+        # A whole-answer markdown fence is a transport wrapper and is accepted
+        # since the smoke test; it is reported separately as valid_after_fence so
+        # the share can be stated. Everything inside stays strictly validated.
+        self.assertEqual(parse_final('```json\n'+good+'```')[0],[.5,.2,.1,0])
+        self.assertEqual(parse_final('```json\n'+good+'```')[1],'valid_after_fence')
+        invalid=['{}','[]','prose\n```json\n'+good+'```',good+' {}',
                  '{"rho_2":.2}',good.replace('0.5','true'),good.replace('0.5','"0.5"'),
                  good.replace('0.5','null'),good.replace('0.5','NaN'),good.replace('0.5','Infinity'),
                  good.replace('0.5','1.1'),good.replace('0.5','-0.1'),good.replace('0.5','0.01'),
