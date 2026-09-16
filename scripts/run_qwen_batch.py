@@ -87,7 +87,7 @@ def main():
     ap.add_argument('--repeat', type=int, required=True)
     ap.add_argument('--shard-index', type=int, default=0)
     ap.add_argument('--shard-count', type=int, default=1)
-    ap.add_argument('--tensor-parallel-size', type=int, default=2)
+    ap.add_argument('--tensor-parallel-size', type=int, default=1)
     ap.add_argument('--max-model-len', type=int, default=262144)
     ap.add_argument('--max-tokens', type=int, default=258048)
     ap.add_argument('--gpu-memory-utilization', type=float, default=0.90)
@@ -119,10 +119,13 @@ def main():
 
     tok = AutoTokenizer.from_pretrained(a.model)
     cfg = MODES[a.mode]
+    # Text only: the checkpoint is a ConditionalGeneration wrapper; allowing zero
+    # image and video items keeps the encoder cache from being allocated at all.
     llm = LLM(model=a.model, tokenizer=a.model, dtype='bfloat16',
               tensor_parallel_size=a.tensor_parallel_size,
               max_model_len=a.max_model_len,
               gpu_memory_utilization=a.gpu_memory_utilization,
+              limit_mm_per_prompt={'image': 0, 'video': 0},
               max_num_seqs=a.max_num_seqs, enforce_eager=False, seed=20260916)
     print('MODEL_LOADED', f'{time.time()-started:.1f}s', flush=True)
 

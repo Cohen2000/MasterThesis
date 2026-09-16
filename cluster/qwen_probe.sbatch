@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 #SBATCH --output=logs/probe_%j.out
 #
 # Configuration probe on a handful of development inputs: how many GPUs, how many
@@ -22,7 +22,17 @@ export HF_HOME="$WS/hf_cache" HF_HUB_OFFLINE=1 TMPDIR="$WS/tmp"
 # "Could not find nvcc and default cuda_home='/usr/local/cuda' doesn't exist".
 export CUDA_HOME="$WS/venv_mainexp/lib/python3.12/site-packages/nvidia/cu13"
 export PATH="$CUDA_HOME/bin:$PATH"
+# Single GPU, so no all-reduce: flashinfer's trtllm communication kernel is
+# JIT-compiled against its own bundled CCCL headers, which are incompatible with
+# the CUDA 13.4 nvcc this environment has, and it is only reached when TP > 1.
+# The weights need about 66 GB and one H100 here has 94 GB.
+# flashinfer 0.6.18 bundles its own CCCL headers and JIT-compiles against them.
+# They are incompatible with the CUDA 13.4 nvcc available here ("CUDA compiler and
+# CUDA toolkit headers are incompatible"), so every flashinfer JIT path dies at
+# engine start. vLLM's native PyTorch sampler needs no compilation.
+export VLLM_USE_FLASHINFER_SAMPLER=0
+export VLLM_HAS_FLASHINFER_CUBIN=0
 export VLLM_WORKER_MULTIPROC_METHOD=spawn TOKENIZERS_PARALLELISM=false
 mkdir -p "$WS/mainexp/logs"; cd "$WS/mainexp"
 nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
-python probe_configs.py --model "$WS/models/Qwen3.6-35B-A3B" --prompts "$WS/mainexp/dev_prompts.jsonl"
+python probe_configs.py --model "$WS/models/Qwen3.6-35B-A3B" --prompts "$WS/mainexp/dev_prompts.jsonl" --tp "${TP:-1}" --seqs "${SEQS:-4,16}"

@@ -8,7 +8,7 @@ import sys
 import pickle
 import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
-from main_experiment.common import REAL_TEST,TRAIN,SYNTH,CONFIGS,sha,digest,read_json,seed, MAIN_OBSERVATIONS, TRAINING_OBSERVATIONS, PLANNED_CALLS
+from main_experiment.common import REAL_TEST,TRAIN,SYNTH,CONFIGS,sha,digest,read_json,seed, MAIN_OBSERVATIONS, TRAINING_OBSERVATIONS, PLANNED_CALLS, OBSERVATIONS_PER_GRAPH
 from main_experiment.observation import parse,features,messages,FEATURE_NAMES
 from main_experiment.baselines import plugin,corrector
 from main_experiment.data import load_graph
@@ -31,7 +31,9 @@ def verify(root):
         k=np.bincount(seen//5,minlength=g.D)
         truth=[float(np.mean(k>=j)) for j in range(2,6)]
         assert truth==m['truth']; source_truth[key]=truth
-        assert g.counts.sum()==g.M and int(g.counts[:,2:].sum())==m['B']>0
+        # B is a share of the whole archive since the design revision; the suffix
+        # volume is separate and is what must be positive for arm H to exist.
+        assert g.counts.sum()==g.M and g.B==m['B']>0 and g.M_suffix>0
         b=read_json(root/'calibration'/key/'budget.json')
         values=[]
         for f in sorted((root/'calibration'/key).glob('validation_*.json')): values+=read_json(f)['volumes']
@@ -43,17 +45,17 @@ def verify(root):
         row=read_json(path); o=parse(row['block'])
         assert messages(row['block'])==row['messages']
         assert digest(row['messages'])==row['prompt_sha256']
-        assert len(features(o))==88
+        assert len(features(o))==len(FEATURE_NAMES)
         assert row['truth']==source_truth[row['graph_id']]
         if path.parent.name=='sample': counts[row['graph_id']]+=1
-    assert all(n==16 for n in counts.values())
+    assert all(n==OBSERVATIONS_PER_GRAPH for n in counts.values())
     models={}
     for fold in [*REAL_TEST,'synthetic']:
         m=read_json(root/'models'/fold/'manifest.json')
         sources=set(TRAIN)-({fold} if fold in REAL_TEST else set())
         assert set(m['sources'])==sources
         np.testing.assert_array_equal(m['median'],np.median([source_truth[s] for s in sorted(sources)],axis=0))
-        assert m['training_rows']==len(sources)*16
+        assert m['training_rows']==len(sources)*OBSERVATIONS_PER_GRAPH
         assert abs(sum(m['weights'])-1)<1e-12
         assert m['feature_names']==FEATURE_NAMES and m['parameters']['n_estimators']==500
         assert sha(root/'models'/fold/'model.pkl')==m['model_sha256']
@@ -74,7 +76,7 @@ def verify(root):
             assert all(a>=b for a,b in zip(values,values[1:]))
     requests=[json.loads(x) for x in (root/'requests.jsonl').read_text().splitlines()]
     assert len(requests)==PLANNED_CALLS and len({r['id'] for r in requests})==PLANNED_CALLS
-    for config in CONFIGS: assert sum(r['config_id']==config for r in requests)==672
+    for config in CONFIGS: assert sum(r['config_id']==config for r in requests)==PLANNED_CALLS//len(CONFIGS)
     assert all(not r['started'] and r['status'] in ['not_started','skipped_empty'] for r in requests)
     for row in requests:
         o=read_json(root/'observations/sample'/(row['observation_id']+'.json'))

@@ -28,6 +28,47 @@ The resulting [offline acceptance report](../results/main_experiment/ACCEPTANCE.
 and the `evidence/` directory are the only parts of `results/main_experiment/` that
 are tracked in git; bulk artifacts stay local.
 
+## Qwen execution on bwUniCluster
+
+Everything below runs on allocated compute nodes; the login node is used only for
+data transfer and package installation.
+
+```bash
+# once: environment and pinned model snapshot
+bash cluster/install_vllm.sh                 # venv on module Python 3.12, vLLM 0.29.0
+bash cluster/fetch_model.sh                  # pinned revision, resumable, curl-based
+python cluster/verify_model.py               # shard index vs. what is on disk
+
+# configuration probe on development inputs only
+sbatch cluster/qwen_probe.sbatch
+
+# one generation pass per submission, four shards
+MODE=thinking    REPEAT=1 sbatch --array=0-3 cluster/qwen_main.sbatch
+MODE=nonthinking REPEAT=1 sbatch --array=0-3 cluster/qwen_main.sbatch
+
+# collect and evaluate
+python scripts/collect_qwen_answers.py --run <run> --answers <answers> --out responses.jsonl
+python scripts/evaluate_main_responses.py --run <run> --responses responses.jsonl --out <eval>
+```
+
+Three things about this cluster that cost time to find and are easy to hit again:
+
+* The modulefiles are Lmod `.lua`. A non-interactive shell loads classic Tcl
+  modules instead and fails with `Magic cookie '#%Module' missing`, silently
+  leaving the system Python 3.9 in place, which then resolves cp39 wheels. Every
+  script therefore starts with `#!/bin/bash -l`.
+* The Qwen Triton kernels are JIT-compiled and need `nvcc`. The cluster modules
+  stop at CUDA 12.8 while torch here is cu130; the matching 13.4 toolchain ships
+  inside the venv as `nvidia-cuda-nvcc`, so the jobs set `CUDA_HOME` to it.
+  Without that the engine dies at warmup.
+* Long wall times sit behind shorter ones at equal priority and do not get
+  backfilled. Jobs use eight hours and rely on resume, which costs one model
+  reload per pass.
+
+Resume is per request id, and each generation index writes into its own directory.
+A repeat written into another repeat's directory would see every id as done and
+silently collapse the repeat-to-repeat variation the study measures.
+
 ## Baseline revision
 
 The learned baseline is fitted on a frozen synthetic pool in addition to the real

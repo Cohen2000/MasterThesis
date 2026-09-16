@@ -3,6 +3,7 @@ import json
 import math
 import numpy as np
 from .baselines import plugin
+from .common import SAMPLES_PER_ARM, LLM_REPEATS
 
 KEYS=tuple(f'rho_{k}' for k in range(2,6))
 
@@ -51,15 +52,17 @@ def errors(prediction,truth):
 def paired_summary(cells):
     """Cells: source -> sample x repeat error differences. Complete cells only.
 
-    Five sampler draws use variance of repeat means; suffix uses three repeats.
-    Sources are equally weighted; caller keeps real and synthetic strata apart.
+    Independent replication is the sampler draw, so the variance is taken over
+    the per-draw means of the LLM repeats. Repeated answers and dyads are never
+    counted as extra independent units. Sources are equally weighted; the caller
+    keeps the real and synthetic strata apart.
     """
     means=[]; variance=[]; sources={}
     for source,values in cells.items():
         a=np.asarray(values,float)
-        if a.shape not in [(5,3),(1,3)] or not np.isfinite(a).all():
+        if a.shape!=(SAMPLES_PER_ARM,LLM_REPEATS) or not np.isfinite(a).all():
             raise ValueError('incomplete or invalid cell; no complete main result')
-        independent=a.mean(1) if len(a)==5 else a[0]
+        independent=a.mean(1)
         v=float(np.var(independent,ddof=1)/len(independent))
         means.append(float(a.mean())); variance.append(v)
         sources[source]={'mean':means[-1],'mcse':math.sqrt(v)}

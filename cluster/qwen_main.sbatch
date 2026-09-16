@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 #SBATCH --output=logs/qwen_%x_%A_%a.out
 #
 # One Qwen generation pass of the main experiment.
@@ -43,6 +43,16 @@ export TMPDIR="$WS/tmp"
 # "Could not find nvcc and default cuda_home='/usr/local/cuda' doesn't exist".
 export CUDA_HOME="$WS/venv_mainexp/lib/python3.12/site-packages/nvidia/cu13"
 export PATH="$CUDA_HOME/bin:$PATH"
+# Single GPU, so no all-reduce: flashinfer's trtllm communication kernel is
+# JIT-compiled against its own bundled CCCL headers, which are incompatible with
+# the CUDA 13.4 nvcc this environment has, and it is only reached when TP > 1.
+# The weights need about 66 GB and one H100 here has 94 GB.
+# flashinfer 0.6.18 bundles its own CCCL headers and JIT-compiles against them.
+# They are incompatible with the CUDA 13.4 nvcc available here ("CUDA compiler and
+# CUDA toolkit headers are incompatible"), so every flashinfer JIT path dies at
+# engine start. vLLM's native PyTorch sampler needs no compilation.
+export VLLM_USE_FLASHINFER_SAMPLER=0
+export VLLM_HAS_FLASHINFER_CUBIN=0
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export TOKENIZERS_PARALLELISM=false
 mkdir -p "$WS/mainexp/logs"
@@ -59,7 +69,7 @@ srun python run_qwen_batch.py \
     --model "$WS/models/Qwen3.6-35B-A3B" \
     --mode "$MODE" --repeat "$REPEAT" \
     --shard-index "$IDX" --shard-count "$SHARDS" \
-    --tensor-parallel-size "${TP:-2}" \
+    --tensor-parallel-size "${TP:-1}" \
     --max-num-seqs "${MAXSEQ:-16}" \
     --chunk "${CHUNK:-16}" \
     --deadline-seconds "$LIMIT_S"

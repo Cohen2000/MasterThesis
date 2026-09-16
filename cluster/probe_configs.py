@@ -35,9 +35,12 @@ def main():
     tok = AutoTokenizer.from_pretrained(a.model)
 
     t0 = time.time()
+    # Text only: the checkpoint is a ConditionalGeneration wrapper, and allowing
+    # zero image and video items keeps the encoder cache from being allocated.
     llm = LLM(model=a.model, tokenizer=a.model, dtype='bfloat16',
               tensor_parallel_size=a.tp, max_model_len=a.max_model_len,
               gpu_memory_utilization=a.gpu_memory_utilization,
+              limit_mm_per_prompt={'image': 0, 'video': 0},
               max_num_seqs=max(int(x) for x in a.seqs.split(',')), seed=20260916)
     load_s = time.time() - t0
     print(f'LOAD {load_s:.1f}s', flush=True)

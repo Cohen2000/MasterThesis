@@ -52,6 +52,47 @@ Paired modes share activities, activation uniforms, new/old decision uniforms,
 and partner-quantile uniforms indexed by (round,vertex); differing candidate sets
 can produce different partners. Replicates are independent. Horizon stays [0,1].
 
+## Design revision: ten-percent budget (2026-10-01)
+
+Design id `budget10-20261001`. The previous budget was the suffix event count,
+about 56 % of the archive, and at that level three of the four arms observed more
+than half of all active dyad-windows: the estimation problem was close to a
+census. The budget is now a fixed **ten percent of the full event archive**, so
+that the study measures inference under partial observation rather than counting.
+W, the target population and the persistence definitions are unchanged.
+
+Arm H changes from "every event in windows 3-5" to "a uniform node panel, then
+every event in windows 3-5 inside that panel". This is what makes the lower budget
+possible at all. The old H carried no free parameter -- it *was* the budget -- so
+the only way to lower it was to shorten the suffix, and at two observed windows the
+zero-truncated model has one free cell probability for two parameters and stops
+being identifiable. Panel size is chosen as for R, from
+
+    E[M_obs] = n(n-1) / (N(N-1)) * M_suffix,
+
+so H needs the larger panel by the ratio M_full/M_suffix. Because the panel is
+drawn over nodes without reference to any event, dyad inclusion is uniform and
+independent of activity; conditional on inclusion a dyad's window pattern is
+exactly what it was, so J | q ~ Bin(3,q) truncated at J >= 1 continues to hold and
+both the homogeneous suffix corrector and the Beta-Binomial candidate remain valid
+unchanged. Dyads sharing a node are included together, so dyads are *not*
+independent; that affects the variance of the cell counts and therefore any
+standard error computed as if they were, not the correctness of the likelihood.
+The claim is checked empirically in
+`tests/frozen_main/test_budget10_design.py::test_panel_leaves_the_window_count_distribution_alone`.
+
+All four arms are now stochastic, so all four carry five samples: 280 main
+observations, 3 360 planned calls, 1 680 of them Qwen. These sizes are derived in
+`common.py` from the replication scheme instead of written as literals, so a change
+to the scheme cannot leave a stale number behind. Arm B keeps each event with
+probability exactly 0.10; R and H round their panel to the nearest integer and
+report the resulting relative budget error.
+
+Observed information actually achieved on the six real sources, as the median share
+of active dyad-windows: R 9.8 %, S 2.4 %, H 10.7 %, B 37.1 %, against 57 / 20 / 55 /
+78 % under the superseded design. Arm B still finds many dyads because one retained
+event suffices to reveal a dyad; what it loses is which windows they were active in.
+
 ## Baseline revision 1 (2026-09-16)
 
 Revision id `baseline-revision-1-20260916`. The learned reference was fitted on

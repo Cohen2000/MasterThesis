@@ -6,7 +6,8 @@ import json
 import sys
 import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
-from main_experiment.common import REAL_TEST,ARMS,CONFIGS,read_json,write_json,sha
+from main_experiment.common import (REAL_TEST,ARMS,CONFIGS,read_json,write_json,sha,
+                                    SAMPLES_PER_ARM,LLM_REPEATS)
 from main_experiment.observation import parse
 from main_experiment.baselines import corrector,plugin
 from main_experiment.evaluation import resolve,errors,paired_summary
@@ -68,14 +69,16 @@ def evaluate(run,response_file,out,mock=False):
                 result={**base,**rates,'started_logical_requests':len(begun),
                         'not_started':sum(r['status']=='not_started' for r in group),
                         'in_progress':sum(r['status']=='in_progress' for r in group),
-                        'empty_observations':sum(r['empty'] for r in group)//3,
+                        'empty_observations':sum(r['empty'] for r in group)//LLM_REPEATS,
                         'empty_fraction':sum(r['empty'] for r in group)/len(group),'complete':complete}
                 sources=sorted({r['graph_id'] for r in group})
                 if stratum=='real' and set(sources)!=set(REAL_TEST): complete=False; result['complete']=False
                 for metric in ['AE2','ProfileAE','delta_AE2','delta_ProfileAE']:
                     cells={}
                     for source in sources:
-                        a=np.full((1 if arm=='H' else 5,3),np.nan)
+                        # Sample count comes from the design, not from a literal:
+                        # every arm is stochastic since the ten-percent revision.
+                        a=np.full((SAMPLES_PER_ARM,LLM_REPEATS),np.nan)
                         for r in group:
                             if r['graph_id']==source: a[r['sample_index']-1,r['repeat_index']-1]=r[metric] if r[metric] is not None else np.nan
                         if np.isfinite(a).all():
