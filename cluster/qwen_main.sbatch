@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name=mainexp_qwen
-#SBATCH --partition=gpu_h100_il,gpu_h100
-#SBATCH --time=02:00:00
+#SBATCH --partition=gpu_h100_short,gpu_h100_il,gpu_h100
+#SBATCH --time=00:30:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
@@ -66,7 +66,7 @@ mkdir -p "$WS/mainexp/logs"
 cd "$WS/mainexp"
 
 # Leave room for the model load and for in-flight requests to finish writing.
-LIMIT_S=$(( 2*3600 - 900 ))
+LIMIT_S=$(( 30*60 - 480 ))
 
 nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader || true
 
