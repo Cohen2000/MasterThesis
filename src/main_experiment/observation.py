@@ -3,10 +3,19 @@ import numpy as np
 from .common import ARMS, ROOT
 
 PARAMS=dict(R='n_panel',S='L',H='tau',B='p')
-FEATURE_NAMES=(['N_obs','D_obs','M_obs']+[f'window_{i}' for i in range(1,6)]+
+# The first 88 entries are the original absolute counts and indicators. The 45
+# derived entries that follow are scale-free transforms of exactly the same
+# serialized observation input; none of them uses full-graph sizes, ground truth,
+# realised coverage, source names, generator parameters or generator families.
+BASE_FEATURE_NAMES=(['N_obs','D_obs','M_obs']+[f'window_{i}' for i in range(1,6)]+
  [f'access_{i}' for i in range(1,6)]+[f'{p:05b}_{x}' for p in range(1,32) for x in ['dyads','events']]+
  [f'A_{i}' for i in range(1,6)]+[f'arm_{a}' for a in ARMS]+['n_panel','L','tau','p'])
-assert len(FEATURE_NAMES)==88
+DERIVED_FEATURE_NAMES=([f'share_{p:05b}_dyads' for p in range(1,32)]+
+ [f'share_window_{i}' for i in range(1,6)]+['events_per_dyad']+
+ [f'plugin_rho_{k}' for k in range(2,6)]+[f'corrector_rho_{k}' for k in range(2,6)])
+FEATURE_NAMES=BASE_FEATURE_NAMES+DERIVED_FEATURE_NAMES
+assert len(BASE_FEATURE_NAMES)==88 and len(DERIVED_FEATURE_NAMES)==45
+assert len(FEATURE_NAMES)==133
 
 def make(g,arm,budget,counts,traversals):
     occupied=counts.sum(1)>0
@@ -96,13 +105,33 @@ def parse(text):
 
 
 def features(o):
+    # Local import: baselines imports validate from this module, so a module-level
+    # import would be circular. The plug-in and the homogeneous corrector are used
+    # here purely as fixed feature transforms, independently of whether either one
+    # is the primary corrector.
+    from .baselines import plugin, corrector
     validate(o); table={p.replace('?','0'):(d,e) for p,d,e in o['table']}
     f=[o[k] for k in ['N_obs','D_obs','M_obs']]+[x or 0 for x in o['Events_per_window']]+o['Temporal_access']
     f += [x for p in range(1,32) for x in table.get(f'{p:05b}',(0,0))]
     f += o['Walk_A'] or [0]*5
     f += [int(o['arm']==a) for a in ARMS]
     f += [o['parameter'] if a==o['arm'] else 0 for a in ARMS]
-    if len(f)!=88: raise AssertionError('feature count')
+    if len(f)!=88: raise AssertionError('base feature count')
+    # Derived block. An empty sample has D_obs = M_obs = 0; every ratio and every
+    # model-based value is then coded as a plain zero rather than a division by
+    # zero. Missing windows stay distinguishable through access_1..access_5.
+    D=o['D_obs']; M=o['M_obs']
+    f += [table.get(f'{p:05b}',(0,0))[0]/D if D else 0. for p in range(1,32)]
+    f += [(x or 0)/M if M else 0. for x in o['Events_per_window']]
+    f += [M/D if D else 0.]
+    if D:
+        pi=plugin(o)
+        try: co=corrector(o)
+        except (ArithmeticError,FloatingPointError,OverflowError,ValueError): co=pi
+    else:
+        pi=co=[0.,0.,0.,0.]
+    f += list(pi)+list(co)
+    if len(f)!=133: raise AssertionError('feature count')
     return np.array(f,float)
 
 

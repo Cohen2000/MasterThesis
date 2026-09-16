@@ -1,0 +1,10 @@
+{
+  "checked_with_revision_code": true,
+  "distinct_prompt_hashes": 224,
+  "main_observations": 224,
+  "mismatches": [],
+  "observations_checked": 480,
+  "request_prompt_hashes_match_observations": true,
+  "request_rows": 2688,
+  "started_calls": 0
+}

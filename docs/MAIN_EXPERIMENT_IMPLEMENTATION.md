@@ -15,6 +15,8 @@ Work branch: experiment/offline-freeze-20260916.
 | Training | no current pipeline | 16 sources, seven fits, LOSO, equal weights | fold manifests, model hashes |
 | Requests and evaluation | archived clients | offline manifests only; strict parser and outcome reducer | mock-only fixtures, 224/2688 inventory |
 | Resume/reports | no current pipeline | atomic stage files, dependency hashes, locks | replay hashes and reports |
+| Learned baseline on a diverse pool | ExtraTrees on 16 real sources | 400 training and 100 development synthetic graphs, 50/25/25 block weights, 133 features | frozen pool definition, fold manifests, development report |
+| Two mixture correctors | homogeneous correctors only | zero-truncated Beta-Binomial suffix; Beta-mixed activity with the ZTP event layer | derivations, exactness tests, development table |
 
 ## Generator algorithms (written before implementation)
 
@@ -49,6 +51,42 @@ our operationalization; original articles do not settle every implementation det
 Paired modes share activities, activation uniforms, new/old decision uniforms,
 and partner-quantile uniforms indexed by (round,vertex); differing candidate sets
 can produce different partners. Replicates are independent. Horizon stays [0,1].
+
+## Baseline revision 1 (2026-09-16)
+
+Revision id `baseline-revision-1-20260916`. The learned reference was fitted on
+sixteen real sources only and behaved accordingly outside their range, so it now
+also trains on a frozen synthetic pool: 200 DAR and 200 activity-driven training
+graphs plus 50 and 50 development graphs, drawn by a fixed stratified NumPy draw
+whose admissible ranges are derived in `src/main_experiment/pool.py` from generator
+semantics rather than from the known targets of the main-test instances. No new
+generator family and no new LLM test graph is introduced. Each pool graph is drawn
+on its own stream under the domain `pool`, disjoint from the main-test domain
+`graph`, and is generated alone, so no latent quantity is shared between graphs.
+
+Training weights are exactly 50 % real, 25 % DAR and 25 % activity-driven, equal
+per graph inside a block, per arm inside a graph and per observation inside an arm,
+so the far larger synthetic row count cannot outvote the real block. The
+fold-specific real training median and the empty-sample replacement stay defined on
+the real sources alone and are unchanged. Hyperparameters and the single shared
+multi-output regressor are unchanged; no hyperparameter search was run.
+
+The feature block grows from 88 to 133: 31 pattern dyad shares, 5 window event
+shares, M_obs/D_obs, the 4 plug-in profile values and the 4 values of the existing
+homogeneous corrector, the latter used as a fixed transform independently of the
+candidate outcome. All of them are functions of the serialized observation input
+only; no full-graph size, ground truth, realised coverage, source name, generator
+parameter or generator family is a feature, and the LLM prompt is untouched. Empty
+samples code every derived entry as zero rather than dividing by zero, and missing
+windows stay distinguishable through the access indicators.
+
+Two development-only correctors are implemented in `src/main_experiment/mixtures.py`,
+which carries the likelihoods, the sufficiency arguments and the identifiability
+limits. The suffix candidate is exactly saturated and is therefore reported as a
+secondary estimate; the event candidate is over-identified and is recommended as
+primary for its arm. Parameter bounds and tolerances were fixed before any
+performance check. Results and their limits:
+`results/baseline_revision_20260916/DEVELOPMENT_REPORT.md`.
 
 ## Numerical and engineering conventions
 

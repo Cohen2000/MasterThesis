@@ -179,3 +179,16 @@ data/tokenizers/
 !/results/main_experiment/ACCEPTANCE.md
 !/results/main_experiment/evidence/
 !/results/main_experiment/evidence/**
+
+# Baseline revision: compact report and machine-readable results only.
+# Pool graphs, calibration checkpoints and fitted models stay local.
+!/results/baseline_revision_20260916/
+/results/baseline_revision_20260916/*
+!/results/baseline_revision_20260916/DEVELOPMENT_REPORT.md
+!/results/baseline_revision_20260916/development_summary.csv
+!/results/baseline_revision_20260916/development_summary.json
+!/results/baseline_revision_20260916/pool_definition.json
+!/results/baseline_revision_20260916/freeze_unchanged.json
+!/results/baseline_revision_20260916/report_pool.json
+!/results/baseline_revision_20260916/report_train.json
+!/results/baseline_revision_20260916/report_dev.json

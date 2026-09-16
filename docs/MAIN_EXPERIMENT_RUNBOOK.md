@@ -28,6 +28,33 @@ The resulting [offline acceptance report](../results/main_experiment/ACCEPTANCE.
 and the `evidence/` directory are the only parts of `results/main_experiment/` that
 are tracked in git; bulk artifacts stay local.
 
+## Baseline revision
+
+The learned baseline is fitted on a frozen synthetic pool in addition to the real
+sources, and two Beta-mixture correctors are checked on separate development data.
+This never writes to `results/main_experiment/frozen_20260916`, and it makes no LLM
+call, no API call and no paid job.
+
+```bash
+.venv/bin/python scripts/run_baseline_revision.py --out results/baseline_revision_20260916 --stage pool
+.venv/bin/python scripts/run_baseline_revision.py --out results/baseline_revision_20260916 --stage train
+.venv/bin/python scripts/run_baseline_revision.py --out results/baseline_revision_20260916 --stage dev
+```
+
+`--stage all` runs the three in order. Every stage resumes: the pool skips graphs
+whose observation file already exists, training reuses hash-verified model
+manifests, and the development stage reuses the per-observation record table.
+The pool takes about 450 s and the pooled fit about 250 s on one local core, so no
+scheduler is involved and nothing runs on a login node.
+
+Results and their limits are in the
+[development report](../results/baseline_revision_20260916/DEVELOPMENT_REPORT.md),
+with `development_summary.csv` as the machine-readable table and
+`pool_definition.json` as the frozen pool. `freeze_unchanged.json` records the
+re-derivation showing that the frozen observation blocks, prompts and planned calls
+are byte-identical under the revision code. Pool graphs, calibration checkpoints,
+fitted models and the per-observation record table stay local.
+
 Run the identical pipeline command after interruption. Atomic per-source graphs,
 calibration-prefix files, validation batches and observation files are reused.
 The directory is locked against simultaneous writers. Input/code/configuration

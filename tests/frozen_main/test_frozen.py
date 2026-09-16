@@ -10,7 +10,7 @@ from scipy.optimize import minimize
 from main_experiment.common import seed,TRAIN,REAL_TEST
 from main_experiment.data import canonical
 from main_experiment.sampling import Walk,budget_parameters,draw,calibrate
-from main_experiment.observation import make,serialize,parse,features,messages,validate
+from main_experiment.observation import FEATURE_NAMES, make,serialize,parse,features,messages,validate
 from main_experiment.baselines import activity,profile,corrector,plugin,all_baselines
 from main_experiment.evaluation import parse_final,resolve,errors,paired_summary
 from main_experiment.training import fold_rows
@@ -116,7 +116,7 @@ class FrozenTests(unittest.TestCase):
                 block=serialize(o); restored=parse(block)
                 self.assertEqual(serialize(restored),block)
                 np.testing.assert_array_equal(features(o),features(restored))
-                self.assertEqual(len(features(o)),88)
+                self.assertEqual(len(features(o)),len(FEATURE_NAMES))
                 self.assertEqual(len(o['table']),7 if arm=='H' else 31)
                 text=messages(block)[1]['content']
                 self.assertNotIn('fixture',text); self.assertNotIn('budget_matched',text)
