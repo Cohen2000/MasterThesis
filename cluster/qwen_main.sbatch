@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #SBATCH --job-name=mainexp_qwen
-#SBATCH --partition=gpu_h100_short,gpu_h100_il,gpu_h100
+#SBATCH --partition=gpu_h100_short,gpu_h100
 #SBATCH --time=00:30:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
