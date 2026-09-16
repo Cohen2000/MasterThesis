@@ -1,3 +1,6 @@
+> Historical pre-freeze documentation. The 2026-09-16 main experiment is defined by
+> [the current runbook](MAIN_EXPERIMENT_RUNBOOK.md) and its linked freeze.
+
 # Four observation mechanisms
 
 The population and five-window time axis are defined from the complete stream

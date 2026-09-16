@@ -1,3 +1,9 @@
+# Current main experiment
+
+`main_experiment/` implements the 2026-09-16 freeze. Its entry point is
+`../scripts/run_main_offline.py`; see [the runbook](../docs/MAIN_EXPERIMENT_RUNBOOK.md).
+Only the audited raw parser is shared with the older modules below.
+
 # Active source and retained shared code
 
 The active interface remains flat in Phase 1. No source package migration was

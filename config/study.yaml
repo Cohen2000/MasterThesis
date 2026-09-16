@@ -1,43 +1,39 @@
-# Current design only. This is not an executable experiment preset.
+# Executable authority: supplied freeze 2026-09-16 plus user clarifications.
 W: 5
-
+master_seed: 20260916
 target:
   components: [rho_2, rho_3, rho_4, rho_5]
-  denominator: E_full
-  constraint: "1 >= rho_2 >= rho_3 >= rho_4 >= rho_5 >= 0"
-  primary_error: ProfileMAE
-  mean_occupancy: derived_from_profile
-
+  primary_error: MAE2_with_fixed_replacement
+  secondary_error: ProfileMAE
 sampling:
-  reference: node_panel_full_history
-  selection: simple_random_walk_full_history
-  history_loss: recency_truncation
-  both: sampled_event_stream
-
+  R: uniform_fixed_node_panel_full_history
+  S: event_weighted_walk_full_history
+  H: fixed_suffix_tau_0.60
+  B: independent_bernoulli_events
+budget:
+  name: expected_observed_event_volume
+  target: events_in_windows_3_4_5
+  calibration_walks: 256
+  validation_walks: 1024
+  extended_validation_walks: 4096
+  max_relative_error: 0.05
+  max_relative_mcse: 0.01
+  walk_cap: min(100*D_full,1000000)
 replication:
-  sampler_seeds: 4
+  observations_per_arm: {R: 5, S: 5, H: 1, B: 5}
   llm_repeats: 3
-  preserve_raw_responses: true
-  master_seed: null  # Not selected by the archival cleanup.
-
-datasets:
-  registry: config/datasets.yaml
-  panel_status: pending_census
-
-controlled_timing:
-  candidate_rho_2_targets: [0.15, 0.55]
-  targets_status: pending_feasibility
-  preserve: [nodes, collapsed_topology, per_edge_event_counts]
-
-dar:
-  substrate: DCSBM
-  sizes: [500, 1500]
-  temporal_memory: [low, high]
-
-activity_driven:
-  modes: [memoryless, tie_reinforcement]
-
-prompt:
-  zero_shot: true
-  final_json_keys: [rho_2, rho_3, rho_4, rho_5]
-  repair_raw_outputs: false
+  main_observations: 224
+  maximum_main_calls: 2688
+training:
+  sources: 16
+  real_test: leave_one_source_out
+  synthetic_test: all_real_sources
+  observations_per_source: 16
+  features: 88
+  estimators: 500
+  n_jobs: 1
+  random_state: 0
+synthetic:
+  dar: {N: 500, backbone_edges: 5000, chi: 0.2, alpha: [0, 0.8], paired_replicates: 2}
+  activity_driven: {N: 500, exponent: 2.8, activity_min: 0.01, activity_max: 1, eta: 1, m: 1, c: 1, beta: 1, rounds: 1000, paired_replicates: 2, synchronous: true, mutual_initiations: one_contact}
+llm_execution_enabled: false

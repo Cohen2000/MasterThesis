@@ -1,0 +1,1 @@
+Time suffix: all event records in the last tau=0.60 of the fixed archive horizon are accessible, namely windows 3,4,5. Windows 1,2 are inaccessible. Only dyads with at least one event in the accessible suffix are listed. Their earlier histories and dyads active only before the suffix are not observed.

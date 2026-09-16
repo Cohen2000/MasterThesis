@@ -1,3 +1,12 @@
+# Current frozen experiment
+
+- [Offline runbook](MAIN_EXPERIMENT_RUNBOOK.md)
+- [Implementation mapping and generator algorithms](MAIN_EXPERIMENT_IMPLEMENTATION.md)
+- [Full supplied freeze text](MAIN_FREEZE_SOURCE.txt)
+- [Offline acceptance evidence](../results/main_experiment/ACCEPTANCE.md)
+
+The documents below describe the earlier cleanup/design state.
+
 # Current thesis documentation
 
 - [Study design](STUDY_DESIGN.md): estimand, four mechanisms, data strategy,

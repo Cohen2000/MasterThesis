@@ -1,0 +1,124 @@
+{
+  "budget_matched_all": true,
+  "counts": {
+    "baseline_rows": 80,
+    "calibrated_graphs": 24,
+    "empty_observations": 0,
+    "graphs": 24,
+    "models": 7,
+    "observations": 224,
+    "planned_logical_calls": 2688,
+    "prompt_sizes_checked": 224,
+    "started_calls": 0
+  },
+  "execution_policy": {
+    "active_request_seconds": 86400,
+    "connect_timeout_seconds": 30,
+    "deepseek": {
+      "max_active_requests": 4,
+      "per_open_request_reserve_usd": 0.48,
+      "price_recheck_before_dispatch": true,
+      "total_cap_usd": 50
+    },
+    "dispatch_enabled": false,
+    "first_model_token_seconds": 1800,
+    "honor_retry_after": true,
+    "http_read_timeout": null,
+    "inference_authorized": false,
+    "max_attempts": 3,
+    "no_continuation_after_output_limit": true,
+    "no_model_progress_seconds": 3600,
+    "no_retry_after_model_output": true,
+    "order": "real block, synthetic block; cycle graph x arm cells; sample index then repeat",
+    "persist_each_attempt_and_stream_fragment": true,
+    "qwen": {
+      "dtype": "bfloat16",
+      "enable_chunked_prefill": true,
+      "generation_config": "vllm",
+      "gpu_memory_utilization": 0.9,
+      "language_model_only": true,
+      "max_active_requests_across_both_modes": 4,
+      "max_model_len": 262144,
+      "max_num_batched_tokens": 8192,
+      "max_num_seqs": 4,
+      "reasoning_parser": "qwen3",
+      "required_gpus": "2 x H100 80GB",
+      "revision": "995ad96eacd98c81ed38be0c5b274b04031597b0",
+      "server_seed": 20260916,
+      "tensor_parallel_size": 2,
+      "tokenizer_revision": "995ad96eacd98c81ed38be0c5b274b04031597b0",
+      "vllm_version": "0.20.1",
+      "yarn": false
+    },
+    "reconcile_ambiguous_before_retry": true,
+    "record_provider_metadata": [
+      "UTC",
+      "returned_model",
+      "system_fingerprint",
+      "usage",
+      "finish_reason",
+      "reasoning"
+    ],
+    "retry_delays_seconds": [
+      5,
+      20
+    ],
+    "retry_only_transient_before_model_output": true,
+    "sdk_retries": 0,
+    "smoke_tests_executed": 0,
+    "sol": {
+      "batch_max_requests": 64,
+      "batch_window": "24h",
+      "per_open_request_reserve_usd": 1.3,
+      "price_recheck_before_dispatch": true,
+      "regular_cap_usd": 180,
+      "total_cap_usd": 200,
+      "transport": "Responses Batch"
+    },
+    "stop_configuration": [
+      "400",
+      "401",
+      "ignored_required_parameter",
+      "repeated_oom",
+      "confirmed_model_change"
+    ]
+  },
+  "files": [
+    "baseline_results.json",
+    "budget_deviations.json",
+    "data_and_ground_truth.json",
+    "observation_status.json",
+    "prompt_sizes.json",
+    "training_folds.json"
+  ],
+  "max_prompt_tokens": 1395,
+  "max_validation_mcse_over_B": 0.004843859922726013,
+  "max_validation_relative_error": 0.006962886386385471,
+  "report": {
+    "baseline_rows": 896,
+    "elapsed_seconds_this_invocation": 9.626679987995885,
+    "eligible_unstarted_calls": 2688,
+    "empty_observations": 0,
+    "failed_responses": 0,
+    "fitted_models": 7,
+    "llm_study_conducted": false,
+    "offline_ready": true,
+    "planned_logical_calls": 2688,
+    "planned_observations": 224,
+    "prepared_observations": 224,
+    "prompt_failures": {},
+    "prompt_sizes_checked": 224,
+    "provider_release_ready": false,
+    "request_manifest_rows": 2688,
+    "source_failures": {},
+    "started_calls": 0,
+    "technical_start_conditions": [
+      "API authentication and current prices/reserves",
+      "Provider framing: exact DeepSeek and Sol input size verification",
+      "Qwen BF16 vLLM 0.20.1 serving and reasoning/JSON separation",
+      "Authorized technical inference tests, streaming, usage and transport recovery"
+    ],
+    "training_observations": 256
+  },
+  "run": "results/main_experiment/frozen_20260916"
+}

@@ -1,0 +1,33 @@
+{
+  "actual_calls": 0,
+  "by_arm": {
+    "B": {
+      "empty": 0,
+      "observations": 70,
+      "planned_logical_calls": 840
+    },
+    "H": {
+      "empty": 0,
+      "observations": 14,
+      "planned_logical_calls": 168
+    },
+    "R": {
+      "empty": 0,
+      "observations": 70,
+      "planned_logical_calls": 840
+    },
+    "S": {
+      "empty": 0,
+      "observations": 70,
+      "planned_logical_calls": 840
+    }
+  },
+  "by_status": {
+    "prepared_not_started": 224
+  },
+  "empty_observation_ids": [],
+  "empty_observations": 0,
+  "planned_logical_calls": 2688,
+  "planned_observations": 224,
+  "prepared_not_started": 224
+}

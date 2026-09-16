@@ -170,3 +170,12 @@ wandb/
 
 # Other historical logs stay local.
 /archive/legacy_pre_current_design/logs/
+
+# Frozen main experiment: downloaded tokenizers and local generated artifacts.
+data/tokenizers/
+# Compact, reviewable offline acceptance evidence (bulk artifacts remain local).
+!/results/main_experiment/
+/results/main_experiment/*
+!/results/main_experiment/ACCEPTANCE.md
+!/results/main_experiment/evidence/
+!/results/main_experiment/evidence/**
