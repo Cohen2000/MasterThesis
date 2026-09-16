@@ -63,6 +63,10 @@ def evaluate(run,response_file,out,mock=False):
                 complete=all(r['prediction'] is not None for r in group)
                 rates={name:(sum(bool(r.get(field)) for r in begun)/len(begun) if begun else None)
                        for name,field in [('valid_fraction','valid'),('limit_fraction','limit_hit'),('technical_failure_fraction','technical_error')]}
+                # Share of valid answers that needed a whole-answer markdown fence
+                # removed first; reported so the tolerance is visible, not hidden.
+                rates['fence_fraction']=(sum(r.get('validation_reason')=='valid_after_fence' for r in begun)/len(begun)
+                                         if begun else None)
                 rates['other_answer_error_fraction']=(sum(r['status']=='terminal' and not r['valid'] and
                        not r.get('technical_error') and not r.get('limit_hit') for r in begun)/len(begun) if begun else None)
                 rates['replacement_fraction']=(sum(r['replacement'] is not None for r in begun)/len(begun) if begun else None)
