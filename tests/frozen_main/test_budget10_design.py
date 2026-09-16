@@ -163,18 +163,29 @@ class RunContentTests(unittest.TestCase):
 class RunnerChainTests(unittest.TestCase):
     """The parts of the execution chain that do not need a GPU."""
 
-    def test_reasoning_split(self):
+    def test_reasoning_split_matches_the_chat_template(self):
+        """The template opens the block in the prompt, so the output carries only
+        the closing tag in thinking mode and no tag at all otherwise."""
         from run_qwen_batch import split_reasoning
-        r, f, closed = split_reasoning('<think>weighing it up</think>\n{"rho_2": 0.5}')
-        self.assertEqual(r.strip(), 'weighing it up')
+        # thinking mode: reasoning, then the closing tag, then the answer
+        r, f, closed = split_reasoning('weighing it up\n</think>\n\n{"rho_2": 0.5}', True)
+        self.assertEqual(r, 'weighing it up')
         self.assertEqual(f, '{"rho_2": 0.5}')
         self.assertTrue(closed)
-        r, f, closed = split_reasoning('<think>cut off mid thought')
+        # thinking mode, stopped inside the reasoning: no final answer exists
+        r, f, closed = split_reasoning('cut off mid thought', True)
         self.assertFalse(closed)
-        self.assertEqual(f, '')          # no final answer exists at all
-        r, f, closed = split_reasoning('{"rho_2": 0.5}')
+        self.assertEqual(f, '')
+        self.assertEqual(r, 'cut off mid thought')
+        # non-thinking mode: the block is closed in the prompt, output is the answer
+        r, f, closed = split_reasoning('{"rho_2": 0.5}', False)
         self.assertTrue(closed)
         self.assertEqual(r, '')
+        self.assertEqual(f, '{"rho_2": 0.5}')
+        # a stray opening tag inside the reasoning must not confuse the split
+        r, f, closed = split_reasoning('a <think> b\n</think>\n{"x":1}', True)
+        self.assertEqual(r, 'b')
+        self.assertEqual(f, '{"x":1}')
 
     def test_request_selection_is_disjoint_across_modes_and_repeats(self):
         if not (RUN / 'requests.jsonl').exists(): self.skipTest('run not present')

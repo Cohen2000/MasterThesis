@@ -25,7 +25,7 @@ request id, so writing a second repeat into the first one's directory would see
 the ids as done and silently collapse the repeat-to-repeat variation that the
 study measures.
 """
-import argparse, json, os, re, sys, time
+import argparse, json, os, sys, time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
@@ -38,21 +38,26 @@ MODES = {
 }
 TOP_K = 20
 PRESENCE_PENALTY = 1.5
-THINK_RE = re.compile(r'<think>(.*?)</think>', re.S)
-
-
-def split_reasoning(text):
+def split_reasoning(text, thinking):
     """Separate the reasoning block from the final answer.
 
-    Returns (reasoning, final, closed). `closed` is False when a thinking block
-    was opened but never closed, which means the generation stopped inside the
-    reasoning phase and there is no final answer at all.
+    The pinned chat template opens the block in the *prompt*, not in the output:
+    with thinking enabled the generation prompt ends with "<think>\n", so the
+    model emits reasoning and then only the closing "</think>". With thinking
+    disabled the template writes "<think>\n\n</think>\n\n" into the prompt and
+    the output carries no marker at all. The split below mirrors the template's
+    own parsing (it splits on "</think>" and takes the last "<think>" before it),
+    so a stray opening tag inside the reasoning cannot confuse it.
+
+    Returns (reasoning, final, closed). `closed` is False only in thinking mode
+    when no closing tag ever appeared, which means the generation stopped inside
+    the reasoning phase and no final answer exists.
     """
-    m = THINK_RE.search(text)
-    if m:
-        return m.group(1), text[m.end():].strip(), True
-    if '<think>' in text:
-        return text.split('<think>', 1)[1], '', False
+    if '</think>' in text:
+        head, _, tail = text.partition('</think>')
+        return head.split('<think>')[-1].strip(), tail.strip(), True
+    if thinking:
+        return text.strip(), '', False
     return '', text.strip(), True
 
 
@@ -159,7 +164,7 @@ def main():
         for (r, n_in, mt), o in zip(keep, outs):
             c = o.outputs[0]
             raw = c.text
-            reasoning, final, closed = split_reasoning(raw)
+            reasoning, final, closed = split_reasoning(raw, cfg['enable_thinking'])
             n_out = len(c.token_ids)
             # A generation that used its whole allowance stopped because of the
             # limit, not because the model was finished. Kept apart from a

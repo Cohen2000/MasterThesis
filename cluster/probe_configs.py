@@ -6,10 +6,10 @@ takes to load, how long a *complete* answer takes (long reasoning included), the
 aggregate token rate, and where the generations stop. It never touches the main
 test observations.
 """
-import argparse, json, os, re, time
+import argparse, json, os, time
 from pathlib import Path
 
-THINK_RE = re.compile(r'<think>(.*?)</think>', re.S)
+
 
 
 def main():
@@ -70,7 +70,7 @@ def main():
         closed = 0
         for o in outs:
             fin[o.outputs[0].finish_reason] = fin.get(o.outputs[0].finish_reason, 0) + 1
-            if THINK_RE.search(o.outputs[0].text): closed += 1
+            if '</think>' in o.outputs[0].text: closed += 1
         peak = [round(torch.cuda.max_memory_allocated(i) / 1e9, 1)
                 for i in range(torch.cuda.device_count())]
         cfg = {'max_num_seqs': seqs, 'n_prompts': len(batch), 'wall_seconds': dt,

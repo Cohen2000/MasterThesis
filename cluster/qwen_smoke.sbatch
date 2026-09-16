@@ -1,7 +1,7 @@
 #!/bin/bash -l
-#SBATCH --job-name=mainexp_qwen
-#SBATCH --partition=gpu_h100
-#SBATCH --time=08:00:00
+#SBATCH --job-name=mainexp_smoke
+#SBATCH --partition=gpu_h100_short
+#SBATCH --time=00:30:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
@@ -59,13 +59,13 @@ mkdir -p "$WS/mainexp/logs"
 cd "$WS/mainexp"
 
 # Leave room for the model load and for in-flight requests to finish writing.
-LIMIT_S=$(( 8*3600 - 1800 ))
+LIMIT_S=$(( 30*60 - 600 ))
 
 nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader || true
 
 srun python run_qwen_batch.py \
     --run  "$WS/mainexp/run" \
-    --out  "$WS/mainexp/answers" \
+    --out  "$WS/mainexp/answers_smoke" \
     --model "$WS/models/Qwen3.6-35B-A3B" \
     --mode "$MODE" --repeat "$REPEAT" \
     --shard-index "$IDX" --shard-count "$SHARDS" \
