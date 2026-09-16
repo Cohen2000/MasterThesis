@@ -77,8 +77,10 @@ Three things about this cluster that cost time to find and are easy to hit again
   inside the venv as `nvidia-cuda-nvcc`, so the jobs set `CUDA_HOME` to it.
   Without that the engine dies at warmup.
 * Long wall times sit behind shorter ones at equal priority and do not get
-  backfilled. Jobs use eight hours and rely on resume, which costs one model
-  reload per pass.
+  backfilled. Eight-hour jobs sat at `START_TIME=N/A` with the partition
+  otherwise empty; two-hour jobs on `gpu_h100_il,gpu_h100` started at once. A
+  shard needs about twenty minutes, so two hours is already generous, and resume
+  makes a truncated pass cost one model reload rather than any work.
 * Passing variables with `--export` makes Slurm build a fresh login environment
   for the job, which fails here with `user env retrieval failed requeued held`.
   The jobs take positional arguments and inherit the environment instead.

@@ -60,6 +60,7 @@ finished main run.
 
 ## Configuration in force
 
+Partition `gpu_h100_il,gpu_h100`, wall time two hours, four shards per pass.
 One H100, `tensor_parallel_size=1`, `max_model_len=262144`, `max_tokens=258048`,
 `max_num_seqs=16`, `chunk=16`, BF16, text-only. Sampling from the model card:
 thinking `1.0 / 0.95 / 20 / presence 1.5`, non-thinking `0.7 / 0.80 / 20 / 1.5`.
