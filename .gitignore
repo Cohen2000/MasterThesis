@@ -198,6 +198,7 @@ data/tokenizers/
 !/results/baseline_revision_20261001/
 /results/baseline_revision_20261001/*
 !/results/baseline_revision_20261001/CORRECTOR_DECISION.md
+!/results/baseline_revision_20261001/REVISION_REPORT.md
 !/results/baseline_revision_20261001/development_summary.csv
 !/results/baseline_revision_20261001/development_summary.json
 !/results/baseline_revision_20261001/main_summary.csv
