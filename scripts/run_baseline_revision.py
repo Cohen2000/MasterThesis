@@ -1,24 +1,31 @@
 #!/usr/bin/env python3
 """Baseline revision: synthetic training/development pool, refitted ExtraTrees,
-and the bounded development check of the two mixture correctors.
+development check of the fixed references, and the main-panel baselines.
 
-Runs offline only. No LLM call, no API access, no paid job. The frozen main run
-in results/main_experiment/frozen_20260916 is never written to.
+Runs offline only. No LLM call, no API access, no paid job. Earlier runs
+(frozen_20260916, budget10_20261001 and their baseline revisions) are never
+written to; every revision writes into its own output directory.
+
+Design budget10-hrecent5-20260917: arm H is a uniform dyad sample with the five
+most recent events per dyad. Its fixed reference is the bound midpoint
+(baselines.h_midpoint); it has no mixture candidate, and the old three-to-five-
+window suffix correction is used nowhere for it. Arm B keeps its mixture candidate.
 """
 import argparse,math,os,sys,time
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
-from main_experiment.common import write_json,read_json,digest
+from main_experiment.common import write_json,read_json,digest,LEGACY_H,DESIGN_VERSION,draws_for
 from main_experiment.common import REAL_TEST as REAL_TEST_LIST, SYNTH as SYNTH_LIST
 from main_experiment import pool as poolmod
 from main_experiment.training import fit_folds,TRAINING_REVISION
-from main_experiment.observation import parse,features,FEATURE_NAMES
-from main_experiment.baselines import plugin,corrector,activity,bisect
+from main_experiment.observation import parse,features,FEATURE_NAMES,FEATURE_VERSION
+from main_experiment.baselines import plugin,corrector,activity,bisect,h_bounds
 from main_experiment import mixtures
 
-# Current design run. frozen_20260916 holds the superseded suffix-budget design
-# and is kept as the development history, not read here.
-FROZEN=Path(os.environ.get('MAIN_RUN','results/main_experiment/budget10_20261001'))
+# Current design run. frozen_20260916 and budget10_20261001 hold superseded
+# designs and are kept as the development history, not read here.
+FROZEN=Path(os.environ.get('MAIN_RUN','results/main_experiment/hrecent5_20260917'))
+PREVIOUS_POOL=Path('results/baseline_revision_20261001/pool/observations')
 _FOLD={}
 
 
@@ -45,15 +52,15 @@ def stage_train(out):
     lock=FROZEN/'environment.lock.txt'
     pooled,_=fit_folds(real,real_truth,out/'models_pooled',lock,pool_rows,pool_truth)
     realonly,_=fit_folds([dict(r) for r in real],real_truth,out/'models_real_only',lock)
-    return {'revision':TRAINING_REVISION,'n_features':len(FEATURE_NAMES),
+    return {'revision':TRAINING_REVISION,'n_features':len(FEATURE_NAMES),'feature_version':FEATURE_VERSION,
             'real_rows':len(real),'pool_rows':len(pool_rows),
             'pool_graphs':len(pool_truth),'folds':sorted(pooled)}
 
 
 def _homogeneous_start(o):
     """mu and lambda of the existing homogeneous corrector, used as fit starts."""
-    D=o['D_obs']; S=sum(p.count('1')*d for p,d,e in o['table']); M=o['M_obs']
-    n=3 if o['arm']=='H' else 5
+    D=o['D_obs']; S=sum(r[0].count('1')*r[1] for r in o['table']); M=o['M_obs']
+    n=3 if o['arm']==LEGACY_H else 5
     mu=activity(S/D,n)
     if o['arm']!='B': return mu,float('nan')
     p=o['parameter']; mean=M/S
@@ -70,8 +77,33 @@ def stage_pool(out):
             raise ValueError('frozen pool definition changed; use a new output directory')
     else:
         write_json(path,definition)
-    return poolmod.build_pool(out/'pool',definition['graphs'])
+    result=poolmod.build_pool(out/'pool',definition['graphs'])
+    result['previous_pool_comparison']=compare_previous_pool(out)
+    return result
 
+
+def compare_previous_pool(out):
+    """R, S and B pool observations must be byte-identical to the previous revision.
+
+    Only arm H changed. Any other difference would mean the regenerated graphs,
+    budgets or walks moved, which the revision does not allow.
+    """
+    if not PREVIOUS_POOL.exists(): return {'status':'previous pool not available'}
+    same=diff=0; truth_diff=0; h_draws={}
+    for f in sorted((out/'pool'/'observations').glob('*.json')):
+        new=read_json(f); old=read_json(PREVIOUS_POOL/f.name)
+        truth_diff+=new['truth']!=old['truth']
+        oldrows={(r['arm'],r['sample_index']):r['block'] for r in old['observations'] if r['arm']!='H'}
+        n_h=sum(r['arm']=='H' for r in new['observations'])
+        h_draws[n_h]=h_draws.get(n_h,0)+1
+        for r in new['observations']:
+            if r['arm']=='H': continue
+            if oldrows.get((r['arm'],r['sample_index']))==r['block']: same+=1
+            else: diff+=1
+    result={'identical_RSB_blocks':same,'different_RSB_blocks':diff,'truth_differences':truth_diff,
+            'graphs_by_H_draw_count':{str(k):v for k,v in sorted(h_draws.items())}}
+    if diff or truth_diff: raise ValueError(f'pool changed outside arm H: {result}')
+    return result
 
 
 def _predict(o,models,medians,graph_truth,arm):
@@ -90,9 +122,12 @@ def _predict(o,models,medians,graph_truth,arm):
     x=features(o).reshape(1,-1)
     out['extratrees_pooled']={'prediction':list(map(float,models['pooled'].predict(x)[0])),'status':'ok'}
     out['extratrees_real_only']={'prediction':list(map(float,models['real_only'].predict(x)[0])),'status':'ok'}
-    if arm in ('H','B'):
+    if arm=='H':
+        lo,hi=h_bounds(o)
+        out['h_bounds']={'lower':lo,'upper':hi}
+    if arm=='B':
         mu0,lam0=_homogeneous_start(o)
-        fit=mixtures.fit_suffix(o,mu0) if arm=='H' else mixtures.fit_events(o,mu0,lam0)
+        fit=mixtures.fit_events(o,mu0,lam0)
         pred=list(fit.prediction); fallback=''
         if mixtures.is_unreliable(fit.status,fit.flags):
             # Pre-registered: an unreliable fit does not contribute a mixture
@@ -130,6 +165,7 @@ def stage_dev(out):
     for r in ([] if recs else rows):
         o=parse(r['block']); g=r['graph_id']; tr=truth[g]
         pred=_predict(o,models,medians,tr,r['arm'])
+        pred.pop('h_bounds',None)
         for method,d in pred.items():
             e=np.asarray(d['prediction'],float)-np.asarray(tr,float)
             recs.append({'graph_id':g,'family':meta[g]['family'],'arm':r['arm'],
@@ -143,7 +179,7 @@ def stage_dev(out):
                          'seconds':d.get('seconds',0.),'kappa':d.get('kappa',''),
                          'flat_per_decade':d.get('flat_per_decade',''),
                          'lam':d.get('lam',''),'lam_event_only':d.get('lam_event_only','')})
-    for r in recs: r['budget_matched']=bool(meta[r['graph_id']]['budget_matched'])
+    for r in recs: r['budget_matched']=bool(meta[r['graph_id']]['budget_matched_by_arm'][r['arm']])
     if not cache.exists():
         with open(cache,'w',newline='') as f:
             w=csv.DictWriter(f,fieldnames=list(recs[0])); w.writeheader(); w.writerows(recs)
@@ -225,8 +261,8 @@ def _aggregate(recs):
             v=[r['AE2'] for r in sub if pick(r)]
             if v: by_status.append({'arm':arm,'status':f'ALL_{label}','n':len(v),
                                     'MAE2':float(sum(v)/len(v))})
-    # Pre-registered sensitivity: the pool keeps graphs whose walk budget did not
-    # match, so the development numbers are also reported without them.
+    # Pre-registered sensitivity: the pool keeps graphs whose budget did not match
+    # for an arm, so the development numbers are also reported without them.
     sens=[]
     for arm in ('R','S','H','B'):
         for m in methods:
@@ -273,8 +309,9 @@ def stage_main(out):
            'real_only':fold_models[(g,'real_only')] if real else models['real_only']}
         med=fold_med[g] if real else med_syn
         pred=_predict(o,m,med,truth,r['arm'])
+        pred.pop('h_bounds',None)
         S_full=man[g]['D_full']*(1+sum(truth))
-        S_obs=sum(pat.count('1')*dy for pat,dy,_ in o['table'])
+        S_obs=sum(row[0].count('1')*row[1] for row in o['table'])
         for method,d in pred.items():
             e=np.asarray(d['prediction'],float)-np.asarray(truth,float)
             recs.append({'graph_id':g,'stratum':'real' if real else 'synthetic',
@@ -286,7 +323,7 @@ def stage_main(out):
                 'dyad_coverage':o['D_obs']/man[g]['D_full'],
                 'window_coverage':S_obs/S_full,
                 'event_coverage':o['M_obs']/man[g]['M_full'],
-                'seconds':d.get('seconds',0.),'budget_matched':True})
+                'seconds':d.get('seconds',0.),'budget_matched':bool(r['budget_matched'])})
     with open(out/'main_observations.csv','w',newline='') as f:
         w=csv.DictWriter(f,fieldnames=list(recs[0])); w.writeheader(); w.writerows(recs)
     write_json(out/'primary_baselines.json',_primary_baselines(rows,man,models,fold_med,med_syn))
@@ -299,9 +336,12 @@ def stage_main(out):
             'coverage':summary['coverage']}
 
 
-# Which corrector is primary for which arm. Fixed in CORRECTOR_DECISION.md before
-# the real sources were evaluated and not revised since.
-PRIMARY_CORRECTOR={'R':'corrector','S':'corrector','H':'candidate','B':'candidate'}
+# Which corrector is primary for which arm. R, S and B as fixed in
+# results/baseline_revision_20261001/CORRECTOR_DECISION.md. For the new H the
+# 'corrector' is the fixed bound midpoint (baselines.h_midpoint), set by the
+# revision specification before any H result of this design existed.
+PRIMARY_CORRECTOR={'R':'corrector','S':'corrector','H':'corrector','B':'candidate'}
+PRIMARY_NAME={'R':'plugin_equivalent_corrector','S':'walk_ratio','H':'bound_midpoint','B':'beta_ztp_mixture'}
 
 
 def _primary_baselines(rows,man,models,fold_med,med_syn):
@@ -314,8 +354,11 @@ def _primary_baselines(rows,man,models,fold_med,med_syn):
     use a reference the decision record does not designate.
     """
     import numpy as np
-    out={'decision':'results/baseline_revision_20261001/CORRECTOR_DECISION.md',
+    out={'decision':'results/baseline_revision_20261001/CORRECTOR_DECISION.md (R,S,B); '
+                     'docs/MAIN_EXPERIMENT_IMPLEMENTATION.md, design budget10-hrecent5-20260917 (H)',
+         'design_version':DESIGN_VERSION,
          'primary_corrector_by_arm':PRIMARY_CORRECTOR,
+         'primary_corrector_meaning':PRIMARY_NAME,
          'primary_trained_reference':'extratrees_pooled',
          'observations':{}}
     for r in rows:
@@ -329,10 +372,14 @@ def _primary_baselines(rows,man,models,fold_med,med_syn):
             m={'pooled':_FOLD[(g,'pooled')],'real_only':_FOLD[(g,'real_only')]}
         med=fold_med[g] if real else med_syn
         pred=_predict(o,m,med,truth,r['arm'])
+        bounds=pred.pop('h_bounds',None)
         entry={k:{'prediction':v['prediction'],'status':v['status']} for k,v in pred.items()}
+        if bounds: entry['h_bounds']=bounds
         entry['primary_corrector']=dict(entry[PRIMARY_CORRECTOR[r['arm']]])
         entry['primary_corrector_name']=PRIMARY_CORRECTOR[r['arm']]
         entry['arm']=r['arm']; entry['stratum']='real' if real else 'synthetic'
+        entry['sample_index']=r['sample_index']; entry['graph_id']=g
+        entry['deterministic_draw']=bool(r.get('deterministic_draw',False))
         entry['truth']=list(truth)
         out['observations'][r['id']]=entry
     return out
@@ -411,7 +458,7 @@ def stage_decompose_main(out):
         budget,walk=calibrate(g,FROZEN/'calibration'/key,FROZEN/'build')
         truth=np.array(g.truth,float)
         for arm in ('R','S','H','B'):
-            for ix in range(1,6):
+            for ix in range(1,draws_for(arm,budget)+1):
                 counts,_=draw(g,arm,ix,'sample',budget,walk)
                 seen=counts.sum(1)>0
                 if not seen.any(): continue
@@ -488,7 +535,7 @@ def stage_decompose(out):
         budget,walk=calibrate(g,out/'pool'/'calibration'/key,out/'pool'/'build')
         truth=np.array(g.truth,float)
         for arm in ('R','S','H','B'):
-            for ix in range(1,6):
+            for ix in range(1,draws_for(arm,budget)+1):
                 counts,_=draw(g,arm,ix,'pool_dev',budget,walk)
                 seen=counts.sum(1)>0
                 if not seen.any(): continue

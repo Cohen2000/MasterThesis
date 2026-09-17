@@ -6,10 +6,10 @@ import json
 from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
-from main_experiment.common import write_json,read_json,PLANNED_CALLS
+from main_experiment.common import write_json,read_json
 from evaluate_main_responses import evaluate
 
-p=argparse.ArgumentParser(); p.add_argument('--run',required=True); p.add_argument('--out',required=True); a=p.parse_args()
+p=argparse.ArgumentParser(); p.add_argument('--run',required=True); p.add_argument('--out',required=True); p.add_argument('--baselines'); a=p.parse_args()
 out=Path(a.out)
 if 'mock' not in str(out).lower(): raise ValueError('explicit mock output location required')
 out.mkdir(parents=True,exist_ok=True)
@@ -27,9 +27,9 @@ for i,r in enumerate(requests):
     records.append(record)
 source=out/'mock_responses.jsonl'
 source.write_text(''.join(json.dumps(r)+'\n' for r in records))
-evaluate(a.run,source,out/'evaluation',True)
+evaluate(a.run,source,out/'evaluation',True,a.baselines)
 rows=list(csv.DictReader(open(out/'evaluation/answer_errors.csv')))
-assert len(rows)==PLANNED_CALLS
+assert len(rows)==len(requests)==read_json(Path(a.run)/'report.json')['planned_logical_calls']
 assert rows[0]['replacement']=='plugin' and rows[1]['replacement']=='plugin'
 assert rows[2]['valid']=='True' and rows[2]['limit_hit']=='True'
 assert rows[3]['status']=='not_started' and rows[3]['AE2']==''

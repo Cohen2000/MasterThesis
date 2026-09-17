@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.ensemble import ExtraTreesRegressor
 import sklearn
 from .common import TRAIN, REAL_TEST, sha, digest, write_json, read_json
-from .observation import parse, features, FEATURE_NAMES
+from .observation import parse, features, FEATURE_NAMES, FEATURE_VERSION
 
 PARAMETERS=dict(n_estimators=500,criterion='squared_error',max_features=1.0,
  min_samples_split=5,min_samples_leaf=1,max_depth=None,bootstrap=False,oob_score=False,
@@ -15,7 +15,7 @@ PARAMETERS=dict(n_estimators=500,criterion='squared_error',max_features=1.0,
 # than the real block in row count, so without this the real sources would be
 # drowned out by sheer volume.
 BLOCK_WEIGHTS={'real':.50,'dar':.25,'ad':.25}
-TRAINING_REVISION='baseline-revision-2-budget10-20261001'
+TRAINING_REVISION='baseline-revision-3-hrecent5-20260917'
 
 
 def _group(r):
@@ -27,7 +27,8 @@ def fold_rows(rows,test_source,pool_rows=None):
 
     Within a block every graph or source carries the same total weight, within a
     graph the four arms carry the same weight, and within an arm the observations
-    carry the same weight. A held-out real source is removed with all of its rows;
+    carry the same weight. A saturated H sample is one observation and carries the
+    whole H weight of its graph; it is not duplicated. A held-out real source is removed with all of its rows;
     pool graphs are never derived from a real source, so nothing is removed there.
     """
     allowed=set(TRAIN)-({test_source} if test_source in REAL_TEST else set())
@@ -60,6 +61,7 @@ def fit_folds(rows,truth,out,lockfile,pool_rows=None,pool_truth=None):
         X=np.array([features(parse(r['block'])) for r in selected]); y=np.array([labels[r['source_family']] for r in selected])
         inputs={'test_source':test,'sources':sources,'real_sources':real_sources,
                 'training_revision':TRAINING_REVISION,'n_features':len(FEATURE_NAMES),
+                'feature_version':FEATURE_VERSION,
                 'block_weights':BLOCK_WEIGHTS,
                 'block_sources':{g:sorted({r['source_family'] for r in selected if _group(r)==g})
                                  for g in sorted({_group(r) for r in selected})},

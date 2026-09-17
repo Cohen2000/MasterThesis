@@ -1,5 +1,69 @@
 # Main experiment offline runbook
 
+## Current design: `budget10-hrecent5-20260917`
+
+Everything writes into its own directory; earlier runs are never touched.
+
+```bash
+# offline run, independent audit (re-derives every block from its seed)
+.venv/bin/python scripts/run_main_offline.py --out results/main_experiment/hrecent5_20260917
+.venv/bin/python scripts/verify_main_offline.py --run results/main_experiment/hrecent5_20260917
+
+# pool (R/S/B blocks are checked byte-identical to the previous pool), refit of all
+# folds, development check, main-panel baselines, error decompositions
+export MAIN_RUN=results/main_experiment/hrecent5_20260917
+O=results/baseline_revision_hrecent5_20260917
+for st in pool train dev main decompose_main decompose; do
+  .venv/bin/python scripts/run_baseline_revision.py --out $O --stage $st; done
+
+# offline acceptance of arm H: 20 draws per main graph plus the uniform-subset comparison
+.venv/bin/python scripts/check_h_recent.py
+# descriptive budget/coverage sweep (post hoc, changes nothing)
+.venv/bin/python scripts/sweep_budget_coverage.py
+
+# which stored Qwen answers are reusable (R/S/B only, after identity checks)
+.venv/bin/python scripts/check_qwen_reuse.py --old-run results/main_experiment/budget10_20261001 \
+    --new-run results/main_experiment/hrecent5_20260917 \
+    --old-answers results/main_experiment/qwen_archive/answers \
+    --out results/main_experiment/hrecent5_20260917_qwen/reuse_report.json
+```
+
+Cluster layout for the H generation (`$WS` as below):
+
+```
+$WS/hrecent5/src/main_experiment/   package at the spec commit
+$WS/hrecent5/mainexp/               run_qwen_engine.py, qwen_hrecent5.sbatch, status_hrecent5.py
+$WS/hrecent5/mainexp/run/           requests.jsonl and observations/sample of hrecent5_20260917
+$WS/hrecent5/mainexp/answers/       <mode>_r<repeat>/<request id>.json
+```
+
+```bash
+cd $WS/hrecent5/mainexp
+sbatch --array=0-3 qwen_hrecent5.sbatch 4 16 H     # all six passes, H requests only
+python status_hrecent5.py .                        # progress, end states, parser v2 validity
+python ../../hrecent5/mainexp/build_archive.py --hrecent5   # archive after completion
+```
+
+`run_qwen_engine.py` drives vLLM's engine step by step and writes each answer as
+soon as it finishes; new requests are admitted only in the first 80 minutes of a
+two-hour job, so a finished answer is never lost to the wall time and a long one
+gets at least 30 minutes. Resubmitting the same array resumes. Sampling, model,
+template and output allowance are those of `run_qwen_batch.py`.
+
+Locally, merge the reused R/S/B answers with the new H answers and evaluate:
+
+```bash
+python scripts/collect_qwen_answers.py --run results/main_experiment/hrecent5_20260917 \
+    --answers results/main_experiment/hrecent5_20260917_qwen/answers --out <responses.jsonl>
+python scripts/evaluate_main_responses.py --run results/main_experiment/hrecent5_20260917 \
+    --baselines results/baseline_revision_hrecent5_20260917/primary_baselines.json \
+    --responses <responses.jsonl> --out results/main_experiment/hrecent5_20260917_qwen/evaluation_v2
+# parser v3 sensitivity: collect with --extract-trailing-json, evaluate into evaluation_v3
+```
+
+The sections below describe the earlier designs and remain valid where the
+revision does not change them.
+
 Authority: supplied freeze, [full extraction](MAIN_FREEZE_SOURCE.txt) and
 [implementation decisions](MAIN_EXPERIMENT_IMPLEMENTATION.md). The user explicitly
 confirmed synchronous AD contacts with one undirected event per dyad/round.

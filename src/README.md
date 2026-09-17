@@ -1,7 +1,9 @@
 # Current main experiment
 
-`main_experiment/` implements the 2026-09-16 freeze. Its entry point is
-`../scripts/run_main_offline.py`; see [the runbook](../docs/MAIN_EXPERIMENT_RUNBOOK.md).
+`main_experiment/` implements the 2026-09-16 freeze with its documented revisions;
+the current design is `budget10-hrecent5-20260917` (`common.DESIGN_VERSION`). Its
+entry point is `../scripts/run_main_offline.py`; see
+[the runbook](../docs/MAIN_EXPERIMENT_RUNBOOK.md).
 Only the audited raw parser is shared with the older modules below.
 
 # Active source and retained shared code

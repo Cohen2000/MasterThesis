@@ -12,6 +12,10 @@ import numpy as np
 from main_experiment import mixtures as mx
 from main_experiment.baselines import activity, plugin, corrector, profile
 from main_experiment.observation import validate, serialize, parse
+from main_experiment.common import LEGACY_H
+
+# The suffix candidate belongs to the superseded suffix-panel arm, which is kept as
+# the development variant LEGACY_H. Arm B's candidate is part of the current design.
 
 N_PANEL=4096   # panel size for synthetic suffix fixtures; only has to exceed N_obs
 
@@ -26,22 +30,22 @@ def make_observation(arm, patterns, counts, parameter):
     width=5
     table={}
     for row,ev in zip(patterns,counts):
-        if arm=='H': key='??'+''.join('1' if x else '0' for x in row)
+        if arm==LEGACY_H: key='??'+''.join('1' if x else '0' for x in row)
         else: key=''.join('1' if x else '0' for x in row)
         d,e=table.get(key,(0,0))
         table[key]=(d+1,e+int(ev.sum()))
-    order=[('??'+f'{p:03b}') if arm=='H' else f'{p:05b}' for p in range(1,8 if arm=='H' else 32)]
+    order=[('??'+f'{p:03b}') if arm==LEGACY_H else f'{p:05b}' for p in range(1,8 if arm==LEGACY_H else 32)]
     rows=[(k,*table.get(k,(0,0))) for k in order]
     D=sum(r[1] for r in rows); M=sum(r[2] for r in rows)
     per=counts.sum(0)
-    if arm=='H': epw=[None,None]+[int(x) for x in per]
+    if arm==LEGACY_H: epw=[None,None]+[int(x) for x in per]
     else: epw=[int(x) for x in per]
     N=max(2,math.ceil((1+math.sqrt(1+8*D))/2))
     N=min(N,2*D) if D else 0
-    # Arm H now carries an integer panel size; any value at least N_obs is valid.
-    if arm=='H' and parameter is not None and parameter<N: parameter=N
+    # The suffix arm carries an integer panel size; any value at least N_obs is valid.
+    if arm==LEGACY_H and parameter is not None and parameter<N: parameter=N
     o={'arm':arm,'N_obs':int(N),'D_obs':int(D),'M_obs':int(M),
-       'Temporal_access':[0,0,1,1,1] if arm=='H' else [1]*width,
+       'Temporal_access':[0,0,1,1,1] if arm==LEGACY_H else [1]*width,
        'Events_per_window':epw,'Walk_A':None,'parameter':parameter,'table':rows}
     validate(o); return o
 
@@ -142,7 +146,7 @@ class SuffixCandidateTests(unittest.TestCase):
         rng=np.random.default_rng(20260916)
         a,b=2.,3.
         obs,ev,true_active=simulate(rng,20000,a,b,3)
-        o=make_observation('H',obs,np.maximum(ev,1),N_PANEL)
+        o=make_observation(LEGACY_H,obs,np.maximum(ev,1),N_PANEL)
         mu=sum(p.count('1')*d for p,d,e in o['table'])/o['D_obs']
         fit=mx.fit_suffix(o,activity(mu,3))
         want=mx.predict_profile(a,b)
@@ -155,7 +159,7 @@ class SuffixCandidateTests(unittest.TestCase):
         q=.4
         act=rng.random((20000,3))<q
         act=act[act.any(1)]
-        o=make_observation('H',act,act.astype(int),N_PANEL)
+        o=make_observation(LEGACY_H,act,act.astype(int),N_PANEL)
         mu=sum(p.count('1')*d for p,d,e in o['table'])/o['D_obs']
         fit=mx.fit_suffix(o,activity(mu,3))
         self.assertIn(fit.status,('boundary_homogeneous','weakly_identified','converged'))
@@ -168,7 +172,7 @@ class SuffixCandidateTests(unittest.TestCase):
         rng=np.random.default_rng(11)
         a,b=.2,.2
         obs,ev,_=simulate(rng,20000,a,b,3)
-        o=make_observation('H',obs,np.maximum(ev,1),N_PANEL)
+        o=make_observation(LEGACY_H,obs,np.maximum(ev,1),N_PANEL)
         mu=sum(p.count('1')*d for p,d,e in o['table'])/o['D_obs']
         fit=mx.fit_suffix(o,activity(mu,3))
         want=mx.predict_profile(a,b)
@@ -178,14 +182,14 @@ class SuffixCandidateTests(unittest.TestCase):
     def test_low_information_is_flagged_not_hidden(self):
         rng=np.random.default_rng(3)
         obs,ev,_=simulate(rng,12,2.,3.,3)
-        o=make_observation('H',obs,np.maximum(ev,1),N_PANEL)
+        o=make_observation(LEGACY_H,obs,np.maximum(ev,1),N_PANEL)
         mu=sum(p.count('1')*d for p,d,e in o['table'])/o['D_obs']
         fit=mx.fit_suffix(o,activity(mu,3))
         self.assertNotEqual(fit.status,'converged')
         self.assertTrue(all(0<=x<=1 for x in fit.prediction))
 
     def test_empty_sample(self):
-        o={'arm':'H','N_obs':0,'D_obs':0,'M_obs':0,'Temporal_access':[0,0,1,1,1],
+        o={'arm':LEGACY_H,'N_obs':0,'D_obs':0,'M_obs':0,'Temporal_access':[0,0,1,1,1],
            'Events_per_window':[None,None,0,0,0],'Walk_A':None,'parameter':N_PANEL,
            'table':[('??'+f'{p:03b}',0,0) for p in range(1,8)]}
         validate(o)
@@ -316,7 +320,7 @@ class NumericalGuardTests(unittest.TestCase):
     def test_bound_sensitivity_reports_a_stable_fit_as_stable(self):
         rng=np.random.default_rng(6)
         obs,ev,_=simulate(rng,4000,2.,3.,3)
-        o=make_observation('H',obs,np.maximum(ev,1),N_PANEL)
+        o=make_observation(LEGACY_H,obs,np.maximum(ev,1),N_PANEL)
         mu=sum(p.count('1')*d for p,d,e in o['table'])/o['D_obs']
         r=mx.bound_sensitivity(o,activity(mu,3),decades=2.)
         self.assertLess(r['max_profile_shift'],1e-4,r)
@@ -367,12 +371,14 @@ class DiagnosticIndependenceTests(unittest.TestCase):
         for f in files:
             d = read_json(f)
             for row in d['observations']:
-                if row['arm'] not in ('H', 'B'): continue
                 o = parse(row['block'])
+                # The archived pool holds the superseded suffix arm under the letter H;
+                # its block parses as the legacy variant.
+                if o['arm'] not in (LEGACY_H, 'B'): continue
                 if o['D_obs'] == 0: continue
-                S = sum(p.count('1') * x for p, x, _ in o['table'])
-                mu = activity(S / o['D_obs'], 3 if o['arm'] == 'H' else 5)
-                if o['arm'] == 'H':
+                S = sum(r[0].count('1') * r[1] for r in o['table'])
+                mu = activity(S / o['D_obs'], 3 if o['arm'] == LEGACY_H else 5)
+                if o['arm'] == LEGACY_H:
                     fit = mx.fit_suffix(o, mu)
                 else:
                     from main_experiment.baselines import bisect
@@ -399,12 +405,12 @@ class AssumptionViolationTests(unittest.TestCase):
         for f in files:
             d=read_json(f)
             for row in d['observations']:
-                if row['arm'] not in ('H','B'): continue
                 o=parse(row['block'])
+                if o['arm'] not in (LEGACY_H,'B'): continue
                 if o['D_obs']==0: continue
-                S=sum(p.count('1')*x for p,x,_ in o['table'])
-                mu=activity(S/o['D_obs'],3 if o['arm']=='H' else 5)
-                if o['arm']=='H': fit=mx.fit_suffix(o,mu)
+                S=sum(r[0].count('1')*r[1] for r in o['table'])
+                mu=activity(S/o['D_obs'],3 if o['arm']==LEGACY_H else 5)
+                if o['arm']==LEGACY_H: fit=mx.fit_suffix(o,mu)
                 else:
                     from main_experiment.baselines import bisect
                     mean=o['M_obs']/S

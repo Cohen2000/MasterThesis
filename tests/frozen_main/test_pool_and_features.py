@@ -15,7 +15,7 @@ from main_experiment.training import fold_rows, BLOCK_WEIGHTS
 FROZEN=pathlib.Path('results/main_experiment/frozen_20260916')
 # Observation blocks follow the current design; the superseded suffix design is
 # kept under frozen_20260916 and is not read for contract checks any more.
-RUN=pathlib.Path('results/main_experiment/budget10_20261001')
+RUN=pathlib.Path('results/main_experiment/hrecent5_20260917')
 
 
 class PoolDefinitionTests(unittest.TestCase):
@@ -96,16 +96,18 @@ class FrozenGeneratorTests(unittest.TestCase):
 
 class FeatureTests(unittest.TestCase):
     def test_counts(self):
-        self.assertEqual(len(BASE_FEATURE_NAMES),88)
-        self.assertEqual(len(DERIVED_FEATURE_NAMES),45)
-        self.assertEqual(len(FEATURE_NAMES),133)
-        self.assertEqual(len(set(FEATURE_NAMES)),133)
+        # 88 original base entries plus 31 at-cap counts; 45 original derived
+        # entries plus 31 at-cap shares.
+        self.assertEqual(len(BASE_FEATURE_NAMES),119)
+        self.assertEqual(len(DERIVED_FEATURE_NAMES),76)
+        self.assertEqual(len(FEATURE_NAMES),195)
+        self.assertEqual(len(set(FEATURE_NAMES)),195)
 
     def test_base_block_structure(self):
         self.assertEqual(BASE_FEATURE_NAMES[:3],['N_obs','D_obs','M_obs'])
-        # One parameter slot per arm; H carries a panel size since the design
-        # revision, so the slot is named for it instead of the former tau.
-        self.assertEqual(BASE_FEATURE_NAMES[-4:],['n_panel','L','n_panel_suffix','p'])
+        # One parameter slot per arm; H carries its dyad-sample size.
+        self.assertEqual(BASE_FEATURE_NAMES[-4:],['n_panel','L','n_dyads','p'])
+        self.assertNotIn('n_panel_suffix',FEATURE_NAMES)
 
     def test_derived_block_is_scale_free_and_consistent(self):
         if not (RUN/'observations').exists(): self.skipTest('current run not present')
@@ -127,20 +129,27 @@ class FeatureTests(unittest.TestCase):
            'table':[(f'{p:05b}',0,0) for p in range(1,32)]}
         validate(o)
         v=features(o)
-        self.assertEqual(len(v),133)
+        self.assertEqual(len(v),195)
         self.assertTrue(np.isfinite(v).all())
-        self.assertTrue((v[88:]==0).all())
+        self.assertTrue((v[len(BASE_FEATURE_NAMES):]==0).all())
 
-    def test_missing_windows_stay_distinguishable(self):
-        """A suffix observation codes windows 1-2 as zero but access_1/2 stay 0."""
+    def test_h_features_carry_the_cap_column_and_no_suffix_correction(self):
+        """The at-cap column enters as counts and shares, and the corrector slots of
+        arm H hold the bound midpoint, not the three-to-five-window extrapolation."""
         if not (RUN/'observations').exists(): self.skipTest('current run not present')
-        f=sorted((RUN/'observations'/'sample').glob('*__H__*.json'))[0]
+        from main_experiment.baselines import h_midpoint, activity, profile
+        f=sorted((RUN/'observations'/'sample').glob('*__H-recent5__*.json'))[0]
         o=parse(json.loads(f.read_text())['block'])
         v=features(o); names=list(FEATURE_NAMES)
-        self.assertEqual(v[names.index('access_1')],0.)
-        self.assertEqual(v[names.index('access_2')],0.)
-        self.assertEqual(v[names.index('share_window_1')],0.)
-        self.assertGreater(v[names.index('share_window_3')],0.)
+        caps=[r[3] for r in o['table']]
+        self.assertEqual([v[names.index(f'{p:05b}_at_cap')] for p in range(1,32)],caps)
+        for p,c in zip(range(1,32),caps):
+            self.assertAlmostEqual(v[names.index(f'share_{p:05b}_at_cap')],c/o['D_obs'],places=12)
+        self.assertEqual([v[names.index(f'corrector_rho_{k}')] for k in range(2,6)],h_midpoint(o))
+        self.assertEqual([v[names.index(f'access_{i}')] for i in range(1,6)],[1.]*5)
+        g=sorted((RUN/'observations'/'sample').glob('*__B__*.json'))[0]
+        b=features(parse(json.loads(g.read_text())['block']))
+        self.assertTrue(all(b[names.index(f'{p:05b}_at_cap')]==0 for p in range(1,32)))
 
     def test_no_forbidden_quantity_is_named(self):
         banned=('N_full','D_full','M_full','truth','rho_true','coverage','source','family',

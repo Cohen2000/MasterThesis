@@ -1,9 +1,12 @@
-# Current frozen experiment
+# Current experiment (`budget10-hrecent5-20260917`)
 
 - [Offline runbook](MAIN_EXPERIMENT_RUNBOOK.md)
-- [Implementation mapping and generator algorithms](MAIN_EXPERIMENT_IMPLEMENTATION.md)
+- [Implementation mapping, design revisions and generator algorithms](MAIN_EXPERIMENT_IMPLEMENTATION.md);
+  the last section specifies the current arm H
+- [H revision report](../results/baseline_revision_hrecent5_20260917/REVISION_REPORT.md)
+- [Previous revision report](../results/baseline_revision_20261001/REVISION_REPORT.md)
 - [Full supplied freeze text](MAIN_FREEZE_SOURCE.txt)
-- [Offline acceptance evidence](../results/main_experiment/ACCEPTANCE.md)
+- [Offline acceptance evidence of the original freeze](../results/main_experiment/ACCEPTANCE.md)
 
 The documents below describe the earlier cleanup/design state.
 

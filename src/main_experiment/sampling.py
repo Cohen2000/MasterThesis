@@ -5,7 +5,8 @@ import time
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
-from .common import ROOT, seed, rng, sha, write_json, read_json, atomic_npz, BUDGET_FRACTION
+from .common import (ROOT, seed, rng, sha, write_json, read_json, atomic_npz, BUDGET_FRACTION,
+                     BUDGET_TOLERANCE, H_CAP, H_VARIANT, LEGACY_H, ARM_ID, draws_for)
 
 class Walk:
     def __init__(self,g,build_dir):
@@ -58,32 +59,111 @@ def _panel_for(total,B,N):
     return panel,float(expected[panel])
 
 
+def _dyads_for(capped_total,B,D):
+    """Integer dyad count in 1..D whose expected observed volume is closest to B.
+
+    A uniform sample of d of the D active dyads contains each dyad with
+    probability d/D, so the expected retained volume is exactly d*C/D with
+    C = sum_e min(cap, m_e). Ties choose the smaller d. The choice uses only
+    full-archive totals known to the experimenter, never a realised sample.
+    """
+    d=np.arange(1,D+1,dtype=np.int64)
+    expected=d.astype(float)*capped_total/D
+    k=int(np.argmin(abs(expected-B)))
+    return int(d[k]),float(expected[k])
+
+
+def recent_counts(counts,cap=H_CAP):
+    """Window counts of the cap most recent events of every row.
+
+    Windows are ordered in time and every event of window j is later than every
+    event of window j-1 (cut points use side='right', so a timestamp on a cut
+    belongs to the later window and ties never straddle two windows). The cap most
+    recent events therefore fill the windows from window 5 backwards; which of
+    several events inside one window are taken does not change any count.
+    tests/frozen_main/test_hrecent5.py checks this against an explicit
+    timestamp sort.
+    """
+    counts=np.asarray(counts,dtype=np.int64)
+    out=np.zeros_like(counts)
+    left=np.full(len(counts),cap,dtype=np.int64)
+    for j in range(counts.shape[1]-1,-1,-1):
+        take=np.minimum(counts[:,j],left)
+        out[:,j]=take; left-=take
+    return out
+
+
+def reservoir_counts(counts,cap,r):
+    """Window counts of min(cap, m_e) events drawn uniformly without replacement.
+
+    Development comparison only: the same number of events per dyad as
+    recent_counts, but a uniform subset of the dyad's history (a size-cap
+    reservoir in the sense of Vitter 1985) instead of its most recent part. The
+    multivariate hypergeometric draw is done one event at a time, which is exact.
+    """
+    rem=np.asarray(counts,dtype=np.int64).copy()
+    out=np.zeros_like(rem)
+    need=np.minimum(rem.sum(1),cap)
+    for step in range(cap):
+        active=need>step
+        if not active.any(): break
+        sub=rem[active]; tot=sub.sum(1)
+        u=np.floor(r.random(len(sub))*tot).astype(np.int64)
+        pick=(np.cumsum(sub,axis=1)<=u[:,None]).sum(1)
+        idx=np.flatnonzero(active)
+        rem[idx,pick]-=1; out[idx,pick]+=1
+    return out
+
+
+def h_parameters(g,B,cap=H_CAP):
+    """Arm H parameters with each budget condition reported on its own.
+
+    target_unreachable: even every active dyad keeps fewer than B events.
+    saturated: the closest integer is d=D, so the sample is the whole population.
+    within_tolerance: the unchanged 5 % rule on expected volume.
+    These are not the same: a target can be unreachable and still within
+    tolerance, and d=D can be the closest integer without the target being
+    unreachable. The cap is a design constant and does not depend on the source.
+    """
+    capped=int(np.minimum(g.m,cap).sum())
+    d,expected=_dyads_for(capped,B,g.D)
+    rel=float((expected-B)/B)
+    return {'h_variant':H_VARIANT,'h_cap':cap,'C_cap':capped,'capped_share':capped/g.M,
+            'n_dyads':d,'h_dyad_share':d/g.D,'h_expected_events':expected,
+            'h_relative_budget_error':rel,
+            'h_target_unreachable':bool(capped<B),'h_saturated':bool(d==g.D),
+            'h_within_tolerance':bool(abs(rel)<=BUDGET_TOLERANCE),
+            'h_capped_dyad_share':float(np.mean(g.m>cap)),
+            'h_at_cap_dyad_share':float(np.mean(g.m>=cap))}
+
+
+def legacy_suffix_parameters(g,B):
+    """Arm H of budget10-20261001, kept as a development variant."""
+    suffix=g.M_suffix
+    if suffix<B: panel_h,exp_h,reasons=g.N,float(suffix),['suffix_smaller_than_budget']
+    else: (panel_h,exp_h),reasons=_panel_for(suffix,B,g.N),[]
+    return {'M_suffix':suffix,'suffix_share':suffix/g.M,'n_panel_suffix':panel_h,
+            'suffix_expected_events':exp_h,'suffix_relative_budget_error':float((exp_h-B)/B),
+            'panel_unmatched_reasons':reasons}
+
+
 def budget_parameters(g):
     """Budget and per-arm parameters for the fixed-share design.
 
     B is BUDGET_FRACTION of the full archive. Arm B keeps each event with exactly
-    that probability. Arms R and H use uniform node panels; H draws its panel over
-    the same node set but only retains events in windows 3-5, so its panel has to
-    be larger by the factor M_full/M_suffix to reach the same budget.
+    that probability, arm R uses a uniform node panel, arm H a uniform sample of
+    active dyads with capped recent histories. Budget matching is judged per arm
+    and over all arms; the walk part is added by calibrate().
     """
     B=g.B
     if B<=0 or B>g.M or g.N<2: raise ValueError('undefined budget')
     panel,exp_r=_panel_for(g.M,B,g.N)
-    suffix=g.M_suffix
-    reasons=[]
-    if suffix<B:
-        # The suffix simply does not contain enough events for this budget.
-        panel_h,exp_h=g.N,float(suffix)
-        reasons.append('suffix_smaller_than_budget')
-    else:
-        panel_h,exp_h=_panel_for(suffix,B,g.N)
-    return {'B':B,'p':BUDGET_FRACTION,'budget_fraction':BUDGET_FRACTION,
-            'M_suffix':suffix,'suffix_share':suffix/g.M,
-            'n_panel':panel,'node_expected_events':exp_r,
-            'node_relative_budget_error':float((exp_r-B)/B),
-            'n_panel_suffix':panel_h,'suffix_expected_events':exp_h,
-            'suffix_relative_budget_error':float((exp_h-B)/B),
-            'panel_unmatched_reasons':reasons}
+    rel_r=float((exp_r-B)/B)
+    h=h_parameters(g,B)
+    return {'design_arm_H':H_VARIANT,'B':B,'p':BUDGET_FRACTION,'budget_fraction':BUDGET_FRACTION,
+            'budget_tolerance':BUDGET_TOLERANCE,
+            'n_panel':panel,'node_expected_events':exp_r,'node_relative_budget_error':rel_r,
+            **h,'legacy_suffix_panel':legacy_suffix_parameters(g,B)}
 
 
 def calibrate(g,out,build):
@@ -149,13 +229,24 @@ def calibrate(g,out,build):
     mcse=lambda:float(np.std(volumes,ddof=1)/np.sqrt(len(volumes)))
     if mcse()/B>.01: extend(4096)
     mean=float(np.mean(volumes)); se=mcse()
-    reasons=[]
-    if cal['search_limit_reached_without_budget']: reasons.append('calibration_cap')
-    if abs(mean-B)/B>.05: reasons.append('validation_mean_outside_5_percent')
-    if se/B>.01: reasons.append('validation_mcse_above_1_percent')
+    walk_reasons=[]
+    if cal['search_limit_reached_without_budget']: walk_reasons.append('calibration_cap')
+    if abs(mean-B)/B>BUDGET_TOLERANCE: walk_reasons.append('validation_mean_outside_5_percent')
+    if se/B>.01: walk_reasons.append('validation_mcse_above_1_percent')
+    # Complete budget matching, not only the walk: every arm is judged on its own
+    # expected-volume deviation. B keeps each event with probability exactly p.
+    by_arm={'R':abs(params['node_relative_budget_error'])<=BUDGET_TOLERANCE,
+            'S':not walk_reasons,
+            'H':params['h_within_tolerance'],
+            'B':True}
+    reasons=[f'S:{x}' for x in walk_reasons]
+    if not by_arm['R']: reasons.append('R:node_panel_outside_5_percent')
+    if not by_arm['H']: reasons.append('H:expected_volume_outside_5_percent')
     result={**params,**cal,'validation_n':len(volumes),'validation_mean':mean,
             'validation_mcse':se,'validation_relative_error':(mean-B)/B,
-            'budget_matched':not reasons,'unmatched_reasons':reasons}
+            'walk_budget_matched':not walk_reasons,'walk_unmatched_reasons':walk_reasons,
+            'budget_matched_by_arm':by_arm,
+            'budget_matched':all(by_arm.values()),'unmatched_reasons':reasons}
     write_json(out/'budget.json',result)
     return result,engine
 
@@ -165,21 +256,40 @@ def _panel_mask(g,r,size):
     return panel[g.ends[:,0]] & panel[g.ends[:,1]]
 
 
+def sample_dyads(g,index,domain,budget):
+    """Indices of the H dyad sample; uniform without replacement over E_full."""
+    r=rng(domain,g.key,ARM_ID['H'],index)
+    if budget['h_saturated']:
+        if index!=1: raise ValueError('a saturated H sample is deterministic; only index 1 exists')
+        return np.arange(g.D)
+    return np.sort(r.choice(g.D,budget['n_dyads'],replace=False))
+
+
 def draw(g,arm,index,domain,budget,walk=None):
-    r=rng(domain,g.key,arm,index)
+    # The number of draws is set by the caller from draws_for(); the one index rule
+    # enforced here is that a saturated H sample exists only once (sample_dyads).
+    if index<1: raise ValueError('sample indices start at 1')
     counts=None; re=None
     if arm=='R':
+        r=rng(domain,g.key,ARM_ID[arm],index)
         counts=g.counts*_panel_mask(g,r,budget['n_panel'])[:,None]
     elif arm=='S':
-        _,_,rr,_=walk.run([seed(domain,g.key,arm,index)],int(budget['L']),True)
+        _,_,rr,_=walk.run([seed(domain,g.key,ARM_ID[arm],index)],int(budget['L']),True)
         re=rr[0]; counts=g.counts*(re>0)[:,None]
     elif arm=='H':
-        # Uniform node panel, then only windows 3-5. The panel is drawn without
-        # looking at any event, so dyad inclusion is uniform and independent of
-        # activity; conditional on inclusion the window pattern is untouched.
-        counts=g.counts*_panel_mask(g,r,budget['n_panel_suffix'])[:,None]
+        # Uniform over active dyads, drawn without looking at any event count, so
+        # the sampled dyads' true profile is a simple random sample of E_full.
+        # Each sampled dyad then keeps its H_CAP most recent events.
+        sel=sample_dyads(g,index,domain,budget)
+        counts=np.zeros_like(g.counts)
+        counts[sel]=recent_counts(g.counts[sel],budget['h_cap'])
+    elif arm==LEGACY_H:
+        # budget10-20261001 arm H: uniform node panel, then only windows 3-5.
+        r=rng(domain,g.key,ARM_ID[arm],index)
+        counts=g.counts*_panel_mask(g,r,budget['legacy_suffix_panel']['n_panel_suffix'])[:,None]
         counts=counts.copy(); counts[:,:2]=0
     elif arm=='B':
+        r=rng(domain,g.key,ARM_ID[arm],index)
         keep=r.random(g.M)<budget['p']
         counts=np.bincount(g.pair[keep]*5+g.w[keep],minlength=g.D*5).reshape(-1,5)
     else: raise ValueError('unknown arm')

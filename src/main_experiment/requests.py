@@ -1,5 +1,5 @@
 """Request construction and pure transport policies. No network client is exposed."""
-from .common import CONFIGS, seed, digest
+from .common import CONFIGS, LLM_REPEATS, ARM_ID, seed, digest
 
 QWEN='Qwen/Qwen3.6-35B-A3B'
 REVISION='995ad96eacd98c81ed38be0c5b274b04031597b0'
@@ -48,14 +48,16 @@ def planned(observations):
         for cell in sorted(cells):
             queue=[]
             for obs in sorted(cells[cell],key=lambda x:x['sample_index']):
-                for repeat in range(1,4): queue.append((obs,repeat))
+                for repeat in range(1,LLM_REPEATS+1): queue.append((obs,repeat))
             queues.append(queue)
         for turn in range(max(map(len,queues),default=0)):
             for queue in queues:
                 if turn>=len(queue): continue
                 obs,repeat=queue[turn]
                 for config in CONFIGS:
-                    s=seed('llm',obs['graph_id'],obs['arm'],obs['sample_index'],repeat,config)
+                    # R, S and B keep their letters, so their seeds are those of the
+                    # previous design; the new H has its own identifier.
+                    s=seed('llm',obs['graph_id'],ARM_ID[obs['arm']],obs['sample_index'],repeat,config)
                     rid=f'{obs["id"]}__{config}__r{repeat}'
                     records.append({'id':rid,'observation_id':obs['id'],'graph_id':obs['graph_id'],
                         'arm':obs['arm'],'sample_index':obs['sample_index'],'repeat_index':repeat,

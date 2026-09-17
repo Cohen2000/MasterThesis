@@ -1,4 +1,4 @@
-"""The revised observation design: a ten-percent budget and a panelled suffix arm."""
+"""The ten-percent budget design, its recent-cap arm H and the legacy suffix-panel variant."""
 import json
 import math
 import pathlib
@@ -8,14 +8,14 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from main_experiment.common import (BUDGET_FRACTION, ARMS, SAMPLES_PER_ARM,
-                                    MAIN_OBSERVATIONS, TRAINING_OBSERVATIONS,
-                                    PLANNED_CALLS, QWEN_CALLS, REAL_TEST, SYNTH)
+from main_experiment.common import (BUDGET_FRACTION, ARMS, SAMPLER_DRAWS, LEGACY_H, TRAIN,
+                                    REAL_TEST, SYNTH, planned_sizes, draws_for,
+                                    observations_per_graph)
 from main_experiment.data import canonical, load_graph
 from main_experiment.sampling import budget_parameters, draw, calibrate
 from main_experiment.observation import make, serialize, parse, validate, PARAMS
 
-RUN = pathlib.Path('results/main_experiment/budget10_20261001')
+RUN = pathlib.Path('results/main_experiment/hrecent5_20260917')
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / 'scripts'))
 
 
@@ -32,13 +32,19 @@ def fixture(n=40, per=6, seed=0):
 
 
 class DesignConstantTests(unittest.TestCase):
-    def test_sizes_follow_from_the_replication_scheme(self):
-        self.assertEqual(SAMPLES_PER_ARM, 5)
-        self.assertEqual(MAIN_OBSERVATIONS, (len(REAL_TEST) + len(SYNTH)) * len(ARMS) * 5)
-        self.assertEqual(MAIN_OBSERVATIONS, 280)
-        self.assertEqual(TRAINING_OBSERVATIONS, 320)
-        self.assertEqual(PLANNED_CALLS, 3360)
-        self.assertEqual(QWEN_CALLS, 1680)
+    def test_sizes_follow_from_the_calibrated_design(self):
+        """No fixed count: a saturated H graph contributes one H observation."""
+        self.assertEqual(SAMPLER_DRAWS, 5)
+        free = {k: {'h_saturated': False} for k in set(TRAIN) | set(SYNTH)}
+        s = planned_sizes(free, [*REAL_TEST, *SYNTH], TRAIN)
+        self.assertEqual((s['main_observations'], s['training_observations']), (280, 320))
+        self.assertEqual((s['planned_calls'], s['qwen_calls']), (3360, 1680))
+        one = dict(free); one['sp_highschool2013'] = {'h_saturated': True}
+        s = planned_sizes(one, [*REAL_TEST, *SYNTH], TRAIN)
+        self.assertEqual((s['main_observations'], s['training_observations']), (276, 316))
+        self.assertEqual((s['planned_calls'], s['qwen_calls']), (3312, 1656))
+        self.assertEqual(draws_for('H', one['sp_highschool2013']), 1)
+        self.assertEqual(draws_for('R', one['sp_highschool2013']), 5)
 
     def test_budget_is_a_fixed_share_of_the_archive(self):
         g = fixture()
@@ -50,11 +56,13 @@ class DesignConstantTests(unittest.TestCase):
     def test_both_panels_target_the_same_budget(self):
         g = fixture()
         b = budget_parameters(g)
-        # R draws from the whole archive, H only from the suffix, so H needs the
-        # larger panel by exactly the ratio of the two volumes.
-        self.assertGreaterEqual(b['n_panel_suffix'], b['n_panel'])
-        for key in ('node_relative_budget_error', 'suffix_relative_budget_error'):
-            self.assertLess(abs(b[key]), .10, f'{key}={b[key]}')
+        # Legacy variant: R draws from the whole archive, the suffix panel only
+        # from windows 3-5, so it needs the larger panel.
+        legacy = b['legacy_suffix_panel']
+        self.assertGreaterEqual(legacy['n_panel_suffix'], b['n_panel'])
+        self.assertLess(abs(b['node_relative_budget_error']), .10)
+        self.assertLess(abs(legacy['suffix_relative_budget_error']), .10)
+        self.assertLess(abs(b['h_relative_budget_error']), .10)
 
     def test_undefined_budget_is_rejected_early(self):
         g = fixture()
@@ -66,12 +74,12 @@ class DesignConstantTests(unittest.TestCase):
 
 
 class SuffixPanelTests(unittest.TestCase):
-    """Arm H is now a node panel restricted to windows 3-5."""
+    """The legacy variant: a node panel restricted to windows 3-5."""
 
     def test_only_panel_dyads_and_only_the_suffix_survive(self):
         g = fixture(n=60, per=8, seed=3)
         b = budget_parameters(g)
-        counts, _ = draw(g, 'H', 1, 'sample', b)
+        counts, _ = draw(g, LEGACY_H, 1, 'sample', b)
         self.assertTrue((counts[:, :2] == 0).all(), 'windows 1-2 must be empty')
         seen = counts.sum(1) > 0
         # Everything retained inside the panel must be the graph's own suffix counts.
@@ -89,7 +97,7 @@ class SuffixPanelTests(unittest.TestCase):
         ref = np.bincount(J, minlength=4)[1:] / len(J)
         acc = np.zeros(3)
         for i in range(1, 31):
-            c, _ = draw(g, 'H', i, 'validate', b)
+            c, _ = draw(g, LEGACY_H, i, 'validate', b)
             j = (c[:, 2:] > 0).sum(1); j = j[j > 0]
             acc += np.bincount(j, minlength=4)[1:] / len(j)
         self.assertLess(np.abs(acc / 30 - ref).max(), .05)
@@ -97,27 +105,41 @@ class SuffixPanelTests(unittest.TestCase):
     def test_every_arm_is_stochastic_now(self):
         g = fixture(n=60, per=8, seed=5)
         b = budget_parameters(g)
-        for arm in ('R', 'H', 'B'):
+        self.assertFalse(b['h_saturated'])
+        for arm in ('R', 'H', 'B', LEGACY_H):
             draws = {draw(g, arm, i, 'sample', b)[0].tobytes() for i in range(1, 6)}
             self.assertGreater(len(draws), 1, f'{arm} produced identical samples')
 
 
 class ObservationContractTests(unittest.TestCase):
     def test_suffix_arm_carries_its_panel_size(self):
-        self.assertEqual(PARAMS['H'], 'n_panel_suffix')
-        self.assertNotEqual(PARAMS['H'], PARAMS['R'])      # parser needs distinct names
+        self.assertEqual(PARAMS[LEGACY_H], 'n_panel_suffix')
+        self.assertEqual(PARAMS['H'], 'n_dyads')
+        self.assertEqual(len(set(PARAMS.values())), len(PARAMS))   # parser needs distinct names
         g = fixture(n=60, per=8, seed=11)
         b = budget_parameters(g)
-        c, _ = draw(g, 'H', 1, 'sample', b)
-        o = make(g, 'H', b, c, None)
+        c, _ = draw(g, LEGACY_H, 1, 'sample', b)
+        o = make(g, LEGACY_H, b, c, None)
         block = serialize(o)
-        self.assertIn(f'n_panel_suffix={b["n_panel_suffix"]}', block)
+        n = b['legacy_suffix_panel']['n_panel_suffix']
+        self.assertIn(f'n_panel_suffix={n}', block)
         self.assertNotIn('tau=', block)
         back = parse(block)
-        self.assertEqual(back['parameter'], b['n_panel_suffix'])
+        self.assertEqual(back['arm'], LEGACY_H)
+        self.assertEqual(back['parameter'], n)
         self.assertEqual(type(back['parameter']), int)
         self.assertEqual(serialize(back), block)
         self.assertEqual(back['Temporal_access'], [0, 0, 1, 1, 1])
+
+    def test_recent_arm_carries_its_sample_size(self):
+        g = fixture(n=60, per=8, seed=11)
+        b = budget_parameters(g)
+        c, _ = draw(g, 'H', 1, 'sample', b)
+        block = serialize(make(g, 'H', b, c, None))
+        self.assertIn(f'n_dyads={b["n_dyads"]}', block)
+        back = parse(block)
+        self.assertEqual((back['arm'], back['parameter'], back['D_obs']), ('H', b['n_dyads'], b['n_dyads']))
+        self.assertEqual(back['Temporal_access'], [1] * 5)
 
 
 class RunContentTests(unittest.TestCase):
@@ -129,22 +151,40 @@ class RunContentTests(unittest.TestCase):
             raise unittest.SkipTest('current run not present')
         cls.report = json.loads((RUN / 'report.json').read_text())
 
+    def _budgets(self):
+        return {k: json.loads((RUN / 'calibration' / k / 'budget.json').read_text())
+                for k in set(TRAIN) | set(SYNTH)}
+
     def test_sizes_and_emptiness(self):
         r = self.report
+        s = planned_sizes(self._budgets(), [*REAL_TEST, *SYNTH], TRAIN)
         self.assertTrue(r['offline_ready'])
-        self.assertEqual(r['prepared_observations'], MAIN_OBSERVATIONS)
-        self.assertEqual(r['training_observations'], TRAINING_OBSERVATIONS)
-        self.assertEqual(r['request_manifest_rows'], PLANNED_CALLS)
+        self.assertEqual(r['prepared_observations'], s['main_observations'])
+        self.assertEqual(r['planned_observations'], s['main_observations'])
+        self.assertEqual(r['training_observations'], s['training_observations'])
+        self.assertEqual(r['request_manifest_rows'], s['planned_calls'])
+        self.assertEqual(r['planned_logical_calls'], s['planned_calls'])
         self.assertEqual(r['empty_observations'], 0)
         self.assertEqual(r['started_calls'], 0)
 
-    def test_every_arm_has_five_samples(self):
+    def test_every_arm_has_its_design_draw_count(self):
         import collections
-        c = collections.Counter()
-        for f in (RUN / 'observations' / 'sample').glob('*.json'):
-            d = json.loads(f.read_text())
-            c[(d['graph_id'], d['arm'])] += 1
-        self.assertEqual(set(c.values()), {5})
+        budgets = self._budgets()
+        for domain in ('sample', 'training'):
+            c = collections.Counter()
+            for f in (RUN / 'observations' / domain).glob('*.json'):
+                d = json.loads(f.read_text())
+                c[(d['graph_id'], d['arm'])] += 1
+            for (g, arm), n in c.items():
+                self.assertEqual(n, draws_for(arm, budgets[g]), (domain, g, arm))
+        # A deterministic H draw is carried once, and the status table agrees.
+        det = [k for k, b in budgets.items() if b['h_saturated']]
+        self.assertEqual(sorted(det), self.report['deterministic_h_graphs'])
+        import csv
+        with open(RUN / 'observation_status.csv') as f:
+            status = list(csv.DictReader(f))
+        self.assertEqual(len(status), self.report['planned_observations'])
+        self.assertTrue(all(int(r['planned_logical_calls']) == 12 for r in status))
 
     def test_observed_volume_tracks_the_budget(self):
         """Every arm is calibrated to the same expected volume, so the realised
@@ -162,6 +202,9 @@ class RunContentTests(unittest.TestCase):
 
 class RunnerChainTests(unittest.TestCase):
     """The parts of the execution chain that do not need a GPU."""
+
+    def report_calls(self):
+        return json.loads((RUN / 'report.json').read_text())['planned_logical_calls']
 
     def test_reasoning_split_matches_the_chat_template(self):
         """The template opens the block in the prompt, so the output carries only
@@ -196,7 +239,7 @@ class RunnerChainTests(unittest.TestCase):
                 ids = {r['id'] for r in load_requests(RUN, mode, repeat, 0, 1)}
                 self.assertFalse(ids & seen, 'repeats or modes overlap')
                 seen |= ids; total += len(ids)
-        self.assertEqual(total, QWEN_CALLS)
+        self.assertEqual(total, self.report_calls() // 2)
 
     def test_shards_partition_the_work_exactly(self):
         if not (RUN / 'requests.jsonl').exists(): self.skipTest('run not present')
@@ -268,14 +311,14 @@ class DataSeparationTests(unittest.TestCase):
         train = {g['key'] for g in d if g['partition'] == 'train'}
         dev = {g['key'] for g in d if g['partition'] == 'dev'}
         self.assertFalse(train & dev)
-        man = pathlib.Path('results/baseline_revision_20261001/models_pooled/synthetic/manifest.json')
+        man = pathlib.Path('results/baseline_revision_hrecent5_20260917/models_pooled/synthetic/manifest.json')
         if not man.exists(): self.skipTest('pooled model not fitted')
         used = set(json.loads(man.read_text())['sources'])
         self.assertFalse(used & dev, 'a development graph reached the training pool')
         self.assertTrue(train <= used | {s for s in used})
 
     def test_no_main_test_source_leaks_into_its_own_fold(self):
-        base = pathlib.Path('results/baseline_revision_20261001/models_pooled')
+        base = pathlib.Path('results/baseline_revision_hrecent5_20260917/models_pooled')
         if not base.exists(): self.skipTest('models not fitted')
         for src in REAL_TEST:
             m = json.loads((base / src / 'manifest.json').read_text())

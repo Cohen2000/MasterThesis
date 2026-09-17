@@ -166,7 +166,7 @@ def build_pool(out,specs=None,limit=None,progress=True):
     """
     from pathlib import Path
     import time
-    from .common import write_json, read_json, digest
+    from .common import write_json, read_json, digest, ARMS, draws_for, observation_id, DESIGN_VERSION
     from .synthetic import generate_one
     from .sampling import calibrate, draw
     from .observation import make, serialize, parse
@@ -184,21 +184,30 @@ def build_pool(out,specs=None,limit=None,progress=True):
             g,x,meta=generate_one(key,sp['family'],params,domain='pool')
             budget,walk=calibrate(g,out/'calibration'/key,out/'build')
             rows=[]
-            for arm,n in (('R',5),('S',5),('H',5),('B',5)):
-                for ix in range(1,n+1):
+            for arm in ARMS:
+                for ix in range(1,draws_for(arm,budget)+1):
                     counts,traversals=draw(g,arm,ix,domain,budget,walk)
                     block=serialize(make(g,arm,budget,counts,traversals))
                     if serialize(parse(block))!=block: raise ValueError('block round trip')
-                    rows.append({'id':f'{key}__{arm}__s{ix}','graph_id':key,'source_family':key,
+                    rows.append({'id':observation_id(key,arm,ix),'graph_id':key,'source_family':key,
                                  'arm':arm,'sample_index':ix,'domain':domain,'block':block,
-                                 'block_sha256':digest(block),'empty':parse(block)['D_obs']==0})
+                                 'block_sha256':digest(block),'empty':parse(block)['D_obs']==0,
+                                 'budget_matched':budget['budget_matched_by_arm'][arm]})
             write_json(dest,{'key':key,'family':sp['family'],'partition':sp['partition'],
                              'stratum':sp['stratum'],'parameters':sp['parameters'],
                              'seed':sp['seed'],'truth':list(g.truth),
                              'N_full':g.N,'D_full':g.D,'M_full':g.M,'B':g.B,
+                             'design_version':DESIGN_VERSION,
                              'budget_matched':budget['budget_matched'],
+                             'budget_matched_by_arm':budget['budget_matched_by_arm'],
                              'unmatched_reasons':budget['unmatched_reasons'],
                              'L':budget['L'],'p':budget['p'],'n_panel':budget['n_panel'],
+                             'n_dyads':budget['n_dyads'],'h_saturated':budget['h_saturated'],
+                             'h_target_unreachable':budget['h_target_unreachable'],
+                             'h_relative_budget_error':budget['h_relative_budget_error'],
+                             'h_within_tolerance':budget['h_within_tolerance'],
+                             'node_relative_budget_error':budget['node_relative_budget_error'],
+                             'walk_validation_relative_error':budget['validation_relative_error'],
                              'latents_sha256':meta.get('latents_sha256'),
                              'observations':rows})
             done+=1

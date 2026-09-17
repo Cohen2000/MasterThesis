@@ -12,24 +12,71 @@ TRAIN = ('sp_hospital','sp_primaryschool','sp_highschool2013','sp_workplace',
          'snap_bitcoin_otc','nr_radoslaw_email','nr_digg_reply','jodie_wikipedia',
          'jodie_reddit','jodie_lastfm','jodie_mooc','copenhagen_bluetooth')
 ARMS = ('R','S','H','B')
-# Design revision: the budget is now a fixed share of the full event archive
-# instead of the suffix event count, so every arm can be calibrated to it.
-DESIGN_VERSION = 'budget10-20261001'
+# Design revision history, newest last. budget10-20261001 made the budget a fixed
+# share of the full event archive. budget10-hrecent5-20260917 replaces arm H: a
+# uniform sample of active dyads, each with its five most recent events, instead
+# of a node panel restricted to windows 3-5. The date-like suffix of the older id
+# is a revision label, not a date; the newer one is the date it was written.
+DESIGN_VERSION = 'budget10-hrecent5-20260917'
+PREVIOUS_DESIGN_VERSION = 'budget10-20261001'
 BUDGET_FRACTION = 0.10
-SAMPLES_PER_ARM = 5          # every arm is stochastic under this design
+BUDGET_TOLERANCE = 0.05      # unchanged relative tolerance for expected volume
+SAMPLER_DRAWS = 5            # sampler draws per graph and arm, if the draw is random
 LLM_REPEATS = 3
 CONFIGS = ('sol','deepseek','qwen_thinking','qwen_nonthinking')
+QWEN_CONFIGS = ('qwen_thinking','qwen_nonthinking')
 SYNTH = tuple(f'{family}_{mode}_r{r}' for family,modes in
               [('dar',('a0','a08')),('ad',('memoryless','memory'))]
               for r in (1,2) for mode in modes)
-# Derived design sizes. Everything downstream reads these instead of literals,
-# so a change to the replication scheme cannot leave a stale number behind.
 MAIN_GRAPHS = len(REAL_TEST)+len(SYNTH)
-OBSERVATIONS_PER_GRAPH = len(ARMS)*SAMPLES_PER_ARM
-MAIN_OBSERVATIONS = MAIN_GRAPHS*OBSERVATIONS_PER_GRAPH
-TRAINING_OBSERVATIONS = len(TRAIN)*OBSERVATIONS_PER_GRAPH
-PLANNED_CALLS = MAIN_OBSERVATIONS*len(CONFIGS)*LLM_REPEATS
-QWEN_CALLS = MAIN_OBSERVATIONS*2*LLM_REPEATS
+
+# Arm H of this design: a uniform dyad sample keeping the H_CAP most recent events
+# of every sampled dyad. The superseded suffix-panel H stays available as a
+# versioned development variant under its own arm code; it is never part of ARMS.
+H_VARIANT = 'recent5'
+H_CAP = 5
+LEGACY_H = 'H_suffix_v1'
+LEGACY_ARMS = (LEGACY_H,)
+# Identifier used in seed derivation and in observation ids. R, S and B keep their
+# letters, so their draws, observation ids and request seeds are exactly those of
+# the previous design and their prompts can be checked for reuse. The new H gets
+# its own identifier: its streams and request ids can never coincide with the old
+# H's. The legacy variant keeps 'H', which reproduces its original draws.
+ARM_ID = {'R':'R','S':'S','H':'H-recent5','B':'B',LEGACY_H:'H'}
+
+
+def draws_for(arm,budget):
+    """Distinct sampler draws for one graph and arm.
+
+    A saturated H sample (every active dyad drawn) is deterministic, so repeating
+    it would only duplicate one observation. It is carried once; model repeats of
+    that single observation are a separate kind of repetition.
+    """
+    if arm=='H' and budget['h_saturated']: return 1
+    return SAMPLER_DRAWS
+
+
+def observations_per_graph(budget):
+    return sum(draws_for(a,budget) for a in ARMS)
+
+
+def observation_id(graph_id,arm,index):
+    return f'{graph_id}__{ARM_ID[arm] if arm=="H" else arm}__s{index}'
+
+
+def planned_sizes(budgets,main_graphs,training_graphs):
+    """Design sizes derived from the calibrated budgets, never from literals.
+
+    budgets maps graph id -> budget dict. Main and training counts are returned
+    separately because the four real test sources that are also training
+    sources draw both domains.
+    """
+    main=sum(observations_per_graph(budgets[g]) for g in main_graphs)
+    train=sum(observations_per_graph(budgets[g]) for g in training_graphs)
+    return {'main_observations':main,'training_observations':train,
+            'planned_calls':main*len(CONFIGS)*LLM_REPEATS,
+            'qwen_calls':main*len(QWEN_CONFIGS)*LLM_REPEATS,
+            'calls_per_observation':len(CONFIGS)*LLM_REPEATS}
 
 SEEDS = {}
 

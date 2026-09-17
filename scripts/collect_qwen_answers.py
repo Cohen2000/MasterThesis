@@ -77,6 +77,7 @@ def main():
         d = found[rid]
         completed = d.get('status') == 'completed'
         rec = {'id': rid, 'started': True, 'mock': False,
+               'prompt_sha256': d.get('prompt_sha256'),
                'terminal': bool(completed),
                'technical_error': not completed,
                'limit_hit': d.get('end_state') == 'output_limit',

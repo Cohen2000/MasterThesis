@@ -1,5 +1,9 @@
 # Freeze 2026-09-16: implementation contract
 
+> Current design: **`budget10-hrecent5-20260917`**, specified in the last section
+> of this file. Earlier sections describe the designs it revises and remain valid
+> for everything the revision does not change.
+
 Authority: `MAIN_FREEZE_SOURCE.txt`, complete paragraph/table/math text extracted
 from the supplied DOCX, plus the user's instructions. No applicable AGENTS.md
 was found in this repository or its ancestors. Initial git status was clean.
@@ -17,6 +21,7 @@ Work branch: experiment/offline-freeze-20260916.
 | Resume/reports | no current pipeline | atomic stage files, dependency hashes, locks | replay hashes and reports |
 | Learned baseline on a diverse pool | ExtraTrees on 16 real sources | 400 training and 100 development synthetic graphs, 50/25/25 block weights, 133 features | frozen pool definition, fold manifests, development report |
 | Two mixture correctors | homogeneous correctors only | zero-truncated Beta-Binomial suffix; Beta-mixed activity with the ZTP event layer | derivations, exactness tests, development table |
+| Recent-cap arm H (2026-09-17) | suffix node panel, 3-to-5-window correctors | uniform dyad sample, five most recent events per dyad, `at_cap_dyads` column, bound-midpoint reference, 195 features | `tests/frozen_main/test_hrecent5.py`, `scripts/check_h_recent.py`, revision report |
 
 ## Generator algorithms (written before implementation)
 
@@ -154,3 +159,166 @@ rewrites a finished checkpoint. Content-addressed identities (`prompt_sha256`,
 `block_sha256`, model and feature hashes) were never affected, because `digest`
 sorts keys. Two independent from-scratch runs are compared artifact by artifact,
 and a resume must change no artifact at all.
+
+## Design revision: recent-cap arm H (2026-09-17)
+
+Design id `budget10-hrecent5-20260917`. **This revision was specified after the
+results of `budget10-20261001`, including the Qwen answers, had been seen. It is a
+documented revision, not a retroactive preregistration.** Everything not named
+here is unchanged: W=5, the target rho_2..rho_5 over E_full, MAE2 as the main
+metric, the ten-percent expected event volume, the sources, generators, labels,
+the pool and its train/development split, arms R, S and B, the ExtraTrees
+hyperparameters and the 50/25/25 block weights.
+
+### Why arm H changed
+
+Arm H is meant to isolate the effect of *bounded recent event history* under
+uniform relation selection. The suffix node panel mixed two things: it hid whole
+windows for every dyad, so its correctors had to extrapolate from three windows
+to five, and it selected dyads through node pairs. The revision keeps selection
+uniform over active dyads and bounds the history per dyad instead.
+
+Literature, and what it does and does not cover:
+
+* Gibbons (2001), *Distinct Sampling for Highly-Accurate Answers to Distinct
+  Values Queries and Event Reports*, VLDB, 541–550: a uniform sample of distinct
+  values with a limit on the rows kept per value. Above the limit, Gibbons keeps a
+  reservoir sample of that value's rows and stores its exact occurrence count.
+* Zhou et al. (2022), *TGL: A General Framework for Temporal GNN Training on
+  Billion-Scale Graphs*, PVLDB 15(8), 1572–1580: temporal neighbour sampling is
+  either uniform over past neighbours or restricted to the most recent ones, the
+  latter being the usual choice for memory-based models.
+* Vitter (1985), *Random Sampling with a Reservoir*, ACM TOMS 11(1), 37–57: a
+  uniform fixed-size sample without replacement from a sequence. This is the
+  within-dyad subset used by the mechanism comparison below.
+
+**Own work.** The combination is our own: uniform active dyads as the distinct
+values, the *most recent* events rather than Gibbons' reservoir, a cap of five,
+no exact per-dyad count (only whether the cap was reached), the budget rule, and
+the derivation of the per-dyad bounds and the midpoint reference. The literature
+supports the building blocks, not this configuration or any expected ranking.
+
+### Sampler
+
+With m_e the full-archive event count of dyad e, D=|E_full|, B=round(0.10 M_full)
+and C = sum_e min(5, m_e), the dyad count d is fixed before any draw as the
+integer in 1..D whose expected volume d*C/D is closest to B, ties to the smaller
+d. It never depends on a realised sample. A draw takes d dyads uniformly without
+replacement from E_full (`numpy.random.Generator.choice`, stream
+`(domain, graph, 'H-recent5', index)`), and each sampled dyad keeps its
+min(5, m_e) most recent events. Under this design E[plug-in] equals the
+population share of dyads whose *recent* window count reaches k, and the oracle
+profile of the sampled dyads is a simple random sample of the true profile.
+
+Four budget conditions are recorded separately in `budget.json` and never merged:
+`h_relative_budget_error`, `h_target_unreachable` (C < B), `h_saturated` (d = D)
+and `h_within_tolerance` (|error| <= 5 %). The cap is five for every source.
+A saturated sample is deterministic, so the graph carries **one** H observation;
+its three model answers are model repeats, not sampler repeats. Per-arm budget
+matching is `budget_matched_by_arm`: R by its panel rounding, S by the walk
+validation, H by its expected-volume tolerance, B exactly; `budget_matched` is
+their conjunction. On the current data only `sp_highschool2013` is saturated
+(C = 18 667 < B = 18 851, error −0.98 %, inside tolerance); no pool graph is.
+
+**Computing the recent events.** Windows are ordered in time and the cut points
+use `side='right'`, so every event of window j is later than every event of
+window j−1 and ties never straddle a cut. The five most recent events therefore
+fill the stored window counts from window 5 backwards (`sampling.recent_counts`).
+`tests/frozen_main/test_hrecent5.py` checks this against an explicit timestamp
+sort on random graphs with ties on cut points and repeated timestamps, and on
+`sp_hospital` and `snap_collegemsg`; `verify_main_offline.py` re-derives every
+stored H block and compares the retained counts with the backward fill.
+
+### Input
+
+All 31 non-empty five-window patterns, `Temporal_access=1,1,1,1,1`, all five
+window counts, parameter line `n_dyads=d` (equal to D_obs by construction), and a
+fourth table column `at_cap_dyads`: the listed dyads of that pattern with exactly
+five retrieved events. That is *possibly truncated*, not *provably truncated*: a
+dyad with exactly five events is at the cap without having lost anything. No
+full-archive count and no true truncation flag reaches any estimator; a test
+checks that two archives differing only before the retained events give
+byte-identical blocks. The rule and the extra column are explained only in
+`config/main_experiment/rule_H_recent5_v2.txt`; `system.txt`, `user_prefix.txt`
+and the R, S and B rules are unchanged, so those prompts are byte-identical to the
+previous design. The superseded rule text is kept verbatim as
+`rule_H_suffix_panel_v1.txt`.
+
+### Fixed H reference (own derivation)
+
+For a listed dyad with fewer than five retrieved events the history is complete,
+so K = J (observed active windows). For a dyad at the cap, every event later than
+its earliest retained one was retained as well, so windows b+1..5 are complete,
+where b is the earliest observed window; only windows 1..b−1 are unknown. Hence
+
+    J <= K <= J + b − 1.
+
+L_k and U_k are the shares of sampled dyads whose lower and upper bound reach k;
+L_k equals the plug-in. The fixed reference is the midpoint (L_k + U_k)/2
+(`baselines.h_midpoint`). The intervals bound the profile **of the sampled
+dyads**; they are not guaranteed full-archive bounds. There is no validity rule
+and no clipping of any estimate, LLM answers included, against them. The
+reference is the primary H corrector and is also the value of the H
+`corrector_rho_k` features.
+
+The three-to-five-window extrapolation (homogeneous corrector and Beta-Binomial
+candidate) is removed from the current arm H, including its derived features. It
+survives only in the development variant `H_suffix_v1` (arm code outside `ARMS`),
+which reproduces all 70 stored H blocks and prompts of `budget10-20261001` byte
+for byte.
+
+### Features and training
+
+Feature version `features-v3-hrecent5-20260917`, 195 entries: the previous 88 base
+entries with the H parameter slot renamed to `n_dyads`, plus 31 at-cap counts;
+the previous 45 derived entries, plus 31 at-cap shares (at-cap count / D_obs).
+At-cap entries are zero for R, S and B. Because the regressor is shared across
+arms, all seven pooled folds and all seven real-only folds are refitted and all
+arms are re-predicted. Hyperparameters and weights are unchanged; a saturated H
+observation carries the whole H weight of its graph.
+
+### Versioning and reuse
+
+| Item | Previous | Current |
+| --- | --- | --- |
+| Offline run | `results/main_experiment/budget10_20261001` | `results/main_experiment/hrecent5_20260917` |
+| Baseline revision | `results/baseline_revision_20261001` | `results/baseline_revision_hrecent5_20260917` |
+| Training revision | `baseline-revision-2-budget10-20261001` | `baseline-revision-3-hrecent5-20260917` |
+| H observation / request ids | `<graph>__H__s<i>` | `<graph>__H-recent5__s<i>` |
+| H seed identifier | `H` | `H-recent5` (legacy variant keeps `H`) |
+| Qwen answers | `qwen_archive_20261001.tgz` | R/S/B reused, H in `hrecent5_20260917_qwen/` |
+
+Observation counts are derived from the calibrated budgets (`common.planned_sizes`);
+no status, manifest or evaluation path carries a fixed H sample count. The current
+run has 276 main observations (13×20 + 16), 316 training observations and 3 312
+planned calls, 1 656 of them Qwen. R, S and B answers are reused only where
+`scripts/check_qwen_reuse.py` finds identical request id, observation block,
+prompt hash, request seed, stored-answer metadata, generation-relevant payload
+and per-request sampling configuration. The payload fields that differ
+(`response_format`, `stream`, `stream_options` versus `executed_*`) are the
+documentation correction of commit 9c5b04b; `run_qwen_batch.py` never read them.
+No previous H answer is used.
+
+### Offline acceptance and the mechanism comparison
+
+`scripts/check_h_recent.py` draws 20 samples per main graph on a separate stream
+(one for the saturated graph) and reports the SRS check of the selection
+component, the information actually lost over all dyads, signed and absolute
+error components, coverage of the truth by [L,U], volume, at-cap share, width,
+and the existing baselines with Monte-Carlo errors. On the same sampled dyads it
+also keeps min(5, m_e) events drawn uniformly without replacement instead of the
+most recent ones (identical volume by construction) and compares lost information
+and plug-in error. That comparison uses no LLM call, fits no model, and does not
+apply the recent-cap bounds to the uniform subsets.
+
+### Evaluation additions
+
+`scripts/evaluate_main_responses.py` keeps parser rule v2 as the main rule and
+v3 as a separate sensitivity directory, and adds, all labelled secondary or
+post-hoc: the fold's real training median as a visible reference, a fixed 50/50
+shrinkage of each answer towards the plug-in and, separately, towards the training
+median (the agreed "50/50 shrinkage" names no target, so both readings are
+reported), the componentwise median of three answers, the spread of the three
+valid answers, per-source rows, and the Monte-Carlo error split into its
+sampler and model-repeat components (a deterministic draw has sampler component
+zero). A cell whose answers were all replaced carries no numeric model value.

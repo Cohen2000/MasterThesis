@@ -35,8 +35,13 @@ and no regularisation is used anywhere. predict_profile does clamp its four
 outputs into [0,1]; the clamp is a guard against last-bit excursions only and
 raises if it ever has to move a value by more than CLAMP_TOL.
 
-Candidate 1 -- suffix (arm H), d = 1
-------------------------------------
+Candidate 1 -- suffix (legacy arm H_suffix_v1), d = 1
+-----------------------------------------------------
+Development variant of budget10-20261001 only. Arm H of the current design
+(budget10-hrecent5-20260917) observes all five windows with capped recent
+histories, so this three-to-five-window extrapolation does not apply to it and is
+neither a reference nor a feature there.
+
 The suffix arm observes windows 3,4,5 in full: every event in an observed window
 is retained, so there is no thinning and d = 1. A dyad appears in the table iff at
 least one of the three observed windows is active, hence
@@ -112,6 +117,7 @@ import math
 from dataclasses import dataclass, field
 import numpy as np
 from scipy.optimize import minimize
+from .common import LEGACY_H
 
 # Fixed before any performance check; see docs/MAIN_EXPERIMENT_IMPLEMENTATION.md.
 LOGIT_BOUND=12.0                    # mu in [6.1e-6, 1-6.1e-6]
@@ -193,9 +199,11 @@ def _unpack(z):
 
 def window_counts(o):
     """n_j = number of observed dyads with exactly j active observed windows."""
-    n=3 if o['arm']=='H' else 5
+    if o['arm'] not in (LEGACY_H,'B'):
+        raise ValueError('mixture candidates exist for the legacy suffix arm and arm B only')
+    n=3 if o['arm']==LEGACY_H else 5
     c=[0]*(n+1)
-    for pat,d,_ in o['table']: c[pat.count('1')]+=d
+    for row in o['table']: c[row[0].count('1')]+=row[1]
     return c,n
 
 

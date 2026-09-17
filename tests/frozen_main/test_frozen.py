@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
-from main_experiment.common import seed,TRAIN,REAL_TEST
+from main_experiment.common import seed,TRAIN,REAL_TEST,LEGACY_H
 from main_experiment.data import canonical
 from main_experiment.sampling import Walk,budget_parameters,draw,calibrate
 from main_experiment.observation import FEATURE_NAMES, make,serialize,parse,features,messages,validate
@@ -90,7 +90,9 @@ class FrozenTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             b,w=calibrate(g,Path(d)/'cal',Path(d)/'build')
             self.assertEqual(b['L'],b['C']); self.assertFalse(b['budget_matched'])
-            self.assertIn('calibration_cap',b['unmatched_reasons'])
+            self.assertIn('calibration_cap',b['walk_unmatched_reasons'])
+            self.assertIn('S:calibration_cap',b['unmatched_reasons'])
+            self.assertFalse(b['walk_budget_matched']); self.assertFalse(b['budget_matched_by_arm']['S'])
             b2,_=calibrate(g,Path(d)/'cal',Path(d)/'build')
             self.assertEqual(b2['L'],b['L'])
             self.assertEqual(b2['validation_mean'],3.)
@@ -119,28 +121,37 @@ class FrozenTests(unittest.TestCase):
         g=fixture(); b=budget_parameters(g)|{'L':7}
         with tempfile.TemporaryDirectory() as d:
             w=Walk(g,d)
-            for arm in 'RSHB':
+            for arm in ['R','S','H','B',LEGACY_H]:
                 c,r=draw(g,arm,1,'sample',b,w); o=make(g,arm,b,c,r)
                 block=serialize(o); restored=parse(block)
                 self.assertEqual(serialize(restored),block)
-                np.testing.assert_array_equal(features(o),features(restored))
-                self.assertEqual(len(features(o)),len(FEATURE_NAMES))
-                self.assertEqual(len(o['table']),7 if arm=='H' else 31)
+                self.assertEqual(restored['arm'],arm)
+                self.assertEqual(len(o['table']),7 if arm==LEGACY_H else 31)
+                self.assertEqual({len(row) for row in o['table']},{4} if arm=='H' else {3})
                 text=messages(block)[1]['content']
                 self.assertNotIn('fixture',text); self.assertNotIn('budget_matched',text)
-                if arm=='H':
+                if arm==LEGACY_H:
+                    # Development variant only: no features in the current design.
+                    with self.assertRaises(ValueError): features(o)
                     self.assertEqual(restored['Events_per_window'][:2],[None,None])
-                    self.assertEqual(features(o)[3:5].tolist(),[0.,0.])
                     o['Events_per_window'][0]=0
                     with self.assertRaises(ValueError): validate(o)
+                    continue
+                np.testing.assert_array_equal(features(o),features(restored))
+                self.assertEqual(len(features(o)),len(FEATURE_NAMES))
+                if arm=='H':
+                    self.assertIn('pattern,dyads,events,at_cap_dyads',block)
+                    self.assertEqual(restored['Temporal_access'],[1]*5)
+                    self.assertNotIn(None,restored['Events_per_window'])
 
     def test_corrector_edges(self):
         self.assertEqual(profile(0),[0.]*4); self.assertEqual(profile(1),[1.]*4)
         for n in [3,5]:
             self.assertEqual(activity(1,n),0); self.assertEqual(activity(n,n),1)
         g=fixture(); b=budget_parameters(g)
-        c,r=draw(g,'H',1,'sample',b); o=make(g,'H',b,c,r)
-        self.assertTrue(all(0<=x<=1 for x in corrector(o)))
+        for arm in ('H',LEGACY_H):
+            c,r=draw(g,arm,1,'sample',b); o=make(g,arm,b,c,r)
+            self.assertTrue(all(0<=x<=1 for x in corrector(o)))
         # q=1 boundary: visible all five windows but only one event per window.
         g=fixture([('a','b',t) for t in [0,.2,.4,.6,1.]])
         o=make(g,'B',{'p':.1},g.counts,None)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the durable archive of the Qwen main run.
+"""Build the durable archive of a Qwen run (main run, or the H revision with --hrecent5).
 
 The scratch workspace expires, so everything needed to re-read, re-check or
 re-evaluate this run is collected once, hashed, and verified by reading it back.
@@ -12,8 +12,14 @@ from pathlib import Path
 
 WS = Path('/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot')
 MODEL = WS / 'models/Qwen3.6-35B-A3B'
-RUN = WS / 'mainexp/run'
-OUT = Path(sys.argv[1] if len(sys.argv) > 1 else WS / 'mainexp/archive')
+# --hrecent5: archive the H-revision generation. Only its own (new H) prompts are
+# rendered; the reused R/S/B answers are already in the main-run archive.
+HREC = '--hrecent5' in sys.argv
+ARGS = [a for a in sys.argv[1:] if a != '--hrecent5']
+EXP = WS / ('hrecent5/mainexp' if HREC else 'mainexp')
+RUN = EXP / 'run'
+SRC = WS / ('hrecent5/src' if HREC else 'src')
+OUT = Path(ARGS[0] if ARGS else EXP / 'archive')
 MODES = {'thinking': True, 'nonthinking': False}
 
 
@@ -26,7 +32,7 @@ def sha(p, chunk=1 << 20):
 
 
 def main():
-    sys.path.insert(0, str(WS / 'src'))
+    sys.path.insert(0, str(SRC))
     from transformers import AutoTokenizer
     OUT.mkdir(parents=True, exist_ok=True)
     started = time.time()
@@ -37,6 +43,8 @@ def main():
     n = 0
     with open(rendered, 'w') as out:
         for f in sorted((RUN / 'observations/sample').glob('*.json')):
+            if HREC and '__H-recent5__' not in f.name:
+                continue
             d = json.loads(f.read_text())
             for mode, think in MODES.items():
                 text = tok.apply_chat_template(d['messages'], tokenize=False,
@@ -65,15 +73,15 @@ def main():
     print(f'hashed {len(ident["safetensors"])} weight shards', flush=True)
 
     # 3. everything else, copied verbatim
-    shutil.copytree(WS / 'mainexp/answers', OUT / 'answers', dirs_exist_ok=True)
+    shutil.copytree(EXP / 'answers', OUT / 'answers', dirs_exist_ok=True)
     shutil.copy2(RUN / 'requests.jsonl', OUT / 'requests.jsonl')
     shutil.copytree(RUN / 'observations', OUT / 'observations', dirs_exist_ok=True)
     shutil.copy2(WS / 'mainexp/requirements.pinned.txt', OUT / 'requirements.pinned.txt')
     logs = OUT / 'logs'; logs.mkdir(exist_ok=True)
-    for f in (WS / 'mainexp/logs').glob('*.out'):
+    for f in (EXP / 'logs').glob('*.out'):
         shutil.copy2(f, logs / f.name)
-    for extra in ('probe_result_tp1.json', 'qwen_files.txt'):
-        p = WS / 'mainexp' / extra
+    for extra in ('probe_result_tp1.json', 'qwen_files.txt', 'run_qwen_engine.py', 'qwen_hrecent5.sbatch'):
+        p = EXP / extra
         if p.exists():
             shutil.copy2(p, OUT / extra)
 

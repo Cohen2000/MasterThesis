@@ -10,11 +10,13 @@ import subprocess
 import time
 import numpy as np
 import yaml
-from .common import ROOT,REAL_TEST,TRAIN,SYNTH,ARMS,SEEDS,seed,sha,digest,read_json,write_json,verify_immutable_checkpoints, MAIN_OBSERVATIONS, TRAINING_OBSERVATIONS, PLANNED_CALLS
+from .common import (ROOT,REAL_TEST,TRAIN,SYNTH,ARMS,SEEDS,CONFIGS,LLM_REPEATS,ARM_ID,DESIGN_VERSION,
+                     H_VARIANT,seed,sha,digest,read_json,write_json,verify_immutable_checkpoints,
+                     draws_for,observation_id,planned_sizes)
 from .data import prepare_real,load_graph,save_graph
 from .synthetic import generate_pair
 from .sampling import calibrate,Walk,draw
-from .observation import make,serialize,parse,features,messages
+from .observation import make,serialize,parse,features,messages,FEATURE_VERSION
 from .training import fit_folds
 from .baselines import all_baselines
 from .evaluation import errors,paired_summary
@@ -53,7 +55,9 @@ def run(args):
     fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
     start=time.perf_counter()
     verify_immutable_checkpoints(out)
-    binding(out/'preparation_inputs.json',{'sources':source_inventory(),'master_seed':20260916})
+    binding(out/'preparation_inputs.json',{'sources':source_inventory(),'master_seed':20260916,
+                                           'design_version':DESIGN_VERSION,'h_variant':H_VARIANT,
+                                           'feature_version':FEATURE_VERSION})
     lockfile=out/'environment.lock.txt'
     packages=sorted(f'{d.metadata["Name"]}=={d.version}' for d in importlib.metadata.distributions())
     text='\n'.join(packages)+'\n'
@@ -61,14 +65,14 @@ def run(args):
     lockfile.write_text(text)
     write_json(out/'environment.json',{'python':platform.python_version(),'platform':platform.platform(),
             'git_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
-            'lock_sha256':sha(lockfile),'inference_performed':False,
+            'lock_sha256':sha(lockfile),'inference_performed':False,'design_version':DESIGN_VERSION,
             'compiler':subprocess.check_output(['g++','--version'],text=True).splitlines()[0]})
     graph_keys=list(TRAIN)+list(SYNTH)
     if args.graph:
         if args.graph not in graph_keys: raise ValueError('unknown graph')
         graph_keys=[args.graph]
     # Each source is an independent resumable stage. Failures remain explicit.
-    failures={}; all_obs=[]; train_rows=[]; truths={}; data_rows=[]; budgets=[]
+    failures={}; all_obs=[]; train_rows=[]; truths={}; data_rows=[]; budgets=[]; budget_by_graph={}
     for key in graph_keys:
         gd=out/'graphs'/key
         try:
@@ -89,15 +93,17 @@ def run(args):
                 g=load_graph(gd)
             truths[key]=g.truth; data_rows.append(read_json(gd/'manifest.json'))
             budget,walk=calibrate(g,out/'calibration'/key,out/'build')
-            budgets.append({'graph_id':key,**budget})
-            print(f'{key}: N={g.N} D={g.D} M={g.M} B={g.B} L={budget["L"]} matched={budget["budget_matched"]}',flush=True)
+            budgets.append({'graph_id':key,**budget}); budget_by_graph[key]=budget
+            print(f'{key}: N={g.N} D={g.D} M={g.M} B={g.B} L={budget["L"]} d={budget["n_dyads"]} '
+                  f'H_saturated={budget["h_saturated"]} matched={budget["budget_matched"]}',flush=True)
             for domain in (['training'] if key in TRAIN and key not in REAL_TEST else
                            ['training','sample'] if key in REAL_TEST else ['sample']):
                 for arm in ARMS:
-                    for ix in range(1,6):
-                        oid=f'{key}__{arm}__s{ix}'; dest=out/'observations'/domain/(oid+'.json')
-                        # Register seeds also on resume; every arm now draws.
-                        seed(domain,key,arm,ix)
+                    # A saturated H draw is deterministic and carried once.
+                    for ix in range(1,draws_for(arm,budget)+1):
+                        oid=observation_id(key,arm,ix); dest=out/'observations'/domain/(oid+'.json')
+                        # Register seeds also on resume.
+                        seed(domain,key,ARM_ID[arm],ix)
                         if dest.exists(): row=read_json(dest)
                         else:
                             counts,re=draw(g,arm,ix,domain,budget,walk)
@@ -108,7 +114,11 @@ def run(args):
                             row={'id':oid,'graph_id':key,'source_family':key,'stratum':'real' if key in TRAIN else 'synthetic',
                                  'arm':arm,'sample_index':ix,'domain':domain,'empty':parsed['D_obs']==0,
                                  'block':block,'block_sha256':digest(block),'messages':msg,'prompt_sha256':digest(msg),
-                                 'truth':g.truth,'budget_matched':budget['budget_matched'],
+                                 'truth':g.truth,'design_version':DESIGN_VERSION,
+                                 'h_variant':H_VARIANT if arm=='H' else None,
+                                 'deterministic_draw':draws_for(arm,budget)==1,
+                                 'budget_matched':budget['budget_matched_by_arm'][arm],
+                                 'budget_matched_all_arms':budget['budget_matched'],
                                  'internal_evaluation':{'observed_event_fraction':parsed['M_obs']/g.M,
                                     'observed_dyad_fraction':parsed['D_obs']/g.D}}
                             write_json(dest,row)
@@ -142,11 +152,14 @@ def run(args):
             for method in ['plugin','corrector','median','extratrees']:
                 group=[r for r in rs if r['arm']==arm and r['method']==method]
                 if not group: continue
-                cells={}
+                cells={}; expected={}
                 for gid in sorted({r['graph_id'] for r in group}):
-                    cells[gid]=[[r['AE2']]*3 for r in sorted(group,key=lambda x:x['sample_index']) if r['graph_id']==gid]
-                estimate=paired_summary(cells)
+                    # A baseline is deterministic given the observation: one column.
+                    cells[gid]=[[r['AE2']] for r in sorted(group,key=lambda x:x['sample_index']) if r['graph_id']==gid]
+                    expected[gid]=draws_for(arm,budget_by_graph[gid])
+                estimate=paired_summary(cells,expected)
                 summaries.append({'stratum':stratum,'arm':arm,'method':method,'MAE2':estimate['mean'],'MCSE':estimate['mcse'],
+                    'between_source_SE':estimate['between_source_se'],
                     'ProfileMAE':float(np.mean([r['ProfileAE'] for r in group])),
                     'signed_plugin_error':float(np.mean([r['signed_rho2'] for r in group])) if method=='plugin' else None,
                     'valid_fraction':float(np.mean([r['valid'] for r in group])),
@@ -174,22 +187,37 @@ def run(args):
     status=[]
     for key in [*REAL_TEST,*SYNTH]:
         for arm in ARMS:
-            for ix in range(1,2 if arm=='H' else 6):
-                oid=f'{key}__{arm}__s{ix}'; row=obs_index.get(oid)
+            # Draw counts come from the calibrated design of each graph; a graph
+            # whose preparation failed is listed with the default draw count.
+            n=draws_for(arm,budget_by_graph[key]) if key in budget_by_graph else None
+            for ix in range(1,(n or 5)+1):
+                oid=observation_id(key,arm,ix); row=obs_index.get(oid)
                 status.append({'id':oid,'graph_id':key,'arm':arm,'sample_index':ix,
                     'status':'blocked_preparation' if row is None else 'empty_no_calls' if row['empty'] else 'prepared_not_started',
-                    'planned_logical_calls':12,'actual_calls':0,'empty':row['empty'] if row else None})
+                    'deterministic_draw':None if n is None else n==1,
+                    'planned_logical_calls':len(CONFIGS)*LLM_REPEATS,'actual_calls':0,'empty':row['empty'] if row else None})
     csv_write(out/'observation_status.csv',status)
     write_json(out/'seed_manifest.json',[{'seed':s,'fields':json.loads(v)} for s,v in sorted(SEEDS.items())])
-    report={'planned_observations':MAIN_OBSERVATIONS,'prepared_observations':len(all_obs),'training_observations':len(train_rows),
-        'planned_logical_calls':PLANNED_CALLS,'request_manifest_rows':len(requests),
+    main_keys=[*REAL_TEST,*SYNTH]
+    sizes_ok=set(main_keys)|set(TRAIN)<=set(budget_by_graph)
+    design=planned_sizes(budget_by_graph,main_keys,TRAIN) if sizes_ok else None
+    MAIN=design['main_observations'] if design else None
+    report={'design_version':DESIGN_VERSION,'h_variant':H_VARIANT,'feature_version':FEATURE_VERSION,
+        'planned_observations':MAIN,'prepared_observations':len(all_obs),
+        'planned_training_observations':design['training_observations'] if design else None,
+        'training_observations':len(train_rows),
+        'deterministic_h_graphs':sorted(k for k,b in budget_by_graph.items() if b['h_saturated']),
+        'h_target_unreachable_graphs':sorted(k for k,b in budget_by_graph.items() if b['h_target_unreachable']),
+        'budget_unmatched_graphs':{k:b['unmatched_reasons'] for k,b in budget_by_graph.items() if not b['budget_matched']},
+        'planned_logical_calls':design['planned_calls'] if design else None,'request_manifest_rows':len(requests),
         'empty_observations':sum(r['empty'] for r in all_obs),
-        'eligible_unstarted_calls':sum(not r['empty'] for r in all_obs)*12,'started_calls':0,'failed_responses':0,
+        'eligible_unstarted_calls':sum(not r['empty'] for r in all_obs)*len(CONFIGS)*LLM_REPEATS,'started_calls':0,'failed_responses':0,
         'baseline_rows':len(baseline_rows),'fitted_models':7 if baseline_rows else 0,
         'prompt_sizes_checked':len(sizes),'prompt_failures':prompt_failures,'source_failures':failures,
-        'offline_ready':(len(train_rows)==TRAINING_OBSERVATIONS and complete_sources
-                         and len(all_obs)==MAIN_OBSERVATIONS and len(sizes)==MAIN_OBSERVATIONS
-                         and len(baseline_rows)==MAIN_OBSERVATIONS*4 and not prompt_failures),
+        'offline_ready':bool(design and len(train_rows)==design['training_observations'] and complete_sources
+                         and len(all_obs)==MAIN and len(sizes)==MAIN
+                         and len(requests)==design['planned_calls']
+                         and len(baseline_rows)==MAIN*4 and not prompt_failures),
         'provider_release_ready':False,'llm_study_conducted':False,
         'technical_start_conditions':['API authentication and current prices/reserves',
           'Provider framing: exact DeepSeek and Sol input size verification',
