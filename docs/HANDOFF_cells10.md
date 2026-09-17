@@ -83,3 +83,8 @@ Newest last. Each entry: date, what was done, what is next.
   request id puts each mode in its own shards, so shards 3-5 carry all thinking
   requests; they started at about 13:34 and are expected to finish within their
   two-hour limit, otherwise rounds 2-3 resume them.
+* 2026-09-17 14:55: production chain complete (1 680/1 680, all regular ends,
+  round 1 sufficed, rounds 2-3 empty, archive 1 990 files without mismatches);
+  `scripts/finish_cells10.sh` done (FINISH_DONE); report written in
+  `results/baseline_revision_cells10_20260917/REVISION_REPORT.md`. Remaining: the
+  Word overview (step 9).

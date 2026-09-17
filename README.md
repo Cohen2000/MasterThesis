@@ -38,9 +38,10 @@ PYTHONPATH=src .venv/bin/python -m unittest discover -s tests/frozen_main -v
 ```
 
 Execution state, cluster steps and how to continue are in
-[docs/HANDOFF_cells10.md](docs/HANDOFF_cells10.md). Qwen3.6-35B-A3B is the only
-model run so far; GPT-5.6 Sol and DeepSeek remain disabled. Results of the
-previous designs: [H revision](results/baseline_revision_hrecent5_20260917/REVISION_REPORT.md),
+[docs/HANDOFF_cells10.md](docs/HANDOFF_cells10.md); results are in
+[the cells10 report](results/baseline_revision_cells10_20260917/REVISION_REPORT.md).
+Qwen3.6-35B-A3B is the only model run so far (1 680 answers, all new); GPT-5.6 Sol
+and DeepSeek remain disabled. Results of the previous designs: [H revision](results/baseline_revision_hrecent5_20260917/REVISION_REPORT.md),
 [ten-percent event budget](results/baseline_revision_20261001/REVISION_REPORT.md).
 Raw empirical data, model files and bulk artifacts stay local and are ignored by Git.
 

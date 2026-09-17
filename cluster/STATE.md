@@ -1,5 +1,14 @@
 # Execution state
 
+## Current design `cells10-20260917`
+
+Finished 2026-09-17; state, commands and job ids are kept in
+[docs/HANDOFF_cells10.md](../docs/HANDOFF_cells10.md). Experiment directory
+`$WS/cells10` (generation chain `submit_production.sh`, generic job
+`qwen_engine.sbatch`, status `status.py`); the structured-output probe lives in
+`$WS/cells10_probe` and is not evaluated.
+
+
 ## H revision (design `budget10-hrecent5-20260917`)
 
 | What | Where |

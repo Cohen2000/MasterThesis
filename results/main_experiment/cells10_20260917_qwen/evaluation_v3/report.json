@@ -1,0 +1,14 @@
+{
+  "complete_main_result": false,
+  "design_version": "cells10-20260917",
+  "empty_skips": 0,
+  "fallback_only_cells": [],
+  "input_sha256": "a0e512e7e173ba54e712bd447e431a1bfebbd8d26362dc30d87a92119d5adfd0",
+  "logical_requests": 3360,
+  "metric_label": "MAE2 with fixed replacement rule (parser v2)",
+  "mock": false,
+  "not_started": 1680,
+  "primary_baselines": "results/baseline_revision_cells10_20260917/primary_baselines.json",
+  "secondary_label": "post-hoc: 50/50 shrinkage, median of three, answer spread; not main results",
+  "started": 1680
+}
