@@ -88,3 +88,8 @@ Newest last. Each entry: date, what was done, what is next.
   `scripts/finish_cells10.sh` done (FINISH_DONE); report written in
   `results/baseline_revision_cells10_20260917/REVISION_REPORT.md`. Remaining: the
   Word overview (step 9).
+* 2026-09-17 15:00: Word overview updated with targeted edits (same section pages,
+  one short new subsection in section 4); backups
+  `~/Downloads/Masterarbeit_Studienuebersicht_20260917_vor_cells10.docx` and
+  `..._vor_H-Revision.docx`. All steps of this handoff are done. Open outside this
+  design: API start checks and runs for Sol and DeepSeek (disabled).
