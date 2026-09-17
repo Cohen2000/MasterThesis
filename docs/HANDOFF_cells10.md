@@ -72,3 +72,9 @@ Newest last. Each entry: date, what was done, what is next.
   within 1.4 MCSE of zero and SD ratios 0.95-1.04, i.e. chance.
   Step 4 (smoke test in `$WS/cells10`) is replaced by the probe above, which ran
   the same runner and job script; production is watched during its first minutes.
+* 2026-09-17 13:28: offline chain rerun complete (ALL_OFFLINE_DONE, 115 tests),
+  results committed (84ae6d1) and pushed; bundle uploaded to `$WS/cells10`
+  (BUNDLE_OK, SPEC_COMMIT 84ae6d1). Production chain submitted:
+  round1=7012311, round2=7012312, round3=7012314, archive=7012315 (6 shards,
+  `$WS/cells10/mainexp/production_jobs.txt`). Next: wait for the archive job to
+  finish, then `bash scripts/finish_cells10.sh`, then report and Word overview.
