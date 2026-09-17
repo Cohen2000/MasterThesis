@@ -52,3 +52,23 @@ to one polling loop at a time; the server refuses extra multiplexed sessions.
 Newest last. Each entry: date, what was done, what is next.
 
 * 2026-09-17: design implemented and unit-tested; next: commit spec, run step 2.
+* 2026-09-17 12:55: spec committed (d225bff) and pushed; offline chain started
+  detached (`results/cells10_offline_logs/`). A structured-output probe (job
+  7011649, 8 requests of the previous design's observations, directory
+  `$WS/cells10_probe`, never evaluated) checks the answer constraint before any
+  production data exist.
+* 2026-09-17 13:10: probe 7011649 passed: 8/8 answers match the regex, the 5
+  non-thinking answers are the bare object (44-46 tokens), the 2 thinking answers
+  reason freely and emit the object right after `</think>`, engine and runner
+  token counts agree. Offline step `offline` done: 280 main / 320 training
+  observations, all 24 graphs matched on every arm, no saturated H, prompts at
+  most 1 429 tokens.
+* 2026-09-17 13:12: the first offline pass wrote fold manifests under the stale
+  training label `baseline-revision-3-hrecent5-20260917`; the label was fixed
+  (commit "fix: training revision label for cells10"), the pass discarded (logs kept
+  in `results/cells10_offline_logs/first_pass/`) and the chain restarted; the pool
+  (label-independent) was kept. In the first pass the 20-draw H check showed one
+  |z| = 2.25 and one SD ratio 1.43; 400-draw rechecks of those graphs gave means
+  within 1.4 MCSE of zero and SD ratios 0.95-1.04, i.e. chance.
+  Step 4 (smoke test in `$WS/cells10`) is replaced by the probe above, which ran
+  the same runner and job script; production is watched during its first minutes.

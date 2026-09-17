@@ -1,0 +1,27 @@
+{
+  "dev": {
+    "diagnostics": {
+      "B": {
+        "fallbacks_to_homogeneous": 68,
+        "flat_per_decade_median": 0.04449717161458011,
+        "n": 500,
+        "seconds_max": 0.18124827899737284,
+        "seconds_mean": 0.08476452532340772,
+        "seconds_total": 42.38226266170386,
+        "status_counts": {
+          "boundary_homogeneous": 56,
+          "boundary_other": 36,
+          "converged": 49,
+          "starts_disagree": 56,
+          "weakly_identified": 303
+        },
+        "weakly_identified_or_boundary": 451
+      }
+    },
+    "elapsed_seconds": 121.94480761399609,
+    "graphs": 100,
+    "observations": 2000,
+    "records": 10500
+  },
+  "elapsed_seconds": 122.36786861799192
+}
