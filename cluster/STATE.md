@@ -1,4 +1,31 @@
-# Execution state — Qwen main run
+# Execution state
+
+## H revision (design `budget10-hrecent5-20260917`)
+
+| What | Where |
+| --- | --- |
+| Offline run | `results/main_experiment/hrecent5_20260917` (local), `requests.jsonl` and `observations/sample` copied to `$WS/hrecent5/mainexp/run` |
+| Package | `$WS/hrecent5/src/main_experiment` (from the spec commit; `$WS/hrecent5/SPEC_COMMIT`, `BUNDLE_SHA256SUMS`) |
+| Runner and job | `$WS/hrecent5/mainexp/run_qwen_engine.py`, `qwen_hrecent5.sbatch` |
+| New H answers | `$WS/hrecent5/mainexp/answers/<mode>_r<repeat>/<request id>.json` |
+| Smoke answers (never evaluated) | `$WS/hrecent5/mainexp/answers_smoke/` |
+| Reused R/S/B answers | local `results/main_experiment/hrecent5_20260917_qwen/answers_reused/` (from the verified archive) |
+
+What has to exist when finished: 396 H answer files, 2 modes x 3 repeats x 66 H
+observations (13 graphs x 5 + 1 deterministic `sp_highschool2013`).
+
+```bash
+cd $WS/hrecent5/mainexp
+sbatch --array=0-3 qwen_hrecent5.sbatch 4 16 H     # resubmit the same line to resume
+python status_hrecent5.py .                        # counts per pass, end states, parser v2
+```
+
+Only `gpu_h100` (94 GB); two-hour jobs; requests are admitted during the first
+80 minutes and every finished answer is written at once.
+
+---
+
+## Main run of `budget10-20261001` (finished)
 
 Purpose: let this work be continued and checked without the session that started it.
 
