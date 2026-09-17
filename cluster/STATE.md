@@ -23,6 +23,17 @@ python status_hrecent5.py .                        # counts per pass, end states
 Only `gpu_h100` (94 GB); two-hour jobs; requests are admitted during the first
 80 minutes and every finished answer is written at once.
 
+**Status 2026-09-17: finished.** Jobs 7006499_0..3 completed in one attempt each
+(18–41 min); 396/396 answers, 395 regular ends and one output-limit hit (a
+non-thinking repetition loop, kept and replaced by the plug-in under the fixed
+rule). Archive built by job 7006976, packed as
+`$WS/hrecent5/hrecent5_qwen_archive_20260917.tgz`, copied to
+`$HOME/hrecent5_archive_20260917/` and to
+`results/main_experiment/hrecent5_qwen_archive_20260917.tgz` (SHA-256 verified at
+both ends, zero read-back mismatches). Evaluation:
+`results/main_experiment/hrecent5_20260917_qwen/evaluation_v2` (main) and
+`evaluation_v3` (sensitivity).
+
 ---
 
 ## Main run of `budget10-20261001` (finished)

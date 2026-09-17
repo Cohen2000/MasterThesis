@@ -424,7 +424,14 @@ class EvaluatorTests(unittest.TestCase):
         self.assertGreater(float(src['MCSE_model_repeats']), 0.)
         h_rows = [r for r in self.errors if r['arm'] == 'H' and r['config_id'] == 'qwen_thinking']
         self.assertTrue(all(r['reference_name'] == 'corrector' for r in h_rows))
-        self.assertTrue(all(r['rho2_inside_h_bounds'] in ('True', 'False') for r in h_rows))
+        from evaluate_main_responses import POSITIONS, bound_position
+        self.assertTrue(all(r['rho2_position_vs_h_bounds'] in POSITIONS for r in h_rows))
+        shares = [float(real_h[f'valid_rho2_{n}_share']) for n in POSITIONS]
+        self.assertAlmostEqual(sum(shares), 1.)
+        self.assertEqual(bound_position(.2003, .2, .5), 'at_lower_plugin')
+        self.assertEqual(bound_position(.19, .2, .5), 'below_lower')
+        self.assertEqual(bound_position(.3, .2, .5), 'inside')
+        self.assertEqual(bound_position(.6, .2, .5), 'above_upper')
 
     def test_secondary_metrics(self):
         sec = [r for r in self.secondary if r['config_id'] == 'qwen_thinking' and r['stratum'] == 'real'

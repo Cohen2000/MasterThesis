@@ -35,15 +35,15 @@ and a pooled ExtraTrees model with 195 features trained on 16 real sources and
 ```bash
 .venv/bin/python scripts/run_main_offline.py --out results/main_experiment/hrecent5_20260917
 .venv/bin/python scripts/verify_main_offline.py --run results/main_experiment/hrecent5_20260917
-MAIN_RUN=results/main_experiment/hrecent5_20260917 \
-  .venv/bin/python scripts/run_baseline_revision.py --out results/baseline_revision_hrecent5_20260917 --stage all
+for st in pool train dev main decompose_main decompose; do MAIN_RUN=results/main_experiment/hrecent5_20260917 \
+  .venv/bin/python scripts/run_baseline_revision.py --out results/baseline_revision_hrecent5_20260917 --stage $st; done
 .venv/bin/python scripts/check_h_recent.py          # 20-draw offline check of arm H
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests/frozen_main -v
 ```
 
-Qwen3.6-35B-A3B is the only model run so far; GPT-5.6 Sol and DeepSeek remain
-disabled. See [the runbook](docs/MAIN_EXPERIMENT_RUNBOOK.md) for cluster
-execution, [the H revision report](results/baseline_revision_hrecent5_20260917/REVISION_REPORT.md)
+Qwen3.6-35B-A3B is the only model run so far (1 656 answers: 1 260 reused R/S/B
+answers and 396 new H answers); GPT-5.6 Sol and DeepSeek remain disabled. See
+[the runbook](docs/MAIN_EXPERIMENT_RUNBOOK.md) for cluster execution, [the H revision report](results/baseline_revision_hrecent5_20260917/REVISION_REPORT.md)
 for current results, and
 [the previous revision report](results/baseline_revision_20261001/REVISION_REPORT.md)
 for the design it replaces. Raw empirical data, model files and bulk artifacts

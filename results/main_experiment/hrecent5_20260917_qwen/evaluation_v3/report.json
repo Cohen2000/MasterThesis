@@ -1,0 +1,14 @@
+{
+  "complete_main_result": false,
+  "design_version": "budget10-hrecent5-20260917",
+  "empty_skips": 0,
+  "fallback_only_cells": [],
+  "input_sha256": "c73b880471845f988152363e011154fe3dd8474a5ceba0cd0aa4e3721bedf831",
+  "logical_requests": 3312,
+  "metric_label": "MAE2 with fixed replacement rule (parser v2)",
+  "mock": false,
+  "not_started": 1656,
+  "primary_baselines": "results/baseline_revision_hrecent5_20260917/primary_baselines.json",
+  "secondary_label": "post-hoc: 50/50 shrinkage, median of three, answer spread; not main results",
+  "started": 1656
+}

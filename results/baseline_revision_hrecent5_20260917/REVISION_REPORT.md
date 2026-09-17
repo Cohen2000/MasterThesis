@@ -259,6 +259,157 @@ Previous-design H for comparison: selection +0.127 / history −0.192 / net −0
 (real), with cancellation factor 4.4. The new H has essentially no selection
 component, so the net error is the history loss and nothing cancels it.
 
+## 6. Qwen3.6-35B-A3B on the revised panel
+
+### Execution
+
+Specification commit `0468cf4`; runner commits `e027e9d` and `87d0af5` (execution
+only, no design change). Model, revision `995ad96…`, all 26 weight-shard hashes,
+tokenizer, chat template, pinned environment (vLLM 0.29.0, transformers 5.17.0,
+torch 2.13.0) and per-request sampling are identical to the archived previous
+run; the runner's own prompt token count equals the engine's for all 396 answers.
+
+* **New:** 396 H answers (66 observations × 2 modes × 3 repeats), four two-hour
+  jobs on `gpu_h100`, each shard finished in its first attempt (18–41 min, about
+  1.6 GPU-hours in total, 3.72 million output tokens). No request was admitted and
+  lost, none was generated twice. A separate smoke test (8 requests, job 7006435)
+  wrote into `answers_smoke/` and is not evaluated; its first attempt (7006420)
+  failed at start-up on a runner bug, which was fixed before any production job.
+* **Reused:** 1 260 R/S/B answers from `qwen_archive_20261001.tgz`, verified per file
+  against the archive checksums and per request by `check_qwen_reuse.py`.
+* **End states:** 395 regular ends, **one output-limit hit**: the non-thinking answer
+  `ad_memory_r1__H-recent5__s1__qwen_nonthinking__r1` fell into a repetition loop
+  ("1,1,1,…") and ran to the 258 048-token allowance in 38 minutes. It is invalid
+  under every parser rule and receives the plug-in replacement; there is no retry.
+  The same request (same seed and prompt) ended normally after 9 269 tokens in the
+  unevaluated smoke test, a concrete instance of GPU runs not being bitwise
+  reproducible. No unclosed reasoning block, no empty answer, no technical failure.
+  Output length otherwise: thinking median 8 121 (max 15 999), non-thinking median
+  9 306 (max 17 246).
+* **Archive:** `results/main_experiment/hrecent5_qwen_archive_20260917.tgz`
+  (SHA-256 in the neighbouring file; copy in `$HOME/hrecent5_archive_20260917` on the
+  cluster): 685 files — new answers, requests, observations, the 132 rendered H
+  prompts, model identity, pinned and job-time environment, runner, job script and
+  logs — with zero read-back mismatches on the cluster and after transfer.
+
+**Parser rules on the new H answers.** Thinking: v1 145/198, **v2 198/198**, v3
+198/198. Non-thinking: v1 0/198, **v2 0/198**, v3 166/198 (31 without a trailing
+JSON object, 1 non-monotone). Over all 1 656 current answers: thinking v2 828/828,
+non-thinking v2 0/828 and v3 747/828. As before, the non-thinking mode derives in
+the answer field, so under the main rule v2 it has **no valid answer in any cell**;
+its pipeline value would be the plug-in and is not reported as a model estimate.
+The v3 column below is the post-hoc sensitivity reading.
+
+### Main result on the six real sources (MAE₂)
+
+| Arm | Qwen thinking (v2) | Qwen non-thinking (v2) | Qwen non-thinking (v3, sensitivity) | plug-in | primary reference | ET pooled | training median |
+|---|---|---|---|---|---|---|---|
+| R | 0.0199 | no valid answer | 0.0198 | 0.0197 | 0.0197 | 0.0263 | 0.2288 |
+| S | 0.1384 | no valid answer | 0.1626 | 0.3222 | 0.0972 | 0.0592 | 0.2288 |
+| H | 0.1402 | no valid answer | 0.1358 | 0.1392 | 0.0350 | 0.0367 | 0.2288 |
+| B | 0.1214 | no valid answer | 0.1145 | 0.0823 | 0.0592 | 0.0497 | 0.2288 |
+
+Qwen thinking, paired differences (mean ± between-source SE) and the Monte-Carlo
+error of its MAE₂ split into model-repeat and sampler parts:
+
+| Arm | vs primary | vs plug-in | vs ET pooled | vs median | MCSE of MAE2 (model / sampler) | signed ρ₂ Qwen | signed ρ₂ plug-in |
+|---|---|---|---|---|---|---|---|
+| R | +0.0001 ± 0.0004 | +0.0001 ± 0.0004 | -0.0065 ± 0.0083 | -0.2090 ± 0.0373 | 0.0038 (0.0004 / 0.0038) | -0.0015 | -0.0019 |
+| S | +0.0412 ± 0.0112 | -0.1838 ± 0.0534 | +0.0792 ± 0.0381 | -0.0904 ± 0.0711 | 0.0181 (0.0107 / 0.0148) | +0.0758 | +0.3222 |
+| H | +0.1053 ± 0.0345 | +0.0010 ± 0.0060 | +0.1036 ± 0.0456 | -0.0886 ± 0.0696 | 0.0049 (0.0041 / 0.0038) | -0.0987 | -0.1392 |
+| B | +0.0623 ± 0.0229 | +0.0391 ± 0.0152 | +0.0718 ± 0.0233 | -0.1074 ± 0.0391 | 0.0132 (0.0144 / 0.0023) | -0.0166 | -0.0823 |
+
+R, S and B are unchanged from the previous report because the answers are the same;
+only the refitted ExtraTrees reference moved (e.g. S: +0.077 → +0.079).
+
+### Arm H
+
+| stratum | thinking | non-thinking (v3) | valid non-thinking (v3) | plug-in | midpoint | ET pooled | median |
+|---|---|---|---|---|---|---|---|
+| real | 0.1402 | 0.1358 | 0.86 | 0.1392 | 0.0350 | 0.0367 | 0.2288 |
+| dar_a0 | 0.0452 | 0.0275 | 0.80 | 0.0148 | 0.0140 | 0.0135 | 0.0357 |
+| dar_a08 | 0.0185 | 0.0488 | 0.87 | 0.0193 | 0.0151 | 0.0162 | 0.4158 |
+| ad_memoryless | 0.0036 | 0.0036 | 0.90 | 0.0036 | 0.0036 | 0.0024 | 0.3082 |
+| ad_memory | 0.0151 | 0.0427 | 0.73 | 0.0151 | 0.0150 | 0.0092 | 0.4276 |
+
+Per real source, Qwen thinking (v2):
+
+| source | Qwen thinking | MCSE (model / sampler) | signed | plug-in | midpoint | ET pooled |
+|---|---|---|---|---|---|---|
+| sp_hospital | 0.2542 | 0.0030 (0.0018 / 0.0024) | -0.1887 | 0.2546 | 0.0193 | 0.0245 |
+| sp_highschool2013 | 0.1832 | 0.0000 (0.0000 / 0.0000) | -0.1832 | 0.1832 | 0.0607 | 0.0317 |
+| copenhagen_bluetooth | 0.2082 | 0.0191 (0.0134 / 0.0136) | -0.1650 | 0.2322 | 0.0516 | 0.0046 |
+| snap_email_eu | 0.1313 | 0.0087 (0.0175 / 0.0000) | -0.0631 | 0.1310 | 0.0493 | 0.0420 |
+| snap_collegemsg | 0.0466 | 0.0205 (0.0099 / 0.0179) | +0.0008 | 0.0262 | 0.0212 | 0.0652 |
+| snap_mathoverflow | 0.0178 | 0.0030 (0.0041 / 0.0000) | +0.0072 | 0.0080 | 0.0077 | 0.0521 |
+
+`sp_highschool2013` has one deterministic observation; its three answers are
+identical (all equal to the plug-in), so both MCSE components are zero there.
+
+**Where the answers lie relative to the sample bounds** (valid answers, ρ₂, equality
+within 5·10⁻⁴ because answers are rounded; descriptive only, nothing is clipped):
+
+| stratum | config | rule | below L | = L (plug-in) | inside | = U | above U |
+|---|---|---|---|---|---|---|---|
+| real | qwen_thinking | v2 | 8 % | 71 % | 4 % | 0 % | 18 % |
+| dar_a0 | qwen_thinking | v2 | 10 % | 70 % | 3 % | 10 % | 7 % |
+| dar_a08 | qwen_thinking | v2 | 7 % | 73 % | 3 % | 13 % | 3 % |
+| ad_memoryless | qwen_thinking | v2 | 10 % | 90 % | 0 % | 0 % | 0 % |
+| ad_memory | qwen_thinking | v2 | 0 % | 87 % | 3 % | 7 % | 3 % |
+| real | qwen_nonthinking | v3 | 7 % | 52 % | 19 % | 3 % | 18 % |
+| dar_a0 | qwen_nonthinking | v3 | 12 % | 50 % | 12 % | 8 % | 17 % |
+| dar_a08 | qwen_nonthinking | v3 | 27 % | 42 % | 12 % | 4 % | 15 % |
+| ad_memoryless | qwen_nonthinking | v3 | 4 % | 96 % | 0 % | 0 % | 0 % |
+| ad_memory | qwen_nonthinking | v3 | 32 % | 32 % | 23 % | 9 % | 5 % |
+
+**Reading.** On the new H, Qwen thinking mostly reports the observed profile: 71 %
+of its valid real-source answers equal the plug-in (the lower bound), 70–90 % on the
+synthetic conditions. Its MAE₂ therefore matches the plug-in (0.140 against 0.139,
+paired +0.001 ± 0.006) and stays far behind the bound midpoint (+0.105 ± 0.035) and
+ExtraTrees (+0.104 ± 0.046). When it does correct, it often goes past the largest
+value the sampled dyads allow (18 % of real answers above U₂), and it rarely lands
+strictly between the bounds (4 %). The mean signed error moves from −0.139 to
+−0.099: a partial correction on average, driven by a minority of answers. On the
+event-dense sources where history is lost (Hospital, HighSchool2013, Email-Eu) it is
+indistinguishable from the plug-in; on Copenhagen it corrects slightly (0.208
+against 0.232); on CollegeMsg and MathOverflow, where little history is lost, it is
+worse than the plug-in (0.047 against 0.026, 0.018 against 0.008). On the synthetic
+panel it equals the plug-in except for DAR α = 0 (0.045 against 0.015).
+
+This differs from the previous design, where Qwen over-corrected H (signed +0.128,
+MAE₂ 0.208 against a plug-in of 0.072). The two arms carry different information,
+so the numbers are not a like-for-like comparison.
+
+All arms, Qwen thinking against the plug-in, by stratum (MAE₂ Qwen / plug-in):
+
+| stratum | R | S | H | B |
+|---|---|---|---|---|
+| real | 0.020 / 0.020 | 0.138 / 0.322 | 0.140 / 0.139 | 0.121 / 0.082 |
+| dar_a0 | 0.021 / 0.019 | 0.078 / 0.182 | 0.045 / 0.015 | 0.263 / 0.314 |
+| dar_a08 | 0.032 / 0.033 | 0.076 / 0.132 | 0.019 / 0.019 | 0.370 / 0.523 |
+| ad_memoryless | 0.009 / 0.009 | 0.016 / 0.037 | 0.004 / 0.004 | 0.050 / 0.042 |
+| ad_memory | 0.021 / 0.021 | 0.072 / 0.151 | 0.015 / 0.015 | 0.462 / 0.573 |
+
+### Secondary, post hoc (real sources)
+
+| configuration | arm | MAE₂ (mean of answers) | median of three | 50/50 to plug-in | 50/50 to median | answer SD (ρ₂) | observations with 3 valid |
+|---|---|---|---|---|---|---|---|
+| qwen_thinking (v2) | R | 0.0199 | 0.0197 | 0.0197 | 0.1140 | 0.001 | 30 |
+| qwen_thinking (v2) | S | 0.1384 | 0.1090 | 0.2023 | 0.1259 | 0.098 | 30 |
+| qwen_thinking (v2) | H | 0.1402 | 0.1347 | 0.1262 | 0.1681 | 0.058 | 26 |
+| qwen_thinking (v2) | B | 0.1214 | 0.0796 | 0.0889 | 0.1466 | 0.117 | 30 |
+| qwen_nonthinking (v3) | R | 0.0198 | 0.0197 | 0.0196 | 0.1138 | 0.000 | 26 |
+| qwen_nonthinking (v3) | S | 0.1626 | 0.1159 | 0.2128 | 0.1285 | 0.127 | 25 |
+| qwen_nonthinking (v3) | H | 0.1358 | 0.1371 | 0.1205 | 0.1666 | 0.080 | 15 |
+| qwen_nonthinking (v3) | B | 0.1145 | 0.0790 | 0.0874 | 0.1553 | 0.122 | 21 |
+
+"Median of three" is the componentwise median of the three pipeline answers of one
+observation; the 50/50 rows average each answer with the plug-in or with the fold's
+training median (the agreed diagnostic named no target, so both are shown). None
+of these is a main result and none was used to choose anything. The median of three
+lowers MAE₂ where the answers scatter (B 0.121 → 0.080, S 0.138 → 0.109) and hardly
+changes H (0.140 → 0.135), whose answers mostly coincide.
+
 ## 7. Descriptive budget and coverage sweep (post hoc)
 
 Authorised by the user on 2026-09-17; it changes nothing in the design. Files in
@@ -278,7 +429,10 @@ Authorised by the user on 2026-09-17; it changes nothing in the design. Files in
   0.011); the S walk-ratio corrector improves strongly (real 0.170 → 0.041) while
   the S plug-in stays biased (≈ 0.31–0.34); B plug-in improves (real 0.150 → 0.042,
   synthetic 0.466 → 0.188) and the B mixture follows (real 0.092 → 0.035); H plug-in
-  and midpoint are flat on the real sources (0.136–0.139 and 0.034).
+  and midpoint are flat on the real sources (0.136–0.139 and 0.034). The walk
+  length was recalibrated per budget (256 paths, no validation walks) and reached
+  the target on every graph; the B mixture fell back to the homogeneous corrector
+  on 4–11 % of draws per budget.
 
 None of these values was used to choose the cap, the budget or any reference.
 
@@ -292,3 +446,22 @@ None of these values was used to choose the cap, the budget or any reference.
   panel, and on CollegeMsg and MathOverflow, arm H is close to a pure selection arm.
 * Development and pool graphs come from the two generator families of the main
   synthetic instances.
+* One model, two modes. Sol and DeepSeek are not run; the four-configuration
+  comparison is incomplete by design at this stage.
+* Qwen's non-thinking mode has no valid answer under the main parser rule; its
+  numbers exist only as a post-hoc sensitivity reading.
+
+## 9. Answers to the questions of the revision
+
+* **Newly produced:** H observations for all real training sources, the 500 pool
+  graphs and the 14 main graphs; all ExtraTrees folds; all baseline predictions for
+  all arms; the development check, main baselines and decompositions; the 20-draw
+  check; the sweep; 396 Qwen H answers and the complete Qwen evaluation.
+* **Reused:** graphs, labels, pool definition and split; every R, S and B
+  observation and prompt (byte-identical); 1 260 Qwen R/S/B answers.
+* **Deterministic H:** `sp_highschool2013` only (target unreachable, d = D, −0.98 %).
+* **Is H history-shaped?** On the real panel, yes: the history component is 98 % of
+  the absolute plug-in error, with ρ₂ losses of 13–25 points on four sources. On
+  CollegeMsg, MathOverflow, DAR α = 0 and activity-driven without memory it is not;
+  on DAR α = 0.8 and activity-driven with memory the loss is small on ρ₂ and large on
+  ρ₃–ρ₅. These limit cases are reported, not tuned away.

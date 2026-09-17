@@ -9,7 +9,10 @@ Secondary, all labelled as such in the output:
     towards the training median -- post-hoc diagnostics, never tuned;
   * the componentwise median of the three answers of one observation;
   * the spread of the three answers of one observation;
-  * per-source results.
+  * per-source results;
+  * for arm H, where each valid rho_2 answer lies relative to the sample bounds
+    (added after the H answers were seen; descriptive, with a rounding tolerance,
+    never used to invalidate or clip an answer).
 A cell in which no answer is valid is reported without any numeric model value:
 its pipeline value would be the plug-in replacement, not an estimate of the model.
 Parser rule v3 is produced by collecting with --extract-trailing-json and
@@ -34,6 +37,19 @@ MODEL_METRICS=['AE2','ProfileAE','delta_AE2','delta_ProfileAE','delta_AE2_vs_plu
                'delta_AE2_vs_extratrees','delta_AE2_vs_median',
                'shrink_plugin_AE2','shrink_median_AE2','signed_rho2']
 REFERENCE_METRICS=['baseline_AE2','plugin_AE2','extratrees_pooled_AE2','median_AE2']
+# Descriptive position of a valid arm-H answer relative to the sample bounds on
+# rho_2. Answers are usually rounded to three or four decimals, so equality with
+# a bound is judged within this tolerance. Nothing is invalidated or clipped.
+BOUND_TOLERANCE=5e-4
+POSITIONS=('below_lower','at_lower_plugin','inside','at_upper','above_upper')
+
+
+def bound_position(x,lo,hi,tol=BOUND_TOLERANCE):
+    if abs(x-lo)<=tol: return 'at_lower_plugin'
+    if abs(x-hi)<=tol: return 'at_upper'
+    if x<lo: return 'below_lower'
+    if x>hi: return 'above_upper'
+    return 'inside'
 
 
 def _in_stratum(r,stratum):
@@ -100,9 +116,9 @@ def evaluate(run,response_file,out,mock=False,baselines=None):
         shrink_p=errors(None if pred is None else [(a+b)/2 for a,b in zip(pred,plug)],truth)
         shrink_m=errors(None if pred is None else [(a+b)/2 for a,b in zip(pred,median)],truth)
         d=lambda x,y: None if x is None or y is None else x-y
-        inside=None
+        position=None
         if bounds and outcome.get('valid'):
-            inside=bool(bounds['lower'][0]<=pred[0]<=bounds['upper'][0])
+            position=bound_position(pred[0],bounds['lower'][0],bounds['upper'][0])
         rows.append({k:request[k] for k in ['id','graph_id','arm','sample_index','repeat_index','config_id','stratum']} |
                     outcome | err | {'empty':obs['empty'],'deterministic_draw':draws[(obs['graph_id'],obs['arm'])]==1,
                     'observation_id':obs['id'],'prediction_json':None if pred is None else json.dumps(pred),
@@ -119,7 +135,7 @@ def evaluate(run,response_file,out,mock=False,baselines=None):
                     'extratrees_pooled_AE2':trained_error['AE2'],
                     'delta_AE2_vs_extratrees':d(err['AE2'],trained_error['AE2']),
                     'shrink_plugin_AE2':shrink_p['AE2'],'shrink_median_AE2':shrink_m['AE2'],
-                    'rho2_inside_h_bounds':inside})
+                    'rho2_position_vs_h_bounds':position})
     csv_write(out/'answer_errors.csv',rows)
     summary=[]; source_rows=[]; conditional=[]; secondary=[]
     for stratum in STRATA:
@@ -179,8 +195,9 @@ def evaluate(run,response_file,out,mock=False,baselines=None):
                     else:
                         result[metric]=None; result[metric+'_MCSE']=None
                 if arm=='H':
-                    inside=[r['rho2_inside_h_bounds'] for r in group if r['rho2_inside_h_bounds'] is not None]
-                    result['valid_rho2_inside_h_bounds_share']=float(np.mean(inside)) if inside else None
+                    pos=[r['rho2_position_vs_h_bounds'] for r in group if r['rho2_position_vs_h_bounds'] is not None]
+                    for name in POSITIONS:
+                        result[f'valid_rho2_{name}_share']=(sum(x==name for x in pos)/len(pos)) if pos else None
                 summary.append(result)
                 secondary.append({**base,**_secondary(group,sources,expected,complete and not fallback_only)})
                 # Conditional side analysis: valid answers only, averaged within
