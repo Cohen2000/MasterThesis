@@ -11,6 +11,9 @@
 # Qwen generation for the H revision (design budget10-hrecent5-20260917).
 #
 #   cd $WS/hrecent5/mainexp && sbatch --array=0-3 qwen_hrecent5.sbatch 4 16 H
+#   smoke test into a separate, never evaluated directory:
+#   sbatch --partition=gpu_h100_short,gpu_h100 --time=00:30:00 --array=0 \
+#          qwen_hrecent5.sbatch 4 16 H 8 answers_smoke 900 1500
 #
 # All six passes (two modes x three repeats) run in one engine per shard, and every
 # finished answer is written at once (run_qwen_engine.py). Only gpu_h100: the 80 GB
@@ -33,6 +36,9 @@ SHARDS="${1:-4}"
 MAXSEQ="${2:-16}"
 ARMS="${3:-H}"
 LIMIT="${4:-}"
+OUTDIR="${5:-answers}"
+ADMIT="${6:-4800}"
+STOP="${7:-6600}"
 IDX="${SLURM_ARRAY_TASK_ID:-0}"
 
 module load devel/python/3.12.3-gnu-14.2
@@ -52,10 +58,10 @@ nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader || true
 
 srun python run_qwen_engine.py \
     --run  "$WS/hrecent5/mainexp/run" \
-    --out  "$WS/hrecent5/mainexp/answers" \
+    --out  "$WS/hrecent5/mainexp/$OUTDIR" \
     --model "$WS/models/Qwen3.6-35B-A3B" \
     --arms "$ARMS" \
     --shard-index "$IDX" --shard-count "$SHARDS" \
     --max-num-seqs "$MAXSEQ" \
-    --admit-seconds 4800 --stop-seconds 6600 \
+    --admit-seconds "$ADMIT" --stop-seconds "$STOP" \
     ${LIMIT:+--limit "$LIMIT"}

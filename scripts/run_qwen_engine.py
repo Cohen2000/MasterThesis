@@ -26,9 +26,13 @@ skip_special_tokens False); free generation without a grammar; the reasoning spl
 the result-file layout <mode>_r<repeat>/<request id>.json. GENERATION_CONFIG below
 is compared against run_qwen_batch.py by scripts/check_qwen_reuse.py.
 
-The engine loop uses vLLM's LLMEngine.add_request/step. Its signature is checked
-at start-up; if it is unavailable the runner stops instead of silently falling
-back to chunked generation.
+Requests are submitted with LLM.enqueue, which in vLLM 0.29.0 is the first half
+of LLM.generate (_add_completion_requests: the same prompt rendering and
+tokenisation, a counter request id, FINAL_ONLY outputs); the loop then calls
+LLMEngine.step as LLM._run_engine does. step() reports the id enqueue assigned
+before vLLM appended its random suffix, so both forms are mapped back to the
+study's request id. If enqueue or step is unavailable the runner stops instead of
+silently falling back to chunked generation.
 """
 import argparse, hashlib, json, os, sys, time
 from collections import deque
@@ -165,11 +169,11 @@ def main():
               limit_mm_per_prompt=g['limit_mm_per_prompt'],
               max_num_seqs=a.max_num_seqs, enforce_eager=g['enforce_eager'], seed=g['engine_seed'])
     engine = llm.llm_engine
-    for name in ('add_request', 'step', 'has_unfinished_requests'):
-        if not hasattr(engine, name):
-            raise SystemExit(f'ENGINE_API_MISSING {name} in vllm {vllm.__version__}')
+    if not hasattr(llm, 'enqueue') or not hasattr(engine, 'step'):
+        raise SystemExit(f'ENGINE_API_MISSING in vllm {vllm.__version__}')
     print('MODEL_LOADED', f'{time.time()-started:.1f}s', 'vllm', vllm.__version__,
-          'add_request', str(inspect.signature(engine.add_request)), flush=True)
+          'enqueue', str(inspect.signature(llm.enqueue)), flush=True)
+    alias = {}
 
     pending = deque(todo)
     inflight = {}
@@ -197,7 +201,9 @@ def main():
                                     top_k=TOP_K, presence_penalty=PRESENCE_PENALTY,
                                     max_tokens=mt, seed=r['seed'] % (2**31),
                                     skip_special_tokens=False)
-            engine.add_request(r['id'], text, params)
+            (internal,) = llm.enqueue([text], [params], use_tqdm=False)
+            alias[internal] = r['id']
+            alias[internal.rsplit('-', 1)[0]] = r['id']
             inflight[r['id']] = (r, n_in, mt, time.time())
             admitted += 1
         if not may_admit and pending and not inflight:
@@ -205,9 +211,10 @@ def main():
         if not inflight:
             continue
         for o in engine.step():
-            if not o.finished or o.request_id not in inflight:
+            rid = alias.get(o.request_id)
+            if not o.finished or rid not in inflight:
                 continue
-            r, n_in, mt, t0 = inflight.pop(o.request_id)
+            r, n_in, mt, t0 = inflight.pop(rid)
             c = o.outputs[0]
             cfg = MODES[r['mode']]
             reasoning, final, closed = split_reasoning(c.text, cfg['enable_thinking'])
@@ -218,8 +225,10 @@ def main():
                 end = 'model_end'
             else:
                 end = f'other:{c.finish_reason}'
+            prompt_ids = getattr(o, 'prompt_token_ids', None)
             write_result(out, r, {
                 'status': 'completed', 'raw_text': c.text, 'final_text': final,
+                'engine_prompt_tokens': len(prompt_ids) if prompt_ids is not None else None,
                 'reasoning_text': reasoning, 'reasoning_closed': closed,
                 'terminal': True, 'started': True, 'mock': False,
                 'finish_reason': c.finish_reason, 'end_state': end,
