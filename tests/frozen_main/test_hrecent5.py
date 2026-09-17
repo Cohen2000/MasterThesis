@@ -1,4 +1,4 @@
-"""Arm H of budget10-hrecent5-20260917: uniform dyads, five most recent events each.
+"""The recent-cap arm H (uniform dyads, five most recent events each) under the current design.
 
 Every Monte-Carlo tolerance is stated with the sampling error it comes from, and
 every simulation has a fixed seed.
@@ -13,7 +13,8 @@ import numpy as np
 import pandas as pd
 
 from main_experiment.common import (H_CAP, LEGACY_H, ARM_ID, REAL_TEST, SYNTH, SAMPLER_DRAWS,
-                                    observation_id, rng, draws_for)
+                                    observation_id, rng, draws_for, CURRENT_RUN, CURRENT_REVISION,
+                                    ANSWER_REGEX)
 from main_experiment.data import canonical, load_graph
 from main_experiment.sampling import (budget_parameters, draw, recent_counts, reservoir_counts,
                                       h_parameters, _dyads_for, sample_dyads)
@@ -23,8 +24,9 @@ from main_experiment.baselines import plugin, corrector, h_bounds, h_midpoint
 from main_experiment.evaluation import paired_summary, cell_variance
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-RUN = ROOT / 'results/main_experiment/hrecent5_20260917'
+RUN = ROOT / CURRENT_RUN
 OLD = ROOT / 'results/main_experiment/budget10_20261001'
+PREV = ROOT / 'results/main_experiment/hrecent5_20260917'
 sys.path.insert(0, str(ROOT / 'scripts'))
 
 
@@ -106,29 +108,30 @@ class BudgetTests(unittest.TestCase):
     def test_unreachable_saturated_and_tolerance_are_separate(self):
         rows = []
         for i in range(40):
-            rows += [(f'a{i}', f'b{i}', t) for t in np.linspace(.01, .99, 40)]   # m_e = 40
+            rows += [(f'a{i}', f'b{i}', t) for t in np.linspace(.01, .99, 40)]   # m_e = 40, K_e = 5
         g = canonical('dense', pd.DataFrame(rows, columns=['u', 'v', 't']), horizon=(0, 1))[0]
-        h = h_parameters(g, g.B)
-        # C = 200 < B = 160? no: B = 0.1*1600 = 160, C = 5*40 = 200
-        self.assertEqual((h['C_cap'], g.B), (200, 160))
+        # the five most recent events of every dyad fall into window 5: J_e = 1
+        h = h_parameters(g, 4.)
+        self.assertEqual((h['J_total'], h['C_cap'], g.cells), (40, 200, 200))
         self.assertFalse(h['h_target_unreachable'])
-        self.assertEqual(h['n_dyads'], 32)
-        h2 = h_parameters(g, 199)       # d=40 gives 200, d=39 gives 195: closest is d=D
+        self.assertEqual(h['n_dyads'], 4)
+        h2 = h_parameters(g, 39.6)      # d=40 gives 40, d=39 gives 39: closest is d=D
         self.assertTrue(h2['h_saturated']); self.assertFalse(h2['h_target_unreachable'])
-        h3 = h_parameters(g, 205)       # not reachable, but 200 is within 5 %
+        h3 = h_parameters(g, 41.)       # not reachable, but 40 is within 5 %
         self.assertTrue(h3['h_saturated'] and h3['h_target_unreachable'] and h3['h_within_tolerance'])
-        h4 = h_parameters(g, 400)       # not reachable and far outside tolerance
+        h4 = h_parameters(g, 80.)       # not reachable and far outside tolerance
         self.assertTrue(h4['h_saturated'] and h4['h_target_unreachable'])
         self.assertFalse(h4['h_within_tolerance'])
 
     def test_expected_volume_is_exact_over_all_subsets(self):
-        """Exhaustive: the mean retained volume over all d-subsets equals d*C/D."""
+        """Exhaustive: mean observed active dyad-windows over all d-subsets is d*sum(J)/D."""
         import itertools
         g = random_graph(1, n=8, dyads=7, max_events=9)
-        cap = np.minimum(g.m, H_CAP)
+        J = (recent_counts(g.counts) > 0).sum(1)
+        self.assertEqual(h_parameters(g, 1.)['J_total'], int(J.sum()))
         for d in range(1, g.D + 1):
-            vols = [cap[list(s)].sum() for s in itertools.combinations(range(g.D), d)]
-            self.assertAlmostEqual(np.mean(vols), d * cap.sum() / g.D, places=9)
+            vols = [J[list(s)].sum() for s in itertools.combinations(range(g.D), d)]
+            self.assertAlmostEqual(np.mean(vols), d * J.sum() / g.D, places=9)
 
     def test_saturated_sample_is_deterministic_and_single(self):
         g = random_graph(2)
@@ -157,11 +160,11 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(len(s), d); self.assertEqual(len(set(s)), d)
 
     def test_streams_are_separate_from_the_legacy_arm(self):
-        self.assertEqual(ARM_ID['H'], 'H-recent5')
+        self.assertEqual(ARM_ID['H'], 'H-recent5-c10')
         self.assertEqual(ARM_ID[LEGACY_H], 'H')
-        self.assertEqual({ARM_ID[a] for a in 'RSB'}, set('RSB'))
-        self.assertEqual(observation_id('g', 'H', 1), 'g__H-recent5__s1')
-        self.assertEqual(observation_id('g', 'R', 1), 'g__R__s1')
+        self.assertEqual({ARM_ID[a] for a in 'RSB'}, {'R-c10', 'S-c10', 'B-c10'})
+        self.assertEqual(observation_id('g', 'H', 1), 'g__H-recent5-c10__s1')
+        self.assertEqual(observation_id('g', 'R', 1), 'g__R-c10__s1')
 
 
 class ObservationTests(unittest.TestCase):
@@ -233,17 +236,19 @@ class ObservationTests(unittest.TestCase):
         for name in ('N_full', 'D_full', 'M_full', 'truth', 'truncat'):
             self.assertNotIn(name, serialize(self.o))
 
-    def test_old_rsb_prompts_are_byte_identical(self):
-        if not (RUN / 'observations').exists() or not (OLD / 'observations').exists():
+    def test_fixed_prompt_text_is_unchanged(self):
+        """Only the observation blocks changed: system text, common prefix and the
+        rule block of every arm are byte-identical to the previous design."""
+        if not (RUN / 'observations').exists() or not (PREV / 'observations').exists():
             self.skipTest('runs not present')
-        n = 0
-        for f in sorted((RUN / 'observations' / 'sample').glob('*.json')):
-            new = json.loads(f.read_text())
-            if new['arm'] == 'H': continue
-            old = json.loads((OLD / 'observations' / 'sample' / f.name).read_text())
-            self.assertEqual((new['block'], new['prompt_sha256']), (old['block'], old['prompt_sha256']))
-            n += 1
-        self.assertEqual(n, 14 * 3 * 5)
+        def frame(row):
+            m = row['messages']
+            return m[0]['content'], m[1]['content'].replace(row['block'], '<BLOCK>')
+        for arm, tag_new, tag_old in (('R', 'R-c10', 'R'), ('S', 'S-c10', 'S'),
+                                      ('H', 'H-recent5-c10', 'H-recent5'), ('B', 'B-c10', 'B')):
+            new = json.loads((RUN / 'observations/sample' / f'sp_hospital__{tag_new}__s1.json').read_text())
+            old = json.loads((PREV / 'observations/sample' / f'sp_hospital__{tag_old}__s1.json').read_text())
+            self.assertEqual(frame(new), frame(old), arm)
 
     def test_legacy_variant_reproduces_the_old_h_blocks(self):
         if not (OLD / 'observations').exists(): self.skipTest('previous run not present')
@@ -304,6 +309,24 @@ class BoundTests(unittest.TestCase):
         with self.assertRaises(ValueError): h_bounds(make(g, 'R', b, draw(g, 'R', 1, 'sample', b)[0], None))
 
 
+class AnswerContractTests(unittest.TestCase):
+    def test_every_regex_answer_is_accepted_by_the_parser(self):
+        import re
+        from main_experiment.evaluation import parse_final
+        ok = '{"rho_2": 0.412, "rho_3": 0.2, "rho_4": 0.000001, "rho_5": 0}'
+        self.assertTrue(re.fullmatch(ANSWER_REGEX, ok))
+        self.assertEqual(parse_final(ok)[0], [0.412, 0.2, 0.000001, 0])
+        for bad in ('{"rho_2": 1.2, "rho_3": 0, "rho_4": 0, "rho_5": 0}',
+                    '{"rho_2": .5, "rho_3": 0, "rho_4": 0, "rho_5": 0}',
+                    '{"rho_3": 0, "rho_2": 0, "rho_4": 0, "rho_5": 0}',
+                    '{"rho_2": 0.1234567, "rho_3": 0, "rho_4": 0, "rho_5": 0}'):
+            self.assertIsNone(re.fullmatch(ANSWER_REGEX, bad), bad)
+        # the regex cannot enforce monotonicity; the parser still rejects it
+        mono = '{"rho_2": 0.1, "rho_3": 0.2, "rho_4": 0, "rho_5": 0}'
+        self.assertTrue(re.fullmatch(ANSWER_REGEX, mono))
+        self.assertEqual(parse_final(mono)[1], 'monotonicity')
+
+
 class ReplicationTests(unittest.TestCase):
     def test_deterministic_draw_has_no_sampler_variance(self):
         a = np.array([[.1, .2, .3]])
@@ -336,7 +359,7 @@ class EngineRunnerTests(unittest.TestCase):
         passes = parse_passes('thinking:1,thinking:2,thinking:3,nonthinking:1,nonthinking:2,nonthinking:3')
         whole = load_requests(RUN, passes, {'H'}, 0, 1)
         report = json.loads((RUN / 'report.json').read_text())
-        n_h = sum(1 for f in (RUN / 'observations/sample').glob('*__H-recent5__*.json'))
+        n_h = sum(1 for f in (RUN / 'observations/sample').glob('*__H-recent5-c10__*.json'))
         self.assertEqual(len(whole), n_h * 6)
         self.assertEqual({r['arm'] for r in whole}, {'H'})
         parts = []
@@ -365,7 +388,7 @@ class EvaluatorTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        prim = ROOT / 'results/baseline_revision_hrecent5_20260917/primary_baselines.json'
+        prim = ROOT / CURRENT_REVISION / 'primary_baselines.json'
         if not (RUN / 'requests.jsonl').exists() or not prim.exists():
             raise unittest.SkipTest('run or primary baselines not present')
         from evaluate_main_responses import evaluate
@@ -416,12 +439,13 @@ class EvaluatorTests(unittest.TestCase):
         real_h = [r for r in self.summary if r['stratum'] == 'real' and r['arm'] == 'H'
                   and r['config_id'] == 'qwen_thinking'][0]
         self.assertEqual(real_h['numeric_model_estimate'], 'True')
-        self.assertIn('sp_highschool2013', real_h['deterministic_draw_sources'])
-        src = [r for r in self.sources if r['source'] == 'sp_highschool2013' and r['arm'] == 'H'
-               and r['config_id'] == 'qwen_thinking' and r['metric'] == 'AE2'][0]
-        self.assertEqual(src['draws'], '1')
-        self.assertEqual(float(src['MCSE_sampler']), 0.)
-        self.assertGreater(float(src['MCSE_model_repeats']), 0.)
+        det = json.loads((RUN / 'report.json').read_text())['deterministic_h_graphs']
+        for name in det:
+            self.assertIn(name, real_h['deterministic_draw_sources'])
+            src = [r for r in self.sources if r['source'] == name and r['arm'] == 'H'
+                   and r['config_id'] == 'qwen_thinking' and r['metric'] == 'AE2'][0]
+            self.assertEqual(src['draws'], '1')
+            self.assertEqual(float(src['MCSE_sampler']), 0.)
         h_rows = [r for r in self.errors if r['arm'] == 'H' and r['config_id'] == 'qwen_thinking']
         self.assertTrue(all(r['reference_name'] == 'corrector' for r in h_rows))
         from evaluate_main_responses import POSITIONS, bound_position

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline acceptance check of arm H (budget10-hrecent5-20260917), 20 draws per main graph.
+"""Offline acceptance check of the recent-cap arm H, 20 draws per main graph (design in common.DESIGN_VERSION).
 
 No LLM call and no model fit. Full histories are used for evaluation only.
 
@@ -24,7 +24,8 @@ import argparse, csv, json, math, pickle, sys, time
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from main_experiment.common import (REAL_TEST, SYNTH, H_CAP, ARM_ID, rng, read_json, write_json)
+from main_experiment.common import (REAL_TEST, SYNTH, H_CAP, ARM_ID, rng, read_json, write_json,
+                                    CURRENT_RUN, CURRENT_REVISION, DESIGN_VERSION)
 from main_experiment.data import load_graph
 from main_experiment.sampling import budget_parameters, recent_counts, reservoir_counts
 from main_experiment.observation import make, serialize, parse, features
@@ -86,9 +87,9 @@ def mean_se(x):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--run', default='results/main_experiment/hrecent5_20260917')
-    ap.add_argument('--revision', default='results/baseline_revision_hrecent5_20260917')
-    ap.add_argument('--out', default='results/h_recent5_check_20260917')
+    ap.add_argument('--run', default=CURRENT_RUN)
+    ap.add_argument('--revision', default=CURRENT_REVISION)
+    ap.add_argument('--out', default='results/h_recent5_check_cells10_20260917')
     a = ap.parse_args()
     run, rev, out = Path(a.run), Path(a.revision), Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -116,7 +117,8 @@ def main():
         n_draws = 1 if b['h_saturated'] else DRAWS
         prow = {'graph_id': key, 'stratum': 'real' if real else 'synthetic', 'D': g.D, 'M': g.M, 'B': g.B,
                 'C_cap': b['C_cap'], 'n_dyads': b['n_dyads'], 'dyad_share': b['h_dyad_share'],
-                'expected_volume': b['h_expected_events'], 'relative_budget_error': b['h_relative_budget_error'],
+                'expected_cells': b['h_expected_cells'], 'expected_events': b['h_expected_events'],
+                'relative_budget_error': b['h_relative_budget_error'],
                 'target_unreachable': b['h_target_unreachable'], 'saturated': b['h_saturated'],
                 'within_tolerance': b['h_within_tolerance'], 'draws': n_draws}
         for name in ('share_capped', 'share_at_cap', 'share_J_lt_K', 'share_J_lt_K_reservoir',
@@ -155,7 +157,7 @@ def main():
             res = profile(Jr)
             truth = pop['truth']
             row = {'graph_id': key, 'stratum': prow['stratum'], 'draw': ix,
-                   'M_obs': o['M_obs'], 'volume_ratio': o['M_obs'] / g.B,
+                   'M_obs': o['M_obs'], 'volume_ratio': int((counts > 0).sum()) / b['T'],
                    'at_cap_share': sum(t[3] for t in o['table']) / o['D_obs'],
                    'lost_share': float(np.mean(Jc < K)), 'lost_share_reservoir': float(np.mean(Jr < K)),
                    'covers_truth_2': bool(lo[0] - 1e-12 <= truth[0] <= hi[0] + 1e-12),
@@ -236,7 +238,8 @@ def main():
     dump('population.csv', pop_rows); dump('draws.csv', draw_rows)
     dump('graphs.csv', graph_rows); dump('strata.csv', strata)
     summary = {
-        'design': 'budget10-hrecent5-20260917', 'draws_per_graph': DRAWS,
+        'design': DESIGN_VERSION, 'draws_per_graph': DRAWS,
+        'volume_ratio_meaning': 'observed active dyad-windows / matched target T',
         'check_streams': ['h_check', 'h_check_reservoir', 'h_check_reservoir_population'],
         'deterministic_graphs': [p['graph_id'] for p in pop_rows if p['saturated']],
         'unreachable_graphs': [p['graph_id'] for p in pop_rows if p['target_unreachable']],

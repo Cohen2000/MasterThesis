@@ -9,7 +9,8 @@ import pickle
 import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from main_experiment.common import (REAL_TEST,TRAIN,SYNTH,ARMS,CONFIGS,H_CAP,BUDGET_TOLERANCE,sha,digest,read_json,seed,
-                                    planned_sizes,observations_per_graph,draws_for,observation_id)
+                                    planned_sizes,observations_per_graph,draws_for,observation_id,
+                                    COVERAGE_FRACTION,ANSWER_REGEX)
 from main_experiment.observation import parse,features,messages,make,serialize,FEATURE_NAMES
 from main_experiment.baselines import plugin,corrector,h_midpoint
 from main_experiment.sampling import Walk,draw,recent_counts
@@ -47,14 +48,32 @@ def verify(root):
         assert float(np.mean(values))==b['validation_mean']
         assert float(np.std(values,ddof=1)/np.sqrt(len(values)))==b['validation_mcse']
         if b['search_limit_reached_without_budget']: assert b['L']==b['C'] and not b['walk_budget_matched']
-        # Arm H, recomputed independently: C = sum min(cap, m_e); d minimises
-        # |d*C/D - B| over 1..D with ties to the smaller d.
-        C=int(np.minimum(g.m,H_CAP).sum()); dd=np.arange(1,g.D+1)
-        d=int(dd[np.argmin(np.abs(dd*C/g.D-g.B))])
-        assert (b['C_cap'],b['n_dyads'])==(C,d)
-        assert b['h_saturated']==(d==g.D) and b['h_target_unreachable']==(C<g.B)
-        rel=(d*C/g.D-g.B)/g.B
+        # Matched quantity, recomputed independently from the unique (dyad, window)
+        # occurrences: T = fraction * sum_e K_e.
+        W=int(len(seen)); T=COVERAGE_FRACTION*W
+        assert b['active_dyad_windows']==W and abs(b['T']-T)<1e-9
+        # R: pi(n)*W closest to T.
+        nn=np.arange(g.N+1); pi=nn*(nn-1)/(g.N*(g.N-1))
+        assert b['n_panel']==int(np.argmin(np.abs(pi*W-T)))
+        # H: J_e = windows of the cap most recent events, by explicit timestamp sort;
+        # d minimises |d*sum(J)/D - T| over 1..D with ties to the smaller d.
+        order=np.lexsort((g.t,g.pair)); pr,ww=g.pair[order],g.w[order]
+        starts=np.r_[0,np.flatnonzero(np.diff(pr))+1]
+        ends_=np.r_[starts[1:],len(pr)]
+        rank=np.concatenate([np.arange(e-s_-1,-1,-1) for s_,e in zip(starts,ends_)])
+        keep=rank<H_CAP
+        Jcells=np.unique(pr[keep]*5+ww[keep]); J=np.bincount(Jcells//5,minlength=g.D)
+        dd=np.arange(1,g.D+1)
+        d=int(dd[np.argmin(np.abs(dd*J.sum()/g.D-T))])
+        assert (b['J_total'],b['n_dyads'])==(int(J.sum()),d)
+        assert b['h_saturated']==(d==g.D) and b['h_target_unreachable']==(J.sum()<T)
+        rel=(d*J.sum()/g.D-T)/T
         assert abs(rel-b['h_relative_budget_error'])<1e-12 and b['h_within_tolerance']==(abs(rel)<=BUDGET_TOLERANCE)
+        # B: the expected observed cells at p reproduce T.
+        ncell=g.counts[g.counts>0]
+        assert abs(float(np.sum(1-(1-b['p'])**ncell))-T)/T<1e-9
+        assert b['budget_matched_by_arm']['B']==(abs(b['bernoulli_relative_budget_error'])<=BUDGET_TOLERANCE)
+        assert b['budget_matched_by_arm']['R']==(abs(b['node_relative_budget_error'])<=BUDGET_TOLERANCE)
         assert b['budget_matched_by_arm']['H']==b['h_within_tolerance']
         assert b['budget_matched_by_arm']['S']==b['walk_budget_matched']
         assert b['budget_matched']==all(b['budget_matched_by_arm'].values())
@@ -116,6 +135,8 @@ def verify(root):
     for row in requests:
         o=read_json(root/'observations/sample'/(row['observation_id']+'.json'))
         assert row['payload'].get('messages',row['payload'].get('input'))==o['messages']
+        if row['config_id'].startswith('qwen'):
+            assert row['payload']['structured_output']['regex']==ANSWER_REGEX
     for oid in {r['observation_id'] for r in requests}:
         assert len({r['prompt_sha256'] for r in requests if r['observation_id']==oid})==1
     seeds=read_json(root/'seed_manifest.json')

@@ -11,7 +11,8 @@ import time
 import numpy as np
 import yaml
 from .common import (ROOT,REAL_TEST,TRAIN,SYNTH,ARMS,SEEDS,CONFIGS,LLM_REPEATS,ARM_ID,DESIGN_VERSION,
-                     H_VARIANT,seed,sha,digest,read_json,write_json,verify_immutable_checkpoints,
+                     H_VARIANT,MATCHED_QUANTITY,COVERAGE_FRACTION,CURRENT_RUN,
+                     seed,sha,digest,read_json,write_json,verify_immutable_checkpoints,
                      draws_for,observation_id,planned_sizes)
 from .data import prepare_real,load_graph,save_graph
 from .synthetic import generate_pair
@@ -94,7 +95,8 @@ def run(args):
             truths[key]=g.truth; data_rows.append(read_json(gd/'manifest.json'))
             budget,walk=calibrate(g,out/'calibration'/key,out/'build')
             budgets.append({'graph_id':key,**budget}); budget_by_graph[key]=budget
-            print(f'{key}: N={g.N} D={g.D} M={g.M} B={g.B} L={budget["L"]} d={budget["n_dyads"]} '
+            print(f'{key}: N={g.N} D={g.D} M={g.M} W={g.cells} T={budget["T"]:.1f} n={budget["n_panel"]} '
+                  f'L={budget["L"]} d={budget["n_dyads"]} p={budget["p"]:.5f} '
                   f'H_saturated={budget["h_saturated"]} matched={budget["budget_matched"]}',flush=True)
             for domain in (['training'] if key in TRAIN and key not in REAL_TEST else
                            ['training','sample'] if key in REAL_TEST else ['sample']):
@@ -120,7 +122,8 @@ def run(args):
                                  'budget_matched':budget['budget_matched_by_arm'][arm],
                                  'budget_matched_all_arms':budget['budget_matched'],
                                  'internal_evaluation':{'observed_event_fraction':parsed['M_obs']/g.M,
-                                    'observed_dyad_fraction':parsed['D_obs']/g.D}}
+                                    'observed_dyad_fraction':parsed['D_obs']/g.D,
+                                    'observed_cell_fraction':int((counts>0).sum())/g.cells}}
                             write_json(dest,row)
                         if digest(row['block'])!=row['block_sha256'] or digest(row['messages'])!=row['prompt_sha256']:
                             raise ValueError('observation checksum mismatch')
@@ -203,6 +206,7 @@ def run(args):
     design=planned_sizes(budget_by_graph,main_keys,TRAIN) if sizes_ok else None
     MAIN=design['main_observations'] if design else None
     report={'design_version':DESIGN_VERSION,'h_variant':H_VARIANT,'feature_version':FEATURE_VERSION,
+        'matched_quantity':MATCHED_QUANTITY,'coverage_fraction':COVERAGE_FRACTION,
         'planned_observations':MAIN,'prepared_observations':len(all_obs),
         'planned_training_observations':design['training_observations'] if design else None,
         'training_observations':len(train_rows),
@@ -233,7 +237,7 @@ def run(args):
 
 def main():
     p=argparse.ArgumentParser(description='Frozen main experiment, strictly offline; no LLM transport')
-    p.add_argument('--out',default=str(ROOT/'results/main_experiment/run'))
+    p.add_argument('--out',default=str(ROOT/CURRENT_RUN))
     p.add_argument('--raw-dir',default=str(ROOT/'data/raw'))
     p.add_argument('--tokenizers',default=str(ROOT/'data/tokenizers'))
     p.add_argument('--graph',help='Prepare one source only, resumable checkpoint for CPU jobs')

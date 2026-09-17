@@ -15,7 +15,8 @@ from main_experiment.training import fold_rows, BLOCK_WEIGHTS
 FROZEN=pathlib.Path('results/main_experiment/frozen_20260916')
 # Observation blocks follow the current design; the superseded suffix design is
 # kept under frozen_20260916 and is not read for contract checks any more.
-RUN=pathlib.Path('results/main_experiment/hrecent5_20260917')
+from main_experiment.common import CURRENT_RUN
+RUN=pathlib.Path(CURRENT_RUN)
 
 
 class PoolDefinitionTests(unittest.TestCase):
@@ -111,7 +112,7 @@ class FeatureTests(unittest.TestCase):
 
     def test_derived_block_is_scale_free_and_consistent(self):
         if not (RUN/'observations').exists(): self.skipTest('current run not present')
-        f=sorted((RUN/'observations'/'sample').glob('*__B__*.json'))[0]
+        f=sorted((RUN/'observations'/'sample').glob('*__B-c10__*.json'))[0]
         o=parse(json.loads(f.read_text())['block'])
         v=features(o); names=list(FEATURE_NAMES)
         share=[v[names.index(f'share_{p:05b}_dyads')] for p in range(1,32)]
@@ -138,7 +139,7 @@ class FeatureTests(unittest.TestCase):
         arm H hold the bound midpoint, not the three-to-five-window extrapolation."""
         if not (RUN/'observations').exists(): self.skipTest('current run not present')
         from main_experiment.baselines import h_midpoint, activity, profile
-        f=sorted((RUN/'observations'/'sample').glob('*__H-recent5__*.json'))[0]
+        f=sorted((RUN/'observations'/'sample').glob('*__H-recent5-c10__*.json'))[0]
         o=parse(json.loads(f.read_text())['block'])
         v=features(o); names=list(FEATURE_NAMES)
         caps=[r[3] for r in o['table']]
@@ -147,7 +148,7 @@ class FeatureTests(unittest.TestCase):
             self.assertAlmostEqual(v[names.index(f'share_{p:05b}_at_cap')],c/o['D_obs'],places=12)
         self.assertEqual([v[names.index(f'corrector_rho_{k}')] for k in range(2,6)],h_midpoint(o))
         self.assertEqual([v[names.index(f'access_{i}')] for i in range(1,6)],[1.]*5)
-        g=sorted((RUN/'observations'/'sample').glob('*__B__*.json'))[0]
+        g=sorted((RUN/'observations'/'sample').glob('*__B-c10__*.json'))[0]
         b=features(parse(json.loads(g.read_text())['block']))
         self.assertTrue(all(b[names.index(f'{p:05b}_at_cap')]==0 for p in range(1,32)))
 

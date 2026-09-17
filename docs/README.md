@@ -1,8 +1,9 @@
-# Current experiment (`budget10-hrecent5-20260917`)
+# Current experiment (`cells10-20260917`)
 
+- [Handoff: state and next steps](HANDOFF_cells10.md)
 - [Offline runbook](MAIN_EXPERIMENT_RUNBOOK.md)
 - [Implementation mapping, design revisions and generator algorithms](MAIN_EXPERIMENT_IMPLEMENTATION.md);
-  the last section specifies the current arm H
+  the last section specifies the current design
 - [H revision report](../results/baseline_revision_hrecent5_20260917/REVISION_REPORT.md)
 - [Previous revision report](../results/baseline_revision_20261001/REVISION_REPORT.md)
 - [Full supplied freeze text](MAIN_FREEZE_SOURCE.txt)

@@ -197,6 +197,8 @@ def build_pool(out,specs=None,limit=None,progress=True):
                              'stratum':sp['stratum'],'parameters':sp['parameters'],
                              'seed':sp['seed'],'truth':list(g.truth),
                              'N_full':g.N,'D_full':g.D,'M_full':g.M,'B':g.B,
+                             'active_dyad_windows':g.cells,'T':budget['T'],
+                             'matched_quantity':budget['matched_quantity'],
                              'design_version':DESIGN_VERSION,
                              'budget_matched':budget['budget_matched'],
                              'budget_matched_by_arm':budget['budget_matched_by_arm'],
@@ -207,6 +209,7 @@ def build_pool(out,specs=None,limit=None,progress=True):
                              'h_relative_budget_error':budget['h_relative_budget_error'],
                              'h_within_tolerance':budget['h_within_tolerance'],
                              'node_relative_budget_error':budget['node_relative_budget_error'],
+                             'bernoulli_relative_budget_error':budget['bernoulli_relative_budget_error'],
                              'walk_validation_relative_error':budget['validation_relative_error'],
                              'latents_sha256':meta.get('latents_sha256'),
                              'observations':rows})

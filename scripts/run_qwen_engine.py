@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Qwen generation with per-request persistence, for the H revision and later passes.
+"""Qwen generation with per-request persistence (design in main_experiment.common).
 
 Why not run_qwen_batch.py
 -------------------------
@@ -23,8 +23,16 @@ Model, revision, tokenizer and chat template; LLM(...) arguments; per-request
 sampling (model-card values per mode, top_k 20, presence penalty 1.5, the output
 allowance min(258048, context - input - 8), seed = request seed mod 2**31,
 skip_special_tokens False); free generation without a grammar; the reasoning split;
-the result-file layout <mode>_r<repeat>/<request id>.json. GENERATION_CONFIG below
-is compared against run_qwen_batch.py by scripts/check_qwen_reuse.py.
+the result-file layout <mode>_r<repeat>/<request id>.json.
+
+What changed with cells10-20260917 (fixed before its generation)
+-----------------------------------------------------------------
+The final answer is constrained to common.ANSWER_REGEX and the engine runs with
+reasoning_parser='qwen3'. vLLM applies the constraint only once reasoning has
+ended: after the generated </think> in thinking mode, and from the first token in
+non-thinking mode, whose prompt already closes the reasoning block. Non-thinking
+is thereby a direct estimate without a derivation, and every final answer is a
+parseable object. --no-structured reproduces the earlier free generation.
 
 Requests are submitted with LLM.enqueue, which in vLLM 0.29.0 is the first half
 of LLM.generate (_add_completion_requests: the same prompt rendering and
@@ -39,7 +47,7 @@ from collections import deque
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from main_experiment.common import read_json
+from main_experiment.common import read_json, ANSWER_REGEX, DESIGN_VERSION
 
 MODES = {
     'thinking':    dict(temperature=1.0, top_p=0.95, enable_thinking=True,  config_id='qwen_thinking'),
@@ -54,7 +62,8 @@ GENERATION_CONFIG = {
     'seed_rule': 'request_seed % 2**31', 'skip_special_tokens': False,
     'dtype': 'bfloat16', 'tensor_parallel_size': 1, 'gpu_memory_utilization': 0.90,
     'limit_mm_per_prompt': {'image': 0, 'video': 0}, 'enforce_eager': False,
-    'engine_seed': 20260916, 'structured_output': None,
+    'engine_seed': 20260916,
+    'structured_output': {'regex': ANSWER_REGEX, 'reasoning_parser': 'qwen3'},
     'chat_template': 'tokenizer.apply_chat_template(add_generation_prompt=True, enable_thinking=mode)',
 }
 
@@ -140,6 +149,8 @@ def main():
     ap.add_argument('--stop-seconds', type=float, default=0.0,
                     help='stop stepping after this many seconds (0: no limit)')
     ap.add_argument('--limit', type=int, default=0)
+    ap.add_argument('--no-structured', action='store_true',
+                    help='free generation as in the earlier designs')
     a = ap.parse_args()
 
     started = time.time()
@@ -157,17 +168,21 @@ def main():
         return
 
     from vllm import LLM, SamplingParams
+    from vllm.sampling_params import StructuredOutputsParams
     from transformers import AutoTokenizer
     import vllm, inspect
     runner_sha = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     tok = AutoTokenizer.from_pretrained(a.model)
     g = GENERATION_CONFIG
+    structured = not a.no_structured
+    extra = {'reasoning_parser': g['structured_output']['reasoning_parser']} if structured else {}
     llm = LLM(model=a.model, tokenizer=a.model, dtype=g['dtype'],
               tensor_parallel_size=g['tensor_parallel_size'],
               max_model_len=g['max_model_len'],
               gpu_memory_utilization=g['gpu_memory_utilization'],
               limit_mm_per_prompt=g['limit_mm_per_prompt'],
-              max_num_seqs=a.max_num_seqs, enforce_eager=g['enforce_eager'], seed=g['engine_seed'])
+              max_num_seqs=a.max_num_seqs, enforce_eager=g['enforce_eager'], seed=g['engine_seed'],
+              **extra)
     engine = llm.llm_engine
     if not hasattr(llm, 'enqueue') or not hasattr(engine, 'step'):
         raise SystemExit(f'ENGINE_API_MISSING in vllm {vllm.__version__}')
@@ -197,10 +212,11 @@ def main():
                 write_result(out, r, {'status': 'input_too_long', 'input_tokens': n_in})
                 continue
             mt = min(g['max_tokens'], budget)
+            so = StructuredOutputsParams(regex=g['structured_output']['regex']) if structured else None
             params = SamplingParams(temperature=cfg['temperature'], top_p=cfg['top_p'],
                                     top_k=TOP_K, presence_penalty=PRESENCE_PENALTY,
                                     max_tokens=mt, seed=r['seed'] % (2**31),
-                                    skip_special_tokens=False)
+                                    skip_special_tokens=False, structured_outputs=so)
             (internal,) = llm.enqueue([text], [params], use_tqdm=False)
             alias[internal] = r['id']
             alias[internal.rsplit('-', 1)[0]] = r['id']
@@ -236,6 +252,8 @@ def main():
                 'seconds': time.time() - t0, 'model': a.model,
                 'mode': r['mode'], 'repeat_index': r['repeat_index'],
                 'runner': 'run_qwen_engine.py', 'runner_sha256': runner_sha,
+                'structured_output': g['structured_output'] if structured else None,
+                'design_version': DESIGN_VERSION,
                 'vllm_version': vllm.__version__, 'max_num_seqs': a.max_num_seqs})
             written += 1; out_tokens += n_out
         if time.time() - last_report > 120:

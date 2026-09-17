@@ -1,4 +1,4 @@
-"""The ten-percent budget design, its recent-cap arm H and the legacy suffix-panel variant."""
+"""The cells10 design (arms matched on active dyad-windows), its recent-cap arm H and the legacy suffix-panel variant."""
 import json
 import math
 import pathlib
@@ -8,14 +8,14 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from main_experiment.common import (BUDGET_FRACTION, ARMS, SAMPLER_DRAWS, LEGACY_H, TRAIN,
+from main_experiment.common import (BUDGET_FRACTION, COVERAGE_FRACTION, ARMS, SAMPLER_DRAWS, LEGACY_H, TRAIN,
                                     REAL_TEST, SYNTH, planned_sizes, draws_for,
-                                    observations_per_graph)
+                                    observations_per_graph, CURRENT_RUN, CURRENT_REVISION)
 from main_experiment.data import canonical, load_graph
 from main_experiment.sampling import budget_parameters, draw, calibrate
 from main_experiment.observation import make, serialize, parse, validate, PARAMS
 
-RUN = pathlib.Path('results/main_experiment/hrecent5_20260917')
+RUN = pathlib.Path(CURRENT_RUN)
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / 'scripts'))
 
 
@@ -46,15 +46,30 @@ class DesignConstantTests(unittest.TestCase):
         self.assertEqual(draws_for('H', one['sp_highschool2013']), 1)
         self.assertEqual(draws_for('R', one['sp_highschool2013']), 5)
 
-    def test_budget_is_a_fixed_share_of_the_archive(self):
-        g = fixture()
+    def test_every_arm_targets_the_same_active_dyad_windows(self):
+        g = fixture(n=200, per=6, seed=1)   # large enough for integer rounding
         b = budget_parameters(g)
+        self.assertEqual(b['active_dyad_windows'], int((g.counts > 0).sum()))
+        self.assertAlmostEqual(b['T'], COVERAGE_FRACTION * b['active_dyad_windows'])
+        self.assertAlmostEqual(b['bernoulli_expected_cells'], b['T'], places=6)   # B solved exactly
+        for key in ('node_relative_budget_error', 'h_relative_budget_error'):
+            self.assertLess(abs(b[key]), .10, key)
+        # the superseded event budget survives only as a descriptor
         self.assertEqual(b['B'], round(BUDGET_FRACTION * g.M))
-        self.assertEqual(b['p'], BUDGET_FRACTION)          # arm B is exact by construction
-        self.assertAlmostEqual(b['B'] / g.M, BUDGET_FRACTION, places=3)
+
+    def test_expected_cells_are_exact_for_the_analytic_arms(self):
+        """Monte Carlo over 400 draws: realised active dyad-windows track T for R, H, B.
+        The sampling SD of one draw is below 0.35*T on this fixture, so 0.1*T is
+        more than three standard errors of the mean."""
+        g = fixture(n=80, per=6, seed=2)
+        b = budget_parameters(g)
+        for arm in ('R', 'H', 'B'):
+            v = [int((draw(g, arm, i, 'cells_test', b)[0] > 0).sum()) for i in range(1, 401)]
+            want = {'R': b['node_expected_cells'], 'H': b['h_expected_cells'], 'B': b['bernoulli_expected_cells']}[arm]
+            self.assertLess(abs(np.mean(v) - want), .1 * b['T'], arm)
 
     def test_both_panels_target_the_same_budget(self):
-        g = fixture()
+        g = fixture(n=200, per=6, seed=1)
         b = budget_parameters(g)
         # Legacy variant: R draws from the whole archive, the suffix panel only
         # from windows 3-5, so it needs the larger panel.
@@ -186,17 +201,16 @@ class RunContentTests(unittest.TestCase):
         self.assertEqual(len(status), self.report['planned_observations'])
         self.assertTrue(all(int(r['planned_logical_calls']) == 12 for r in status))
 
-    def test_observed_volume_tracks_the_budget(self):
-        """Every arm is calibrated to the same expected volume, so the realised
-        event share should sit near ten percent for all four."""
-        man = {json.loads(f.read_text())['key']: json.loads(f.read_text())
-               for f in (RUN / 'graphs').glob('*/manifest.json')}
+    def test_observed_cells_track_the_target(self):
+        """Every arm is calibrated to the same expected number of observed active
+        dyad-windows, so the realised share should sit near ten percent for all four."""
         share = {}
         for f in (RUN / 'observations' / 'sample').glob('*.json'):
-            d = json.loads(f.read_text()); o = parse(d['block'])
-            share.setdefault(d['arm'], []).append(o['M_obs'] / man[d['graph_id']]['M_full'])
+            d = json.loads(f.read_text())
+            share.setdefault(d['arm'], []).append(d['internal_evaluation']['observed_cell_fraction'])
+        self.assertEqual(set(share), set(ARMS))
         for arm, v in share.items():
-            self.assertAlmostEqual(float(np.median(v)), BUDGET_FRACTION, delta=.03,
+            self.assertAlmostEqual(float(np.median(v)), COVERAGE_FRACTION, delta=.02,
                                    msg=f'{arm} median share {np.median(v):.3f}')
 
 
@@ -311,14 +325,14 @@ class DataSeparationTests(unittest.TestCase):
         train = {g['key'] for g in d if g['partition'] == 'train'}
         dev = {g['key'] for g in d if g['partition'] == 'dev'}
         self.assertFalse(train & dev)
-        man = pathlib.Path('results/baseline_revision_hrecent5_20260917/models_pooled/synthetic/manifest.json')
+        man = pathlib.Path(CURRENT_REVISION) / 'models_pooled/synthetic/manifest.json'
         if not man.exists(): self.skipTest('pooled model not fitted')
         used = set(json.loads(man.read_text())['sources'])
         self.assertFalse(used & dev, 'a development graph reached the training pool')
         self.assertTrue(train <= used | {s for s in used})
 
     def test_no_main_test_source_leaks_into_its_own_fold(self):
-        base = pathlib.Path('results/baseline_revision_hrecent5_20260917/models_pooled')
+        base = pathlib.Path(CURRENT_REVISION) / 'models_pooled'
         if not base.exists(): self.skipTest('models not fitted')
         for src in REAL_TEST:
             m = json.loads((base / src / 'manifest.json').read_text())

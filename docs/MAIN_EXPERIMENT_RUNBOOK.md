@@ -1,6 +1,14 @@
 # Main experiment offline runbook
 
-## Current design: `budget10-hrecent5-20260917`
+## Current design: `cells10-20260917`
+
+Use [HANDOFF_cells10.md](HANDOFF_cells10.md): `scripts/run_cells10_offline.sh`
+(offline chain), `scripts/cluster_bundle.sh` (upload), `cluster/qwen_engine.sbatch`
+and `cluster/submit_production.sh` (generation chain with resume rounds and
+archive), `scripts/finish_cells10.sh` (collection and evaluation). The commands
+below document the previous design and remain valid for it.
+
+## Previous design: `budget10-hrecent5-20260917`
 
 Everything writes into its own directory; earlier runs are never touched.
 

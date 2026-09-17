@@ -13,14 +13,22 @@ TRAIN = ('sp_hospital','sp_primaryschool','sp_highschool2013','sp_workplace',
          'jodie_reddit','jodie_lastfm','jodie_mooc','copenhagen_bluetooth')
 ARMS = ('R','S','H','B')
 # Design revision history, newest last. budget10-20261001 made the budget a fixed
-# share of the full event archive. budget10-hrecent5-20260917 replaces arm H: a
-# uniform sample of active dyads, each with its five most recent events, instead
-# of a node panel restricted to windows 3-5. The date-like suffix of the older id
-# is a revision label, not a date; the newer one is the date it was written.
-DESIGN_VERSION = 'budget10-hrecent5-20260917'
-PREVIOUS_DESIGN_VERSION = 'budget10-20261001'
-BUDGET_FRACTION = 0.10
-BUDGET_TOLERANCE = 0.05      # unchanged relative tolerance for expected volume
+# share of the full event archive. budget10-hrecent5-20260917 replaced arm H by a
+# uniform sample of active dyads, each with its five most recent events.
+# cells10-20260917 keeps every mechanism but matches the arms on the quantity the
+# target is made of: the expected number of observed active dyad-windows is ten
+# percent of all active dyad-windows of the full archive (sum_e K_e). The event
+# budget matched event volume, which let H and B see 46 % and 37 % of the active
+# dyad-windows of the real sources against 2.4 % for S. The date-like suffix of
+# budget10-20261001 is a revision label, not a date.
+DESIGN_VERSION = 'cells10-20260917'
+PREVIOUS_DESIGN_VERSION = 'budget10-hrecent5-20260917'
+MATCHED_QUANTITY = 'expected_observed_active_dyad_windows'
+COVERAGE_FRACTION = 0.10     # share of sum_e K_e every arm observes in expectation
+BUDGET_FRACTION = 0.10       # event budget of the superseded designs; legacy variants only
+BUDGET_TOLERANCE = 0.05      # unchanged relative tolerance for the matched expectation
+CURRENT_RUN = 'results/main_experiment/cells10_20260917'
+CURRENT_REVISION = 'results/baseline_revision_cells10_20260917'
 SAMPLER_DRAWS = 5            # sampler draws per graph and arm, if the draw is random
 LLM_REPEATS = 3
 CONFIGS = ('sol','deepseek','qwen_thinking','qwen_nonthinking')
@@ -37,12 +45,19 @@ H_VARIANT = 'recent5'
 H_CAP = 5
 LEGACY_H = 'H_suffix_v1'
 LEGACY_ARMS = (LEGACY_H,)
-# Identifier used in seed derivation and in observation ids. R, S and B keep their
-# letters, so their draws, observation ids and request seeds are exactly those of
-# the previous design and their prompts can be checked for reuse. The new H gets
-# its own identifier: its streams and request ids can never coincide with the old
-# H's. The legacy variant keeps 'H', which reproduces its original draws.
-ARM_ID = {'R':'R','S':'S','H':'H-recent5','B':'B',LEGACY_H:'H'}
+# Identifier used in seed derivation, observation ids and request ids. Every arm
+# of this design carries the design tag, so no stream, observation id or request
+# id can coincide with an earlier design's; no earlier answer can be mistaken for
+# one of this design. The legacy suffix variant keeps 'H', which reproduces its
+# original draws.
+DESIGN_TAG = 'c10'
+ARM_ID = {'R':'R-c10','S':'S-c10','H':'H-recent5-c10','B':'B-c10',LEGACY_H:'H'}
+# Final-answer constraint used for generation (both Qwen modes). Fixed key order,
+# fixed spacing, each value 0 or 1 with at most six decimals. It guarantees a
+# parseable object; monotonicity is still checked by the parser.
+ANSWER_NUMBER = r'(0|0\.[0-9]{1,6}|1|1\.0{1,6})'
+ANSWER_REGEX = (r'\{"rho_2": ' + ANSWER_NUMBER + r', "rho_3": ' + ANSWER_NUMBER +
+                r', "rho_4": ' + ANSWER_NUMBER + r', "rho_5": ' + ANSWER_NUMBER + r'\}')
 
 
 def draws_for(arm,budget):
@@ -61,7 +76,7 @@ def observations_per_graph(budget):
 
 
 def observation_id(graph_id,arm,index):
-    return f'{graph_id}__{ARM_ID[arm] if arm=="H" else arm}__s{index}'
+    return f'{graph_id}__{ARM_ID[arm]}__s{index}'
 
 
 def planned_sizes(budgets,main_graphs,training_graphs):

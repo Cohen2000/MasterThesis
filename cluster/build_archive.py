@@ -12,13 +12,17 @@ from pathlib import Path
 
 WS = Path('/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot')
 MODEL = WS / 'models/Qwen3.6-35B-A3B'
-# --hrecent5: archive the H-revision generation. Only its own (new H) prompts are
-# rendered; the reused R/S/B answers are already in the main-run archive.
+# --hrecent5: archive the H-revision generation (only its own H prompts rendered).
+# --exp NAME: archive the experiment directory $WS/NAME (all prompts rendered).
 HREC = '--hrecent5' in sys.argv
 ARGS = [a for a in sys.argv[1:] if a != '--hrecent5']
-EXP = WS / ('hrecent5/mainexp' if HREC else 'mainexp')
+NAME = None
+if '--exp' in ARGS:
+    i = ARGS.index('--exp'); NAME = ARGS[i + 1]; del ARGS[i:i + 2]
+if HREC: NAME = 'hrecent5'
+EXP = WS / (f'{NAME}/mainexp' if NAME else 'mainexp')
 RUN = EXP / 'run'
-SRC = WS / ('hrecent5/src' if HREC else 'src')
+SRC = WS / (f'{NAME}/src' if NAME else 'src')
 OUT = Path(ARGS[0] if ARGS else EXP / 'archive')
 MODES = {'thinking': True, 'nonthinking': False}
 
@@ -80,7 +84,9 @@ def main():
     logs = OUT / 'logs'; logs.mkdir(exist_ok=True)
     for f in (EXP / 'logs').glob('*.out'):
         shutil.copy2(f, logs / f.name)
-    for extra in ('probe_result_tp1.json', 'qwen_files.txt', 'run_qwen_engine.py', 'qwen_hrecent5.sbatch'):
+    for extra in ('probe_result_tp1.json', 'qwen_files.txt', 'run_qwen_engine.py', 'qwen_hrecent5.sbatch',
+                  'qwen_engine.sbatch', 'submit_production.sh', 'production_jobs.txt',
+                  'pip_freeze_job.txt', 'status_final.json', 'SPEC_COMMIT'):
         p = EXP / extra
         if p.exists():
             shutil.copy2(p, OUT / extra)

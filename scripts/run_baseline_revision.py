@@ -6,15 +6,17 @@ Runs offline only. No LLM call, no API access, no paid job. Earlier runs
 (frozen_20260916, budget10_20261001 and their baseline revisions) are never
 written to; every revision writes into its own output directory.
 
-Design budget10-hrecent5-20260917: arm H is a uniform dyad sample with the five
-most recent events per dyad. Its fixed reference is the bound midpoint
-(baselines.h_midpoint); it has no mixture candidate, and the old three-to-five-
-window suffix correction is used nowhere for it. Arm B keeps its mixture candidate.
+Design cells10-20260917 (arms matched on expected observed active dyad-windows):
+arm H is a uniform dyad sample with the five most recent events per dyad. Its
+fixed reference is the bound midpoint (baselines.h_midpoint); it has no mixture
+candidate, and the old three-to-five-window suffix correction is used nowhere for
+it. Arm B keeps its mixture candidate.
 """
 import argparse,math,os,sys,time
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
-from main_experiment.common import write_json,read_json,digest,LEGACY_H,DESIGN_VERSION,draws_for
+from main_experiment.common import (write_json,read_json,digest,LEGACY_H,DESIGN_VERSION,draws_for,
+                                    CURRENT_RUN)
 from main_experiment.common import REAL_TEST as REAL_TEST_LIST, SYNTH as SYNTH_LIST
 from main_experiment import pool as poolmod
 from main_experiment.training import fit_folds,TRAINING_REVISION
@@ -24,8 +26,8 @@ from main_experiment import mixtures
 
 # Current design run. frozen_20260916 and budget10_20261001 hold superseded
 # designs and are kept as the development history, not read here.
-FROZEN=Path(os.environ.get('MAIN_RUN','results/main_experiment/hrecent5_20260917'))
-PREVIOUS_POOL=Path('results/baseline_revision_20261001/pool/observations')
+FROZEN=Path(os.environ.get('MAIN_RUN',CURRENT_RUN))
+PREVIOUS_POOL=Path(os.environ.get('PREVIOUS_POOL','results/baseline_revision_hrecent5_20260917/pool/observations'))
 _FOLD={}
 
 
@@ -83,10 +85,11 @@ def stage_pool(out):
 
 
 def compare_previous_pool(out):
-    """R, S and B pool observations must be byte-identical to the previous revision.
+    """Pool graphs and labels must be those of the previous revision.
 
-    Only arm H changed. Any other difference would mean the regenerated graphs,
-    budgets or walks moved, which the revision does not allow.
+    The cells10 design changes every arm's parameters, so observation blocks are
+    expected to differ and are only counted. Labels must not move: a difference
+    would mean the regenerated graphs changed, which no revision allows.
     """
     if not PREVIOUS_POOL.exists(): return {'status':'previous pool not available'}
     same=diff=0; truth_diff=0; h_draws={}
@@ -101,8 +104,9 @@ def compare_previous_pool(out):
             if oldrows.get((r['arm'],r['sample_index']))==r['block']: same+=1
             else: diff+=1
     result={'identical_RSB_blocks':same,'different_RSB_blocks':diff,'truth_differences':truth_diff,
-            'graphs_by_H_draw_count':{str(k):v for k,v in sorted(h_draws.items())}}
-    if diff or truth_diff: raise ValueError(f'pool changed outside arm H: {result}')
+            'graphs_by_H_draw_count':{str(k):v for k,v in sorted(h_draws.items())},
+            'note':'blocks differ by design (cells10 matching); labels must be identical'}
+    if truth_diff: raise ValueError(f'pool labels changed: {result}')
     return result
 
 

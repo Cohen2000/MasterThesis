@@ -38,6 +38,10 @@ class Graph:
         return int(round(BUDGET_FRACTION*self.M))
     @property
     def m(self): return self.counts.sum(axis=1)
+    @property
+    def cells(self):
+        """Active dyad-windows of the full archive, sum_e K_e: the matched quantity."""
+        return int((self.counts>0).sum())
 
 
 def canonical(key, frame, proximity=False, horizon=None):
@@ -79,7 +83,7 @@ def save_graph(out,g,manifest,frame=None):
         # Stable sorted canonical export; source IDs and unmodified source timestamps.
         frame.to_csv(out/'canonical.csv',index=False,float_format='%.17g',lineterminator='\n')
         manifest['canonical_sha256']=sha(out/'canonical.csv')
-    manifest.update(key=g.key,N_full=g.N,D_full=g.D,M_full=g.M,B=g.B,
+    manifest.update(key=g.key,N_full=g.N,D_full=g.D,M_full=g.M,B=g.B,active_dyad_windows=g.cells,
                     horizon=list(g.horizon),truth=g.truth,events_per_window=g.counts.sum(0).tolist(),
                     graph_sha256=sha(out/'graph.npz'))
     write_json(out/'manifest.json',manifest)

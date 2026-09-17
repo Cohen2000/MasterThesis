@@ -1,5 +1,5 @@
 """Request construction and pure transport policies. No network client is exposed."""
-from .common import CONFIGS, LLM_REPEATS, ARM_ID, seed, digest
+from .common import CONFIGS, LLM_REPEATS, ARM_ID, ANSWER_REGEX, DESIGN_VERSION, seed, digest
 
 QWEN='Qwen/Qwen3.6-35B-A3B'
 REVISION='995ad96eacd98c81ed38be0c5b274b04031597b0'
@@ -15,26 +15,22 @@ def payload(config,messages,request_seed):
                 'stream_options':{'include_usage':True}}
     if config not in CONFIGS: raise ValueError(config)
     thinking=config=='qwen_thinking'
-    # What was actually executed, recorded as such. The earlier payload declared
-    # response_format json_object and streaming for a server transport; the run
-    # used vLLM's offline batch API with free-form generation and no streaming.
-    #
-    # The reason for free generation is narrower than previously claimed. A JSON
-    # grammar does not truncate reasoning in general: with a reasoning parser
-    # configured, vLLM applies structured output to the final answer only. In the
-    # offline LLM API used here no reasoning parser is attached, so a grammar
-    # would start at the first generated token -- which in thinking mode is inside
-    # the <think> block. Free generation plus the frozen strict parser avoids that
-    # without relying on a server-side parser.
+    # What is executed (cells10-20260917, fixed before generation): the vLLM
+    # offline engine, no HTTP server, no streaming, and the final answer
+    # constrained to ANSWER_REGEX. With reasoning_parser='qwen3' the constraint
+    # starts once reasoning has ended: after the generated </think> in thinking
+    # mode, and from the first generated token in non-thinking mode, whose chat
+    # template closes the reasoning block inside the prompt. Non-thinking is
+    # therefore a direct estimate without a visible derivation.
     return {'model':QWEN,'messages':messages,'max_tokens':258048,
             'temperature':1. if thinking else .7,'top_p':.95 if thinking else .80,
             'top_k':20,'min_p':0.,'presence_penalty':1.5,'repetition_penalty':1.,
             'chat_template_kwargs':{'enable_thinking':thinking},'seed':request_seed,
-            'executed_transport':'vllm offline batch api',
-            'executed_structured_output':None,
-            'executed_streaming':False,
-            'planned_but_not_used':{'response_format':{'type':'json_object'},
-                                    'stream':True,'stream_options':{'include_usage':True}}}
+            'structured_output':{'regex':ANSWER_REGEX,'reasoning_parser':'qwen3',
+                                 'applies':'after reasoning end'},
+            'design_version':DESIGN_VERSION,
+            'executed_transport':'vllm offline engine (LLM.enqueue + LLMEngine.step)',
+            'executed_streaming':False}
 
 
 def planned(observations):
@@ -119,7 +115,7 @@ EXECUTION_POLICY={
          'architecture':'Qwen3_5MoeForConditionalGeneration',
          'vllm_version':'0.29.0','transformers_version':'5.17.0',
          'torch_version':'2.13.0+cu130','dtype':'bfloat16',
-         'serving':'vllm offline batch API (no HTTP server, no guided decoding)',
+         'serving':'vllm offline engine (no HTTP server); final answer constrained by ANSWER_REGEX after reasoning (reasoning_parser qwen3)',
          'required_gpus':'2 x H100 80GB','max_model_len':262144,
          'max_output_tokens':258048,'gpu_memory_utilization':.90,
          'reasoning_split':'<think>...</think> markers of the pinned chat template',

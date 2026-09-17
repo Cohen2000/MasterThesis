@@ -8,8 +8,8 @@ target:
   components: [rho_2, rho_3, rho_4, rho_5]
   primary_error: MAE2_with_fixed_replacement
   secondary_error: ProfileMAE
-design_version: budget10-hrecent5-20260917
-previous_design_version: budget10-20261001
+design_version: cells10-20260917
+previous_design_version: budget10-hrecent5-20260917
 sampling:
   R: uniform_fixed_node_panel_full_history
   S: event_weighted_walk_full_history
@@ -19,17 +19,20 @@ sampling:
 arm_H:
   cap: 5
   parameter: n_dyads
-  dyad_count_rule: integer d in 1..D minimising |d*sum_e min(5,m_e)/D - B|, ties to smaller d
+  dyad_count_rule: integer d in 1..D minimising |d*sum_e J_e/D - T|, ties to smaller d
   reported_separately: [relative_budget_error, target_unreachable, saturated, within_tolerance]
   saturated_sample: deterministic, one observation
   table_extra_column: at_cap_dyads
   fixed_reference: bound_midpoint
 budget:
-  name: expected_observed_event_volume
-  target: fixed_share_of_full_archive
+  name: expected_observed_active_dyad_windows
+  target: 0.10 * sum_e K_e (full archive)
   fraction: 0.10
   tolerance: 0.05
-  matching: per arm (R panel rounding, S walk validation, H expected volume, B exact); all arms for budget_matched
+  per_arm: {R: node panel pi(n)*W, S: walk length on K-weighted discovery, H: d*sum(J)/D, B: p solved exactly}
+  descriptors_not_matched: [expected_events, dyad_share]
+  superseded: expected_observed_event_volume (budget10 designs)
+  matching: per arm; all arms for budget_matched
   calibration_walks: 256
   validation_walks: 1024
   extended_validation_walks: 4096
@@ -40,7 +43,7 @@ replication:
   sampler_draws_per_arm: 5            # 1 for a deterministic (saturated) H sample
   llm_repeats: 3
   sizes: derived from the calibrated budgets (main_experiment.common.planned_sizes)
-  current_run: {main_observations: 276, training_observations: 316, planned_calls: 3312, qwen_calls: 1656}
+  current_run: derived after calibration, see results/main_experiment/cells10_20260917/report.json
 training:
   sources: 16
   real_test: leave_one_source_out
@@ -54,6 +57,7 @@ training:
   random_state: 0
 evaluation:
   parser_main: v2_one_whole_answer_fence
+  generation_answer_constraint: regex rho_2..rho_5 after reasoning end (vLLM structured outputs, reasoning_parser qwen3)
   parser_sensitivity: v3_trailing_json (separate output)
   primary_references: {R: plugin_equivalent_corrector, S: walk_ratio, H: bound_midpoint, B: beta_ztp_mixture}
   secondary: [training_median, shrink50_to_plugin, shrink50_to_median, median_of_three, answer_spread, per_source]

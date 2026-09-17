@@ -1,8 +1,8 @@
 # Freeze 2026-09-16: implementation contract
 
-> Current design: **`budget10-hrecent5-20260917`**, specified in the last section
-> of this file. Earlier sections describe the designs it revises and remain valid
-> for everything the revision does not change.
+> Current design: **`cells10-20260917`**, specified in the last section of this
+> file. Earlier sections describe the designs it revises and remain valid for
+> everything the revision does not change.
 
 Authority: `MAIN_FREEZE_SOURCE.txt`, complete paragraph/table/math text extracted
 from the supplied DOCX, plus the user's instructions. No applicable AGENTS.md
@@ -322,3 +322,85 @@ reported), the componentwise median of three answers, the spread of the three
 valid answers, per-source rows, and the Monte-Carlo error split into its
 sampler and model-repeat components (a deterministic draw has sampler component
 zero). A cell whose answers were all replaced carries no numeric model value.
+
+## Design revision: matching on active dyad-windows (cells10-20260917)
+
+Design id `cells10-20260917`. **Specified after the results of
+`budget10-hrecent5-20260917` had been seen; a documented revision, not a
+retroactive preregistration.** It changes two things and nothing else: what the
+arms are matched on, and how the final answer is produced.
+
+### Why
+
+The goal is the same amount of target-relevant observation under different
+missingness mechanisms. The event budget did not deliver that: at ten percent of
+the events the real sources showed R 9.8 %, S 2.4 %, H 45.8 % and B 37.1 % of their
+active dyad-windows, because many events fall into the same active window of the
+same dyad and add nothing to K_e. The target is built from exactly those units,
+rho_k = |{e: K_e >= k}|/|E_full| with K_e the number of active windows of e.
+
+### Matched quantity
+
+Every arm is calibrated before any draw to the same expected number of observed
+active dyad-windows, T = 0.10 * W with W = sum_e K_e. Only the experimenter uses W.
+
+| Arm | Parameter | Rule |
+| --- | --- | --- |
+| R | n_panel | pi(n) W closest to T, pi(n) = n(n-1)/(N(N-1)); a panel keeps every cell of an included dyad |
+| S | L | walk calibration as before (256 paths, doubling, integer bisection, 1 024/4 096 validation walks), but a first discovery adds K_e instead of m_e; transitions stay proportional to m_e |
+| H | n_dyads | d sum_e J_e / D closest to T, J_e = windows of the five most recent events; cap 5 unchanged |
+| B | p | the p with sum over active cells of 1-(1-p)^n_cell = T, solved by bisection |
+
+Tolerance, flags and matching per arm are unchanged in form (|relative error| <=
+5 %, walk MCSE <= 1 %, `budget_matched_by_arm`). Expected events and dyad shares are
+reported as descriptors and are not matched; they now differ by design. A
+feasibility check on the fourteen main graphs before implementation found every
+arm reachable everywhere, no saturated H, and at ten percent of the cells event
+shares of R 10 %, S 10-41 %, H 1-10 %, B 1-10 % and dyad shares of R 10 %, S 5-10 %,
+H 10-15 %, B 10-27 %. The sampling rules in the prompt are unchanged; B's p and all
+other parameters are graph-specific values, as before for R, S and H.
+
+### Final answer
+
+Both Qwen modes generate with vLLM's structured outputs, the final answer
+constrained to `common.ANSWER_REGEX` (keys rho_2..rho_5 in order, values 0 or 1 or
+a decimal in [0,1] with at most six places), with `reasoning_parser='qwen3'`. vLLM
+applies the constraint once reasoning has ended: after the generated `</think>` in
+thinking mode, and from the first generated token in non-thinking mode, whose
+chat template closes the reasoning block in the prompt. Non-thinking is therefore
+defined as a direct estimate without a derivation. In the previous design the
+non-thinking mode wrote its derivation into the answer and never produced a
+bare or fenced JSON object (0/828 under the main parser), which made its numbers
+invisible behind the plug-in replacement. Parser v2 remains the main rule and
+still checks monotonicity; a non-monotone answer keeps the plug-in replacement.
+Sol and DeepSeek were already planned with JSON output. The sampling parameters of
+the two modes stay those of the model card.
+
+### Identity and reuse
+
+Every arm carries the design tag in its seed identifier and in observation and
+request ids (`R-c10`, `S-c10`, `H-recent5-c10`, `B-c10`). All observations,
+baselines, models and all 1 680 Qwen answers are produced anew; nothing from an
+earlier design is reused. The legacy suffix variant is unchanged.
+
+### Unchanged
+
+W=5, the target, MAE2 and its replacement rule, sources, generators, labels, the
+pool definition and split, the four mechanisms and their prompt texts, the H cap,
+the 195 features, ExtraTrees hyperparameters and block weights, the evaluation
+additions, model, revision, template and runner.
+
+### Known limits carried forward
+
+The matching constant (ten percent of W) is not told to any estimator. ExtraTrees
+can learn it from its training rows, the LLM cannot; this is part of the trained
+reference's extra information. The two Qwen modes differ in sampling parameters as
+well as in reasoning. Six real sources limit every real-source comparison.
+
+### Execution
+
+`scripts/run_cells10_offline.sh` runs the offline chain with resumable steps;
+`scripts/cluster_bundle.sh` uploads; `cluster/submit_production.sh` submits the
+generation, two resume rounds and the archive job as one dependency chain;
+`scripts/finish_cells10.sh` collects and evaluates. `docs/HANDOFF_cells10.md`
+records the state and the next command.

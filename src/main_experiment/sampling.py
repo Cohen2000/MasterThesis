@@ -6,10 +6,18 @@ import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from .common import (ROOT, seed, rng, sha, write_json, read_json, atomic_npz, BUDGET_FRACTION,
-                     BUDGET_TOLERANCE, H_CAP, H_VARIANT, LEGACY_H, ARM_ID, draws_for)
+                     BUDGET_TOLERANCE, H_CAP, H_VARIANT, LEGACY_H, ARM_ID, draws_for,
+                     COVERAGE_FRACTION, MATCHED_QUANTITY, DESIGN_VERSION)
 
 class Walk:
-    def __init__(self,g,build_dir):
+    """Event-weighted walk. Transitions always use full-archive event counts m_e.
+
+    volume selects what a first discovery adds to the recorded volume: 'events'
+    (m_e, the superseded event budget) or 'cells' (K_e, the active dyad-windows
+    the current design is matched on). The compiled kernel is unchanged; it adds
+    whatever weight array it is given.
+    """
+    def __init__(self,g,build_dir,volume='events'):
         build=Path(build_dir); build.mkdir(parents=True,exist_ok=True)
         src=Path(__file__).with_name('walk_kernel.cpp')
         lib=build/f'walk_{sha(src)[:16]}.so'
@@ -30,7 +38,10 @@ class Walk:
         self.cum-=np.repeat(np.r_[0,np.cumsum(weights)[starts[1:]-1]],np.diff(self.ptr))
         mat=coo_matrix((np.ones(len(nodes)),(nodes,np.r_[v,u])),shape=(g.N,g.N)).tocsr()
         _,comp=connected_components(mat,directed=False)
-        totals=np.bincount(comp[u],weights=g.m).astype(np.int64)
+        if volume not in ('events','cells'): raise ValueError(volume)
+        self.volume=volume
+        self.weight=np.ascontiguousarray(g.m if volume=='events' else g.K,dtype=np.int64)
+        totals=np.bincount(comp[u],weights=self.weight).astype(np.int64)
         self.component_volume=np.ascontiguousarray(totals[comp])
 
     def run(self,seeds,L,traversals=False):
@@ -39,7 +50,7 @@ class Walk:
         delta=np.zeros(L+1,dtype=np.int64); volumes=np.zeros(len(ss),dtype=np.int64)
         counts=np.zeros((len(ss),self.g.D),dtype=np.int64) if traversals else None
         executed=np.zeros(len(ss),dtype=np.int64)
-        args=[self.ptr,self.neighbors,self.edges,self.cum,self.g.m,self.component_volume,ss]
+        args=[self.ptr,self.neighbors,self.edges,self.cum,self.weight,self.component_volume,ss]
         self.lib.walks(self.g.N,self.g.D,*[a.ctypes.data for a in args],len(ss),L,
                        delta.ctypes.data,volumes.ctypes.data,
                        counts.ctypes.data if counts is not None else None,executed.ctypes.data)
@@ -115,30 +126,54 @@ def reservoir_counts(counts,cap,r):
     return out
 
 
-def h_parameters(g,B,cap=H_CAP):
-    """Arm H parameters with each budget condition reported on its own.
+def h_parameters(g,T,cap=H_CAP):
+    """Arm H parameters for a target T of expected observed active dyad-windows.
 
-    target_unreachable: even every active dyad keeps fewer than B events.
+    A uniform sample of d of the D active dyads observes sum_e J_e * d/D active
+    dyad-windows in expectation, where J_e counts the windows covered by dyad e's
+    cap most recent events. d is the integer in 1..D closest to T, ties to the
+    smaller d, fixed before any draw.
+
+    Reported separately, never merged:
+    target_unreachable: even every active dyad shows fewer than T windows.
     saturated: the closest integer is d=D, so the sample is the whole population.
-    within_tolerance: the unchanged 5 % rule on expected volume.
-    These are not the same: a target can be unreachable and still within
-    tolerance, and d=D can be the closest integer without the target being
-    unreachable. The cap is a design constant and does not depend on the source.
+    within_tolerance: the unchanged 5 % rule on the matched expectation.
+    The cap is a design constant and does not depend on the source.
     """
+    J=(recent_counts(g.counts,cap)>0).sum(1)
+    visible=int(J.sum())
     capped=int(np.minimum(g.m,cap).sum())
-    d,expected=_dyads_for(capped,B,g.D)
-    rel=float((expected-B)/B)
-    return {'h_variant':H_VARIANT,'h_cap':cap,'C_cap':capped,'capped_share':capped/g.M,
-            'n_dyads':d,'h_dyad_share':d/g.D,'h_expected_events':expected,
+    d,expected=_dyads_for(visible,T,g.D)
+    rel=float((expected-T)/T)
+    return {'h_variant':H_VARIANT,'h_cap':cap,'C_cap':capped,'J_total':visible,
+            'n_dyads':d,'h_dyad_share':d/g.D,'h_expected_cells':expected,
+            'h_expected_events':d*capped/g.D,
             'h_relative_budget_error':rel,
-            'h_target_unreachable':bool(capped<B),'h_saturated':bool(d==g.D),
+            'h_target_unreachable':bool(visible<T),'h_saturated':bool(d==g.D),
             'h_within_tolerance':bool(abs(rel)<=BUDGET_TOLERANCE),
             'h_capped_dyad_share':float(np.mean(g.m>cap)),
             'h_at_cap_dyad_share':float(np.mean(g.m>=cap))}
 
 
+def bernoulli_p(g,T):
+    """Retention probability whose expected observed active dyad-windows equal T.
+
+    A cell (dyad, window) with n events is observed with probability 1-(1-p)^n,
+    so the expectation is increasing in p; bisection to machine precision.
+    """
+    n=g.counts[g.counts>0].astype(float)
+    f=lambda p: float(np.sum(-np.expm1(n*np.log1p(-p)))) if p<1 else float(len(n))
+    lo,hi=0.,1.
+    for _ in range(80):
+        mid=(lo+hi)/2
+        if f(mid)<T: lo=mid
+        else: hi=mid
+    p=hi
+    return p,f(p)
+
+
 def legacy_suffix_parameters(g,B):
-    """Arm H of budget10-20261001, kept as a development variant."""
+    """Arm H of budget10-20261001, kept as a development variant (event budget)."""
     suffix=g.M_suffix
     if suffix<B: panel_h,exp_h,reasons=g.N,float(suffix),['suffix_smaller_than_budget']
     else: (panel_h,exp_h),reasons=_panel_for(suffix,B,g.N),[]
@@ -148,29 +183,41 @@ def legacy_suffix_parameters(g,B):
 
 
 def budget_parameters(g):
-    """Budget and per-arm parameters for the fixed-share design.
+    """Per-arm parameters of the cells10 design.
 
-    B is BUDGET_FRACTION of the full archive. Arm B keeps each event with exactly
-    that probability, arm R uses a uniform node panel, arm H a uniform sample of
-    active dyads with capped recent histories. Budget matching is judged per arm
-    and over all arms; the walk part is added by calibrate().
+    Every arm is matched on the expected number of observed active dyad-windows,
+    T = COVERAGE_FRACTION * sum_e K_e. R: node panel with pi(n)*W closest to T
+    (a panel keeps each dyad, and hence each of its cells, with probability pi(n)).
+    H: dyad sample, see h_parameters. B: retention probability p solved exactly.
+    S: walk length calibrated by calibrate() on cells. Expected events and dyads
+    are reported as descriptors; they are not matched. Only the experimenter uses
+    full-archive quantities.
     """
-    B=g.B
-    if B<=0 or B>g.M or g.N<2: raise ValueError('undefined budget')
-    panel,exp_r=_panel_for(g.M,B,g.N)
-    rel_r=float((exp_r-B)/B)
-    h=h_parameters(g,B)
-    return {'design_arm_H':H_VARIANT,'B':B,'p':BUDGET_FRACTION,'budget_fraction':BUDGET_FRACTION,
-            'budget_tolerance':BUDGET_TOLERANCE,
-            'n_panel':panel,'node_expected_events':exp_r,'node_relative_budget_error':rel_r,
-            **h,'legacy_suffix_panel':legacy_suffix_parameters(g,B)}
+    if g.B<=0 or g.B>g.M or g.N<2: raise ValueError('undefined budget')
+    W=g.cells; T=COVERAGE_FRACTION*W
+    panel,exp_r=_panel_for(W,T,g.N)
+    pi=panel*(panel-1)/(g.N*(g.N-1))
+    h=h_parameters(g,T)
+    p,exp_b=bernoulli_p(g,T)
+    return {'design_version':DESIGN_VERSION,'matched_quantity':MATCHED_QUANTITY,
+            'design_arm_H':H_VARIANT,'coverage_fraction':COVERAGE_FRACTION,
+            'active_dyad_windows':W,'T':T,'B':g.B,'budget_tolerance':BUDGET_TOLERANCE,
+            'n_panel':panel,'node_expected_cells':exp_r,'node_relative_budget_error':float((exp_r-T)/T),
+            'node_expected_events':pi*g.M,'node_dyad_share':pi,
+            **h,
+            'p':p,'bernoulli_expected_cells':exp_b,'bernoulli_relative_budget_error':float((exp_b-T)/T),
+            'bernoulli_expected_events':p*g.M,
+            'bernoulli_dyad_share':float(np.mean(-np.expm1(g.m*np.log1p(-p)))),
+            'legacy_suffix_panel':legacy_suffix_parameters(g,g.B)}
 
 
 def calibrate(g,out,build):
     out=Path(out); out.mkdir(parents=True,exist_ok=True)
     params=budget_parameters(g)          # raises early on an undefined budget
-    engine=Walk(g,build); C=min(100*g.D,1_000_000); B=g.B
-    seeds=[seed('walk_calibration',g.key,'S',i) for i in range(1,257)]
+    # The walk is calibrated on discovered active dyad-windows; its transitions
+    # stay event-weighted. Target and seed streams belong to this design.
+    engine=Walk(g,build,volume='cells'); C=min(100*g.D,1_000_000); B=params['T']
+    seeds=[seed('walk_calibration_cells',g.key,ARM_ID['S'],i) for i in range(1,257)]
     calfile=out/'calibrated.json'; timefile=out/'timing.json'
     # Timing before full calibration; same path prefix, no extra research draw.
     # Skipped once calibration is complete: the estimate guards work that is already
@@ -218,7 +265,7 @@ def calibrate(g,out,build):
     def extend(target):
         for first in range(len(volumes)+1,target+1,128):
             last=min(first+127,target); ids=list(range(first,last+1))
-            vs=[seed('walk_validation',g.key,'S',i) for i in ids]
+            vs=[seed('walk_validation_cells',g.key,ARM_ID['S'],i) for i in ids]
             f=out/f'validation_{first}_{last}.json'
             if f.exists(): v=read_json(f)['volumes']
             else:
@@ -238,10 +285,11 @@ def calibrate(g,out,build):
     by_arm={'R':abs(params['node_relative_budget_error'])<=BUDGET_TOLERANCE,
             'S':not walk_reasons,
             'H':params['h_within_tolerance'],
-            'B':True}
+            'B':abs(params['bernoulli_relative_budget_error'])<=BUDGET_TOLERANCE}
     reasons=[f'S:{x}' for x in walk_reasons]
     if not by_arm['R']: reasons.append('R:node_panel_outside_5_percent')
     if not by_arm['H']: reasons.append('H:expected_volume_outside_5_percent')
+    if not by_arm['B']: reasons.append('B:expected_volume_outside_5_percent')
     result={**params,**cal,'validation_n':len(volumes),'validation_mean':mean,
             'validation_mcse':se,'validation_relative_error':(mean-B)/B,
             'walk_budget_matched':not walk_reasons,'walk_unmatched_reasons':walk_reasons,

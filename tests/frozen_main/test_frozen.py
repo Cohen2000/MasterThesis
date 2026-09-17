@@ -99,19 +99,20 @@ class FrozenTests(unittest.TestCase):
 
     def test_sampling_exact_expectations(self):
         g=fixture(); b=budget_parameters(g); n=b['n_panel']
-        totals=[]
+        cells=[]; events=[]
         for panel in itertools.combinations(range(g.N),n):
             selected=np.isin(g.ends[:,0],panel)&np.isin(g.ends[:,1],panel)
-            totals.append(g.m[selected].sum())
-        self.assertAlmostEqual(np.mean(totals),b['node_expected_events'])
-        # Exhaustive Bernoulli outcomes of the six-event fixture.
+            cells.append(int((g.counts[selected]>0).sum())); events.append(g.m[selected].sum())
+        self.assertAlmostEqual(np.mean(cells),b['node_expected_cells'])
+        self.assertAlmostEqual(np.mean(events),b['node_expected_events'])
+        # Exhaustive Bernoulli outcomes of the six-event fixture: expected observed
+        # active dyad-windows at the solved p equal the target exactly.
         p=b['p']; expected=0.
         for bits in itertools.product([0,1],repeat=g.M):
-            k=sum(bits); expected+=k*p**k*(1-p)**(g.M-k)
-        # The Bernoulli arm hits the nominal budget exactly; g.B is that value
-        # rounded to an integer, which on a six-event fixture is a visible gap.
-        self.assertAlmostEqual(expected,p*g.M)
-        self.assertEqual(g.B,round(p*g.M))
+            kept=np.array(bits,bool)
+            c=np.bincount(g.pair[kept]*5+g.w[kept],minlength=g.D*5)
+            expected+=int((c>0).sum())*p**kept.sum()*(1-p)**(g.M-kept.sum())
+        self.assertAlmostEqual(expected,b['T'])
         # Fixed seeds, conservative six-standard-error test of production draws.
         volumes=[draw(g,'B',i,'sample',b)[0].sum() for i in range(1,4001)]
         se=math.sqrt(g.M*p*(1-p)/4000)
