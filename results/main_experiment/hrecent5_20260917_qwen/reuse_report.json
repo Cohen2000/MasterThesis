@@ -1,0 +1,51 @@
+{
+  "by_arm": {
+    "B": {
+      "generate": 0,
+      "reusable": 420
+    },
+    "H": {
+      "generate": 396,
+      "reusable": 0
+    },
+    "R": {
+      "generate": 0,
+      "reusable": 420
+    },
+    "S": {
+      "generate": 0,
+      "reusable": 420
+    }
+  },
+  "documentation_only_payload_differences": {
+    "executed_streaming": 1260,
+    "executed_transport": 1260,
+    "planned_but_not_used": 1260,
+    "response_format": 1260,
+    "stream": 1260,
+    "stream_options": 1260
+  },
+  "generation_keys_compared": [
+    "model",
+    "messages",
+    "max_tokens",
+    "temperature",
+    "top_p",
+    "top_k",
+    "min_p",
+    "presence_penalty",
+    "repetition_penalty",
+    "chat_template_kwargs",
+    "seed"
+  ],
+  "new_requests_needing_generation": 396,
+  "not_reusable": {
+    "no_request_with_this_id_in_previous_design": 396
+  },
+  "old_runner_reads_payload": false,
+  "previous_H_ids_colliding_with_new_ids": 0,
+  "previous_H_requests_excluded": 420,
+  "reusable": 1260,
+  "reusable_ids_sha256": "7b4c2ce635d6c6a8c5e4e8e5edf1836c9294dff70d2e3899bce1ecb73113bc97",
+  "same_sampling_configuration": true
+}

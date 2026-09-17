@@ -1,0 +1,8 @@
+{
+  "decompose": {
+    "graphs": 100,
+    "observations": 2000,
+    "seconds": 48.219146728515625
+  },
+  "elapsed_seconds": 48.238643585995305
+}

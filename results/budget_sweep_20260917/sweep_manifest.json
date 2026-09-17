@@ -1,0 +1,38 @@
+{
+  "caps": [
+    1,
+    2,
+    3,
+    5,
+    10,
+    20,
+    "full"
+  ],
+  "draws_arms": 10,
+  "draws_h": 20,
+  "fractions_arms": [
+    0.02,
+    0.05,
+    0.1,
+    0.2,
+    0.3
+  ],
+  "fractions_h": [
+    0.01,
+    0.02,
+    0.05,
+    0.1,
+    0.2,
+    0.3,
+    0.5
+  ],
+  "seconds": 90.4501805305481,
+  "status": "descriptive post-hoc sweep; the main design is not changed by it",
+  "streams": [
+    "sweep_h",
+    "sweep_arms",
+    "sweep_walk",
+    "sweep_walk_calibration"
+  ],
+  "walk_calibration": "256 paths, doubling and integer bisection as in the design; no validation walks"
+}

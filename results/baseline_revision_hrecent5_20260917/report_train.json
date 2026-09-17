@@ -1,0 +1,20 @@
+{
+  "elapsed_seconds": 20.506269413992413,
+  "train": {
+    "feature_version": "features-v3-hrecent5-20260917",
+    "folds": [
+      "copenhagen_bluetooth",
+      "snap_collegemsg",
+      "snap_email_eu",
+      "snap_mathoverflow",
+      "sp_highschool2013",
+      "sp_hospital",
+      "synthetic"
+    ],
+    "n_features": 195,
+    "pool_graphs": 400,
+    "pool_rows": 8000,
+    "real_rows": 316,
+    "revision": "baseline-revision-3-hrecent5-20260917"
+  }
+}
