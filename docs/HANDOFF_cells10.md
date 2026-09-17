@@ -78,3 +78,8 @@ Newest last. Each entry: date, what was done, what is next.
   round1=7012311, round2=7012312, round3=7012314, archive=7012315 (6 shards,
   `$WS/cells10/mainexp/production_jobs.txt`). Next: wait for the archive job to
   finish, then `bash scripts/finish_cells10.sh`, then report and Word overview.
+* 2026-09-17 13:36: round 1 shards 0-2 finished (all 840 non-thinking answers,
+  840/840 valid under parser v2, median 46 output tokens). Sharding by sorted
+  request id puts each mode in its own shards, so shards 3-5 carry all thinking
+  requests; they started at about 13:34 and are expected to finish within their
+  two-hour limit, otherwise rounds 2-3 resume them.
