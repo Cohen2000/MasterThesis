@@ -175,18 +175,18 @@ def main():
           'enqueue', str(inspect.signature(llm.enqueue)), flush=True)
     alias = {}
 
-    pending = deque(todo)
+    queue = deque(todo)
     inflight = {}
     written = 0; admitted = 0; out_tokens = 0
     last_report = time.time()
-    while pending or inflight:
+    while queue or inflight:
         now = time.time() - started
         if a.stop_seconds and now > a.stop_seconds:
-            print(f'STOP_DEADLINE with {len(inflight)} in flight and {len(pending)} not admitted', flush=True)
+            print(f'STOP_DEADLINE with {len(inflight)} in flight and {len(queue)} not admitted', flush=True)
             break
         may_admit = not (a.admit_seconds and now > a.admit_seconds)
-        while pending and may_admit and len(inflight) < a.max_num_seqs:
-            r = pending.popleft()
+        while queue and may_admit and len(inflight) < a.max_num_seqs:
+            r = queue.popleft()
             cfg = MODES[r['mode']]
             text = tok.apply_chat_template(r['messages'], tokenize=False,
                                            add_generation_prompt=True,
@@ -206,7 +206,7 @@ def main():
             alias[internal.rsplit('-', 1)[0]] = r['id']
             inflight[r['id']] = (r, n_in, mt, time.time())
             admitted += 1
-        if not may_admit and pending and not inflight:
+        if not may_admit and queue and not inflight:
             break
         if not inflight:
             continue
@@ -241,7 +241,7 @@ def main():
         if time.time() - last_report > 120:
             last_report = time.time()
             print(f'PROGRESS t={time.time()-started:.0f}s written={written} inflight={len(inflight)} '
-                  f'pending={len(pending)} out_tokens={out_tokens}', flush=True)
+                  f'queued={len(queue)} out_tokens={out_tokens}', flush=True)
     if inflight:
         print(f'ABANDONED_IN_FLIGHT {len(inflight)}: {sorted(inflight)[:5]}', flush=True)
     present = sum(result_path(out, r).exists() for r in requests)

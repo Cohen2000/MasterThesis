@@ -469,6 +469,19 @@ class ResumeTests(unittest.TestCase):
             self.assertEqual(done, {reqs[1]['id']})
             self.assertEqual([r['id'] for r in todo], [reqs[0]['id'], reqs[2]['id']])
 
+    def test_engine_main_reaches_model_loading_without_a_gpu(self):
+        """main() up to the vLLM import: argument handling, selection and resume."""
+        if not (RUN / 'requests.jsonl').exists(): self.skipTest('run not present')
+        import subprocess
+        with tempfile.TemporaryDirectory() as d:
+            cmd = [sys.executable, str(ROOT / 'scripts/run_qwen_engine.py'), '--run', str(RUN), '--out', d,
+                   '--model', 'none', '--arms', 'H', '--shard-index', '0', '--shard-count', '4', '--limit', '2']
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertIn('to run', r.stdout)
+            # Without vLLM installed the run stops at the import, not before it.
+            self.assertTrue(r.returncode == 0 or 'vllm' in r.stderr, r.stderr[-500:])
+            self.assertNotIn('UnboundLocalError', r.stderr)
+
     def test_collector_refuses_an_incomplete_set_and_keeps_prompt_hashes(self):
         if not (RUN / 'requests.jsonl').exists(): self.skipTest('run not present')
         import subprocess
