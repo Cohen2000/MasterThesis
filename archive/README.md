@@ -1,15 +1,16 @@
 # Historical archive
 
-[`legacy_pre_current_design/`](legacy_pre_current_design/README.md) preserves
-previous thesis designs (V1, V2, V2.1, G0–G4 and related pilots/screens), including
-their source code, configuration, tests, documentation, workflows, results,
-raw LLM responses and logs. Nothing here is the current study by default.
+This directory contains material that is preserved for provenance but is not part
+of the active experiment.
 
-Old results were moved, not copied or regenerated. Large ignored artifacts
-remain local and ignored; files that were previously tracked remain visible
-for review at their archived destinations. The complete raw empirical data and
-dataset registry remain at the repository root in their original paths.
+- `legacy_pre_current_design/` contains the older thesis designs, pilots, screens,
+  implementations, documentation and historical results.
+- `pre_cells10_json_20260918/` contains material superseded by the current
+  `cells10-json-20260918` experiment, including earlier runbooks, diagnostics,
+  cluster helpers and tracked result summaries.
 
-See the [cleanup manifest](../docs/REPO_CLEANUP_MANIFEST.md) for every old-to-new
-path and the [validation report](../docs/REPO_CLEANUP_VALIDATION.md) for integrity
-checks. Do not launch archived runners as a current pipeline.
+Files were moved rather than deleted. Previously tracked historical artifacts remain
+available here through Git history and their archived paths. Large generated local
+artifacts remain ignored and are not published accidentally.
+
+Do not use archived runners or configuration as the current execution workflow.

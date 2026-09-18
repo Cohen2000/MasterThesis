@@ -1,4 +1,4 @@
-# Python and local environments
+# Python and environments
 .venv/
 venv/
 __pycache__/
@@ -7,7 +7,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# Secrets and local agent/editor state
+# Secrets and editor state
 .env
 .env.*
 !.env.example
@@ -23,24 +23,23 @@ CLAUDE.local.md
 .DS_Store
 *.swp
 
-# Immutable local empirical data and literature
+# Local empirical data and literature
 /data/raw/*
 !/data/raw/.gitkeep
+/data/tokenizers/
+/data/benchmark_*/
 /literature/papers/
 
-# Future generated data/results; keep the current landing page visible
-/data/benchmark_*/
+# Generated experiment artifacts
 /results/**
 !/results/README.md
-!/results/dataset_census/
-!/results/dataset_census/README.md
-!/results/dataset_census/empirical_census.csv
-!/results/dataset_census/window_sensitivity.csv
-!/results/dataset_census/twin_feasibility.csv
-!/results/dataset_census/twin_realized_feasibility.csv
 /figures/generated/
 
-# Transient execution artifacts and prompt/output shards
+# Prevent accidental addition of untracked bulk artifacts inside archives
+/archive/**/results/**
+/archive/**/logs/**
+
+# Transient execution artifacts
 *.log
 *.pid
 *.out
@@ -53,7 +52,7 @@ nohup.out
 /outputs_shard_*
 /answers_shard_*
 
-# Local models and caches
+# Models and caches
 models/
 checkpoints/
 .cache/
@@ -61,187 +60,3 @@ huggingface/
 wandb/
 *.zip
 *.tar.gz
-
-# Historical local results remain local. Expose only the files already tracked
-# before cleanup; moving ignored artifacts must not publish them accidentally.
-/archive/legacy_pre_current_design/results/**
-!/archive/legacy_pre_current_design/results/**/
-!/archive/legacy_pre_current_design/results/benchmark_v1/data/effective_plan.yaml
-!/archive/legacy_pre_current_design/results/benchmark_v1/data/manifest.csv
-!/archive/legacy_pre_current_design/results/benchmark_v1/data/missing_real_datasets.tsv
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/01_data.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/01_validate_manifest.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_validate_cases.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_000.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_001.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_002.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_003.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_004.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_005.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_006.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_007.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_008.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_009.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_010.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/02_walks_shard_011.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/logs/03_evaluation.log
-!/archive/legacy_pre_current_design/results/benchmark_v1/results/SCREEN_SUMMARY.md
-!/archive/legacy_pre_current_design/results/benchmark_v1/results/headline_ranking.png
-!/archive/legacy_pre_current_design/results/benchmark_v1/results/rankings.csv
-!/archive/legacy_pre_current_design/results/benchmark_v2/data/effective_plan.yaml
-!/archive/legacy_pre_current_design/results/benchmark_v2/data/manifest.csv
-!/archive/legacy_pre_current_design/results/benchmark_v2/data/missing_real_datasets.tsv
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/00_real_data_status.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/01_build_data.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/01_validate_manifest.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_validate_cases.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_000.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_001.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_002.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_003.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_004.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_005.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_006.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_007.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_008.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_009.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_010.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/02_walks_shard_011.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/03_evaluation.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/04_diagnostics.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/logs/master.log
-!/archive/legacy_pre_current_design/results/benchmark_v2/results/SCREEN_SUMMARY.md
-!/archive/legacy_pre_current_design/results/benchmark_v2/results/V2_DIAGNOSTICS.md
-!/archive/legacy_pre_current_design/results/benchmark_v2/results/edgebank_auc_summary.csv
-!/archive/legacy_pre_current_design/results/benchmark_v2/results/headline_all_protocols.csv
-!/archive/legacy_pre_current_design/results/benchmark_v2/results/headline_ranking.png
-!/archive/legacy_pre_current_design/results/benchmark_v2/results/seed_noise_floor.csv
-!/archive/legacy_pre_current_design/results/benchmark_v2/results/target_distribution_by_block.csv
-!/archive/legacy_pre_current_design/results/bias_identifiability/RESULTS.md
-!/archive/legacy_pre_current_design/results/census/census_results_full.csv
-!/archive/legacy_pre_current_design/results/census/census_results_full.md
-!/archive/legacy_pre_current_design/results/census/definitions_agreement.png
-!/archive/legacy_pre_current_design/results/census/definitions_buckets.png
-!/archive/legacy_pre_current_design/results/census/definitions_corr.png
-!/archive/legacy_pre_current_design/results/census/definitions_distributions.png
-!/archive/legacy_pre_current_design/results/census/real_data_bias_check.csv
-!/archive/legacy_pre_current_design/results/census/real_data_bias_check_run.log
-!/archive/legacy_pre_current_design/results/census/real_data_bias_check_summary.csv
-!/archive/legacy_pre_current_design/results/census/rho_distribution.png
-!/archive/legacy_pre_current_design/results/census/rho_drivers.png
-!/archive/legacy_pre_current_design/results/census/rho_profile.png
-!/archive/legacy_pre_current_design/results/census/rho_rank_stability.png
-!/archive/legacy_pre_current_design/results/census/rho_vs_C.png
-!/archive/legacy_pre_current_design/results/census/rho_vs_W.png
-!/archive/legacy_pre_current_design/results/coverage/band_per_walk_rho.png
-!/archive/legacy_pre_current_design/results/coverage/grid_mae_vs_coverage.png
-!/archive/legacy_pre_current_design/results/coverage/grid_results.csv
-!/archive/legacy_pre_current_design/results/coverage/manifest.csv
-!/archive/legacy_pre_current_design/results/llm_v2/llm_cases.csv
-!/archive/legacy_pre_current_design/results/llm_v2/llm_examples.csv
-!/archive/legacy_pre_current_design/results/llm_v2/llm_leaderboard.md
-!/archive/legacy_pre_current_design/results/llm_v2/llm_metrics.csv
-!/archive/legacy_pre_current_design/results/llm_v2/parsed_answers.csv.gz
-!/archive/legacy_pre_current_design/results/llm_v2/selection_report.txt
-!/archive/legacy_pre_current_design/results/llm_v2/smoke_answers.jsonl
-!/archive/legacy_pre_current_design/results/phase3/answers_deepseek-v4-pro_16384.jsonl
-!/archive/legacy_pre_current_design/results/phase3/answers_gemini-3.5-flash.jsonl
-!/archive/legacy_pre_current_design/results/phase3/answers_gemini-3.5-flash_v1_temp0.jsonl
-!/archive/legacy_pre_current_design/results/phase3/answers_qwen14b.jsonl
-!/archive/legacy_pre_current_design/results/phase3/answers_qwen32b.jsonl
-!/archive/legacy_pre_current_design/results/phase3/deepseek_flash_high_full.log
-!/archive/legacy_pre_current_design/results/phase3/deepseek_high_full.log
-!/archive/legacy_pre_current_design/results/phase3/deepseek_v4_pro_16384_smoke.log
-!/archive/legacy_pre_current_design/results/phase3/deepseek_v4_pro_smoke.log
-!/archive/legacy_pre_current_design/results/phase3/gemini35_full.log
-!/archive/legacy_pre_current_design/results/phase3/gemini35_smoke.log
-!/archive/legacy_pre_current_design/results/phase3/gemini35_v2.log
-!/archive/legacy_pre_current_design/results/phase3/make_pilot_cases_v2.log
-!/archive/legacy_pre_current_design/results/phase3/pilot_cases.csv
-!/archive/legacy_pre_current_design/results/phase3/pilot_selection_report.txt
-!/archive/legacy_pre_current_design/results/phase3/prompts.jsonl
-!/archive/legacy_pre_current_design/results/phase3/reference_band_cases.csv
-!/archive/legacy_pre_current_design/results/phase3/reference_band_summary.csv
-!/archive/legacy_pre_current_design/results/phase3/metadata/.Rhistory
-!/archive/legacy_pre_current_design/results/phase3/metadata/CLUSTER_RUN_INFO.md
-!/archive/legacy_pre_current_design/results/phase3/metadata/MANIFEST.txt
-!/archive/legacy_pre_current_design/results/phase3/metadata/slurm_logs.tar.gz
-!/archive/legacy_pre_current_design/results/phase3/metadata/validation_counts.txt
-
-# Other historical logs stay local.
-/archive/legacy_pre_current_design/logs/
-
-# Frozen main experiment: downloaded tokenizers and local generated artifacts.
-data/tokenizers/
-# Compact, reviewable offline acceptance evidence (bulk artifacts remain local).
-!/results/main_experiment/
-/results/main_experiment/*
-!/results/main_experiment/ACCEPTANCE.md
-!/results/main_experiment/evidence/
-!/results/main_experiment/evidence/**
-
-# Baseline revision: compact report and machine-readable results only.
-# Pool graphs, calibration checkpoints and fitted models stay local.
-!/results/baseline_revision_20260916/
-/results/baseline_revision_20260916/*
-!/results/baseline_revision_20260916/DEVELOPMENT_REPORT.md
-!/results/baseline_revision_20260916/development_summary.csv
-!/results/baseline_revision_20260916/development_summary.json
-!/results/baseline_revision_20260916/pool_definition.json
-!/results/baseline_revision_20260916/freeze_unchanged.json
-!/results/baseline_revision_20260916/report_pool.json
-!/results/baseline_revision_20260916/report_train.json
-!/results/baseline_revision_20260916/report_dev.json
-
-# Design revision budget10-20261001: compact reports and machine-readable tables.
-# Graphs, observations, calibration checkpoints and models stay local.
-!/results/baseline_revision_20261001/
-/results/baseline_revision_20261001/*
-!/results/baseline_revision_20261001/CORRECTOR_DECISION.md
-!/results/baseline_revision_20261001/REVISION_REPORT.md
-!/results/baseline_revision_20261001/development_summary.csv
-!/results/baseline_revision_20261001/development_summary.json
-!/results/baseline_revision_20261001/main_summary.csv
-!/results/baseline_revision_20261001/main_summary.json
-!/results/baseline_revision_20261001/error_decomposition.json
-!/results/baseline_revision_20261001/pool_definition.json
-!/results/baseline_revision_20261001/report_*.json
-!/results/main_experiment/
-/results/main_experiment/*
-!/results/main_experiment/ACCEPTANCE.md
-!/results/main_experiment/evidence/
-!/results/main_experiment/evidence/**
-!/results/main_experiment/budget10_20261001/
-/results/main_experiment/budget10_20261001/*
-!/results/main_experiment/budget10_20261001/report.json
-!/results/main_experiment/budget10_20261001/data_summary.csv
-!/results/main_experiment/budget10_20261001/budget_summary.csv
-!/results/main_experiment/budget10_20261001/baseline_summary.csv
-!/results/main_experiment/budget10_20261001/observation_status.csv
-!/results/main_experiment/budget10_20261001/prompt_sizes.csv
-
-# Qwen main run: compact evaluation tables only. Raw answers stay local.
-!/results/main_experiment/qwen_evaluation/
-/results/main_experiment/qwen_evaluation/*
-!/results/main_experiment/qwen_evaluation/summary.csv
-!/results/main_experiment/qwen_evaluation/source_results.csv
-!/results/main_experiment/qwen_evaluation/report.json
-!/results/main_experiment/qwen_evaluation_trailing/
-/results/main_experiment/qwen_evaluation_trailing/*
-!/results/main_experiment/qwen_evaluation_trailing/summary.csv
-!/results/main_experiment/qwen_evaluation_trailing/source_results.csv
-!/results/main_experiment/qwen_evaluation_trailing/report.json
-
-# Acceptance round 2026-09-17: the durable record of the Qwen run.
-# The tarball is the primary experimental data of the thesis and is versioned here
-# on purpose; the unpacked copy and the bulk answers stay local.
-!/results/main_experiment/qwen_archive_20261001.tgz
-!/results/main_experiment/qwen_archive_20261001.tgz.sha256
-!/results/main_experiment/qwen_archive/
-/results/main_experiment/qwen_archive/*
-!/results/main_experiment/qwen_archive/CHECKSUMS.json
-!/results/main_experiment/qwen_archive/ARCHIVE_REPORT.json
-!/results/main_experiment/qwen_archive/model_identity.json
-!/results/main_experiment/parser_rule_audit.json
-!/results/baseline_revision_20261001/primary_baselines.json
-!/results/baseline_revision_20261001/error_decomposition_main.json

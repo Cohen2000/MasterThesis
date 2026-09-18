@@ -1,14 +1,12 @@
-# Current results
+# Results
 
-This directory is reserved for new outputs of the current thesis design.
-No census, panel, benchmark or LLM experiment was run during cleanup.
+Generated experiment artifacts are ignored by default and remain local unless a
+small result or provenance artifact is intentionally selected for version control.
 
-All previous results, raw model responses, repeats, intermediate tables and
-logs were moved intact to
-[`archive/legacy_pre_current_design/results/`](../archive/legacy_pre_current_design/results/).
-Previous summary tables are in the neighboring `results_summary/` directory
-inside that archive. They have not been recomputed or overwritten.
+Current local experiment directory:
+`results/main_experiment/cells10_json_20260918/`
 
-Use new output paths for future work. Retain graph identity, sampler seeds and
-all three LLM repeats separately; never replace raw responses with repaired or
-aggregated predictions. Generated contents here are ignored by Git.
+Historical tracked results are retained under `../archive/`.
+
+Raw model responses, generated graphs, fitted models and other bulk artifacts
+should not be committed directly.
