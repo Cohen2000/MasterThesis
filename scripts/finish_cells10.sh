@@ -4,6 +4,9 @@
 # Idempotent; needs an open ssh ControlMaster to uc3.
 #   bash scripts/finish_cells10.sh
 set -euo pipefail
+echo "Historical entry point: use run_json_revision_offline.sh and the revised runbook." >&2
+exit 2
+
 cd "$(dirname "$0")/.."
 EXP=cells10
 WS=/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot

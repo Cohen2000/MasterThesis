@@ -1,3 +1,5 @@
+**Aktuelle Revision (18.09.2026):** [Protokoll](PROTOCOL_REVISION_20260918.md), [Durchführung](RUNBOOK_JSON_REVISION_20260918.md), [Umsetzung und Abnahme](reviews/2026-09-18/UMSETZUNG.md). Neue Antworten benötigen `cells10-json-20260918`; API-Ausführung ist noch nicht freigegeben.
+
 # Current experiment (`cells10-20260917`)
 
 - [Handoff: state and next steps](HANDOFF_cells10.md)

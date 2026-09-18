@@ -1,3 +1,5 @@
+> **Stand 18.09.2026:** Die Protokollrevision `cells10-json-20260918` ersetzt die bisherigen Regeln zu Pool, Ausgabesteuerung, Fehlerbehandlung und MCSE. Siehe [docs/PROTOCOL_REVISION_20260918.md](docs/PROTOCOL_REVISION_20260918.md). Neue Offline-Kette: `bash scripts/run_json_revision_offline.sh`. Alte Qwen-Antworten sind ausschließlich historische Ergebnisse. API-Aufrufe sind nicht freigegeben.
+
 # Persistence estimation in partially observed temporal graphs
 
 This Master's thesis estimates the full-archive persistence profile

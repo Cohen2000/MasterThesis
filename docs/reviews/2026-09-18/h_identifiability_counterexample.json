@@ -1,0 +1,33 @@
+{
+  "same_H_observation": true,
+  "truth_1": [
+    1.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "truth_2": [
+    0.5,
+    0.5,
+    0.0,
+    0.0
+  ],
+  "D_full": [
+    100,
+    100
+  ],
+  "M_full": [
+    600,
+    600
+  ],
+  "active_cells": [
+    200,
+    200
+  ],
+  "n_dyads": [
+    20,
+    20
+  ],
+  "block": "W=5\nTemporal_access=1,1,1,1,1\nN_obs=16\nD_obs=20\nM_obs=100\nEvents_per_window=0,0,0,0,100\nn_dyads=20\nWalk_A=NA\npattern,dyads,events,at_cap_dyads\n00001,20,100,20\n00010,0,0,0\n00011,0,0,0\n00100,0,0,0\n00101,0,0,0\n00110,0,0,0\n00111,0,0,0\n01000,0,0,0\n01001,0,0,0\n01010,0,0,0\n01011,0,0,0\n01100,0,0,0\n01101,0,0,0\n01110,0,0,0\n01111,0,0,0\n10000,0,0,0\n10001,0,0,0\n10010,0,0,0\n10011,0,0,0\n10100,0,0,0\n10101,0,0,0\n10110,0,0,0\n10111,0,0,0\n11000,0,0,0\n11001,0,0,0\n11010,0,0,0\n11011,0,0,0\n11100,0,0,0\n11101,0,0,0\n11110,0,0,0\n11111,0,0,0",
+  "argument": "Identical topology and last five events for every dyad; uniform subset has the same law for both archives. Both calibrate to d=20. Thus the entire H input distribution, not only one sample, coincides."
+}

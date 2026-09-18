@@ -4,6 +4,9 @@
 # finished step. Nothing here calls an LLM or needs the cluster.
 #   nohup bash scripts/run_cells10_offline.sh > results/cells10_offline_logs/driver.log 2>&1 &
 set -euo pipefail
+echo "Historical entry point: use run_json_revision_offline.sh and the revised runbook." >&2
+exit 2
+
 cd "$(dirname "$0")/.."
 RUN=results/main_experiment/cells10_20260917
 REV=results/baseline_revision_cells10_20260917

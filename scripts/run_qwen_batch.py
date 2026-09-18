@@ -105,6 +105,7 @@ def main():
                     help='stop starting new chunks this many seconds from now')
     ap.add_argument('--limit', type=int, default=0)
     a = ap.parse_args()
+    raise SystemExit('Historical runner disabled for inference. Use run_qwen_engine.py and the revised protocol.')
 
     started = time.time()
     run = Path(a.run)

@@ -1,0 +1,40 @@
+{
+  "mock_only": true,
+  "inference_calls": 0,
+  "complete_main_result": true,
+  "summary": [
+    {
+      "arm": "R",
+      "fallback_only": "True",
+      "complete": "True",
+      "AE2": "",
+      "plugin_AE2": "0.017520519757333736",
+      "valid_fraction": "0.0"
+    },
+    {
+      "arm": "S",
+      "fallback_only": "True",
+      "complete": "True",
+      "AE2": "",
+      "plugin_AE2": "0.31269262751090926",
+      "valid_fraction": "0.0"
+    },
+    {
+      "arm": "H",
+      "fallback_only": "True",
+      "complete": "True",
+      "AE2": "",
+      "plugin_AE2": "0.13337483020085225",
+      "valid_fraction": "0.0"
+    },
+    {
+      "arm": "B",
+      "fallback_only": "True",
+      "complete": "True",
+      "AE2": "",
+      "plugin_AE2": "0.18117746237969792",
+      "valid_fraction": "0.0"
+    }
+  ],
+  "construction": "All 3360 planned requests marked started+terminal+mock; Sol final_text=INVALID, all other configs valid constant JSON. evaluate_main_responses called with --mock and the current primary_baselines."
+}

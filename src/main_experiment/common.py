@@ -21,14 +21,14 @@ ARMS = ('R','S','H','B')
 # budget matched event volume, which let H and B see 46 % and 37 % of the active
 # dyad-windows of the real sources against 2.4 % for S. The date-like suffix of
 # budget10-20261001 is a revision label, not a date.
-DESIGN_VERSION = 'cells10-20260917'
-PREVIOUS_DESIGN_VERSION = 'budget10-hrecent5-20260917'
+DESIGN_VERSION = 'cells10-json-20260918'
+PREVIOUS_DESIGN_VERSION = 'cells10-20260917'
 MATCHED_QUANTITY = 'expected_observed_active_dyad_windows'
 COVERAGE_FRACTION = 0.10     # share of sum_e K_e every arm observes in expectation
 BUDGET_FRACTION = 0.10       # event budget of the superseded designs; legacy variants only
 BUDGET_TOLERANCE = 0.05      # unchanged relative tolerance for the matched expectation
-CURRENT_RUN = 'results/main_experiment/cells10_20260917'
-CURRENT_REVISION = 'results/baseline_revision_cells10_20260917'
+CURRENT_RUN = 'results/main_experiment/cells10_json_20260918'
+CURRENT_REVISION = 'results/baseline_revision_cells10_json_20260918'
 SAMPLER_DRAWS = 5            # sampler draws per graph and arm, if the draw is random
 LLM_REPEATS = 3
 CONFIGS = ('sol','deepseek','qwen_thinking','qwen_nonthinking')
@@ -45,19 +45,11 @@ H_VARIANT = 'recent5'
 H_CAP = 5
 LEGACY_H = 'H_suffix_v1'
 LEGACY_ARMS = (LEGACY_H,)
-# Identifier used in seed derivation, observation ids and request ids. Every arm
-# of this design carries the design tag, so no stream, observation id or request
-# id can coincide with an earlier design's; no earlier answer can be mistaken for
-# one of this design. The legacy suffix variant keeps 'H', which reproduces its
-# original draws.
+# Sampling identity stays c10: this revision changes inference and the training
+# pool, not the main observation mechanism. Request IDs have a separate protocol
+# suffix; old answers are never reusable under the revised generation contract.
 DESIGN_TAG = 'c10'
 ARM_ID = {'R':'R-c10','S':'S-c10','H':'H-recent5-c10','B':'B-c10',LEGACY_H:'H'}
-# Final-answer constraint used for generation (both Qwen modes). Fixed key order,
-# fixed spacing, each value 0 or 1 with at most six decimals. It guarantees a
-# parseable object; monotonicity is still checked by the parser.
-ANSWER_NUMBER = r'(0|0\.[0-9]{1,6}|1|1\.0{1,6})'
-ANSWER_REGEX = (r'\{"rho_2": ' + ANSWER_NUMBER + r', "rho_3": ' + ANSWER_NUMBER +
-                r', "rho_4": ' + ANSWER_NUMBER + r', "rho_5": ' + ANSWER_NUMBER + r'\}')
 
 
 def draws_for(arm,budget):

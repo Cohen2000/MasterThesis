@@ -18,7 +18,8 @@
 # Only gpu_h100 (94 GB): gpu_h100_il has 80 GB and cannot hold one request at the
 # native 262144 context next to the weights. Requests are admitted during the first
 # 80 minutes of the two hours; each finished answer is written at once, so a job
-# killed by the wall time loses only requests still running. Resubmitting resumes.
+# killed by wall time records in-flight requests as technical failures on resume.
+# Resubmitting admits only requests that have never been started; no retries.
 # A login shell is mandatory (Lmod modules); positional arguments instead of --export.
 set -euo pipefail
 

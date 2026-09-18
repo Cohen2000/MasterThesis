@@ -10,7 +10,7 @@ import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from main_experiment.common import (REAL_TEST,TRAIN,SYNTH,ARMS,CONFIGS,H_CAP,BUDGET_TOLERANCE,sha,digest,read_json,seed,
                                     planned_sizes,observations_per_graph,draws_for,observation_id,
-                                    COVERAGE_FRACTION,ANSWER_REGEX)
+                                    COVERAGE_FRACTION)
 from main_experiment.observation import parse,features,messages,make,serialize,FEATURE_NAMES
 from main_experiment.baselines import plugin,corrector,h_midpoint
 from main_experiment.sampling import Walk,draw,recent_counts
@@ -136,7 +136,8 @@ def verify(root):
         o=read_json(root/'observations/sample'/(row['observation_id']+'.json'))
         assert row['payload'].get('messages',row['payload'].get('input'))==o['messages']
         if row['config_id'].startswith('qwen'):
-            assert row['payload']['structured_output']['regex']==ANSWER_REGEX
+            assert row['payload']['structured_output']['json_object'] is True
+        assert row['payload_sha256']==digest(row['payload'])
     for oid in {r['observation_id'] for r in requests}:
         assert len({r['prompt_sha256'] for r in requests if r['observation_id']==oid})==1
     seeds=read_json(root/'seed_manifest.json')

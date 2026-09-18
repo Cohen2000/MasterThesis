@@ -1,3 +1,5 @@
+> **Stand 18.09.2026:** Die Protokollrevision `cells10-json-20260918` ersetzt die bisherigen Regeln zu Pool, Ausgabesteuerung, Fehlerbehandlung und MCSE. Siehe [PROTOCOL_REVISION_20260918.md](PROTOCOL_REVISION_20260918.md). Neue Offline-Kette: `bash scripts/run_json_revision_offline.sh`. Alte Qwen-Antworten sind ausschließlich historische Ergebnisse. API-Aufrufe sind nicht freigegeben.
+
 # Freeze 2026-09-16: implementation contract
 
 > Current design: **`cells10-20260917`**, specified in the last section of this

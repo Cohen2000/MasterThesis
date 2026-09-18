@@ -16,7 +16,7 @@ import argparse,math,os,sys,time
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from main_experiment.common import (write_json,read_json,digest,LEGACY_H,DESIGN_VERSION,draws_for,
-                                    CURRENT_RUN)
+                                    CURRENT_RUN,sha)
 from main_experiment.common import REAL_TEST as REAL_TEST_LIST, SYNTH as SYNTH_LIST
 from main_experiment import pool as poolmod
 from main_experiment.training import fit_folds,TRAINING_REVISION
@@ -41,10 +41,14 @@ def load_real_training():
 def load_pool(out,partition):
     rows=[];truth={};meta={}
     for f in sorted((out/'pool'/'observations').glob('*.json')):
+        checksum=f.with_suffix('.sha256')
+        if not checksum.exists() or checksum.read_text().strip()!=sha(f): raise ValueError(f'pool checksum: {f}')
         d=read_json(f)
         if d['partition']!=partition: continue
         truth[d['key']]=d['truth']; meta[d['key']]=d
         for r in d['observations']: rows.append({**r,'block_group':d['family']})
+    expected=sum(v[partition] for v in poolmod.COUNTS.values())
+    if len(truth)!=expected: raise ValueError(f'incomplete pool {partition}: {len(truth)}/{expected}')
     return rows,truth,meta
 
 
@@ -80,7 +84,8 @@ def stage_pool(out):
     else:
         write_json(path,definition)
     result=poolmod.build_pool(out/'pool',definition['graphs'])
-    result['previous_pool_comparison']=compare_previous_pool(out)
+    if result['failures']: raise ValueError('pool incomplete; do not train')
+    result['previous_pool_comparison']={'status':'new pool version; independent IDs and seeds'}
     return result
 
 
@@ -151,6 +156,9 @@ def stage_dev(out):
     import csv,math,pickle,time
     import numpy as np
     rows,truth,meta=load_pool(out,'dev')
+    from main_experiment.integrity import bind,files
+    bind(out/'development_inputs.json',{'observations':digest(rows),'truth':digest(truth),
+         'models':files(list((out/'models_pooled').glob('*/model.pkl'))+list((out/'models_real_only').glob('*/model.pkl')))})
     models={}
     for name,folder in (('pooled','models_pooled'),('real_only','models_real_only')):
         with open(out/folder/'synthetic'/'model.pkl','rb') as f: models[name]=pickle.load(f)
@@ -158,6 +166,8 @@ def stage_dev(out):
     recs=[]; t0=time.perf_counter()
     cache=out/'development_observations.csv'
     if cache.exists():
+        if not cache.with_suffix('.sha256').exists() or cache.with_suffix('.sha256').read_text().strip()!=sha(cache):
+            raise ValueError('development cache checksum mismatch')
         # Per-observation records are the expensive part; reuse them on a rerun.
         with open(cache,newline='') as f:
             for d in csv.DictReader(f):
@@ -187,6 +197,7 @@ def stage_dev(out):
     if not cache.exists():
         with open(cache,'w',newline='') as f:
             w=csv.DictWriter(f,fieldnames=list(recs[0])); w.writeheader(); w.writerows(recs)
+        cache.with_suffix('.sha256').write_text(sha(cache)+'\n')
     summary=_aggregate(recs)
     write_json(out/'development_summary.json',summary)
     # Union of keys: only the comparison rows carry the paired columns.
@@ -361,6 +372,7 @@ def _primary_baselines(rows,man,models,fold_med,med_syn):
     out={'decision':'results/baseline_revision_20261001/CORRECTOR_DECISION.md (R,S,B); '
                      'docs/MAIN_EXPERIMENT_IMPLEMENTATION.md, design budget10-hrecent5-20260917 (H)',
          'design_version':DESIGN_VERSION,
+         'protocol':'docs/PROTOCOL_REVISION_20260918.md',
          'primary_corrector_by_arm':PRIMARY_CORRECTOR,
          'primary_corrector_meaning':PRIMARY_NAME,
          'primary_trained_reference':'extratrees_pooled',
@@ -377,10 +389,11 @@ def _primary_baselines(rows,man,models,fold_med,med_syn):
         med=fold_med[g] if real else med_syn
         pred=_predict(o,m,med,truth,r['arm'])
         bounds=pred.pop('h_bounds',None)
-        entry={k:{'prediction':v['prediction'],'status':v['status']} for k,v in pred.items()}
+        entry={k:{field:v[field] for field in ('prediction','status','fallback','flags') if field in v} for k,v in pred.items()}
+        entry['block_sha256']=r['block_sha256']
         if bounds: entry['h_bounds']=bounds
         entry['primary_corrector']=dict(entry[PRIMARY_CORRECTOR[r['arm']]])
-        entry['primary_corrector_name']=PRIMARY_CORRECTOR[r['arm']]
+        entry['primary_corrector_name']=PRIMARY_NAME[r['arm']]
         entry['arm']=r['arm']; entry['stratum']='real' if real else 'synthetic'
         entry['sample_index']=r['sample_index']; entry['graph_id']=g
         entry['deterministic_draw']=bool(r.get('deterministic_draw',False))
@@ -584,6 +597,12 @@ def main():
     ap.add_argument('--stage',default='all',choices=['pool','train','dev','decompose','decompose_main','main','all'])
     a=ap.parse_args()
     out=Path(a.out); out.mkdir(parents=True,exist_ok=True)
+    from main_experiment.integrity import bind,code_binding
+    bind(out/'revision_inputs.json',{'code':code_binding(),'runner_sha256':sha(__file__),
+         'main_inputs':read_json(FROZEN/'preparation_inputs.json'),
+         'pool_definition':poolmod.pool_definition()})
+    import fcntl
+    lock=open(out/'revision.lock','a'); fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
     start=time.perf_counter(); report={}
     if a.stage in ('pool','all'):
         report['pool']=stage_pool(out)

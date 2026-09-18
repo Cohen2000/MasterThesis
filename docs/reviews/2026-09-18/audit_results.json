@@ -1,0 +1,469 @@
+{
+  "raw_answers": {
+    "n": 1680,
+    "invalid": [
+      "snap_mathoverflow__B-c10__s5__qwen_thinking__r1"
+    ],
+    "mod31_unique_seeds": 1680,
+    "raw_hash_seed_runner_regex_and_score_checks": "passed"
+  },
+  "real_scores": [
+    {
+      "config_id": "qwen_nonthinking",
+      "arm": "B",
+      "AE2": 0.547881836003924,
+      "ProfileAE": 0.4726040534832395,
+      "delta_AE2": 0.4713508752954915
+    },
+    {
+      "config_id": "qwen_nonthinking",
+      "arm": "H",
+      "AE2": 0.43237072489281286,
+      "ProfileAE": 0.335569713420586,
+      "delta_AE2": 0.39787877657532583
+    },
+    {
+      "config_id": "qwen_nonthinking",
+      "arm": "R",
+      "AE2": 0.49592628044836845,
+      "ProfileAE": 0.41332882370285734,
+      "delta_AE2": 0.47840576069103474
+    },
+    {
+      "config_id": "qwen_nonthinking",
+      "arm": "S",
+      "AE2": 0.5071451693372574,
+      "ProfileAE": 0.4148234350171798,
+      "delta_AE2": 0.4763546702902514
+    },
+    {
+      "config_id": "qwen_thinking",
+      "arm": "B",
+      "AE2": 0.20087514740836507,
+      "ProfileAE": 0.1083785298621957,
+      "delta_AE2": 0.12434418669993258
+    },
+    {
+      "config_id": "qwen_thinking",
+      "arm": "H",
+      "AE2": 0.13725078218750555,
+      "ProfileAE": 0.11545376962323445,
+      "delta_AE2": 0.10275883387001854
+    },
+    {
+      "config_id": "qwen_thinking",
+      "arm": "R",
+      "AE2": 0.01761620494098788,
+      "ProfileAE": 0.012681713578132766,
+      "delta_AE2": 9.568518365414742e-05
+    },
+    {
+      "config_id": "qwen_thinking",
+      "arm": "S",
+      "AE2": 0.07990381114815752,
+      "ProfileAE": 0.05702505303605953,
+      "delta_AE2": 0.0491133121011516
+    }
+  ],
+  "variance": {
+    "negative_residual_cells": 103,
+    "cells": 224,
+    "negative_real_AE2": 25,
+    "real_AE2_cells": 48,
+    "examples": [
+      {
+        "config": "qwen_nonthinking",
+        "arm": "S",
+        "graph": "snap_collegemsg",
+        "metric": "delta_AE2",
+        "total": 0.001781743389396144,
+        "model": 0.005605333333333333,
+        "raw_sampler": -0.003823589943937189,
+        "reported_sum": 0.005605333333333333,
+        "real": true
+      },
+      {
+        "config": "qwen_nonthinking",
+        "arm": "S",
+        "graph": "snap_collegemsg",
+        "metric": "AE2",
+        "total": 0.001849166666666665,
+        "model": 0.005605333333333333,
+        "raw_sampler": -0.003756166666666668,
+        "reported_sum": 0.005605333333333333,
+        "real": true
+      },
+      {
+        "config": "qwen_nonthinking",
+        "arm": "B",
+        "graph": "snap_collegemsg",
+        "metric": "AE2",
+        "total": 0.0023517777777777795,
+        "model": 0.004107555555555555,
+        "raw_sampler": -0.0017557777777777758,
+        "reported_sum": 0.004107555555555555,
+        "real": true
+      },
+      {
+        "config": "qwen_nonthinking",
+        "arm": "B",
+        "graph": "snap_collegemsg",
+        "metric": "delta_AE2",
+        "total": 0.0025253524498240736,
+        "model": 0.004107555555555554,
+        "raw_sampler": -0.0015822031057314808,
+        "reported_sum": 0.004107555555555554,
+        "real": true
+      },
+      {
+        "config": "qwen_thinking",
+        "arm": "S",
+        "graph": "sp_highschool2013",
+        "metric": "delta_AE2",
+        "total": 0.001629393482099329,
+        "model": 0.0023167420267377775,
+        "raw_sampler": -0.0006873485446384484,
+        "reported_sum": 0.0023167420267377775,
+        "real": true
+      },
+      {
+        "config": "qwen_thinking",
+        "arm": "B",
+        "graph": "snap_mathoverflow",
+        "metric": "delta_AE2",
+        "total": 0.0020138261328329185,
+        "model": 0.0026316218460583816,
+        "raw_sampler": -0.000617795713225463,
+        "reported_sum": 0.0026316218460583816,
+        "real": true
+      },
+      {
+        "config": "qwen_thinking",
+        "arm": "S",
+        "graph": "sp_highschool2013",
+        "metric": "AE2",
+        "total": 0.0017612998199575119,
+        "model": 0.0023167420267377775,
+        "raw_sampler": -0.0005554422067802656,
+        "reported_sum": 0.0023167420267377775,
+        "real": true
+      },
+      {
+        "config": "qwen_thinking",
+        "arm": "H",
+        "graph": "snap_email_eu",
+        "metric": "AE2",
+        "total": 0.00037147528268865836,
+        "model": 0.0008363967380406778,
+        "raw_sampler": -0.00046492145535201947,
+        "reported_sum": 0.0008363967380406778,
+        "real": true
+      }
+    ]
+  },
+  "aggregate_mcse": [
+    {
+      "arm": "R",
+      "config_id": "qwen_thinking",
+      "AE2_MCSE": 0.0020128119922873,
+      "AE2_MCSE_model_repeats": 7.956299494087744e-05,
+      "AE2_MCSE_sampler": 0.0020112388834078,
+      "delta_AE2_MCSE": 7.515948003468868e-05,
+      "delta_AE2_MCSE_model_repeats": 7.956299494087744e-05,
+      "delta_AE2_MCSE_sampler": 7.629440556850822e-07
+    },
+    {
+      "arm": "R",
+      "config_id": "qwen_nonthinking",
+      "AE2_MCSE": 0.0127013414281356,
+      "AE2_MCSE_model_repeats": 0.0119012137569614,
+      "AE2_MCSE_sampler": 0.0045839225210525,
+      "delta_AE2_MCSE": 0.0128451075940414,
+      "delta_AE2_MCSE_model_repeats": 0.0119012137569614,
+      "delta_AE2_MCSE_sampler": 0.0049431619679383
+    },
+    {
+      "arm": "S",
+      "config_id": "qwen_thinking",
+      "AE2_MCSE": 0.0142808738669331,
+      "AE2_MCSE_model_repeats": 0.0117766121686901,
+      "AE2_MCSE_sampler": 0.0091381617857894,
+      "delta_AE2_MCSE": 0.0125328118588591,
+      "delta_AE2_MCSE_model_repeats": 0.0117766121686901,
+      "delta_AE2_MCSE_sampler": 0.0063884092925092
+    },
+    {
+      "arm": "S",
+      "config_id": "qwen_nonthinking",
+      "AE2_MCSE": 0.0086634594492979,
+      "AE2_MCSE_model_repeats": 0.0136076111599898,
+      "AE2_MCSE_sampler": 0.0024144370302079,
+      "delta_AE2_MCSE": 0.0108457328799847,
+      "delta_AE2_MCSE_model_repeats": 0.0136076111599898,
+      "delta_AE2_MCSE_sampler": 0.0068193113609513
+    },
+    {
+      "arm": "H",
+      "config_id": "qwen_thinking",
+      "AE2_MCSE": 0.0054864276354752,
+      "AE2_MCSE_model_repeats": 0.0070119221654534,
+      "AE2_MCSE_sampler": 0.0009203171152999,
+      "delta_AE2_MCSE": 0.0060930146545143,
+      "delta_AE2_MCSE_model_repeats": 0.0070119221654534,
+      "delta_AE2_MCSE_sampler": 0.0010516755774676
+    },
+    {
+      "arm": "H",
+      "config_id": "qwen_nonthinking",
+      "AE2_MCSE": 0.0132841105307277,
+      "AE2_MCSE_model_repeats": 0.0120706510712533,
+      "AE2_MCSE_sampler": 0.0065084228428425,
+      "delta_AE2_MCSE": 0.0129175386301958,
+      "delta_AE2_MCSE_model_repeats": 0.0120706510712533,
+      "delta_AE2_MCSE_sampler": 0.0056801138322156
+    },
+    {
+      "arm": "B",
+      "config_id": "qwen_thinking",
+      "AE2_MCSE": 0.0157918322584092,
+      "AE2_MCSE_model_repeats": 0.0154494217721402,
+      "AE2_MCSE_sampler": 0.0065889209337286,
+      "delta_AE2_MCSE": 0.0159151914361326,
+      "delta_AE2_MCSE_model_repeats": 0.0154494217721402,
+      "delta_AE2_MCSE_sampler": 0.0062801907778665
+    },
+    {
+      "arm": "B",
+      "config_id": "qwen_nonthinking",
+      "AE2_MCSE": 0.0094437973634537,
+      "AE2_MCSE_model_repeats": 0.0123045509998797,
+      "AE2_MCSE_sampler": 0.0012692955176439,
+      "delta_AE2_MCSE": 0.0105581933395531,
+      "delta_AE2_MCSE_model_repeats": 0.0123045509998797,
+      "delta_AE2_MCSE_sampler": 0.0044952283028179
+    }
+  ],
+  "model_checks": [
+    {
+      "folder": "models_pooled",
+      "fold": "sp_hospital",
+      "n_observations": 20,
+      "n_training_sources": 415
+    },
+    {
+      "folder": "models_pooled",
+      "fold": "sp_highschool2013",
+      "n_observations": 20,
+      "n_training_sources": 415
+    },
+    {
+      "folder": "models_pooled",
+      "fold": "copenhagen_bluetooth",
+      "n_observations": 20,
+      "n_training_sources": 415
+    },
+    {
+      "folder": "models_pooled",
+      "fold": "snap_email_eu",
+      "n_observations": 20,
+      "n_training_sources": 415
+    },
+    {
+      "folder": "models_pooled",
+      "fold": "snap_collegemsg",
+      "n_observations": 20,
+      "n_training_sources": 415
+    },
+    {
+      "folder": "models_pooled",
+      "fold": "snap_mathoverflow",
+      "n_observations": 20,
+      "n_training_sources": 415
+    },
+    {
+      "folder": "models_pooled",
+      "fold": "synthetic",
+      "n_observations": 160,
+      "n_training_sources": 416
+    },
+    {
+      "folder": "models_real_only",
+      "fold": "sp_hospital",
+      "n_observations": 20,
+      "n_training_sources": 15
+    },
+    {
+      "folder": "models_real_only",
+      "fold": "sp_highschool2013",
+      "n_observations": 20,
+      "n_training_sources": 15
+    },
+    {
+      "folder": "models_real_only",
+      "fold": "copenhagen_bluetooth",
+      "n_observations": 20,
+      "n_training_sources": 15
+    },
+    {
+      "folder": "models_real_only",
+      "fold": "snap_email_eu",
+      "n_observations": 20,
+      "n_training_sources": 15
+    },
+    {
+      "folder": "models_real_only",
+      "fold": "snap_collegemsg",
+      "n_observations": 20,
+      "n_training_sources": 15
+    },
+    {
+      "folder": "models_real_only",
+      "fold": "snap_mathoverflow",
+      "n_observations": 20,
+      "n_training_sources": 15
+    },
+    {
+      "folder": "models_real_only",
+      "fold": "synthetic",
+      "n_observations": 160,
+      "n_training_sources": 16
+    }
+  ],
+  "pool_split": {
+    "dar_train": {
+      "N": {
+        "200": 50,
+        "300": 50,
+        "500": 50,
+        "800": 25,
+        "1200": 25
+      }
+    },
+    "dar_dev": {
+      "N": {
+        "800": 25,
+        "1200": 25
+      }
+    },
+    "ad_train": {
+      "N": {
+        "200": 40,
+        "300": 40,
+        "500": 40,
+        "800": 40,
+        "1200": 40
+      },
+      "rounds": {
+        "500": 50,
+        "750": 50,
+        "1000": 50,
+        "1500": 50
+      }
+    },
+    "ad_dev": {
+      "N": {
+        "200": 10,
+        "300": 10,
+        "500": 10,
+        "800": 10,
+        "1200": 10
+      },
+      "rounds": {
+        "2000": 50
+      }
+    }
+  },
+  "raw_file_hashes": {
+    "sp_hospital": true,
+    "sp_primaryschool": true,
+    "sp_highschool2013": true,
+    "sp_workplace": true,
+    "sp_hypertext2009": true,
+    "snap_collegemsg": true,
+    "snap_email_eu": true,
+    "snap_mathoverflow": true,
+    "snap_bitcoin_otc": true,
+    "nr_radoslaw_email": true,
+    "nr_digg_reply": true,
+    "jodie_wikipedia": true,
+    "jodie_reddit": true,
+    "jodie_lastfm": true,
+    "jodie_mooc": true,
+    "copenhagen_bluetooth": true
+  },
+  "independent_raw_reconstruction": [
+    {
+      "graph": "sp_hospital",
+      "events": 32424,
+      "dyads": 1139,
+      "truth": [
+        0.44512730465320455,
+        0.16417910447761194,
+        0.0456540825285338,
+        0.014047410008779631
+      ],
+      "horizon_days": 4.0219907407407405
+    },
+    {
+      "graph": "sp_highschool2013",
+      "events": 188508,
+      "dyads": 5818,
+      "truth": [
+        0.4855620488140254,
+        0.2671020969405294,
+        0.12822275696115504,
+        0.05173599174974218
+      ],
+      "horizon_days": 4.207870370370371
+    },
+    {
+      "graph": "copenhagen_bluetooth",
+      "events": 2426279,
+      "dyads": 79530,
+      "truth": [
+        0.44692568841946434,
+        0.22074688796680497,
+        0.1074311580535647,
+        0.041518923676600025
+      ],
+      "horizon_days": 27.99652777777778
+    },
+    {
+      "graph": "snap_email_eu",
+      "events": 332334,
+      "dyads": 16064,
+      "truth": [
+        0.5057270916334662,
+        0.2975597609561753,
+        0.1593625498007968,
+        0.03791085657370518
+      ],
+      "horizon_days": 803.9265509259259
+    },
+    {
+      "graph": "snap_collegemsg",
+      "events": 59835,
+      "dyads": 13838,
+      "truth": [
+        0.10304957363780894,
+        0.013007660066483595,
+        0.003251915016620899,
+        0.00036132389073565546
+      ],
+      "horizon_days": 193.7057986111111
+    },
+    {
+      "graph": "snap_mathoverflow",
+      "events": 390441,
+      "dyads": 187986,
+      "truth": [
+        0.08438394348515314,
+        0.01923015543710702,
+        0.005303586437287883,
+        0.0011490217356611662
+      ],
+      "horizon_days": 2350.3325925925924
+    }
+  ],
+  "changed_source_hashes": []
+}

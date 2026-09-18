@@ -1,0 +1,12 @@
+{
+  "verified": true,
+  "checksums": 1537,
+  "main_observations": 280,
+  "training_observations": 320,
+  "blocks_rederived": 600,
+  "deterministic_h_graphs": [],
+  "models": 7,
+  "planned_requests": 3360,
+  "started_requests": 0,
+  "seed_count": 34684
+}

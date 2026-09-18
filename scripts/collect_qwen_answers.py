@@ -34,19 +34,24 @@ def main():
                          'stays frozen; this produces a second, separately reported result.')
     a = ap.parse_args()
 
+    if a.extract_trailing_json: raise ValueError('trailing JSON extraction is excluded from the revised protocol')
     run = Path(a.run)
     configs = set(a.configs.split(','))
     planned = [json.loads(l) for l in (run / 'requests.jsonl').read_text().splitlines()]
+    known={r['id']:r for r in planned}
     expected = {r['id'] for r in planned
                 if r['config_id'] in configs and r['status'] != 'skipped_empty'}
 
     found = {}
-    for f in sorted(Path(a.answers).rglob('*.json')):
+    for f in sorted(Path(a.answers).glob('*_r*/*.json')):
         if f.name.endswith('.tmp.json'):
             continue
         d = json.loads(f.read_text())
         if d['id'] in found:
             raise ValueError(f'duplicate result for {d["id"]}')
+        if d['id'] not in known: raise ValueError('unknown request')
+        for key in ('prompt_sha256','payload_sha256'):
+            if d.get(key)!=known[d['id']][key]: raise ValueError(f'{key} mismatch')
         found[d['id']] = d
 
     missing = sorted(expected - set(found))
@@ -77,9 +82,10 @@ def main():
         d = found[rid]
         completed = d.get('status') == 'completed'
         rec = {'id': rid, 'started': True, 'mock': False,
-               'prompt_sha256': d.get('prompt_sha256'),
-               'terminal': bool(completed),
-               'technical_error': not completed,
+               'prompt_sha256': d['prompt_sha256'],
+               'payload_sha256':d['payload_sha256'],
+               'terminal': bool(d.get('terminal',completed)),
+               'technical_error': bool(d.get('technical_error',not completed)),
                'limit_hit': d.get('end_state') == 'output_limit',
                'finish_reason': d.get('finish_reason'),
                'end_state': d.get('end_state', d.get('status')),

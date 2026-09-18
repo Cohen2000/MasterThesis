@@ -46,7 +46,7 @@ def source_inventory():
     paths=[*Path(__file__).parent.glob('*.py'),*Path(__file__).parent.glob('*.cpp'),
            * (ROOT/'config/main_experiment').glob('*.txt'),ROOT/'config/study.yaml',
            ROOT/'config/datasets.yaml',ROOT/'scripts/run_main_offline.py',ROOT/'scripts/evaluate_main_responses.py',
-           ROOT/'src/dataset_census.py',ROOT/'src/census.py',ROOT/'docs/MAIN_FREEZE_SOURCE.txt',ROOT/'docs/MAIN_EXPERIMENT_IMPLEMENTATION.md']
+           ROOT/'src/dataset_census.py',ROOT/'src/census.py',ROOT/'docs/PROTOCOL_REVISION_20260918.md',ROOT/'docs/MAIN_FREEZE_SOURCE.txt',ROOT/'docs/MAIN_EXPERIMENT_IMPLEMENTATION.md']
     return {str(p.relative_to(ROOT)):sha(p) for p in sorted(paths)}
 
 
@@ -162,7 +162,7 @@ def run(args):
                     expected[gid]=draws_for(arm,budget_by_graph[gid])
                 estimate=paired_summary(cells,expected)
                 summaries.append({'stratum':stratum,'arm':arm,'method':method,'MAE2':estimate['mean'],'MCSE':estimate['mcse'],
-                    'between_source_SE':estimate['between_source_se'],
+                    'between_source_SD':estimate['between_source_sd'],
                     'ProfileMAE':float(np.mean([r['ProfileAE'] for r in group])),
                     'signed_plugin_error':float(np.mean([r['signed_rho2'] for r in group])) if method=='plugin' else None,
                     'valid_fraction':float(np.mean([r['valid'] for r in group])),

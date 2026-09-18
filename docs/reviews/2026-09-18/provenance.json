@@ -1,0 +1,52 @@
+{
+  "review_date": "2026-09-18",
+  "commit": "d74f2dc13494f2556d633917634d86b4f32b907e",
+  "branch": "experiment/offline-freeze-20260916",
+  "provided_documents": {
+    "/home/albert/Downloads/Masterarbeit_Studienuebersicht_DesignFreeze_Aktuell.docx": "5f06418c0acae510323a7ea4b0457c6972eaecd2eaad7a336b465703dd458087",
+    "/home/albert/Downloads/Methodische_Pruefung_Masterarbeit_2026-09-18.md": "1a37325785ec31488a91d75501d551faac2e66d7222d4905db6ae92909730367"
+  },
+  "source_and_existing_results_modified": false,
+  "new_model_calls": 0,
+  "cluster_action": "read-only squeue, status_final.json and ARCHIVE_REPORT.json",
+  "cluster_report": {
+    "planned_qwen": 1680,
+    "present": 1680,
+    "missing": 0,
+    "unexpected": 0,
+    "duplicates": 0,
+    "complete": true,
+    "per_pass": {
+      "nonthinking_r1": 280,
+      "nonthinking_r2": 280,
+      "nonthinking_r3": 280,
+      "thinking_r1": 280,
+      "thinking_r2": 280,
+      "thinking_r3": 280
+    },
+    "per_arm": {
+      "B": 420,
+      "H": 420,
+      "R": 420,
+      "S": 420
+    },
+    "end_states": {
+      "model_end": 1680
+    },
+    "unclosed_reasoning": 0,
+    "empty_final_text": 0,
+    "parser_v2": {
+      "nonthinking:valid": 840,
+      "thinking:monotonicity": 1,
+      "thinking:valid": 839
+    },
+    "output_tokens": {
+      "n": 1680,
+      "max": 80801,
+      "median": 4495,
+      "sum": 8035913
+    },
+    "prompt_hash_mismatch": 0,
+    "engine_vs_own_input_tokens_mismatch": 0
+  }
+}

@@ -24,7 +24,7 @@ real source is excluded from training with all of its derivations.
 import numpy as np
 from .common import rng, seed
 
-POOL_VERSION='pool-v1-20260916'
+POOL_VERSION='pool-v2-balanced-20260918'
 
 # Held constant across the pool, with the reason each one is not varied.
 CONSTANTS={
@@ -83,8 +83,7 @@ VARIED={
  },
 }
 
-# Stratification: cells x graphs per cell. Sizes (and rounds) are cycled inside a cell
-# so every cell sees the whole grid instead of relying on the draw to cover it.
+# Every partition covers the grids; AD also balances the full N x rounds grid.
 STRATA={
  'dar':{'axes':['chi','alpha'],'bins':[5,5],'train_per_cell':8,'dev_per_cell':2},
  'ad':{'axes':['mode','eta'],'bins':[2,5],'train_per_cell':20,'dev_per_cell':5},
@@ -97,48 +96,56 @@ def _edges(bounds,k):
 
 
 def draw_pool():
-    """Fixed stratified NumPy draw. One stream for the whole definition."""
-    r=rng('pool_definition',POOL_VERSION)
+    """Label-blind stratification, with independently shuffled grids per partition.
+
+    Balance N within each family/partition and all 25 N x rounds combinations
+    within AD/partition. Assign these grids randomly to the continuous-parameter
+    strata. Development is not the deterministic complement of training within
+    a stratum; no joint parameter combination is deliberately held out.
+    """
     specs=[]
-    # --- DAR: chi x alpha cells -------------------------------------------------
-    s=STRATA['dar']; ce=_edges(VARIED['dar']['chi']['range'],s['bins'][0])
-    ae=_edges(VARIED['dar']['alpha']['range'],s['bins'][1])
     sizes=VARIED['dar']['N']['grid']
-    per=s['train_per_cell']+s['dev_per_cell']; n=0
-    for i in range(s['bins'][0]):
-        for j in range(s['bins'][1]):
-            for t in range(per):
-                N=sizes[(n)%len(sizes)]
-                d=float(r.uniform(*VARIED['dar']['mean_degree']['range']))
-                E=min(int(round(d*N/2)),N*(N-1)//2)
-                p={'N':int(N),'E':int(E),'mean_degree':d,
-                   'chi':float(r.uniform(ce[i],ce[i+1])),
-                   'alpha':float(r.uniform(ae[j],ae[j+1])),
-                   'nu':float(r.uniform(*VARIED['dar']['nu']['range']))}
-                specs.append({'family':'dar','parameters':p,'stratum':{'chi_bin':i,'alpha_bin':j},
-                              'partition':'train' if t<s['train_per_cell'] else 'dev'})
-                n+=1
-    # --- Activity-driven: mode x eta cells --------------------------------------
-    s=STRATA['ad']; ee=_edges(VARIED['ad']['eta']['range'],s['bins'][1])
-    sizes=VARIED['ad']['N']['grid']; rounds=VARIED['ad']['rounds']['grid']
-    per=s['train_per_cell']+s['dev_per_cell']; n=0
-    for i,mode in enumerate(VARIED['ad']['mode']['values']):
-        for j in range(s['bins'][1]):
-            for t in range(per):
-                p={'N':int(sizes[n%len(sizes)]),'rounds':int(rounds[(n//len(sizes))%len(rounds)]),
-                   'mode':mode,
-                   'tail':float(r.uniform(*VARIED['ad']['tail']['range'])),
-                   'eps':float(r.uniform(*VARIED['ad']['eps']['range'])),
-                   'eta':float(r.uniform(ee[j],ee[j+1])),
-                   'c':float(r.uniform(*VARIED['ad']['c']['range'])) if mode=='memory' else None}
-                specs.append({'family':'ad','parameters':p,'stratum':{'mode':mode,'eta_bin':j},
-                              'partition':'train' if t<s['train_per_cell'] else 'dev'})
-                n+=1
-    # Stable ids after the draw; ids never feed back into the parameter stream.
+    ce=_edges(VARIED['dar']['chi']['range'],5)
+    ae=_edges(VARIED['dar']['alpha']['range'],5)
+    ee=_edges(VARIED['ad']['eta']['range'],5)
+    for partition in ('train','dev'):
+        r=rng('pool_definition',POOL_VERSION+':'+partition)
+        dar_grid=sizes*(COUNTS['dar'][partition]//len(sizes))
+        r.shuffle(dar_grid)
+        dar_cursor=0
+        ad_grid=[(n,k) for n in range(5) for k in range(5)]*(COUNTS['ad'][partition]//25)
+        r.shuffle(ad_grid)
+        ad_cursor=0
+        for i in range(5):
+            for j in range(5):
+                count=STRATA['dar'][partition+'_per_cell']
+                grid=dar_grid[dar_cursor:dar_cursor+count]
+                dar_cursor+=count
+                for N in grid:
+                    d=float(r.uniform(*VARIED['dar']['mean_degree']['range']))
+                    p={'N':N,'E':min(int(round(d*N/2)),N*(N-1)//2),'mean_degree':d,
+                       'chi':float(r.uniform(ce[i],ce[i+1])),
+                       'alpha':float(r.uniform(ae[j],ae[j+1])),
+                       'nu':float(r.uniform(*VARIED['dar']['nu']['range']))}
+                    specs.append({'family':'dar','parameters':p,'partition':partition,
+                                  'stratum':{'chi_bin':i,'alpha_bin':j}})
+        for mode in VARIED['ad']['mode']['values']:
+            for j in range(5):
+                count=STRATA['ad'][partition+'_per_cell']
+                pairs=ad_grid[ad_cursor:ad_cursor+count]
+                ad_cursor+=count
+                for n,k in pairs:
+                    p={'N':sizes[n],'rounds':VARIED['ad']['rounds']['grid'][k],
+                       'mode':mode,'tail':float(r.uniform(*VARIED['ad']['tail']['range'])),
+                       'eps':float(r.uniform(*VARIED['ad']['eps']['range'])),
+                       'eta':float(r.uniform(ee[j],ee[j+1])),
+                       'c':float(r.uniform(*VARIED['ad']['c']['range'])) if mode=='memory' else None}
+                    specs.append({'family':'ad','parameters':p,'partition':partition,
+                                  'stratum':{'mode':mode,'eta_bin':j}})
     counter={}
     for sp in specs:
         k=(sp['family'],sp['partition']); counter[k]=counter.get(k,0)+1
-        sp['key']=f"pool_{sp['family']}_{sp['partition']}_{counter[k]:04d}"
+        sp['key']=f"{POOL_VERSION}_{sp['family']}_{sp['partition']}_{counter[k]:04d}"
         sp['seed']=seed('pool',sp['key'])
     return specs
 
@@ -166,17 +173,25 @@ def build_pool(out,specs=None,limit=None,progress=True):
     """
     from pathlib import Path
     import time
-    from .common import write_json, read_json, digest, ARMS, draws_for, observation_id, DESIGN_VERSION
+    from .common import write_json, read_json, digest, ARMS, draws_for, observation_id, DESIGN_VERSION, sha
     from .synthetic import generate_one
     from .sampling import calibrate, draw
     from .observation import make, serialize, parse
+    from .integrity import bind,code_binding
     out=Path(out); (out/'observations').mkdir(parents=True,exist_ok=True)
     if specs is None: specs=pool_definition()['graphs']
+    bind(out/'inputs.json',{'code':code_binding(),'pool_version':POOL_VERSION,'specs':specs})
     if limit: specs=specs[:limit]
     failures={}; done=0; start=time.perf_counter()
     for sp in specs:
         key=sp['key']; dest=out/'observations'/f'{key}.json'
         if dest.exists():
+            stored=read_json(dest)
+            checksum=dest.with_suffix('.sha256')
+            if not checksum.exists() or checksum.read_text().strip()!=sha(dest):
+                raise ValueError(f'unverified pool checkpoint: {dest}')
+            if any(stored[k]!=sp[k] for k in ('key','family','partition','parameters','seed','stratum')):
+                raise ValueError(f'pool specification changed: {key}')
             done+=1; continue
         try:
             domain=f"pool_{sp['partition']}"
@@ -213,6 +228,7 @@ def build_pool(out,specs=None,limit=None,progress=True):
                              'walk_validation_relative_error':budget['validation_relative_error'],
                              'latents_sha256':meta.get('latents_sha256'),
                              'observations':rows})
+            dest.with_suffix('.sha256').write_text(sha(dest)+'\n')
             done+=1
         except (ValueError,FloatingPointError,ArithmeticError,MemoryError) as e:
             failures[key]=f'{type(e).__name__}: {e}'

@@ -1,53 +1,16 @@
 #!/usr/bin/env python3
-"""Qwen generation with per-request persistence (design in main_experiment.common).
+"""Qwen offline engine for the revised generic-JSON protocol.
 
-Why not run_qwen_batch.py
--------------------------
-That runner hands fixed chunks to LLM.generate, which returns only when the whole
-chunk has finished. A chunk still running when the job's wall time ends loses
-every answer in it, including the ones that had already finished, and one long
-thinking answer (the previous run went up to 79k tokens) keeps its chunk open.
-The previous pass lost twelve job attempts that way.
-
-This runner drives the same offline engine step by step: requests are admitted up
-to max_num_seqs at a time, every finished request is written at once by atomic
-rename, and a freed slot is refilled immediately (continuous batching across all
-selected passes, so one model load serves every mode and repeat). New requests
-are admitted only until --admit-seconds; after that the job lets the running ones
-finish and stops at --stop-seconds at the latest. A killed job therefore loses at
-most the requests in flight, never a finished one.
-
-What is unchanged
------------------
-Model, revision, tokenizer and chat template; LLM(...) arguments; per-request
-sampling (model-card values per mode, top_k 20, presence penalty 1.5, the output
-allowance min(258048, context - input - 8), seed = request seed mod 2**31,
-skip_special_tokens False); free generation without a grammar; the reasoning split;
-the result-file layout <mode>_r<repeat>/<request id>.json.
-
-What changed with cells10-20260917 (fixed before its generation)
------------------------------------------------------------------
-The final answer is constrained to common.ANSWER_REGEX and the engine runs with
-reasoning_parser='qwen3'. vLLM applies the constraint only once reasoning has
-ended: after the generated </think> in thinking mode, and from the first token in
-non-thinking mode, whose prompt already closes the reasoning block. Non-thinking
-is thereby a direct estimate without a derivation, and every final answer is a
-parseable object. --no-structured reproduces the earlier free generation.
-
-Requests are submitted with LLM.enqueue, which in vLLM 0.29.0 is the first half
-of LLM.generate (_add_completion_requests: the same prompt rendering and
-tokenisation, a counter request id, FINAL_ONLY outputs); the loop then calls
-LLMEngine.step as LLM._run_engine does. step() reports the id enqueue assigned
-before vLLM appended its random suffix, so both forms are mapped back to the
-study's request id. If enqueue or step is unavailable the runner stops instead of
-silently falling back to chunked generation.
+One attempt per request. Admission is persisted before enqueue; interrupted
+admissions are never automatically regenerated. Completed records and the
+whole runner configuration are bound to immutable hashes.
 """
 import argparse, hashlib, json, os, sys, time
 from collections import deque
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from main_experiment.common import read_json, ANSWER_REGEX, DESIGN_VERSION
+from main_experiment.common import read_json, DESIGN_VERSION, digest, sha, write_json
 
 MODES = {
     'thinking':    dict(temperature=1.0, top_p=0.95, enable_thinking=True,  config_id='qwen_thinking'),
@@ -63,7 +26,7 @@ GENERATION_CONFIG = {
     'dtype': 'bfloat16', 'tensor_parallel_size': 1, 'gpu_memory_utilization': 0.90,
     'limit_mm_per_prompt': {'image': 0, 'video': 0}, 'enforce_eager': False,
     'engine_seed': 20260916,
-    'structured_output': {'regex': ANSWER_REGEX, 'reasoning_parser': 'qwen3'},
+    'structured_output': {'json_object': True, 'reasoning_parser': 'qwen3'},
     'chat_template': 'tokenizer.apply_chat_template(add_generation_prompt=True, enable_thinking=mode)',
 }
 
@@ -79,6 +42,7 @@ def split_reasoning(text, thinking):
 
 
 def load_requests(run, passes, arms, shard_index, shard_count):
+    from main_experiment.integrity import validate_request
     rows = [json.loads(l) for l in (run / 'requests.jsonl').read_text().splitlines()]
     wanted = {(MODES[m]['config_id'], rep): m for m, rep in passes}
     obs = {}
@@ -89,10 +53,11 @@ def load_requests(run, passes, arms, shard_index, shard_count):
             continue
         if r['status'] == 'skipped_empty':
             continue
+        validate_request(r)
         oid = r['observation_id']
         if oid not in obs:
             obs[oid] = read_json(run / 'observations' / 'sample' / f'{oid}.json')
-        if obs[oid]['prompt_sha256'] != r['prompt_sha256']:
+        if digest(obs[oid]['messages']) != r['prompt_sha256']:
             raise ValueError(f'prompt hash mismatch for {r["id"]}')
         out.append({**r, 'mode': wanted[key], 'messages': obs[oid]['messages']})
     out.sort(key=lambda r: r['id'])
@@ -106,9 +71,23 @@ def result_path(out, r):
 
 
 def pending(out, requests):
-    """Resume rule: a request is done iff its result file exists (atomic rename)."""
-    done = {r['id'] for r in requests if result_path(out, r).exists()}
-    return done, [r for r in requests if r['id'] not in done]
+    """Never repeat an admitted attempt; require exact identity for completed ones."""
+    done=set()
+    for r in requests:
+        path=result_path(out,r)
+        if path.exists():
+            d=read_json(path)
+            for key in ('id','prompt_sha256','payload_sha256','seed'):
+                if d.get(key)!=r.get(key): raise ValueError(f'resume {key} mismatch: {path}')
+            if d.get('runner_sha256')!=sha(__file__): raise ValueError('runner changed on resume')
+            done.add(r['id'])
+        elif path.with_suffix('.attempt').exists():
+            attempt=read_json(path.with_suffix('.attempt'))
+            if attempt['payload_sha256']!=r['payload_sha256']: raise ValueError('attempt binding mismatch')
+            write_result(out,r,{'status':'interrupted','started':True,'terminal':True,
+                               'technical_error':True,'final_text':'','end_state':'process_interrupted'})
+            done.add(r['id'])
+    return done,[r for r in requests if r['id'] not in done]
 
 
 def write_result(out, r, payload):
@@ -116,7 +95,8 @@ def write_result(out, r, payload):
            'graph_id': r['graph_id'], 'arm': r['arm'],
            'sample_index': r['sample_index'], 'repeat_index': r['repeat_index'],
            'config_id': r['config_id'], 'seed': r['seed'],
-           'prompt_sha256': r['prompt_sha256'], 'utc': time.time(), **payload}
+           'prompt_sha256': r['prompt_sha256'], 'payload_sha256': r['payload_sha256'],
+           'runner_sha256':sha(__file__), 'utc': time.time(), **payload}
     p = result_path(out, r)
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix('.tmp')
@@ -149,12 +129,27 @@ def main():
     ap.add_argument('--stop-seconds', type=float, default=0.0,
                     help='stop stepping after this many seconds (0: no limit)')
     ap.add_argument('--limit', type=int, default=0)
-    ap.add_argument('--no-structured', action='store_true',
-                    help='free generation as in the earlier designs')
     a = ap.parse_args()
 
     started = time.time()
     run = Path(a.run); out = Path(a.out)
+    if a.shard_count<1 or not 0<=a.shard_index<a.shard_count: raise ValueError('invalid shard')
+    from main_experiment.integrity import bind
+    out.mkdir(parents=True,exist_ok=True)
+    import fcntl
+    lock=open(out/f'shard_{a.shard_index}.lock','a')
+    fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    model=Path(a.model)
+    model_files=sorted(model.glob('*.json'))+sorted(model.glob('*.safetensors'))
+    if not model_files: raise ValueError('local pinned model artifacts missing')
+    # Content hashes, not a mutable directory name. Computed once per invocation.
+    model_hashes={p.name:sha(p) for p in model_files}
+    with open(out/'binding.lock','a') as binding_lock:
+        fcntl.flock(binding_lock,fcntl.LOCK_EX)
+        bind(out/'engine_inputs.json',{'runner_sha256':sha(__file__),
+             'requests_sha256':sha(run/'requests.jsonl'),'generation':GENERATION_CONFIG,
+             'model_files':model_hashes,
+             'max_num_seqs':a.max_num_seqs,'shard_count':a.shard_count})
     passes = parse_passes(a.passes)
     arms = set(filter(None, a.arms.split(',')))
     requests = load_requests(run, passes, arms, a.shard_index, a.shard_count)
@@ -170,12 +165,15 @@ def main():
     from vllm import LLM, SamplingParams
     from vllm.sampling_params import StructuredOutputsParams
     from transformers import AutoTokenizer
-    import vllm, inspect
+    import vllm, inspect, transformers, torch
+    from main_experiment.requests import EXECUTION_POLICY
+    for module,name in ((vllm,'vllm'),(transformers,'transformers'),(torch,'torch')):
+        if module.__version__!=EXECUTION_POLICY['qwen'][name+'_version']:
+            raise ValueError(f'unpinned {name} version: {module.__version__}')
     runner_sha = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     tok = AutoTokenizer.from_pretrained(a.model)
     g = GENERATION_CONFIG
-    structured = not a.no_structured
-    extra = {'reasoning_parser': g['structured_output']['reasoning_parser']} if structured else {}
+    extra = {'reasoning_parser': g['structured_output']['reasoning_parser']}
     llm = LLM(model=a.model, tokenizer=a.model, dtype=g['dtype'],
               tensor_parallel_size=g['tensor_parallel_size'],
               max_model_len=g['max_model_len'],
@@ -209,14 +207,16 @@ def main():
             n_in = len(tok(text, add_special_tokens=False)['input_ids'])
             budget = g['max_model_len'] - n_in - g['context_margin']
             if budget <= 0:
-                write_result(out, r, {'status': 'input_too_long', 'input_tokens': n_in})
+                write_result(out, r, {'status':'input_too_long','input_tokens':n_in,'terminal':True,'started':True,'technical_error':True,'final_text':''})
                 continue
             mt = min(g['max_tokens'], budget)
-            so = StructuredOutputsParams(regex=g['structured_output']['regex']) if structured else None
+            so = StructuredOutputsParams(json_object=True)
             params = SamplingParams(temperature=cfg['temperature'], top_p=cfg['top_p'],
                                     top_k=TOP_K, presence_penalty=PRESENCE_PENALTY,
                                     max_tokens=mt, seed=r['seed'] % (2**31),
                                     skip_special_tokens=False, structured_outputs=so)
+            write_json(result_path(out,r).with_suffix('.attempt'),
+                       {'id':r['id'],'payload_sha256':r['payload_sha256'],'admitted_utc':time.time(),'input_tokens':n_in})
             (internal,) = llm.enqueue([text], [params], use_tqdm=False)
             alias[internal] = r['id']
             alias[internal.rsplit('-', 1)[0]] = r['id']
@@ -252,7 +252,7 @@ def main():
                 'seconds': time.time() - t0, 'model': a.model,
                 'mode': r['mode'], 'repeat_index': r['repeat_index'],
                 'runner': 'run_qwen_engine.py', 'runner_sha256': runner_sha,
-                'structured_output': g['structured_output'] if structured else None,
+                'structured_output': g['structured_output'],
                 'design_version': DESIGN_VERSION,
                 'vllm_version': vllm.__version__, 'max_num_seqs': a.max_num_seqs})
             written += 1; out_tokens += n_out
@@ -260,6 +260,10 @@ def main():
             last_report = time.time()
             print(f'PROGRESS t={time.time()-started:.0f}s written={written} inflight={len(inflight)} '
                   f'queued={len(queue)} out_tokens={out_tokens}', flush=True)
+    for rid,(r,n_in,mt,t0) in inflight.items():
+        write_result(out,r,{'status':'interrupted','started':True,'terminal':True,
+                           'technical_error':True,'final_text':'','input_tokens':n_in,
+                           'end_state':'job_deadline','seconds':time.time()-t0})
     if inflight:
         print(f'ABANDONED_IN_FLIGHT {len(inflight)}: {sorted(inflight)[:5]}', flush=True)
     present = sum(result_path(out, r).exists() for r in requests)

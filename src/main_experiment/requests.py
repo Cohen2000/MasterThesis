@@ -1,5 +1,5 @@
-"""Request construction and pure transport policies. No network client is exposed."""
-from .common import CONFIGS, LLM_REPEATS, ARM_ID, ANSWER_REGEX, DESIGN_VERSION, seed, digest
+"""Frozen request construction; transport lives in execution.py."""
+from .common import CONFIGS, LLM_REPEATS, ARM_ID, DESIGN_VERSION, seed, digest
 
 QWEN='Qwen/Qwen3.6-35B-A3B'
 REVISION='995ad96eacd98c81ed38be0c5b274b04031597b0'
@@ -15,18 +15,12 @@ def payload(config,messages,request_seed):
                 'stream_options':{'include_usage':True}}
     if config not in CONFIGS: raise ValueError(config)
     thinking=config=='qwen_thinking'
-    # What is executed (cells10-20260917, fixed before generation): the vLLM
-    # offline engine, no HTTP server, no streaming, and the final answer
-    # constrained to ANSWER_REGEX. With reasoning_parser='qwen3' the constraint
-    # starts once reasoning has ended: after the generated </think> in thinking
-    # mode, and from the first generated token in non-thinking mode, whose chat
-    # template closes the reasoning block inside the prompt. Non-thinking is
-    # therefore a direct estimate without a visible derivation.
+    # Generic JSON only, matching the API configurations. No task-specific grammar.
     return {'model':QWEN,'messages':messages,'max_tokens':258048,
             'temperature':1. if thinking else .7,'top_p':.95 if thinking else .80,
             'top_k':20,'min_p':0.,'presence_penalty':1.5,'repetition_penalty':1.,
             'chat_template_kwargs':{'enable_thinking':thinking},'seed':request_seed,
-            'structured_output':{'regex':ANSWER_REGEX,'reasoning_parser':'qwen3',
+            'structured_output':{'json_object':True,'reasoning_parser':'qwen3',
                                  'applies':'after reasoning end'},
             'design_version':DESIGN_VERSION,
             'executed_transport':'vllm offline engine (LLM.enqueue + LLMEngine.step)',
@@ -53,8 +47,8 @@ def planned(observations):
                 for config in CONFIGS:
                     # R, S and B keep their letters, so their seeds are those of the
                     # previous design; the new H has its own identifier.
-                    s=seed('llm',obs['graph_id'],ARM_ID[obs['arm']],obs['sample_index'],repeat,config)
-                    rid=f'{obs["id"]}__{config}__r{repeat}'
+                    s=seed('llm',obs['graph_id'],ARM_ID[obs['arm']],obs['sample_index'],repeat,config+':'+DESIGN_VERSION)
+                    rid=f'{obs["id"]}__{config}__r{repeat}__{DESIGN_VERSION}'
                     records.append({'id':rid,'observation_id':obs['id'],'graph_id':obs['graph_id'],
                         'arm':obs['arm'],'sample_index':obs['sample_index'],'repeat_index':repeat,
                         'config_id':config,'stratum':stratum,'seed':s,
@@ -65,16 +59,17 @@ def planned(observations):
                         # are planned but not released.
                         'production_dispatch_enabled':config.startswith('qwen'),
                         'requires_technical_release':not config.startswith('qwen')})
+    for record in records:
+        record['design_version']=DESIGN_VERSION
+        record['payload_sha256']=digest(record['payload'])
     return records
 
 
 def retry_decision(attempt,model_tokens,status,transient=False,ambiguous=False,retry_after=0):
+    # One generation attempt. Ambiguous delivery must be reconciled, never resent.
     if ambiguous: return {'action':'reconcile','delay':None}
-    if status in (400,401) or status in ('ignored_parameter','repeated_oom'):
+    if status in (400,401,403) or status in ('ignored_parameter','repeated_oom'):
         return {'action':'stop_configuration','delay':None}
-    if model_tokens>0: return {'action':'terminal_no_retry','delay':None}
-    if transient and attempt<3:
-        return {'action':'retry','delay':max((5,20)[attempt-1],retry_after)}
     return {'action':'terminal_no_retry','delay':None}
 
 
@@ -97,15 +92,15 @@ EXECUTION_POLICY={
  'paid_providers_authorized':False,
  'connect_timeout_seconds':30,'first_model_token_seconds':1800,
  'no_model_progress_seconds':3600,'active_request_seconds':86400,
- 'sdk_retries':0,'http_read_timeout':None,'max_attempts':3,
- 'retry_delays_seconds':[5,20],'honor_retry_after':True,
- 'retry_only_transient_before_model_output':True,'reconcile_ambiguous_before_retry':True,
+ 'sdk_retries':0,'http_read_timeout':None,'max_attempts':1,
+ 'retry_delays_seconds':[],'honor_retry_after':True,
+ 'automatic_generation_retry':False,'reconcile_ambiguous_before_retry':True,
  'no_retry_after_model_output':True,'no_continuation_after_output_limit':True,
  'persist_each_attempt_and_stream_fragment':True,
  'sol':{'transport':'Responses Batch','batch_max_requests':64,'batch_window':'24h',
         'regular_cap_usd':180,'total_cap_usd':200,'per_open_request_reserve_usd':1.30,
         'price_recheck_before_dispatch':True},
- 'deepseek':{'max_active_requests':4,'total_cap_usd':50,'per_open_request_reserve_usd':.48,
+ 'deepseek':{'max_active_requests':1,'total_cap_usd':50,'per_open_request_reserve_usd':.48,
              'price_recheck_before_dispatch':True},
  # Verified on the cluster, not assumed: vLLM 0.11 (the newest release resolvable
  # against Python 3.9) does not know this architecture; 0.29.0 does, and the model
@@ -115,8 +110,8 @@ EXECUTION_POLICY={
          'architecture':'Qwen3_5MoeForConditionalGeneration',
          'vllm_version':'0.29.0','transformers_version':'5.17.0',
          'torch_version':'2.13.0+cu130','dtype':'bfloat16',
-         'serving':'vllm offline engine (no HTTP server); final answer constrained by ANSWER_REGEX after reasoning (reasoning_parser qwen3)',
-         'required_gpus':'2 x H100 80GB','max_model_len':262144,
+         'serving':'vllm offline engine (no HTTP server); generic JSON object after reasoning (reasoning_parser qwen3)',
+         'required_gpus':'1 x H100 94GB','max_model_len':262144,
          'max_output_tokens':258048,'gpu_memory_utilization':.90,
          'reasoning_split':'<think>...</think> markers of the pinned chat template',
          'server_seed':20260916,'language_model_only':True,'yarn':False,

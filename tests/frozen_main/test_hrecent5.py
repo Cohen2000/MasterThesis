@@ -13,8 +13,7 @@ import numpy as np
 import pandas as pd
 
 from main_experiment.common import (H_CAP, LEGACY_H, ARM_ID, REAL_TEST, SYNTH, SAMPLER_DRAWS,
-                                    observation_id, rng, draws_for, CURRENT_RUN, CURRENT_REVISION,
-                                    ANSWER_REGEX)
+                                    observation_id, rng, draws_for, CURRENT_RUN, CURRENT_REVISION)
 from main_experiment.data import canonical, load_graph
 from main_experiment.sampling import (budget_parameters, draw, recent_counts, reservoir_counts,
                                       h_parameters, _dyads_for, sample_dyads)
@@ -310,43 +309,26 @@ class BoundTests(unittest.TestCase):
 
 
 class AnswerContractTests(unittest.TestCase):
-    def test_every_regex_answer_is_accepted_by_the_parser(self):
-        import re
+    def test_generic_json_support_and_postvalidation(self):
+        from main_experiment.requests import payload
         from main_experiment.evaluation import parse_final
-        ok = '{"rho_2": 0.412, "rho_3": 0.2, "rho_4": 0.000001, "rho_5": 0}'
-        self.assertTrue(re.fullmatch(ANSWER_REGEX, ok))
-        self.assertEqual(parse_final(ok)[0], [0.412, 0.2, 0.000001, 0])
-        for bad in ('{"rho_2": 1.2, "rho_3": 0, "rho_4": 0, "rho_5": 0}',
-                    '{"rho_2": .5, "rho_3": 0, "rho_4": 0, "rho_5": 0}',
-                    '{"rho_3": 0, "rho_2": 0, "rho_4": 0, "rho_5": 0}',
-                    '{"rho_2": 0.1234567, "rho_3": 0, "rho_4": 0, "rho_5": 0}'):
-            self.assertIsNone(re.fullmatch(ANSWER_REGEX, bad), bad)
-        # the regex cannot enforce monotonicity; the parser still rejects it
-        mono = '{"rho_2": 0.1, "rho_3": 0.2, "rho_4": 0, "rho_5": 0}'
-        self.assertTrue(re.fullmatch(ANSWER_REGEX, mono))
-        self.assertEqual(parse_final(mono)[1], 'monotonicity')
+        for config in ('qwen_thinking','qwen_nonthinking'):
+            constraint=payload(config,[],1)['structured_output']
+            self.assertEqual(constraint['json_object'],True)
+            self.assertNotIn('regex',constraint)
+        self.assertEqual(parse_final('{"rho_5":0,"rho_2":0.123456789,"rho_3":0,"rho_4":0}')[0],
+                         [.123456789,0,0,0])
+        self.assertEqual(parse_final('{"rho_2":0.1,"rho_3":0.2,"rho_4":0,"rho_5":0}')[1],'monotonicity')
 
 
 class ReplicationTests(unittest.TestCase):
-    def test_deterministic_draw_has_no_sampler_variance(self):
-        a = np.array([[.1, .2, .3]])
-        v = cell_variance(a)
-        self.assertEqual(v['sampler'], 0.)
-        self.assertAlmostEqual(v['total'], np.var([.1, .2, .3], ddof=1) / 3)
-        self.assertTrue(v['deterministic_draw'])
-        s = paired_summary({'x': a, 'y': np.tile([[.1], [.3], [.2], [.4], [.5]], (1, 3))}, {'x': 1, 'y': 5})
-        self.assertAlmostEqual(s['mean'], (0.2 + 0.3) / 2)
-        self.assertAlmostEqual(s['sources']['y']['mcse_model_repeats'], 0.)
-        with self.assertRaises(ValueError): paired_summary({'x': a})          # expects 5 draws
-        with self.assertRaises(ValueError): paired_summary({'x': np.ones((5, 3))}, {'x': 1})
-
-    def test_components_match_the_total_for_several_draws(self):
-        r = np.random.default_rng(0)
-        a = r.normal(size=(5, 3)) + r.normal(size=(5, 1))
-        v = cell_variance(a)
-        self.assertAlmostEqual(v['total'], np.var(a.mean(1), ddof=1) / 5)
-        self.assertGreaterEqual(v['sampler'], 0.)
-        self.assertAlmostEqual(v['model'], np.mean(np.var(a, axis=1, ddof=1)) / 15)
+    def test_direct_mcse_and_no_component_claim(self):
+        for a in (np.array([[.1,.2,.3]]),np.random.default_rng(3).normal(size=(5,3))):
+            v=cell_variance(a)
+            expected=np.var(a.mean(1),ddof=1)/5 if len(a)>1 else np.var(a[0],ddof=1)/3
+            self.assertAlmostEqual(v['total'],expected)
+            self.assertNotIn('model',v); self.assertNotIn('sampler',v)
+        with self.assertRaises(ValueError): paired_summary({'x':np.ones((1,3))})
 
 
 class EngineRunnerTests(unittest.TestCase):
@@ -383,96 +365,6 @@ if __name__ == '__main__':
     unittest.main()
 
 
-class EvaluatorTests(unittest.TestCase):
-    """The response evaluator on the real run with explicitly marked mock answers."""
-
-    @classmethod
-    def setUpClass(cls):
-        prim = ROOT / CURRENT_REVISION / 'primary_baselines.json'
-        if not (RUN / 'requests.jsonl').exists() or not prim.exists():
-            raise unittest.SkipTest('run or primary baselines not present')
-        from evaluate_main_responses import evaluate
-        import csv
-        requests = [json.loads(x) for x in (RUN / 'requests.jsonl').read_text().splitlines()]
-        records = []
-        for r in requests:
-            if r['config_id'] == 'qwen_thinking':
-                v = {1: .5, 2: .4, 3: .3}[r['repeat_index']]
-                text = '```json\n{"rho_2":%s,"rho_3":0.2,"rho_4":0.1,"rho_5":0.0}\n```' % v
-            elif r['config_id'] == 'qwen_nonthinking':
-                text = 'Let me derive this.\n{"rho_2":0.5,"rho_3":0.2,"rho_4":0.1,"rho_5":0.0}'
-            else:
-                continue
-            records.append({'id': r['id'], 'mock': True, 'started': True, 'terminal': True,
-                            'final_text': text, 'prompt_sha256': r['prompt_sha256']})
-        cls.tmp = tempfile.TemporaryDirectory(suffix='_mock')
-        d = pathlib.Path(cls.tmp.name)
-        src = d / 'mock.jsonl'
-        src.write_text(''.join(json.dumps(x) + '\n' for x in records))
-        evaluate(RUN, src, d / 'eval_mock', True, prim)
-        def read(name):
-            with open(d / 'eval_mock' / name) as f:
-                return list(csv.DictReader(f))
-        cls.summary, cls.sources, cls.secondary = read('summary.csv'), read('source_results.csv'), read('secondary.csv')
-        cls.report = json.loads((d / 'eval_mock' / 'report.json').read_text())
-        cls.errors = read('answer_errors.csv')
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
-
-    def test_fallback_only_cells_carry_no_model_number(self):
-        rows = [r for r in self.summary if r['config_id'] == 'qwen_nonthinking']
-        self.assertTrue(rows)
-        for r in rows:
-            self.assertEqual(r['fallback_only'], 'True')
-            self.assertEqual(r['numeric_model_estimate'], 'False')
-            self.assertEqual(r['AE2'], '')
-            self.assertEqual(r['shrink_plugin_AE2'], '')
-            self.assertNotEqual(r['plugin_AE2'], '')          # references stay visible
-            self.assertNotEqual(r['median_AE2'], '')
-        self.assertTrue(all(r['value'] == '' for r in self.sources
-                            if r['config_id'] == 'qwen_nonthinking' and r['metric'] == 'AE2'))
-        self.assertIn('real/H/qwen_nonthinking', self.report['fallback_only_cells'])
-
-    def test_valid_cells_and_the_deterministic_source(self):
-        real_h = [r for r in self.summary if r['stratum'] == 'real' and r['arm'] == 'H'
-                  and r['config_id'] == 'qwen_thinking'][0]
-        self.assertEqual(real_h['numeric_model_estimate'], 'True')
-        det = json.loads((RUN / 'report.json').read_text())['deterministic_h_graphs']
-        for name in det:
-            self.assertIn(name, real_h['deterministic_draw_sources'])
-            src = [r for r in self.sources if r['source'] == name and r['arm'] == 'H'
-                   and r['config_id'] == 'qwen_thinking' and r['metric'] == 'AE2'][0]
-            self.assertEqual(src['draws'], '1')
-            self.assertEqual(float(src['MCSE_sampler']), 0.)
-        h_rows = [r for r in self.errors if r['arm'] == 'H' and r['config_id'] == 'qwen_thinking']
-        self.assertTrue(all(r['reference_name'] == 'corrector' for r in h_rows))
-        from evaluate_main_responses import POSITIONS, bound_position
-        self.assertTrue(all(r['rho2_position_vs_h_bounds'] in POSITIONS for r in h_rows))
-        shares = [float(real_h[f'valid_rho2_{n}_share']) for n in POSITIONS]
-        self.assertAlmostEqual(sum(shares), 1.)
-        self.assertEqual(bound_position(.2003, .2, .5), 'at_lower_plugin')
-        self.assertEqual(bound_position(.19, .2, .5), 'below_lower')
-        self.assertEqual(bound_position(.3, .2, .5), 'inside')
-        self.assertEqual(bound_position(.6, .2, .5), 'above_upper')
-
-    def test_secondary_metrics(self):
-        sec = [r for r in self.secondary if r['config_id'] == 'qwen_thinking' and r['stratum'] == 'real'
-               and r['arm'] == 'R'][0]
-        # repeats answer 0.5, 0.4, 0.3: the median answer is 0.4 and the spread sd is 0.1
-        self.assertAlmostEqual(float(sec['spread_rho2_sd_valid']), .1, places=12)
-        med = [r for r in self.errors if r['config_id'] == 'qwen_thinking' and r['repeat_index'] == '2'
-               and r['stratum'] == 'real' and r['arm'] == 'R']
-        per_source = {}
-        for r in med: per_source.setdefault(r['graph_id'], []).append(float(r['AE2']))
-        self.assertAlmostEqual(float(sec['median3_MAE2']), np.mean([np.mean(v) for v in per_source.values()]), places=12)
-        row = [r for r in self.errors if r['config_id'] == 'qwen_thinking'][0]
-        pred = json.loads(row['prediction_json'])
-        self.assertEqual(float(row['validation_reason'] == 'valid_after_fence'), 1.)
-        self.assertEqual(len(pred), 4)
-
-
 class ResumeTests(unittest.TestCase):
     def test_pipeline_binding_rejects_changed_dependencies(self):
         from main_experiment.pipeline import binding
@@ -487,7 +379,7 @@ class ResumeTests(unittest.TestCase):
         from run_qwen_engine import pending, write_result
         reqs = [{'id': f'g__H-recent5__s1__qwen_thinking__r{i}', 'mode': 'thinking', 'repeat_index': i,
                  'observation_id': 'g__H-recent5__s1', 'graph_id': 'g', 'arm': 'H', 'sample_index': 1,
-                 'config_id': 'qwen_thinking', 'seed': i, 'prompt_sha256': 'x'} for i in (1, 2, 3)]
+                 'config_id': 'qwen_thinking', 'seed': i, 'prompt_sha256': 'x','payload_sha256':'y'} for i in (1, 2, 3)]
         with tempfile.TemporaryDirectory() as d:
             out = pathlib.Path(d)
             done, todo = pending(out, reqs)
@@ -500,18 +392,14 @@ class ResumeTests(unittest.TestCase):
             self.assertEqual(done, {reqs[1]['id']})
             self.assertEqual([r['id'] for r in todo], [reqs[0]['id'], reqs[2]['id']])
 
-    def test_engine_main_reaches_model_loading_without_a_gpu(self):
-        """main() up to the vLLM import: argument handling, selection and resume."""
-        if not (RUN / 'requests.jsonl').exists(): self.skipTest('run not present')
+    def test_engine_refuses_unpinned_missing_model(self):
+        if not (RUN/'requests.jsonl').exists(): self.skipTest('run not present')
         import subprocess
         with tempfile.TemporaryDirectory() as d:
-            cmd = [sys.executable, str(ROOT / 'scripts/run_qwen_engine.py'), '--run', str(RUN), '--out', d,
-                   '--model', 'none', '--arms', 'H', '--shard-index', '0', '--shard-count', '4', '--limit', '2']
-            r = subprocess.run(cmd, capture_output=True, text=True)
-            self.assertIn('to run', r.stdout)
-            # Without vLLM installed the run stops at the import, not before it.
-            self.assertTrue(r.returncode == 0 or 'vllm' in r.stderr, r.stderr[-500:])
-            self.assertNotIn('UnboundLocalError', r.stderr)
+            r=subprocess.run([sys.executable,str(ROOT/'scripts/run_qwen_engine.py'),
+                              '--run',str(RUN),'--out',d,'--model','none'],capture_output=True,text=True)
+            self.assertNotEqual(r.returncode,0)
+            self.assertIn('local pinned model artifacts missing',r.stderr)
 
     def test_collector_refuses_an_incomplete_set_and_keeps_prompt_hashes(self):
         if not (RUN / 'requests.jsonl').exists(): self.skipTest('run not present')
@@ -522,7 +410,7 @@ class ResumeTests(unittest.TestCase):
                        if x and json.loads(x)['config_id'] == 'qwen_thinking')
             (d / 'answers' / 'thinking_r1').mkdir(parents=True)
             rec = {'id': req['id'], 'status': 'completed', 'final_text': '{}', 'prompt_sha256': req['prompt_sha256'],
-                   'end_state': 'model_end', 'reasoning_closed': True}
+                   'end_state': 'model_end', 'reasoning_closed': True,'payload_sha256':req['payload_sha256']}
             (d / 'answers' / 'thinking_r1' / f"{req['id']}.json").write_text(json.dumps(rec))
             cmd = [sys.executable, str(ROOT / 'scripts/collect_qwen_answers.py'), '--run', str(RUN),
                    '--answers', str(d / 'answers'), '--out', str(d / 'out.jsonl')]

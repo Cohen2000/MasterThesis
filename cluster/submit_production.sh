@@ -3,7 +3,7 @@
 #   round 1   the generation array
 #   round 2   the same array again after round 1 ends, whatever its outcome; shards
 #             that finished exit before loading the model (NOTHING_TO_DO), shards
-#             that were cut by the wall time resume
+#             that were cut resume only unstarted requests; admitted ones are never retried
 #   round 3   one more safety round after round 2
 #   archive   a CPU job after round 3 that builds and verifies the archive
 # Nothing here depends on an interactive session. Usage:

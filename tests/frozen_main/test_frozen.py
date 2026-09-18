@@ -210,9 +210,10 @@ class FrozenTests(unittest.TestCase):
         result=resolve(o,[.4]*4,{'started':True,'terminal':True,'limit_hit':True,'final_text':good})
         self.assertTrue(result['valid']); self.assertTrue(result['limit_hit'])
         bad=resolve(o,[.4]*4,{'started':True,'terminal':True,'final_text':'oops'})
-        self.assertEqual(bad['prediction'],plugin(o))
+        self.assertIsNone(bad['prediction'])
+        self.assertIsNone(bad['replacement'])
         empty=make(g,'B',{'p':.5},np.zeros_like(g.counts),None)
-        self.assertEqual(resolve(empty,[.4]*4)['prediction'],[.4]*4)
+        self.assertIsNone(resolve(empty,[.4]*4)['prediction'])
         self.assertTrue(all(x['prediction']==[.4]*4 for x in all_baselines(empty,[.4]*4,[0]*4).values()))
 
     def test_folds_weights_and_mcse(self):
@@ -232,8 +233,8 @@ class FrozenTests(unittest.TestCase):
         self.assertEqual(np.mean([errors([0]*4,[.5]*4)['AE2'],errors([1]*4,[.5]*4)['AE2']]),.5)
 
     def test_transport_policy_mocks_only(self):
-        self.assertEqual(retry_decision(1,0,429,True)['delay'],5)
-        self.assertEqual(retry_decision(2,0,503,True,retry_after=40)['delay'],40)
+        self.assertEqual(retry_decision(1,0,429,True)['action'],'terminal_no_retry')
+        self.assertEqual(retry_decision(2,0,503,True,retry_after=40)['action'],'terminal_no_retry')
         self.assertEqual(retry_decision(3,0,503,True)['action'],'terminal_no_retry')
         self.assertEqual(retry_decision(1,1,503,True)['action'],'terminal_no_retry')
         self.assertEqual(retry_decision(1,0,503,True,True)['action'],'reconcile')

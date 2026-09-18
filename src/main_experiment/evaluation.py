@@ -3,7 +3,6 @@ import json
 import math
 import re
 import numpy as np
-from .baselines import plugin
 from .common import SAMPLER_DRAWS, LLM_REPEATS
 
 KEYS=tuple(f'rho_{k}' for k in range(2,6))
@@ -48,18 +47,23 @@ def parse_final(raw):
         return None,'invalid_json:'+str(e)
 
 
-def resolve(o,median,record=None):
+EVALUATION_VERSION='validity-conditional-mae-v1-20260918'
+
+
+def resolve(o,median=None,record=None):
+    """Failures have no estimate. median is accepted only for caller compatibility."""
+    base={'prediction':None,'valid':None,'replacement':None,'started':False,'terminal':False}
     if o['D_obs']==0:
-        return {'prediction':list(median),'status':'empty','valid':False,'replacement':'training_median','started':False}
+        return {**base,'status':'empty','valid':False,'terminal':True}
     if record is None or not record.get('started',False):
-        return {'prediction':None,'status':'not_started','valid':None,'replacement':None,'started':False}
+        return {**base,'status':'not_started'}
     if not record.get('terminal',False):
-        return {'prediction':None,'status':'in_progress','valid':None,'replacement':None,'started':True}
+        return {**base,'status':'in_progress','started':True}
     values,reason=parse_final(record.get('final_text',''))
     if record.get('refusal'): values=None; reason='refusal'
-    return {'prediction':values if values is not None else plugin(o),'status':'terminal',
-            'valid':values is not None,'validation_reason':reason,
-            'replacement':None if values is not None else 'plugin','started':True,
+    if record.get('technical_error'): values=None; reason='technical_error'
+    return {**base,'prediction':values,'status':'terminal','terminal':True,
+            'valid':values is not None,'validation_reason':reason,'started':True,
             'limit_hit':bool(record.get('limit_hit',False)),
             'technical_error':bool(record.get('technical_error',False))}
 
@@ -71,51 +75,59 @@ def errors(prediction,truth):
 
 
 def cell_variance(a):
-    """Monte-Carlo variance of one source's mean, and its two components.
-
-    a has shape (sampler draws, repeats). With at least two draws the variance of
-    the mean is estimated from the draw means (it contains both components).
-    With a single, deterministic draw the sampler contributes nothing and the
-    variance is that of the repeat mean. The components are reported separately:
-    model = within-draw repeat variance / (draws * repeats);
-    sampler = between-draw variance net of the model part, floored at zero.
-    """
+    """Direct variance of the mean; no estimated additive components."""
     a=np.asarray(a,float)
+    if a.ndim!=2 or not a.size or not np.isfinite(a).all():
+        raise ValueError('finite draw x repeat array required')
     s,r=a.shape
-    within=float(np.mean(np.var(a,axis=1,ddof=1))) if r>1 else 0.
-    model=within/(s*r)
-    if s>1:
-        total=float(np.var(a.mean(1),ddof=1)/s)
-        sampler=max(total-model,0.)
-    else:
-        total=model; sampler=0.
-    return {'total':total,'model':model,'sampler':sampler,'deterministic_draw':s==1}
+    total=float(np.var(a.mean(1),ddof=1)/s) if s>1 else (
+          float(np.var(a[0],ddof=1)/r) if r>1 else 0.)
+    return {'total':total,'deterministic_draw':s==1}
 
 
 def paired_summary(cells,expected=None):
-    """Cells: source -> draw x repeat error values. Complete cells only.
+    """Equal-source summary of complete cells, clustered on sampler draws."""
+    for source,values in cells.items():
+        a=np.asarray(values,float)
+        if (a.ndim!=2 or a.shape[0]!=(expected or {}).get(source,SAMPLER_DRAWS)
+                or a.shape[1]<1 or not np.isfinite(a).all()):
+            raise ValueError('incomplete or invalid cell; no complete main result')
+    return conditional_summary(cells,expected,complete=True)
 
-    expected maps source -> number of distinct sampler draws (SAMPLER_DRAWS, or 1
-    for a deterministic draw); without it every cell must have SAMPLER_DRAWS rows.
-    Repeated answers and dyads are never counted as extra independent units.
-    Sources are equally weighted; the caller keeps the real and synthetic strata apart.
+
+def conditional_summary(cells,expected=None,complete=False):
+    """Source-equal mean of valid-answer means; NaN denotes an unavailable answer.
+
+    MCSE uses a cluster ratio linearization. This is conditional accuracy, never
+    an imputed full-panel loss. No source can silently disappear from the mean.
+    `complete=True` is for finite deterministic references / validity indicators.
     """
-    means=[]; total=[]; model=[]; sampler=[]; sources={}
+    if not cells: raise ValueError('no sources')
+    sources={}
     for source,values in cells.items():
         a=np.asarray(values,float)
         draws=(expected or {}).get(source,SAMPLER_DRAWS)
-        if a.ndim!=2 or a.shape[0]!=draws or a.shape[1]<1 or not np.isfinite(a).all():
-            raise ValueError('incomplete or invalid cell; no complete main result')
-        v=cell_variance(a)
-        means.append(float(a.mean())); total.append(v['total']); model.append(v['model']); sampler.append(v['sampler'])
-        sources[source]={'mean':means[-1],'mcse':math.sqrt(v['total']),
-                         'mcse_model_repeats':math.sqrt(v['model']),
-                         'mcse_sampler':math.sqrt(v['sampler']),
-                         'draws':draws,'deterministic_draw':v['deterministic_draw']}
-    if not means: raise ValueError('no sources')
-    n=len(means)
-    return {'mean':float(np.mean(means)),'mcse':math.sqrt(sum(total))/n,
-            'mcse_model_repeats':math.sqrt(sum(model))/n,
-            'mcse_sampler':math.sqrt(sum(sampler))/n,
-            'between_source_se':float(np.std(means,ddof=1)/math.sqrt(n)) if n>1 else None,
-            'sources':sources,'conditional_on':'fixed sources, training, models and calibrated L'}
+        if a.ndim!=2 or a.shape[0]!=draws or a.shape[1]<1 or np.isinf(a).any():
+            raise ValueError('invalid cell shape or infinite value')
+        mask=np.isfinite(a); count=mask.sum(axis=1); n=int(count.sum())
+        mu=float(np.nansum(a)/n) if n else None
+        variance=None
+        if n:
+            if draws>1 and (complete or np.count_nonzero(count)>=2):
+                residual=np.nansum(a,axis=1)-mu*count
+                variance=float(draws/(draws-1)*np.sum(residual**2)/n**2)
+            elif draws==1 and n>1:
+                variance=float(np.var(a[mask],ddof=1)/n)
+            elif draws==1 and complete: variance=0.
+        sources[source]={'mean':mu,'mcse':math.sqrt(variance) if variance is not None else None,
+                         'draws':draws,'valid_answers':n,'planned_answers':int(a.size),
+                         'draws_with_valid_answers':int(np.count_nonzero(count)),
+                         'deterministic_draw':draws==1}
+    means=[r['mean'] for r in sources.values()]
+    ses=[r['mcse'] for r in sources.values()]
+    all_sources=all(m is not None for m in means)
+    return {'mean':float(np.mean(means)) if all_sources else None,
+            'mcse':math.sqrt(sum(x*x for x in ses))/len(ses) if all(x is not None for x in ses) else None,
+            'between_source_sd':float(np.std(means,ddof=1)) if all_sources and len(means)>1 else None,
+            'sources':sources,'sources_with_valid_answers':sum(m is not None for m in means),
+            'conditional_on':'valid answers; fixed sources, training, models and calibrated L'}
