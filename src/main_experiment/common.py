@@ -21,16 +21,18 @@ ARMS = ('R','S','H','B')
 # budget matched event volume, which let H and B see 46 % and 37 % of the active
 # dyad-windows of the real sources against 2.4 % for S. The date-like suffix of
 # budget10-20261001 is a revision label, not a date.
-DESIGN_VERSION = 'cells10-srw-htime60-20260920'
-PREVIOUS_DESIGN_VERSION = 'cells10-htime60-20260920'
-ARCHIVED_ROOT = ROOT/'archive/pre_srw_20260920'
-PREVIOUS_RUN = ARCHIVED_ROOT/'results/main_experiment/cells10_htime60_20260920'
-PREVIOUS_REVISION = ARCHIVED_ROOT/'results/baseline_revision_cells10_htime60_20260920'
+# cells10-srw-htime60-20260920 established classic SRW for S.
+# cells10-final-20260920 implements the final unified prompt harness across all arms R, S, H, B.
+DESIGN_VERSION = 'cells10-final-20260920'
+PREVIOUS_DESIGN_VERSION = 'cells10-srw-htime60-20260920'
+ARCHIVED_ROOT = ROOT/'results'
+PREVIOUS_RUN = ROOT/'results/main_experiment/cells10_srw_htime60_20260920'
+PREVIOUS_REVISION = ROOT/'results/baseline_revision_cells10_srw_htime60_20260920'
 MATCHED_QUANTITY = 'expected_observed_active_dyad_windows'
 COVERAGE_FRACTION = 0.10     # share of sum_e K_e every arm observes in expectation
 BUDGET_FRACTION = 0.10       # event budget of the superseded designs; legacy variants only
 BUDGET_TOLERANCE = 0.05      # unchanged relative tolerance for the matched expectation
-CURRENT_RUN = 'results/main_experiment/cells10_srw_htime60_20260920'
+CURRENT_RUN = 'results/main_experiment/cells10_final_20260920'
 CURRENT_REVISION = 'results/baseline_revision_cells10_srw_htime60_20260920'
 SAMPLER_DRAWS = 5            # sampler draws per graph and arm, if the draw is random
 LLM_REPEATS = 3

@@ -1,7 +1,7 @@
 # Current authority; checked against executable constants by test_srw.py.
 protocol: docs/PROTOCOL_SRW_20260920.md
-design_version: cells10-srw-htime60-20260920
-previous_design_version: cells10-htime60-20260920
+design_version: cells10-final-20260920
+previous_design_version: cells10-srw-htime60-20260920
 W: 5
 master_seed: 20260916
 target:
@@ -46,7 +46,7 @@ replication:
   sampler_draws_per_arm: 5
   saturated_H_draws: 1
   llm_repeats: 3
-  current_run: results/main_experiment/cells10_srw_htime60_20260920
+  current_run: results/main_experiment/cells10_final_20260920
 training:
   sources: 16
   real_test: leave_one_source_out
@@ -67,7 +67,7 @@ evaluation:
   primary_references: {R: plugin_equivalent_corrector, S: srw_traversal_frequency, H: homogeneous_zero_truncated_binomial, B: beta_ztp_mixture}
   secondary: [plugin, training_median, extratrees_pooled, extratrees_real_only, per_source]
 llm_execution:
-  qwen_new_generation_arms: [S]
-  reusable_arms_only_after_identity_audit: [R, B, H]
+  qwen_new_generation_arms: [R, S, H, B]
+  reusable_arms_only_after_identity_audit: []
   sol: disabled
   deepseek: disabled

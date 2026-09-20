@@ -96,13 +96,17 @@ def validate(o):
     elif A is not None: raise ValueError('inapplicable A')
 
 
+AUX_FILES={'S':'aux_S.txt'}
+
+
 def serialize(o):
     validate(o)
     fmt=lambda x:'NA' if x is None else format(x,'.17g') if type(x) is float else str(x)
     lines=['W=5','Temporal_access='+','.join(map(str,o['Temporal_access']))]
     lines += [f'{k}={o[k]}' for k in ['N_obs','D_obs','M_obs']]
-    lines += ['Events_per_window='+','.join(map(fmt,o['Events_per_window'])),PARAMS[o['arm']]+'='+fmt(o['parameter']),
-              'Walk_A='+('NA' if o['Walk_A'] is None else ','.join(map(fmt,o['Walk_A'])))]
+    lines += ['Events_per_window='+','.join(map(fmt,o['Events_per_window'])),PARAMS[o['arm']]+'='+fmt(o['parameter'])]
+    if o['arm']=='S':
+        lines += ['Walk_A='+','.join(map(fmt,o['Walk_A']))]
     if o['arm']=='H': lines+=['History_fraction='+fmt(o['history_fraction'])]
     lines += [HEADER]+[','.join(map(str,row)) for row in o['table']]
     return '\n'.join(lines)
@@ -116,8 +120,11 @@ def parse(text):
     params=set(fields)&set(PARAMS.values())
     if len(params)!=1: raise ValueError('parameter count')
     name=params.pop(); arm=next(a for a,p in PARAMS.items() if p==name)
-    expected={'Temporal_access','N_obs','D_obs','M_obs','Events_per_window','Walk_A',name}
+    expected={'Temporal_access','N_obs','D_obs','M_obs','Events_per_window',name}
+    if arm=='S': expected.add('Walk_A')
     if arm=='H': expected.add('History_fraction')
+    if 'Walk_A' in fields and arm!='S' and fields['Walk_A']=='NA':
+        expected.add('Walk_A')
     if set(fields)!=expected: raise ValueError('unexpected input fields')
     rows=[]
     for line in lines[header+1:]:
@@ -126,7 +133,8 @@ def parse(text):
        **{k:int(fields[k]) for k in ['N_obs','D_obs','M_obs']},
        'Temporal_access':list(map(int,fields['Temporal_access'].split(','))),
        'Events_per_window':[None if x=='NA' else int(x) for x in fields['Events_per_window'].split(',')],
-       'Walk_A':None if fields['Walk_A']=='NA' else list(map(float,fields['Walk_A'].split(','))), 'table':rows}
+       'Walk_A':list(map(float,fields['Walk_A'].split(','))) if ('Walk_A' in fields and fields['Walk_A']!='NA') else None,
+       'table':rows}
     if arm=='H': o['history_fraction']=float(fields['History_fraction'])
     validate(o); return o
 
@@ -157,10 +165,14 @@ def features(o):
 
 def messages(block):
     o=parse(block); spec=ROOT/'config/main_experiment'
-    system=(spec/'system.txt').read_text().rstrip('\n'); common=(spec/'user_prefix.txt').read_text().rstrip('\n')
-    if o['arm']=='S':
-        common=common.replace('sums of r_e/m_e','sums of r_e').replace('m_e counts its full-archive events. ',
-            'The counts are not divided by event multiplicities. ')
+    system=(spec/'system.txt').read_text().rstrip('\n')
+    common=(spec/'user_prefix.txt').read_text().rstrip('\n')
     rule=(spec/RULE_FILES[o['arm']]).read_text().rstrip('\n')
-    user=common+'\nSampling rule: '+rule+'\n'+block+'\nReturn the four full-archive estimates in the specified JSON format.'
+    parts=[common,f'Sampling rule: {rule}']
+    if o['arm'] in AUX_FILES:
+        aux=(spec/AUX_FILES[o['arm']]).read_text().rstrip('\n')
+        parts.append(f'Auxiliary statistics: {aux}')
+    parts.append(block)
+    parts.append('Return the four full-archive estimates in the specified JSON format.')
+    user='\n'.join(parts)
     return [{'role':'system','content':system},{'role':'user','content':user}]

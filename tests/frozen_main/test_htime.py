@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize_scalar
 from scipy.stats import binom
-from main_experiment.common import H_SENSITIVITY,PREVIOUS_RUN,digest,read_json
+from main_experiment.common import H_SENSITIVITY,PREVIOUS_RUN,CURRENT_RUN,DESIGN_VERSION,ROOT,digest,read_json
 from main_experiment.data import canonical
 from main_experiment.sampling import history_counts,history_start,h_parameters,history_panel_mask,draw
 from main_experiment.observation import make,serialize,parse,features,messages
@@ -105,16 +105,22 @@ class TimeHistoryTests(unittest.TestCase):
         np.testing.assert_allclose(np.array(d['dyad_disappearance'])+d['within_dyad_history'],d['net_history'])
         self.assertFalse(decompose(full,np.zeros_like(full),np.ones(3,dtype=bool))['defined'])
 
-    def test_rbh_complete_generation_identity_is_preserved(self):
+    def test_final_generation_contract_creates_new_identities_for_all_arms(self):
         import json
-        old={r['id']:r for r in map(json.loads,(PREVIOUS_RUN/'requests.jsonl').read_text().splitlines())}
-        obs=[read_json(p) for p in (PREVIOUS_RUN/'observations/sample').glob('*.json')]
-        obs=[o for o in obs if o['arm']!='S']
-        for o in obs: self.assertEqual(messages(o['block']),o['messages'])
-        for r in planned(obs):
-            prior=old[r['id']]
-            for k in ('id','seed','payload','prompt_sha256','payload_sha256'):
-                self.assertEqual(r[k],prior[k])
+        run=ROOT/CURRENT_RUN
+        current_requests=[json.loads(line) for line in (run/'requests.jsonl').read_text().splitlines()]
+        obs=[read_json(p) for p in (run/'observations/sample').glob('*.json')]
+        self.assertEqual(len(obs),280)
+        for o in obs:
+            self.assertEqual(messages(o['block']),o['messages'])
+            if o['arm']!='S':
+                self.assertNotIn('Walk_A',o['block'])
+                self.assertNotIn('Auxiliary statistics:',o['messages'][1]['content'])
+            else:
+                self.assertIn('Walk_A=',o['block'])
+                self.assertIn('Auxiliary statistics:',o['messages'][1]['content'])
+        self.assertEqual(len(current_requests),3360)
+        self.assertTrue(all(r['design_version']==DESIGN_VERSION for r in current_requests))
 
     def test_new_h_shards_and_attempt_resume(self):
         sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'scripts'))

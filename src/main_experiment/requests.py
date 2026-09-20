@@ -5,7 +5,7 @@ QWEN='Qwen/Qwen3.6-35B-A3B'
 REVISION='995ad96eacd98c81ed38be0c5b274b04031597b0'
 
 def generation_version(arm):
-    return DESIGN_VERSION if arm=='S' else PREVIOUS_DESIGN_VERSION if arm=='H' else 'cells10-json-20260918'
+    return DESIGN_VERSION
 
 
 def payload(config,messages,request_seed,version=DESIGN_VERSION):

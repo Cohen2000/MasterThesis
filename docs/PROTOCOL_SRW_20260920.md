@@ -87,7 +87,18 @@ Conditional MAE2/ProfileMAE, valid fraction, equal source weights, hierarchical
 MCSE conditional on the panel, strict JSON with one optional whole-answer fence,
 matched reference comparisons, and no LLM imputation are unchanged. No trailing
 JSON extraction, replacement, shrinkage or result-driven baseline changes.
-`config/study.yaml` is checked against executable constants. The shared frozen
-non-S prompt retains its inapplicable old Walk_A definition to preserve exact
-input identity; S substitutes the raw-count definition and explicitly explains
-the new transition rule. In non-S inputs Walk_A is always NA.
+`config/study.yaml` is checked against executable constants.
+
+## Final prompt harness freeze: cells10-final-20260920
+
+The final prompt revision aligns the task representation with the finalized observation mechanisms and removes inapplicable historical fields. No wording or field was selected based on comparative LLM accuracy.
+
+- Common scientific template: removed evaluation target hints, dataset names, baseline formulas, and inapplicable Walk_A definitions. Explicitly clarifies temporal access and observed pattern semantics across all arms.
+- Arm-specific observation rules:
+  - R: Uniform node panel; complete full-archive history retrieved for panel dyads; accessible zeros indicate true inactivity.
+  - S: Single simple random walk without burn-in or restart; complete history retrieved; raw traversal counts Walk_A = sum_{e: r_e>0, K_e=j} r_e provided in auxiliary statistics without ratio formulas or stationary theory.
+  - H: Uniform node panel with bounded recent time history (h=0.60); complete retrieval within accessible window.
+  - B: Independent Bernoulli event thinning; accessible zeros may be false negatives.
+- Non-S observations strictly omit Walk_A and auxiliary statistics from both serialized blocks and rendered messages.
+- All 280 sample observations and 3,360 planned LLM requests receive new identities under `cells10-final-20260920`. All 1,680 Qwen requests are freshly generated across R, S, H, B.
+

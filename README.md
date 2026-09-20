@@ -41,12 +41,17 @@ Qwen production:
 - `cluster/build_archive.py`
 
 Evaluation:
+
+- `scripts/integrate_srw_qwen.py`
 - `scripts/collect_qwen_answers.py`
 - `scripts/evaluate_main_responses.py`
+- `scripts/audit_srw_results.py`
 
 Current documentation:
+
 - `docs/PROTOCOL_SRW_20260920.md`
 - `docs/RUNBOOK_SRW_20260920.md`
+- `docs/RESULTS_SRW_20260920.md`
 
 Historical designs, diagnostics and results are retained under `archive/`.
 Raw datasets, generated graphs, fitted models and other bulk artifacts remain local

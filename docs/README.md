@@ -6,6 +6,7 @@ S is a simple random walk; H retains the common time suffix, primary h=0.60.
 
 - `PROTOCOL_SRW_20260920.md` — current protocol and analysis definitions
 - `RUNBOOK_SRW_20260920.md` — execution and reproduction
+- `RESULTS_SRW_20260920.md` — structural assessment and audited results
 - `MAIN_FREEZE_SOURCE.txt` — historical supplied source, superseded by the current protocol
 - `MAIN_FREEZE_SOURCE.txt.json` — extraction metadata
 - `THIRD_PARTY.md` — third-party attribution
