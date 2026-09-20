@@ -6,7 +6,7 @@ temporal graphs.
 
 ## Current experiment
 
-Design/generation: `cells10-final-20260920`; freeze `aaaac491006aa6981aeebc95b913b8847da76120`.
+Design: `cells10-srw-htime60-20260920`
 
 S is a simple random walk: uniform start vertex and uniform current neighbor,
 with a fixed calibrated length and full histories for traversed dyads. Its raw
@@ -15,8 +15,7 @@ H uses uniform node sampling and the most recent 60% of archive time, calibrated
 to the same 10% active-dyad-window coverage as R/S/B. Offline sensitivity uses
 h=0.40/0.60/0.80. Its primary reference is a homogeneous zero-truncated Binomial
 extrapolator, treated as a working model. See [protocol](docs/PROTOCOL_SRW_20260920.md).
-All 1,680 final Qwen answers were generated anew; no development answers are reused.
-Final audit: 1,678 valid, two invalid empty JSON objects; no missing answers or token limits.
+New Qwen S generation is authorized; H/R/B are reused only after identity checks.
 GPT/Sol and DeepSeek remain unstarted.
 
 - 6 real temporal-network sources
@@ -32,8 +31,7 @@ The executable implementation is in `src/main_experiment/`.
 
 ## Main entry points
 
-Final audit and reproduction: [runbook](docs/RUNBOOK_FINAL_20260920.md).
-Do not rerun development dispatch scripts against the final freeze.
+Offline preparation: `bash scripts/run_srw_offline.sh`
 
 Qwen production:
 - `scripts/cluster_bundle.sh`
@@ -44,17 +42,16 @@ Qwen production:
 
 Evaluation:
 
-- `scripts/audit_final_study.py`
+- `scripts/integrate_srw_qwen.py`
 - `scripts/collect_qwen_answers.py`
 - `scripts/evaluate_main_responses.py`
-- `scripts/report_final_study.py`
+- `scripts/audit_srw_results.py`
 
 Current documentation:
 
 - `docs/PROTOCOL_SRW_20260920.md`
-- `docs/RUNBOOK_FINAL_20260920.md`
-- `docs/RESULTS_FINAL_20260920.md`
-- `docs/AUDIT_FINAL_20260920.md`
+- `docs/RUNBOOK_SRW_20260920.md`
+- `docs/RESULTS_SRW_20260920.md`
 
 Historical designs, diagnostics and results are retained under `archive/`.
 Raw datasets, generated graphs, fitted models and other bulk artifacts remain local

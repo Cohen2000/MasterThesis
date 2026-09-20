@@ -1,0 +1,10 @@
+{
+  "baselines_sha256": "a58262d438db32309a8996631bf7dfbb831b7de0e46f77c4ce41aa1d9a3b52ba",
+  "evaluation_version": "validity-conditional-mae-v1-20260918",
+  "evaluator_sha256": "201928e5e5194834d8b6b671a52de01cf70df1baee07bad447cd4cb3a5f67247",
+  "mock": false,
+  "observations_sha256": "0abd15e76d9c28dcb50b136fb54f1a7889896691615d837c6ddc12af94c0912e",
+  "parser_sha256": "e9ddcea7d17caa4e0ceeb912bd329137262caa7587b8d4064503c3e80739c225",
+  "requests_sha256": "07834254c79db65b40de910aced75a63133161a8b81341a6d6bd51d5e691a6a0",
+  "responses_sha256": "1e274cf2d5abd79050b9ece505406994dcb4e3c3f116997b33d1c6da8200012e"
+}

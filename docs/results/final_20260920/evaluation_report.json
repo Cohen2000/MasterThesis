@@ -1,0 +1,10 @@
+{
+  "accuracy_undefined_cells": [],
+  "complete_main_result": false,
+  "design_version": "cells10-final-20260920",
+  "evaluation_version": "validity-conditional-mae-v1-20260918",
+  "logical_requests": 3360,
+  "metric_label": "validity and conditional MAE; no replacement",
+  "mock": false,
+  "primary_baselines_sha256": "a58262d438db32309a8996631bf7dfbb831b7de0e46f77c4ce41aa1d9a3b52ba"
+}
