@@ -13,7 +13,7 @@ import argparse,math,os,sys,time
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from main_experiment.common import (write_json,read_json,digest,LEGACY_H,DESIGN_VERSION,draws_for,
-                                    CURRENT_RUN,sha)
+                                    CURRENT_RUN,PREVIOUS_REVISION,sha)
 from main_experiment.common import REAL_TEST as REAL_TEST_LIST, SYNTH as SYNTH_LIST
 from main_experiment import pool as poolmod
 from main_experiment.training import fit_folds,TRAINING_REVISION
@@ -24,7 +24,7 @@ from main_experiment import mixtures
 # Current design run. frozen_20260916 and budget10_20261001 hold superseded
 # designs and are kept as the development history, not read here.
 FROZEN=Path(os.environ.get('MAIN_RUN',CURRENT_RUN))
-PREVIOUS_POOL=Path(os.environ.get('PREVIOUS_POOL','results/baseline_revision_hrecent5_20260917/pool/observations'))
+PREVIOUS_POOL=Path(os.environ.get('PREVIOUS_POOL',str(PREVIOUS_REVISION/'pool/observations')))
 _FOLD={}
 
 
@@ -82,7 +82,7 @@ def stage_pool(out):
         write_json(path,definition)
     result=poolmod.build_pool(out/'pool',definition['graphs'])
     if result['failures']: raise ValueError('pool incomplete; do not train')
-    result['previous_pool_comparison']={'status':'new pool version; independent IDs and seeds'}
+    result['previous_pool_comparison']=compare_previous_pool(out)
     return result
 
 
@@ -98,17 +98,17 @@ def compare_previous_pool(out):
     for f in sorted((out/'pool'/'observations').glob('*.json')):
         new=read_json(f); old=read_json(PREVIOUS_POOL/f.name)
         truth_diff+=new['truth']!=old['truth']
-        oldrows={(r['arm'],r['sample_index']):r['block'] for r in old['observations'] if r['arm']!='H'}
+        oldrows={(r['arm'],r['sample_index']):r['block'] for r in old['observations'] if r['arm']!='S'}
         n_h=sum(r['arm']=='H' for r in new['observations'])
         h_draws[n_h]=h_draws.get(n_h,0)+1
         for r in new['observations']:
-            if r['arm']=='H': continue
+            if r['arm']=='S': continue
             if oldrows.get((r['arm'],r['sample_index']))==r['block']: same+=1
             else: diff+=1
-    result={'identical_RSB_blocks':same,'different_RSB_blocks':diff,'truth_differences':truth_diff,
+    result={'identical_RBH_blocks':same,'different_RBH_blocks':diff,'truth_differences':truth_diff,
             'graphs_by_H_draw_count':{str(k):v for k,v in sorted(h_draws.items())},
-            'note':'blocks differ by design (cells10 matching); labels must be identical'}
-    if truth_diff: raise ValueError(f'pool labels changed: {result}')
+            'note':'same pool graph IDs/seeds/labels; only S observations change'}
+    if truth_diff or diff: raise ValueError(f'unchanged pool artifacts differ: {result}')
     return result
 
 
@@ -130,6 +130,8 @@ def _predict(o,models,medians,graph_truth,arm):
     out['extratrees_real_only']={'prediction':list(map(float,models['real_only'].predict(x)[0])),'status':'ok'}
     if arm=='H':
         out['corrector']=h_extrapolator(o)
+    if arm=='S':
+        out['corrector'].update(model='srw_traversal_frequency',working_model=True)
     if arm=='B':
         mu0,lam0=_homogeneous_start(o)
         fit=mixtures.fit_events(o,mu0,lam0)
@@ -351,7 +353,7 @@ def stage_main(out):
 # results/baseline_revision_20261001/CORRECTOR_DECISION.md. For the new H the
 # H is the homogeneous zero-truncated Binomial working-model extrapolator.
 PRIMARY_CORRECTOR={'R':'corrector','S':'corrector','H':'corrector','B':'candidate'}
-PRIMARY_NAME={'R':'plugin_equivalent_corrector','S':'walk_ratio','H':'homogeneous_zero_truncated_binomial','B':'beta_ztp_mixture'}
+PRIMARY_NAME={'R':'plugin_equivalent_corrector','S':'srw_traversal_frequency','H':'homogeneous_zero_truncated_binomial','B':'beta_ztp_mixture'}
 
 
 def _primary_baselines(rows,man,models,fold_med,med_syn):
@@ -364,9 +366,9 @@ def _primary_baselines(rows,man,models,fold_med,med_syn):
     use a reference the decision record does not designate.
     """
     import numpy as np
-    out={'decision':'docs/PROTOCOL_HTIME_20260920.md; R/S/B references unchanged, H fixed before generation',
+    out={'decision':'docs/PROTOCOL_SRW_20260920.md; S traversal-frequency working reference; R/B/H unchanged',
          'design_version':DESIGN_VERSION,
-         'protocol':'docs/PROTOCOL_HTIME_20260920.md',
+         'protocol':'docs/PROTOCOL_SRW_20260920.md',
          'primary_corrector_by_arm':PRIMARY_CORRECTOR,
          'primary_corrector_meaning':PRIMARY_NAME,
          'primary_trained_reference':'extratrees_pooled',

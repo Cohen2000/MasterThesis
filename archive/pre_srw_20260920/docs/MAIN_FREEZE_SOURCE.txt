@@ -1,0 +1,276 @@
+Hauptexperiment Freeze
+Input Auswertung und Modellbetrieb
+Stand 16. September 2026. Konsolidierte Fassung nach Gegenprüfung. Der Hauptvergleich bleibt bei sechs realen Quellen, acht synthetischen Instanzen, vier Beobachtungsmechanismen und vier LLM-Konfigurationen. Input, Auswertung und Modellbetrieb werden festgelegt; frühere Beschlüsse zu Training und Datenzugang werden ergänzt. Der Designstand ist von der noch ausstehenden technischen Freigabe zu unterscheiden.
+Forschungsfrage und Rahmen der Masterarbeit
+Können LLMs die Persistenz von Beziehungen in partiell beobachteten temporalen Graphen schätzen?
+Untersucht wird, wie unterschiedliche Beobachtungsmechanismen die sichtbare Persistenz verändern und wie gut LLMs aus denselben kompakten Beobachtungsstatistiken das Persistenzprofil des vollständigen Archivs schätzen. Verglichen werden klassische statistische Schätzer und ein supervised ExtraTrees-Modell. Die Arbeit erweitert EstGraph von statischen auf temporale Eigenschaften und von Random Walks auf mehrere Beobachtungsmechanismen. [1]
+Angabe
+Festlegung
+Betreuung
+Sunil Maurya; Xin Liu; Prof. Tsuyoshi Murata
+Prüfung
+Carsten Eickhoff und Lea Frermann, beide Tübingen
+Offizieller Bearbeitungsbeginn
+Noch einzutragen
+Hauptexperiment abgeschlossen
+Spätestens Mitte Oktober 2026
+Abgabe
+Ende November 2026; genaues amtliches Datum noch einzutragen
+Verbleibende Arbeitsphase
+Bis Mitte Oktober: Durchführung; anschließend Auswertung, Schreiben und Überarbeitung bis zur Abgabe
+Repository
+github.com/Cohen2000/MasterThesis
+Die Forschungsfrage ist die Arbeitsfassung. Englische Kurzfassung für die Betreuung: Can LLMs estimate relationship persistence in partially observed temporal graphs?
+Konsolidierte Entscheidungen
+Bereich
+Festlegung
+Input
+Ein gemeinsames englisches Zero-shot-Template; kleine Häufigkeitstabelle; gleiche beobachtbare Information für alle Verfahren.
+Hauptziel
+MAE₂ für das vollständige Archiv; ProfileMAE sekundär. Primär werden die sechs realen Quellen ausgewertet.
+Vergleich
+Jede LLM-Konfiguration gegen den vorab bestimmten Regime-Korrektor; Plug-in, Trainingsmedian und ExtraTrees ergänzen die Ergebnistabelle.
+Betrieb
+Drei getrennte Antworten je Beobachtung, hohe feste Outputlimits, begrenzte technische Retries und harte Kostenkontrolle.
+Scope
+Keine Tools im Hauptvergleich. Kein zusätzlicher Sampler, keine Prompt-Ablation, keine Shuffle-Gruppe.
+Eine kleine gemeinsame Tabelle
+Die Tabelle verwendet pattern, dyads, events. Jede Zeile bezeichnet ein beobachtetes Aktivitätsmuster über fünf Fenster. dyads zählt die beobachteten Dyaden mit diesem Muster; events summiert deren beobachtete Eventdatensätze. Außer beim Suffix werden alle 31 Muster von 00001 bis 11111 in lexikografischer Reihenfolge ausgegeben, auch Zeilen mit zwei Nullen. Das ergibt 62 Zählwerte. Die bisherigen fünf Eventzahl-Bins entfallen.
+Beim Suffix stehen nur die sieben Muster ??001 bis ??111, also 14 Zählwerte. Das Fragezeichen bezeichnet ein nicht zugängliches Fenster; eine 0 bezeichnet kein beobachtetes Event in einem zugänglichen Fenster. Jede beobachtete Dyade zählt genau einmal. Die gesamte Nullhistorie gehört nicht zur Tabelle. Beim Walk zählt jede zurückgegebene Eventzeile einmal; erneute Traversierungen vervielfachen die Eventsumme nicht. Traversierungen gehen separat in Walk_A ein.
+Die Fensteridentität und die mittlere beobachtete Eventmenge je Muster bleiben erhalten. Die Verteilung der Eventzahlen zwischen Dyaden desselben Musters geht verloren: zehn Dyaden mit je zehn Events und neun mit je einem plus eine mit 91 Events ergeben dieselbe Zeile. Viele Events bedeuten höhere Beobachtbarkeit, nicht automatisch höhere zeitliche Persistenz. Die Tabelle ist keine universell suffiziente Statistik; die konkrete Reduktion ist eine eigene Designentscheidung zugunsten der Erklärbarkeit.
+EstGraph motiviert aufgabenbezogene Statistiken; Capture-Recapture verwendet Häufigkeiten binärer Beobachtungsverläufe. Beim unabhängigen Event-Sampling steigt die Entdeckungswahrscheinlichkeit einer Dyade mit m tatsächlichen Events gemäß 1−(1−p)^m. Der entsprechende Größeneffekt beim Paket-Sampling motiviert die zusätzliche Eventsumme. Diese Quellen begründen die Darstellung, beweisen aber keine optimale Kodierung. Muster bewahren zeitliche Anordnung; eine reine Fensteranzahl kann dennoch einen Teil der Gedächtniseffekte enthalten. Es wird keine zusätzliche Input-Ablation aufgenommen. [1, 2, 24, 27]
+Inputvertrag und Größenprüfung
+Feld
+Exakte Bedeutung
+N_obs, D_obs, M_obs
+Endpunkte beobachteter Events; beobachtete Dyaden; übermittelte Eventdatensätze. Mehrfach abgerufene Historien werden nicht mehrfach gezählt.
+Events_per_window
+Fünf exakte Eventzahlen; beim Suffix zuerst NA, NA. Der Horizont bleibt für jedes Sample derselbe.
+Temporal_access
+Fünf 0/1-Zugangsindikatoren. Zugänglich bedeutet beim Event-Sampling nicht vollständig beobachtet.
+Regel und Parameter
+Node-Panel: n_panel; Walk: L; Suffix: tau=0.60; Events: p. Keine tatsächliche Coverage oder Vollarchivgröße.
+Walk_A
+Nur beim Walk fünf Summen A_j = Σ r_e/m_e für Dyaden mit j aktiven Fenstern; sonst NA. Vollständige Historien und alle Traversierungen werden verwendet.
+Integer werden exakt ausgegeben; p und Walk_A mit 17 signifikanten Dezimalstellen. Baselines lesen dieselben serialisierten Werte. Keine Namen, Domänen, Vollgraphgrößen, Ground Truth, Baselinevorhersagen oder expliziten beobachteten ρ-Werte gelangen in den Prompt. Dass sich Plug-in aus den Zählwerten berechnen lässt, ist beabsichtigt.
+Für Muster s seien d_s = dyads, e_s = events und k_s die Anzahl sichtbarer Einsen. Dann D = Σ d_s = D_obs, S = Σ k_s·d_s und M = Σ e_s = M_obs. Diese Größen reichen unter den definierten homogenen Arbeitsmodellen für die Suffix- und Hurdle-Poisson-Schätzer; Walk-Ratio verwendet weiterhin Walk_A. Plug-in und die analytischen Korrektoren bleiben bei identischen Beobachtungen unverändert. LLM und ExtraTrees können auf die geänderte Information anders reagieren. Alle Verfahren lesen dieselben serialisierten Testwerte; Median und ExtraTrees nutzen zusätzlich ihren deklarierten Trainingspool. [2, 3]
+ExtraTrees erhält eine feste numerische Abbildung derselben Information: 3 Größen + 5 Fensterzahlen + 5 Zugangsindikatoren + 62 Tabellenwerte + 5 Walk-Summen + 4 Mechanismusindikatoren + 4 Parameterfelder = 88 Features. Reihenfolge: N_obs, D_obs, M_obs; Fenster 1–5; Zugang 1–5; Tabellenzeilen 00001–11111 jeweils dyads, events; A_1–A_5; One-hot R,S,H,B; n_panel,L,tau,p. Nicht anwendbare Zahlen werden 0; Mechanismus und Zugangsindikatoren kennzeichnen dies. ??-Zeilen belegen die entsprechenden 00-Präfixzeilen. Training verwendet diese 88 Features; Hyperparameter und Trainingspool bleiben unverändert. Keine zusätzliche Skalierung oder Merkmalsauswahl.
+Größenprüfung und ihr Nachweisstand
+Zählung
+32 reale Beobachtungsproben
+Künstliche Größenhülle
+Qwen mit Chat-Template
+868–1.383 Tokens
+höchstens 2.644 Tokens
+DeepSeek-Tokenizer
+811–1.191 Tokens
+höchstens 1.508 Tokens
+o200k als Sol-Näherung
+792–1.173 Tokens
+höchstens 1.490 Tokens
+Die vorstehende Tabelle dokumentiert ausschließlich die berichtete Größenmessung der früheren Darstellung mit fünf Eventzahl-Bins. Die zugehörigen 32 realen Beobachtungsdateien und Messprotokolle liegen nicht bei; diese Zahlen sind nicht unabhängig reproduziert und gelten nicht als Messung des neuen Inputs. Die technische Messung des vollständigen Templates mit pattern, dyads, events folgt darunter. Sie ersetzt nicht den abschließenden Check aller 224 produktiven Prompts. DeepSeek zählt nur Nachrichtentexte; Sol bleibt ein Tokenizer-Proxy.
+Harte technische Eingabegrenze: 4.096 Tokens einschließlich des tatsächlich verwendeten Chat-Templates. Überschreitung ist ein Fehler der Vorbereitung: kein stilles Abschneiden und keine adaptive Änderung der Tabelle. Die Größenprüfung belegt Kompaktheit, nicht die inferenzielle Nutzbarkeit durch ein LLM.
+Zwölf vollständig ausgefüllte Formatproben (vier Mechanismen, jeweils Nullblock, kleiner Zahlenblock und neunstellige Größenhülle) mit dem korrigierten System- und Nutzertext wurden erneut tokenisiert. Qwen mit offiziellem Chat-Template in beiden Modi: maximal 1.753 Tokens; DeepSeek-Nachrichtentexte: maximal 1.179; o200k als Sol-Proxy: maximal 1.159. Die Formatproben sind keine realen Beobachtungen und keine Leistungsversuche. Qwen-Revision 995ad96eacd98c81ed38be0c5b274b04031597b0; DeepSeek-Tokenizer-Revision dba1be0a40aa45a94ad051997016db3960a90277. Es wurden keine LLM-Aufrufe verwendet.
+Hauptauswertung und Vergleich
+Primär ist die absolute Abweichung für ρ₂. ProfileMAE mittelt die vier absoluten Abweichungen und bleibt sekundär. Beide liegen zwischen 0 und 1; Darstellung in Prozentpunkten ist zulässig. Relative Fehler und MAPE werden nicht verwendet, weil kleine wahre Anteile sie instabil machen. Die Zielpriorität begründet MAE₂; die Literatur liefert kein universell bestes k. Absolute Fehler passen zu Median-Punktvorhersagen. [4]
+AE_2 = |ρ̂_2 − ρ_2|
+ProfileAE = (|ρ̂_2 − ρ_2| + |ρ̂_3 − ρ_3| + |ρ̂_4 − ρ_4| + |ρ̂_5 − ρ_5|) / 4
+Zuerst wird der Fehler jeder einzelnen Antwort berechnet. Dann wird über drei Antworten derselben Beobachtung, anschließend über die Sampler-Seeds und zuletzt gleichgewichtet über die sechs realen Quellen gemittelt. Es wird weder die beste Antwort gewählt noch zuerst der Mittelwert der drei Vorhersagen gebildet. Die Hauptaussage betrifft die erwartete Qualität eines einzelnen Aufrufs einschließlich der festgelegten Ersatzregel.
+Arm
+Vorab bestimmter primärer Gegenspieler
+Node-Panel
+Plug-in
+Gewichteter Walk
+Walk-Ratio
+Suffix
+Nulltrunkiertes Binomialmodell
+Bernoulli-Events
+Hurdle-Poisson
+Primärer Kontrast je Arm und LLM-Konfiguration: MAE₂(LLM-Verfahren) minus MAE₂(Regime-Korrektor), gepaart auf exakt denselben Beobachtungen. Negative Werte sprechen für das LLM-Verfahren. Keine nachträgliche Auswahl des besten Modells oder des günstigsten Korrektors. Trainingsmedian, Plug-in und ExtraTrees stehen als weitere Kontrollen in derselben Ergebnistabelle. Zusätzlich den signierten Plug-in-Fehler zeigen. Nicht budgetangeglichene Walk-Zellen werden markiert und bleiben im Vergleich der Verfahren innerhalb des Arms enthalten.
+Die beiden einfachen Arbeitsmodelle
+Die vereinfachten Korrektoren ersetzen die früher diskutierten Markov- und Poisson-Gamma/Dirichlet-MLEs; sie werden nicht zusätzlich aufgenommen. Sie sind bewusst einfache modellbasierte Vergleiche. Rcapture und die Literatur zu Hurdle-Modellen begründen die Methodenfamilien; die folgenden Verknüpfungen mit dem Sampling und dem Persistenzziel sind eigene Herleitungen. [2, 3]
+Gemeinsames Zielprofil unter dem Arbeitsmodell: F_k(q) = Pr{Bin(5,q) ≥ k} / [1 − (1−q)^5], k = 2,…,5. q ist eine über Dyaden und Fenster konstante Aktivitätswahrscheinlichkeit. Die Fensterzustände werden unabhängig modelliert; bei abhängigen Dyaden ist die Produkt-Likelihood eine Arbeits-Likelihood. F_k(0)=0 als Grenzwert und F_k(1)=1. Geschätzt wird ein Modellprofil des vollständigen Archivs, keine garantiert unverzerrte finite Archivgröße.
+Suffix: Mit J als Anzahl aktiver Fenster im sichtbaren Dreier-Suffix gilt J ~ Bin(3,q), bedingt auf J>0. Für D>0 ist q die eindeutige Lösung von S/D = 3q / [1−(1−q)^3]. S/D=1 ergibt den Grenzwert q=0; S/D=3 ergibt q=1. Ausgabe ist F_k(q). Das Modell extrapoliert vom Suffix auf fünf austauschbare Fenster; Trends, Beginn/Ende von Beziehungen und Gedächtnis können diese Annahme verletzen.
+Events: Ein Fenster ist mit Wahrscheinlichkeit q aktiv; bei Aktivität folgt seine Eventzahl einer auf positive Werte bedingten Poisson-Verteilung mit Parameter λ. Events werden unabhängig mit bekanntem p>0 behalten. Mit r=pλ und d(r,p) = [1−exp(−r)]/[1−exp(−r/p)] ist die beobachtete Fensteraktivität θ=q·d. Positive beobachtete Fensterzahlen folgen einer positiven Poisson-Verteilung mit Parameter r.
+Für D>0 werden zunächst θ aus S/D = 5θ/[1−(1−θ)^5] und r aus M/S = r/[1−exp(−r)] bestimmt. Falls θ/d ≤ 1, gilt q=θ/d. Andernfalls liegt die beschränkte Profil-MLE-Lösung auf q=1 und das Profil besteht aus vier Einsen. Das ist die Randlösung dieses Modells und keine nachträgliche Reparatur eines beliebigen Schätzers. Soll λ am Rand berichtet werden, muss es unter q=1 erneut angepasst werden; λ ist hier kein Ergebnisziel.
+Numerik: monotone skalare Gleichungen per Bisektion mit Parameterintervallbreite ≤10⁻¹² + 10⁻¹⁰·|Parameter| und höchstens 200 Schritten lösen; r liegt bei M/S>1 im Intervall [0,M/S]. Ausdrücke nahe null mit expm1 beziehungsweise den Grenzwerten auswerten: bei M/S=1 gilt r=0 und d=p; bei S/D=1 gilt θ=0. D=0 folgt der gemeinsamen Leersample-Regel. Inkonsistente Eingabestatistik stoppt die Vorbereitung; tatsächliche numerische Fehlschläge folgen der Ersatzregel.
+DAR mit α=0 liefert einen Fall mit unabhängigen Fensterzuständen. DAR mit α=0,8 und Activity-Driven mit Kontaktgedächtnis sind Annahmentests für die vereinfachten Korrektoren. Der DAR-Eventlayer 1+Poisson(1) ist keine positive Poisson-Verteilung; er wird nicht als exakt passender Hurdle-Poisson-Fall bezeichnet.
+Die acht synthetischen Instanzen werden separat nach DAR/Activity-Driven und Gedächtnisbedingung berichtet; sie werden nicht mit den sechs realen Quellen zu einer einzigen Rangliste vermischt. Die zwei Replikate je synthetischer Bedingung erlauben einen Mechanismus-Stresstest, keine präzise Aussage über eine große Graphpopulation.
+Unsicherheit ohne zusätzliche Testbatterie
+Pro Arm werden Mittelwert, gepaarte Differenz, Monte-Carlo-Standardfehler und die sechs Einzelquellenwerte gezeigt. Bei fünf Sampler-Seeds wird die Varianz der fünf über LLM-Repeats gemittelten Fehlerdifferenzen genutzt; beim deterministischen Suffix die Varianz der drei Antwortdifferenzen. Je Quelle wird diese Stichprobenvarianz durch die Anzahl der unabhängigen Wiederholungen geteilt, also durch 5 beziehungsweise 3. [5, 6]
+Die sechs Varianzschätzungen werden addiert und durch 36 geteilt. Die Quadratwurzel dieses Ergebnisses ist der MCSE des gleichgewichteten Sechs-Quellen-Mittelwerts. Diese Unsicherheit gilt bedingt auf die gewählten Quellen; sie ist kein Intervall für alle temporalen Netze. Bei kleinen Wiederholungszahlen bleibt sie selbst unpräzise. Keine p-Wert-Matrix und keine Behandlung von 2.688 Antworten als unabhängige Datensätze. Die MCSE gelten außerdem bedingt auf eingefrorene Trainingsdaten, trainierte Modelle und kalibrierte Schrittzahlen. Unsicherheit aus Training oder Kalibrierung wird damit nicht geschätzt.
+Ausgabevalidierung und fehlende Antworten
+Alle Anbieter verwenden denselben finalen JSON-Vertrag: genau die Schlüssel rho_2, rho_3, rho_4, rho_5, jeweils als endliche JSON-Zahl zwischen 0 und 1, in monoton fallender Reihenfolge einschließlich Gleichheit. Die Reihenfolge der Schlüssel ist beliebig. Ausgabe ist nur die finale Antwort, niemals ein aus dem Reasoning herausgesuchtes Zahlenfragment.
+Gemeinsamer JSON-Objektmodus: Sol text.format.type=json_object; DeepSeek und Qwen response_format.type=json_object. Kein nur bei Sol aktiviertes strenges Schema. Ziel ist freie native Reasoning-Generierung und JSON-Beschränkung nur der finalen Antwort. Die identische Funktion ist durch API-Namen allein nicht bewiesen und muss insbesondere mit Qwens qwen3-Parser im technischen Test bestätigt werden. Bei fehlender Unterstützung stoppt die betreffende Konfiguration bis zur dokumentierten Korrektur; kein stiller Wechsel zu einem anderen Ausgabeprotokoll. [7, 8, 9]
+Ereignis
+Verbindliche Behandlung
+Gültige finale Antwort
+Werte unverändert auswerten; keine nachträgliche Projektion oder Rundung.
+Tokenlimit erreicht
+Limit-Treffer protokollieren. Ist trotzdem ein vollständiges, gültiges finales JSON vorhanden, wird es ausgewertet. Andernfalls Ersatzregel.
+Ungültig oder keine Antwort
+Fehlende/zusätzliche/doppelte Schlüssel, Strings, null, Boolean, NaN, Werte außerhalb [0,1], falsche Monotonie, Refusal oder unvollständiges JSON: Plug-in als Ersatz bei D_obs>0.
+Leeres Sample
+Bei D_obs=0 kein LLM-Aufruf und keine Neuziehung. Alle Verfahren erhalten denselben vorab eingefrorenen Trainingsmedian als Profil.
+Numerischer Korrektorfehler
+Dasselbe Verfahren: Plug-in; bei leerem Sample Trainingsmedian. Gültige Randlösungen sind keine Fehler.
+Budgetstopp oder Vorbereitung fehlt
+Nicht gestartete Aufrufe sind unvollständige Durchführung, keine Modellantworten. Keine Ersatzschätzung, kein vollständiges Hauptergebnis behaupten.
+Der Parser akzeptiert nach Entfernen äußerer Leerzeichen genau ein JSON-Objekt. JSON-interne Zeilenumbrüche und beliebige Schlüsselreihenfolge sind zulässig. Keine inhaltliche Reparatur, kein Clipping, kein Nachfragen und keine Fortsetzung nach einem Tokenlimit. Rohtext, verfügbares Reasoning, Abschlussgrund und Validierungsgrund werden gespeichert. Die eingegangene Fassung berichtet elf ungültige und zwei gültige Parserprüfungen; deren Testartefakte liegen hier nicht bei.
+Hauptkennzahl heißt ausdrücklich „MAE₂ mit festgelegter Ersatzregel“. Daneben stehen: Anteil gültiger LLM-Antworten, Limit-Treffer, andere Antwortfehler, endgültige technische Fehler und Leersamples. Zusätzlich gültige Rohantworten mit ihrem Baselinevergleich auf denselben Fällen zeigen; diese konditionale Auswertung ersetzt nicht das Hauptergebnis. Antwortraten beziehen sich auf begonnene logische Anfragen, ohne Retries doppelt zu zählen; Leersampleraten auf Beobachtungen. Nicht begonnene Aufrufe werden separat ausgewiesen. Morris et al. warnen vor selektiv fehlenden Schätzungen und unterscheiden solche Verfahren mit Rückfallregel von der ursprünglichen Methode. [5]
+Trainingsmedian: koordinatenweiser Median über die unabhängigen Trainingsgraphen, je Graph ein Label und gleiches Gewicht. Er muss vor Testantworten feststehen. Die drei logischen Repeats eines Leersamples erzeugen keine drei tatsächlichen API-Aufrufe. Bei realem Testgraph g wird der Median ausschließlich aus dessen Trainingsfold gebildet; bei synthetischen Testfällen aus dem vollständigen realen Trainingspool. Der aus allen Testquellen zusammen berechnete Median darf keinen realen Leersample-Fall ersetzen.
+Trainingspool und ExtraTrees
+Der Grundbeschluss zu 16 realen Quellen, Leave-one-source-out, gleicher Gewichtung und 500 Bäumen wird übernommen. Die folgende konkrete Quellenliste wird anhand des Repository-Census konsolidiert. Sie ist eine Designfestlegung und kein Beleg, dass die produktiven Trainingsbeobachtungen bereits erzeugt wurden. Der Pool erzeugt keine zusätzlichen LLM-Testaufrufe. [17–19]
+Quellenfamilie
+Aufgenommene Quellen
+SocioPatterns · 5
+Hospital; PrimarySchool; HighSchool2013; Workplace InVS15; Hypertext2009
+SNAP · 4
+CollegeMsg; Email-Eu core temporal; MathOverflow Union; Bitcoin-OTC
+Network Repository · 2
+Radoslaw Email; Digg Reply
+JODIE · 4
+Wikipedia; Reddit; LastFM; MOOC
+Copenhagen · 1
+Bluetooth aus dem dokumentierten CNS-Release
+Insgesamt 16 Quellen. WikiTalk bleibt wegen fehlender Datei ausgeschlossen. Enron Employees wird wegen der im Census ungeklärten Mehrfachzeilen nicht aufgenommen; diese konkrete Abgrenzung wird hier zur Reproduzierbarkeit ergänzt. Bitcoin-OTC liefert Rating-Ereignisse, keine gemessenen Dauern von Vertrauensbeziehungen. Bei JODIE bleiben Nutzer- und Objekt-IDs disjunkt. Die Wahl dieses heterogenen Pools ist keine repräsentative Netzstichprobe. Quellen und Dateiregeln stehen in config/datasets.yaml am dokumentierten Repo-Commit; unbekannte physische Zeiteinheiten werden nicht erfunden. [23]
+Reale Haupttests: jeweils die gesamte Testquelle samt Zeitabschnitten, Sampleseeds und verwandten Exporten ausschließen; aus den übrigen 15 Quellen trainieren. Die sechs Hauptquellen dürfen nur in den Folds anderer Quellen Trainingsquellen sein. Synthetische Haupttests: Training auf allen 16 realen Quellen; weder die acht synthetischen Testinstanzen noch ihre Ableitungen fließen ins Training. Es gibt keinen zusätzlichen synthetischen Trainingspool und damit keine offene Generator-Parameterverteilung für das Training.
+Pro Trainingsquelle werden dieselben vier Beobachtungsregeln mit 5/5/1/5 Beobachtungen und getrennten Trainingszufallsströmen verwendet. Das ergibt höchstens 256 Trainingszeilen insgesamt beziehungsweise 240 je realem Testfold. Diese Zeilen haben nur 16 beziehungsweise 15 verschiedene Quellprofile; Seeds erzeugen keine neuen unabhängigen Netze. Der Median nutzt je Quelle genau ein vollständiges Zielprofil.
+ExtraTrees-Gewichte: Bei G Trainingsquellen und n_a Beobachtungen des Arms a erhält jede Zeile Gewicht 1/(G·4·n_a). Damit zählen alle Quellen und innerhalb jeder Quelle alle Arme gleich. Ein gemeinsamer Regressor schätzt die vier Profilwerte zugleich. Die Trainingsfolds, die Feature-Reihenfolge und ihre Hashes werden vor den Testantworten eingefroren. [19]
+Feste Hyperparameter: n_estimators=500; criterion=squared_error; max_features=1.0; min_samples_split=5; min_samples_leaf=1; max_depth=None; bootstrap=False; oob_score=False; random_state=0; min_weight_fraction_leaf=0.0; min_impurity_decrease=0.0; ccp_alpha=0.0; warm_start=False; max_leaf_nodes=None; max_samples=None; monotonic_cst=None. n_jobs=1 als reproduzierbare CPU-Startkonfiguration. Keine Hyperparametersuche. Paketversion und Umgebungs-Lockfile werden mit dem tatsächlich trainierten Modell gespeichert. [17, 18]
+Das quadratische Splitkriterium bleibt eine einfache feste Baseline und wird nicht als optimal für die Hauptmetrik MAE₂ ausgegeben. Die vier gemeinsamen Ausgaben sind Mittelwerte gültiger Trainingsprofile; dadurch bleiben Bereich und Profilmonotonie ohne nachträgliche Projektion erhalten. Der Vergleich bewertet Lernen aus diesem begrenzten Pool, keine allgemeine Obergrenze supervised Verfahren.
+Modellkonfigurationen
+Konfiguration
+Decoding
+Maximaler Output
+GPT-5.6 Sol
+gpt-5.6-sol; Responses API; reasoning.effort=high; Batch. temperature und top_p nicht setzen.
+128.000
+DeepSeek V4.1 Flash
+deepseek-flash; thinking.type=enabled; reasoning_effort=high; top_p=1.0. Keine wirkungslosen Temperaturparameter.
+393.216
+Qwen Thinking
+Qwen3.6-35B-A3B; enable_thinking=true; temperature=1.0; top_p=0.95.
+258.048
+Qwen Non-thinking
+Gleiche Gewichte; enable_thinking=false; temperature=0.7; top_p=0.80.
+258.048
+Qwen zusätzlich in beiden Modi: top_k=20, min_p=0.0, presence_penalty=1.5, repetition_penalty=1.0. Das sind die modusspezifischen Herstellerempfehlungen. Der Qwen-Vergleich ist deshalb ein Vergleich zweier Betriebsrezepte und kein isolierter kausaler Effekt des Thinking-Schalters. [10]
+Die hohe Qwen-Obergrenze ist eine eigene Entscheidung zur Verringerung künstlicher Abbrüche: 262.144 native Kontexttokens minus 4.096 reservierte Eingabetokens. Kein YaRN. Beide Qwen-Modi erhalten denselben Spielraum. DeepSeek muss das Limit explizit erhalten, da Weglassen einen niedrigeren Default aktiviert. Sol und DeepSeek „high“ sind keine Garantie gleicher Rechenarbeit. Reasoning zählt beim Output mit. [8, 10, 11]
+Qwen Serving
+Festgelegte Startkonfiguration: vLLM 0.20.1, BF16, Textmodus, qwen3-Reasoning-Parser, zwei H100 mit je 80 GB, Tensorparallelität 2; höchstens vier aktive Anfragen. Diese Hardwarekonfiguration ist ein Deployment-Soll, kein hier nachgewiesener Clusterlauf. Bei Speichermangel keine stille Quantisierung oder Kürzung des Kontextlimits; vor dem Hauptlauf technisch korrigieren und den Freeze aktualisieren. [9, 12] Die vier aktiven Slots gelten insgesamt pro gemeinsamem Qwen-Server, nicht zusätzlich vier je Thinking-Modus. Verfügbarkeit dieser GPUs und der erforderliche Durchsatz sind noch nachzuweisen.
+vllm serve Qwen/Qwen3.6-35B-A3B  --revision 995ad96eacd98c81ed38be0c5b274b04031597b0  --tokenizer-revision 995ad96eacd98c81ed38be0c5b274b04031597b0  --dtype bfloat16 --tensor-parallel-size 2  --max-model-len 262144 --max-num-seqs 4  --max-num-batched-tokens 8192 --enable-chunked-prefill  --gpu-memory-utilization 0.90 --reasoning-parser qwen3  --seed 20260916 --language-model-only --generation-config vllm
+Die Zeilen oben gehören zu einem einzigen Startbefehl. Alle Decoding-Parameter werden pro Anfrage explizit übergeben. Keine Tools, keine künstlichen Stop-Strings, kein Speculative Decoding. Server-Seed 20260916; pro Anfrage der unten definierte Seed. Das vollständige Paket-, CUDA-, Treiber-, GPU- und Container-Manifest wird nach dem Smoke-Test gespeichert.
+Versionen wirklich einfrieren
+Qwen-Gewichte, Tokenizer und Template werden auf den genannten vollständigen Commit festgelegt. Die geprüften API-Dokumentationen nennen für Sol und DeepSeek keine gleichwertig unveränderlichen Snapshot-IDs. Deshalb die vorhandenen Modellstrings verwenden, UTC-Zeit, zurückgegebenes Modell und DeepSeek system_fingerprint speichern; bei bestätigtem Modellwechsel neue Requests pausieren und den Designstand aktualisieren. Ein Fingerprintwechsel allein beweist keinen Gewichtswechsel. Unsichtbare Provideränderungen bleiben eine Einschränkung. [8, 11, 13]
+Seeds Laufzeit und technische Wiederholungen
+Es bleiben fünf unabhängige Sampler-Seeds für Node-Panel, Walk und Events; ein deterministischer Suffix; je Beobachtung drei getrennte LLM-Aufrufe. Jeder Aufruf beginnt mit einer frischen Unterhaltung. Prompt und Beobachtung bleiben über die drei Repeats unverändert; Request-IDs stehen nur in Metadaten. Die Zahlen 5 und 3 sind Budgetentscheidungen, keine literaturbewiesene Mindestzahl. [5, 6]
+Reproduzierbare Zufallsströme
+Master-Seed: 20260916. Jede Zufallsquelle erhält einen SHA-256-abgeleiteten 63-Bit-Seed. Dazu wird die kompakte UTF-8-JSON-Liste [20260916, domain, graph_id, arm_id, sample_index, repeat_index, config_id] gebildet; die ersten acht Hashbytes werden als vorzeichenlose Big-Endian-Zahl gelesen und modulo 2⁶³ reduziert. Unbenutzte Felder sind leere Strings beziehungsweise 0. Indizes beginnen bei 1. Ausnahme ist der bereits festgelegte ExtraTrees-Modellseed random_state=0; Trainingsbeobachtungen verwenden weiterhin getrennte abgeleitete Seeds.
+Domains trennen graph, sample, walk_calibration, walk_validation, llm und training. Im Domain llm haben Qwen-Konfigurationen verschiedene config_id; ein Retry behält seinen ursprünglichen Seed. Das gesamte Manifest wird auf Kollisionen geprüft. Sol und DeepSeek erhalten keinen undokumentierten API-Seed; dort werden unabhängige Requests und Provider-Metadaten dokumentiert. Seeds sichern bei vLLM nicht automatisch bitgleiche Ausgaben unter wechselndem Batching oder anderer Hardware. [5, 13]
+Großzügige Zeitgrenzen ohne verlorene Läufe
+Grenze
+Festlegung
+Verbindungsaufbau
+30 Sekunden; betrifft nur den Aufbau, nicht die Generierung.
+Erstes Modelltoken
+30 Minuten nach Aufnahme in eine freie Worker-Position. Lokale Warteschlangenzeit vorher separat erfassen.
+Stillstand während Generierung
+60 Minuten ohne neues Reasoning- oder Antworttoken; Transport-Heartbeats zählen nicht als Modellfortschritt.
+Gesamtdauer Qwen/DeepSeek
+24 Stunden pro aktiver Anfrage. Streaming aktiv; höchstens 4 Anfragen bei DeepSeek und insgesamt 4 pro gemeinsamem Qwen-Server.
+Sol Batch
+Offizielles 24-Stunden-Batchfenster. Status abrufen; ein lokaler Polling-Timeout startet keine zweite Generierung.
+Das sind technische Schutzgrenzen, keine aus Literatur geschätzten Denkzeiten. Jedes abgeschlossene Ergebnis und jeder Versuch wird sofort dauerhaft geschrieben; Streamfragmente werden fortlaufend gesichert. Clusterjobs respektieren die jeweilige SLURM-Walltime und werden aus dem Manifest fortgesetzt. Ein einzelner einwöchiger Clusterjob wird nicht vorausgesetzt.
+Genau zwei technische Retries
+Höchstens drei Versuche je geplantem Aufruf. Wiederholen nur bei nachweislich transientem technischen Fehler vor dem ersten Modelltoken, etwa 429/5xx, Verbindungsfehler oder nicht ausgeführtem Batch-Eintrag. Wartezeiten 5 und 20 Sekunden; längere Retry-After-Vorgaben beachten. SDK-Retries deaktivieren. HTTP-Read-Timeout deaktivieren; die genannten Watchdogs übernehmen die Fristen.
+Nach begonnenem Modelloutput kein Retry. Unklare laufende API-Aufträge erst abgleichen; keine Doppelanfrage. Fehler 400/401, ignorierte Pflichtparameter und wiederholtes OOM stoppen die Konfiguration. Nach ausgeschöpften transienten Versuchen gilt die Ersatzregel; technische Ausfälle werden separat ausgewiesen. Alle bezahlten Versuche zählen ins Budget.
+Kostenkontrolle und Freigabe
+14 Graphen × (5+5+1+5) Beobachtungen × 3 Repeats = höchstens 672 Aufrufe je Konfiguration, insgesamt 2.688. Leersamples reduzieren echte Aufrufe. Zusätzlich acht technische Smoke-Test-Prompts je Konfiguration aus unabhängigen DAR-/AD-Graphen, je zwei pro Arm. Diese sind nicht Teil der Testauswertung; keine Leistungsoptimierung am Testpanel.
+Mittlerer Sol-Output
+672 Batch-Aufrufe bei 1.500 frischen Inputtokens
+11.040 Tokens
+ca. 76,20 USD
+15.000 Tokens
+ca. 102,82 USD
+20.000 Tokens
+ca. 136,42 USD
+25.000 Tokens
+ca. 170,02 USD
+128.000 Tokens
+ca. 862,18 USD
+Batchtarif: 2 USD/Million Inputtokens und 10 USD/Million Outputtokens einschließlich Reasoning. Ohne Cache-Rabatte; Smoke-Tests und Retries zusätzlich. Alte Durchschnittswerte aus anderen Läufen sind keine Kostengarantie. [14, 15]
+OpenAI: 200 USD harte Verbrauchsgrenze; 180 USD für neue reguläre Aufrufe, 20 USD Reserve für technische Wiederholungen und Kostenabgleich. Pro Batch höchstens 64 Requests. Neue Aufträge nur, wenn bezahlt + maximal reservierte Kosten aller offenen Aufträge + Maximalkosten der neuen Aufträge unter der jeweils geltenden Grenze bleiben. Bei aktuellen Preisen und höchstens 4.096 Inputtokens werden konservativ 1,30 USD pro offenem Sol-Aufruf reserviert. Tarif und Regionaufschläge vor Einreichung prüfen und die Reservierung anpassen. Unklare Abrechnungen behalten ihre Reserve bis zum Abgleich.
+Zuerst Realblock, dann Synthetik. Je Block Graph×Arm-Zellen reihum bedienen; innerhalb jeder Zelle Sampler-Index, dann Repeat. Keine kostenabhängige Auswahl einzelner Quellen oder schwieriger Antworten. Bei Budgetstopp bleibt das Panel unverändert geplant und der Lauf unvollständig.
+DeepSeek: 50 USD Schutzgrenze einschließlich Smoke-Tests und Retries. Bei 60.000 Outputtokens und 1.500 frischen Inputtokens pro Aufruf kosten 672 Off-peak-Aufrufe rechnerisch 24,34 USD. Vor jedem neuen Auftrag gilt dieselbe Reservierungsregel wie bei Sol, ohne separate 20-USD-Unterreserve: bezahlt plus Reserven aller offenen und neuen Aufträge ≤50 USD. Bei aktuellen Peakpreisen und den Caps werden 0,48 USD pro offenem Aufruf reserviert. Off-peak ist werktags 10:00–01:00 und 04:00–06:00 UTC sowie das gesamte Wochenende. Laufende Aufträge nicht wegen eines Tarifwechsels abbrechen. Preise vor Versand prüfen. [16]
+Designbeschlüsse und technische Startbedingungen
+1. Design festgelegt, Durchführung offen: 224 Hauptbeobachtungen erzeugen, Prüfsummen und Ground Truth sichern, Summen und Masken kontrollieren, vollständige Prompts mit Produktions-Tokenizer vermessen. Die lokalen Rohdateien der endgültigen Quellen fehlen in dieser Arbeitsumgebung. Der alte Census ersetzt diese Prüfung nicht.
+2. Training ist als Design entschieden: Quellenliste, Trennung, Gewichtung und ExtraTrees-Parameter stehen oben. Noch auszuführen sind Quellprüfung, Trainingsbeobachtungen, Fold-Manifeste, tatsächliches Fitten und Speichern der sechs realen Fold-Modelle und des Modells für synthetische Tests sowie der jeweiligen Mediane.
+3. Technische Freigabe offen: API- und Clusterzugang, Qwen-BF16-Serving, acht unabhängige technische Prompts je Konfiguration, akzeptierte Parameter, Reasoning/JSON-Trennung, Parser, Streaming, Wiederaufnahme, Usage und Budgetreserve prüfen. Für die Zeitplanung den gemessenen Durchsatz auf die verbleibenden Aufrufe hochrechnen; hohe Caps garantieren keinen Abschluss bis Mitte Oktober. In dieser Umgebung sind weder Clusterzugang noch ein Qwen-GPU-Server eingerichtet. Es wurden hier keine produktiven LLM-Aufrufe ausgelöst.
+4. Repository-Anpassung offen: Am geprüften Commit 7b27121816a515b486adfbfa397b44ee3b7c050d enthält config/study.yaml noch ProfileMAE als Hauptfehler, Simple Random Walk, vier Sampleseeds, DCSBM und zwei Netzgrößen. README und Teile der Sampler/Pipeline beziehen sich ebenfalls auf den Archivstand. Diese Dokumentprüfung ändert keine GitHub-Dateien. Vor dem Hauptlauf müssen die dokumentierten Werte, Loader, Sampler, Korrektoren, Prompt- und Auswertungspipeline gemeinsam aktualisiert und mit den tatsächlich verwendeten Dateien geprüft werden. Eine reine YAML-Änderung wäre noch keine ausführbare Pipeline. [23]
+Walk und Budget sind als Protokoll festgelegt
+Je Quelle ist B die Eventzahl im vollständigen Suffix [0,4;1]. Die übrigen Arme werden auf dieses erwartete Eventvolumen bezogen. Beim Event-Sampling gilt p=B/M_full; beim festen Node-Panel ist E[M_obs]=M_full·n(n−1)/[N_full(N_full−1)]. n wird als zulässige ganze Zahl mit geringstem absoluten Budgetabstand gewählt. Wegen Ganzzahligkeit ist exakte Angleichung nicht immer möglich. Vollgrößen und tatsächliche Coverage bleiben außerhalb des Prompts.
+Der Walk verwendet vollständige Eventmengen als Übergangsgewichte, einen uniformen Start über die Endpunkte von E_full und eine feste Schrittzahl L je Quelle. Keine Neustarts, kein Burn-in und kein Stoppen bei erreichter Coverage. V_full enthält nur Endpunkte gültiger Events und daher keine isolierten Knoten. Alle L Traversierungen zählen; Historien werden nur beim ersten Abruf übertragen.
+Kalibrierung mit 256 separaten Walks: mittlere zurückgegebene Eventzahl über Präfixe bestimmen, bis zur Obergrenze C=min(100·D_full,1.000.000). L durch Verdoppeln und anschließende ganzzahlige Bisektion suchen; zwischen den benachbarten Kandidaten den kleineren absoluten Budgetfehler wählen, bei Gleichheit das kleinere L. Dieselben Kalibrierungspfade dürfen für Präfixe wiederverwendet werden. Kein Testfehler und kein LLM-Ergebnis geht in diese Auswahl ein.
+Unabhängige Prüfung des eingefrorenen L mit 1.024 neuen Walks. Akzeptanz: |Mittelwert−B|/B ≤5 % und MCSE/B ≤1 %. Bei unzureichender MC-Präzision auf insgesamt 4.096 Prüf-Walks erweitern; L bleibt unverändert. Danach folgt keine Suche auf den Prüfziehungen. Haupt-Walks verwenden wiederum getrennte Seeds. Die Zahlen sind eigene Arbeitskonventionen. [5, 20]
+Falls das Budget innerhalb der Suchgrenze oder der Toleranz nicht erreicht wird, L aus der Kalibrierung beibehalten und budget_matched=false sowie Abweichung und Grund protokollieren. Die Beobachtung bleibt im Methodenvergleich innerhalb des Walk-Arms; gleiche Datenmenge zwischen Armen wird dort nicht behauptet. Ein Komponentenproblem kann durch mehr Schritte nicht behoben werden. Walk-Ratio konvergiert unter passenden Bedingungen zum Profil der erreichten Komponente, nicht automatisch zum Vollgraphen. [20]
+Reale und synthetische Daten sind festgelegt
+Die sechs Hauptdateien bleiben hospital_lyon_contacts.dat.gz, HighSchool2013_proximity_net.csv.gz, copenhagen_bluetooth.csv.gz, email-Eu-core-temporal.txt.gz, CollegeMsg.txt.gz und sx-mathoverflow.txt.gz. Nach quellenbezogener Bereinigung definiert das kleinste und größte erhaltene Timestamp den unveränderlichen Horizont. Fenster 1–4 sind links geschlossen und rechts offen; Fenster 5 enthält das letzte Timestamp. Selbstschleifen entfernen, Dyaden ungerichtet, kein LCC-Filter. Proximity-Messungen mit identischem (u,v,t) einmal zählen; legitime gleichzeitige Kommunikationsereignisse behalten.
+Copenhagen: Quelle ist Figshare 7267433, Datei bt_symmetric.csv. Bekannte Teilnehmende behalten (user_b≥0), u=min(user_a,user_b), v=max(user_a,user_b), t=Originaltimestamp; Selbstkontakte und doppelte (u,v,t) entfernen; kein zusätzlicher RSSI-Schwellenwert und keine erneute Aggregation der veröffentlichten Fünf-Minuten-Intervalle. Nachvollziehbarkeit verlangt Release-Version/Datei-ID, SHA-256 der Originalbytes, gespeichertes Transformationsskript und sortierten kanonischen Export samt Hash. Die Übereinstimmung mit dem bisherigen copenhagen_bluetooth.csv.gz ist weiterhin nicht nachgewiesen; Export oder Census allein belegen sie nicht. [21, 22]
+Synthetik bleibt bei acht Instanzen: DAR mit N=500, G(500,5000)-Backbone, χ=0,2, α∈{0;0,8}, stationärem Start und 1+Poisson(1) Events je aktivem Fenster; zwei gepaarte Backbone-Replikate. Activity-Driven mit N=500, Dichte f(a)∝a^(−2,8) auf [0,01;1], η=1, m=1, c=1, β=1 und 1.000 Runden; memoryless versus Kontaktgedächtnis mit p_new=1/(n_i+1), alte Partner uniform; zwei gepaarte Aktivitäts-Replikate. Beide Horizonte sind [0;1] mit fünf Fenstern. Die Eventschicht und Parameterwerte bleiben eigene Operationalisierungen; kein weiterer Generator und keine Shuffles werden ergänzt. [24–26]
+Vollständiger gemeinsamer Prompt
+Die folgenden Texte sind unverändert für alle vier Konfigurationen zu verwenden. Zwischen Mechanismen ändern sich nur der Regelblock und die Beobachtungsdaten. Keine Beispielschätzung oder vorgegebene Antwortzahl wird eingefügt. Die Schreibweise der JSON-Schlüssel bleibt exakt erhalten.
+Systemnachricht
+You estimate properties of a partially observed temporal network. Use the supplied observation and sampling rule. Return your final answer as one JSON object with exactly the keys rho_2, rho_3, rho_4, rho_5 and numeric values. Do not include explanations, additional keys, or Markdown in the final answer.
+Gemeinsamer Beginn der Nutzernachricht
+Target: The full archive has a known horizon normalized to [0,1], split into W=5 equal windows in chronological order: [0,0.2), [0.2,0.4), [0.4,0.6), [0.6,0.8), [0.8,1]. A dyad is an unordered pair of distinct vertices. E_full contains all dyads with at least one event anywhere in the full archive; it does not contain never-active pairs. V_full is the set of endpoints of these dyads. For e in E_full, K_e is its number of active windows; these need not be consecutive. Estimate rho_k = |{e in E_full: K_e >= k}| / |E_full|, for k=2,3,4,5. Give point estimates on [0,1], satisfying rho_2 >= rho_3 >= rho_4 >= rho_5. Evaluation uses absolute error, primarily for rho_2.
+The full numbers of vertices, dyads, and events are unknown. Dyads with no observed event are absent from the table but may belong to E_full. The observation need not uniquely identify the full profile; still provide your best point estimates.
+Data definitions: N_obs counts distinct endpoints of observed events; D_obs counts distinct observed dyads; M_obs counts observed event records, with a retrieved record counted once even after repeated traversal. Events_per_window has five entries. NA means outside the accessible time interval, not zero activity. Temporal_access is 1 if the window is accessible under the rule, not a guarantee of complete observation there.
+The table groups dyads by their observed activity pattern. Pattern positions refer to windows 1..5: 1 = at least one observed event, 0 = no observed event in an accessible window, ? = inaccessible window. The dyads column counts distinct observed dyads with that pattern. The events column sums their observed event records, counting each record once even after repeated traversal. These are observed counts, not unknown full counts. All permitted nonempty patterns are listed, including rows with dyads=0 and events=0. No zero-event dyads are listed. The two columns sum to D_obs and M_obs, respectively.
+Walk_A is NA except for the walk. There, its five entries A_j are sums of r_e/m_e over discovered dyads active in exactly j windows of their retrieved full history. r_e counts all traversals of dyad e; m_e counts its full-archive events. Walk_A is computed from the observed traversal log and retrieved histories.
+Regelblöcke und Datenkodierung
+An den gemeinsamen Text wird „Sampling rule: “ und genau einer der folgenden vier Regelblöcke angehängt.
+Node Panel
+Uniform node panel: n_panel vertices are drawn without replacement from the V_full. Only dyads whose two endpoints are both in this panel are observed; their complete archive histories are retrieved. n_panel is known; the full vertex count and panel sampling fraction are unknown.
+Gewichteter Walk
+Event-weighted random walk: the initial vertex is drawn uniformly from V_full. At each step, neighbor j of current vertex i is chosen with probability proportional to the full-archive event count m_ij. The observer receives full histories only for traversed dyads, and the traversal log. Exactly L transitions are taken, with no burn-in and no restart or stop based on recovered volume. Other components are not subsequently visited.
+Suffix
+Time suffix: all event records in the last tau=0.60 of the fixed archive horizon are accessible, namely windows 3,4,5. Windows 1,2 are inaccessible. Only dyads with at least one event in the accessible suffix are listed. Their earlier histories and dyads active only before the suffix are not observed.
+Bernoulli Events
+Bernoulli event sampling: each event record anywhere in the full archive is independently retained with the stated probability p. Only retained event records are observed. There is no subsequent history retrieval. A window or an entire dyad may have no retained event even if it was active in the full archive.
+Anschließender Datenblock
+W=5Temporal_access=<five 0/1 values>N_obs=<integer>D_obs=<integer>M_obs=<integer>Events_per_window=<five integers or NA><one parameter line: n_panel=... / L=... / tau=0.60 / p=...>Walk_A=<five numbers or NA>pattern,dyads,events<all 31 rows, or the seven suffix rows, in lexicographic order>
+Nach der letzten Tabellenzeile folgt exakt: „Return the four full-archive estimates in the specified JSON format.“ Eckige beziehungsweise spitze Platzhalter im Datenblock sind ausschließlich Platzhalter dieser Spezifikation und werden vollständig ersetzt. Die Tabelle verwendet einfache CSV-Zeilen ohne Tausendertrennzeichen oder Markdown-Rahmen.
+Beispiel einer Tabellenzeile zur Erläuterung, nicht als zusätzliches Few-shot-Beispiel im Prompt: 10100,12,58 bedeutet zwölf beobachtete Dyaden mit Aktivität in Fenster 1 und 3 und insgesamt 58 beobachteten Events. Validierung: nichtnegative Integer; dyads=0 genau dann, wenn events=0; für jede Zeile events ≥ dyads mal Anzahl sichtbarer Einsen. Die Spaltensummen müssen D_obs beziehungsweise M_obs ergeben; die Summe der zugänglichen Events_per_window muss ebenfalls M_obs sein. Abweichungen stoppen die Vorbereitung.
+Literatur und technische Primärquellen
+Wissenschaftliche Quellen stützen die methodischen Prinzipien. Die konkrete Tabellenkodierung, Seeds, Limits, Fehlerrückfälle und Budgetgrenzen sind vorab gesetzte Arbeitskonventionen. Technische Angaben wurden am 16. September 2026 geprüft.
+[1] Maurya, S. K. & Liu, X. (2026). Evaluating LLMs on Large-Scale Graph Property Estimation via Random Walks. ACL, 39749–39777.https://aclanthology.org/2026.acl-long.1846/
+[2] Baillargeon, S. & Rivest, L.-P. (2007). Rcapture: Loglinear Models for Capture-Recapture in R. JSS 19(5).https://www.jstatsoft.org/article/view/v019i05
+[3] Zeileis, A., Kleiber, C. & Jackman, S. (2008). Regression Models for Count Data in R. JSS 27(8).https://www.jstatsoft.org/article/view/v027i08
+[4] Gneiting, T. (2011). Making and Evaluating Point Forecasts. JASA 106(494), 746–762.https://arxiv.org/abs/0912.0902
+[5] Morris, T. P., White, I. R. & Crowther, M. J. (2019). Using simulation studies to evaluate statistical methods. Statistics in Medicine 38, 2074–2102.https://pmc.ncbi.nlm.nih.gov/articles/PMC6492164/
+[6] Bouthillier et al. (2021). Accounting for Variance in Machine Learning Benchmarks. MLSys 3.https://arxiv.org/abs/2103.03098
+[7] OpenAI. Structured model outputs, insbesondere JSON mode.https://developers.openai.com/api/docs/guides/structured-outputs
+[8] DeepSeek. Chat Completions API, Parameter und Usage.https://api-docs.deepseek.com/api/create-chat-completion/
+[9] vLLM. OpenAI-Compatible Server und Structured Outputs.https://docs.vllm.ai/en/latest/serving/online_serving/openai_compatible_server/
+[10] Qwen Team (2026). Qwen3.6-35B-A3B, offizielle Modellkarte und Chat-Template.https://huggingface.co/Qwen/Qwen3.6-35B-A3B
+[11] OpenAI. GPT-5.6 Sol, Modelldokumentation.https://developers.openai.com/api/docs/models/gpt-5.6-sol
+[12] vLLM 0.20.1. Engine Arguments.https://docs.vllm.ai/en/v0.20.1/configuration/engine_args/
+[13] vLLM. Reproducibility.https://docs.vllm.ai/en/stable/usage/reproducibility/
+[14] OpenAI. API Pricing.https://developers.openai.com/api/docs/pricing
+[15] OpenAI. Batch API.https://developers.openai.com/api/docs/guides/batch
+[16] DeepSeek. Models & Pricing.https://api-docs.deepseek.com/quick_start/pricing/
+[17] Geurts, P., Ernst, D. & Wehenkel, L. (2006). Extremely randomized trees. Machine Learning 63, 3–42.https://doi.org/10.1007/s10994-006-6226-1
+[18] scikit-learn. ExtraTreesRegressor, Parameter und Mehrfachausgaben.https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.ExtraTreesRegressor.html
+[19] Roberts et al. (2017). Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure. Ecography 40, 913–929.https://doi.org/10.1111/ecog.02881
+[20] Ribeiro, B. & Towsley, D. (2010). Estimating and Sampling Graphs with Multidimensional Random Walks.https://arxiv.org/abs/1002.1751
+[21] Sapiezynski et al. (2019). The Copenhagen Networks Study interaction data. Figshare 7267433.https://doi.org/10.6084/m9.figshare.7267433
+[22] Sapiezynski, P., Stopczynski, A., Lassen, D. D. & Lehmann, S. (2019). Interaction data from the Copenhagen Networks Study. Scientific Data 6, 315.https://doi.org/10.1038/s41597-019-0325-x
+[23] Cohen2000/MasterThesis. Geprüfter Repo-Stand 7b27121816a515b486adfbfa397b44ee3b7c050d, insbesondere config/datasets.yaml, config/study.yaml und results/dataset_census/empirical_census.csv.https://github.com/Cohen2000/MasterThesis/tree/7b27121816a515b486adfbfa397b44ee3b7c050d
+[24] Williams, O. E., Mazzarisi, P., Lillo, F. & Latora, V. (2022). Non-Markovian temporal networks with auto- and cross-correlated link dynamics. Physical Review E 105, 034301.https://arxiv.org/abs/1909.08134
+[25] Perra, N., Gonçalves, B., Pastor-Satorras, R. & Vespignani, A. (2012). Activity driven modeling of time varying networks. Scientific Reports 2, 469.https://arxiv.org/abs/1203.5351
+[26] Karsai, M., Perra, N. & Vespignani, A. (2014). Time varying networks and the weakness of strong ties. Scientific Reports 4, 4001.https://arxiv.org/abs/1303.5966
+[27] Duffield, N., Lund, C. & Thorup, M. (2003). Estimating Flow Distributions from Sampled Flow Statistics. ACM SIGCOMM.https://conferences.sigcomm.org/sigcomm/2003/papers/p325-duffield.pdf
+Prüfumfang der Gegenprüfung
+Die neue Prüfung kontrolliert die Zieldefinition, die beiden skalaren Modellherleitungen samt Grenzfällen, die 88er-Featurezählung, 224 Beobachtungen beziehungsweise höchstens 2.688 Hauptaufrufe und die Kostenarithmetik. Aktuelle Herstellerdokumentation stützt Modellnamen, Caps, Qwen-Decoding und JSON-Funktionen. Sie ersetzt keinen Lauf auf den vorgesehenen APIs oder GPUs. Die aus der Vorgängerfassung berichteten 60 Optimierungsfälle und Parser-Tests sind ohne Testartefakte keine hier reproduzierte Validierung.
+Offen sind die technische Produktionsimplementierung, Rohdatei- und Copenhagen-Abgleiche, tatsächliche Walk-Kalibrierung, Training und sämtliche API-/Cluster-Smoke-Tests. Freigabe erfolgt erst mit den zugehörigen Manifesten und Prüfergebnissen. Die vereinfachten Modellschätzer sind nachvollziehbare Baselines mit starken Annahmen; ihre Güte auf realen Daten ist Ergebnis des Experiments und wird nicht vorweggenommen.

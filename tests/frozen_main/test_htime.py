@@ -105,11 +105,11 @@ class TimeHistoryTests(unittest.TestCase):
         np.testing.assert_allclose(np.array(d['dyad_disappearance'])+d['within_dyad_history'],d['net_history'])
         self.assertFalse(decompose(full,np.zeros_like(full),np.ones(3,dtype=bool))['defined'])
 
-    def test_rsb_complete_generation_identity_is_preserved(self):
+    def test_rbh_complete_generation_identity_is_preserved(self):
         import json
         old={r['id']:r for r in map(json.loads,(PREVIOUS_RUN/'requests.jsonl').read_text().splitlines())}
         obs=[read_json(p) for p in (PREVIOUS_RUN/'observations/sample').glob('*.json')]
-        obs=[o for o in obs if o['arm']!='H']
+        obs=[o for o in obs if o['arm']!='S']
         for o in obs: self.assertEqual(messages(o['block']),o['messages'])
         for r in planned(obs):
             prior=old[r['id']]

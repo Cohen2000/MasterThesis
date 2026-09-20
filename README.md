@@ -6,14 +6,17 @@ temporal graphs.
 
 ## Current experiment
 
-Design: `cells10-htime60-20260920`
+Design: `cells10-srw-htime60-20260920`
 
+S is a simple random walk: uniform start vertex and uniform current neighbor,
+with a fixed calibrated length and full histories for traversed dyads. Its raw
+traversal-frequency reference is stationary/asymptotic, not finite-walk unbiased.
 H uses uniform node sampling and the most recent 60% of archive time, calibrated
 to the same 10% active-dyad-window coverage as R/S/B. Offline sensitivity uses
 h=0.40/0.60/0.80. Its primary reference is a homogeneous zero-truncated Binomial
-extrapolator, treated as a working model. See [protocol](docs/PROTOCOL_HTIME_20260920.md).
-New Qwen H generation is authorized; GPT/Sol and DeepSeek remain unstarted.
-Offline results and remaining generation work: [current status](docs/STATUS_HTIME_20260920.md).
+extrapolator, treated as a working model. See [protocol](docs/PROTOCOL_SRW_20260920.md).
+New Qwen S generation is authorized; H/R/B are reused only after identity checks.
+GPT/Sol and DeepSeek remain unstarted.
 
 - 6 real temporal-network sources
 - 8 synthetic main-test instances
@@ -28,7 +31,7 @@ The executable implementation is in `src/main_experiment/`.
 
 ## Main entry points
 
-Offline preparation: `bash scripts/run_htime_offline.sh`
+Offline preparation: `bash scripts/run_srw_offline.sh`
 
 Qwen production:
 - `scripts/cluster_bundle.sh`
@@ -42,8 +45,8 @@ Evaluation:
 - `scripts/evaluate_main_responses.py`
 
 Current documentation:
-- `docs/PROTOCOL_HTIME_20260920.md`
-- `docs/RUNBOOK_HTIME_20260920.md`
+- `docs/PROTOCOL_SRW_20260920.md`
+- `docs/RUNBOOK_SRW_20260920.md`
 
 Historical designs, diagnostics and results are retained under `archive/`.
 Raw datasets, generated graphs, fitted models and other bulk artifacts remain local

@@ -1,70 +1,73 @@
-# Executable authority: supplied freeze 2026-09-16 plus user clarifications and the
-# documented revisions in docs/MAIN_EXPERIMENT_IMPLEMENTATION.md.
-# The H revision was specified after earlier results had been seen; it is a
-# documented revision, not a retroactive preregistration.
+# Current authority; checked against executable constants by test_srw.py.
+protocol: docs/PROTOCOL_SRW_20260920.md
+design_version: cells10-srw-htime60-20260920
+previous_design_version: cells10-htime60-20260920
 W: 5
 master_seed: 20260916
 target:
   components: [rho_2, rho_3, rho_4, rho_5]
-  primary_error: MAE2_with_fixed_replacement
-  secondary_error: ProfileMAE
-design_version: cells10-20260917
-previous_design_version: budget10-hrecent5-20260917
+  primary_error: conditional_MAE2_valid_answers_only
+  secondary_error: conditional_ProfileMAE_valid_answers_only
 sampling:
   R: uniform_fixed_node_panel_full_history
-  S: event_weighted_walk_full_history
-  H: uniform_active_dyad_sample_five_most_recent_events
+  S: simple_random_walk_full_history
+  H: uniform_node_panel_time_suffix
   B: independent_bernoulli_events
-  H_development_variant: H_suffix_v1 (uniform_node_panel_within_suffix_windows_3_4_5)
+arm_S:
+  start: uniform_V_full
+  transition: uniform_distinct_neighbor
+  stopping: fixed_L_no_restart_no_burnin
+  history: complete_history_of_traversed_dyads
+  Walk_A: raw_traversal_counts_grouped_by_K_e
+  reference: srw_traversal_frequency
+  reference_scope: stationary_or_asymptotic_within_visited_component_not_unbiased_finite_walk
 arm_H:
-  cap: 5
-  parameter: n_dyads
-  dyad_count_rule: integer d in 1..D minimising |d*sum_e J_e/D - T|, ties to smaller d
-  reported_separately: [relative_budget_error, target_unreachable, saturated, within_tolerance]
-  saturated_sample: deterministic, one observation
-  table_extra_column: at_cap_dyads
-  fixed_reference: bound_midpoint
+  history_fraction: 0.60
+  sensitivity: [0.40, 0.60, 0.80]
+  query: full_archive_end
+  cutoff: t_start + (1-h)*(t_end-t_start), inclusive
+  parameter: n_panel_history
+  panel_rule: integer n minimizing abs(pi(n)*sum(J_e)-T), ties smaller n
+  fixed_reference: homogeneous_zero_truncated_binomial
+  interpretation: working_model_not_unbiased
+  oracle_diagnostics: [node_selection, dyad_disappearance, within_dyad_history, net_history]
 budget:
   name: expected_observed_active_dyad_windows
-  target: 0.10 * sum_e K_e (full archive)
   fraction: 0.10
   tolerance: 0.05
-  per_arm: {R: node panel pi(n)*W, S: walk length on K-weighted discovery, H: d*sum(J)/D, B: p solved exactly}
-  descriptors_not_matched: [expected_events, dyad_share]
-  superseded: expected_observed_event_volume (budget10 designs)
-  matching: per arm; all arms for budget_matched
+  per_arm: {R: pi(n)*sum(K_e), S: calibrated_fixed_L_unique_cell_discovery, H: pi(n)*sum(J_e), B: event_thinning_cell_expectation}
   calibration_walks: 256
   validation_walks: 1024
   extended_validation_walks: 4096
-  max_relative_error: 0.05
   max_relative_mcse: 0.01
   walk_cap: min(100*D_full,1000000)
+  report_unmatched_and_component_unreachable: true
 replication:
-  sampler_draws_per_arm: 5            # 1 for a deterministic (saturated) H sample
+  sampler_draws_per_arm: 5
+  saturated_H_draws: 1
   llm_repeats: 3
-  sizes: derived from the calibrated budgets (main_experiment.common.planned_sizes)
-  current_run: derived after calibration, see results/main_experiment/cells10_20260917/report.json
+  current_run: results/main_experiment/cells10_srw_htime60_20260920
 training:
   sources: 16
   real_test: leave_one_source_out
-  synthetic_test: all_real_sources
   synthetic_pool: {train_graphs: 400, development_graphs: 100}
   block_weights: {real: 0.50, dar: 0.25, ad: 0.25}
-  features: 195
-  feature_version: features-v3-hrecent5-20260917
+  features: 134
+  feature_version: features-v5-srw-htime-20260920
   estimators: 500
   n_jobs: 1
   random_state: 0
 evaluation:
-  parser_main: v2_one_whole_answer_fence
-  generation_answer_constraint: regex rho_2..rho_5 after reasoning end (vLLM structured outputs, reasoning_parser qwen3)
-  parser_sensitivity: v3_trailing_json (separate output)
-  primary_references: {R: plugin_equivalent_corrector, S: walk_ratio, H: bound_midpoint, B: beta_ztp_mixture}
-  secondary: [training_median, shrink50_to_plugin, shrink50_to_median, median_of_three, answer_spread, per_source]
-synthetic:
-  dar: {N: 500, backbone_edges: 5000, chi: 0.2, alpha: [0, 0.8], paired_replicates: 2}
-  activity_driven: {N: 500, exponent: 2.8, activity_min: 0.01, activity_max: 1, eta: 1, m: 1, c: 1, beta: 1, rounds: 1000, paired_replicates: 2, synchronous: true, mutual_initiations: one_contact}
+  parser_main: strict_JSON_with_optional_single_whole_answer_fence
+  generation_answer_constraint: generic_JSON_object_after_reasoning
+  llm_imputation: false
+  trailing_JSON_extraction: false
+  weighting: equal_sources_then_equal_valid_answers_within_source
+  uncertainty: hierarchical_MCSE_conditional_on_fixed_panel
+  primary_references: {R: plugin_equivalent_corrector, S: srw_traversal_frequency, H: homogeneous_zero_truncated_binomial, B: beta_ztp_mixture}
+  secondary: [plugin, training_median, extratrees_pooled, extratrees_real_only, per_source]
 llm_execution:
-  qwen: enabled
+  qwen_new_generation_arms: [S]
+  reusable_arms_only_after_identity_audit: [R, B, H]
   sol: disabled
   deepseek: disabled

@@ -52,7 +52,7 @@ VARIED={
        'the sizes seen in the real sources without making any single graph dominate runtime.'},
   'mean_degree':{'range':[4.0,24.0],'why':'backbone density as mean degree, converted to '
        'E=round(d*N/2) and capped at C(N,2). Below ~4 the backbone fragments and the '
-       'event-weighted walk cannot traverse it; above ~24 the dyad count grows without '
+       'single-component walk cannot traverse between components; above ~24 the dyad count grows without '
        'adding a new persistence regime.'},
   'chi':{'range':[0.04,0.45],'why':'per-window activity of a backbone edge. Below ~0.04 too '
        'few edges ever activate across five windows; above ~0.45 the profile saturates. '

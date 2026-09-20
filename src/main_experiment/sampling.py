@@ -10,12 +10,11 @@ from .common import (ROOT, seed, rng, sha, write_json, read_json, atomic_npz, BU
                      COVERAGE_FRACTION, MATCHED_QUANTITY, DESIGN_VERSION, H_FRACTION)
 
 class Walk:
-    """Event-weighted walk. Transitions always use full-archive event counts m_e.
+    """Simple random walk: uniform start vertex, uniform current neighbor.
 
     volume selects what a first discovery adds to the recorded volume: 'events'
     (m_e, the superseded event budget) or 'cells' (K_e, the active dyad-windows
-    the current design is matched on). The compiled kernel is unchanged; it adds
-    whatever weight array it is given.
+    the current design is matched on). Discovery weights never affect transitions.
     """
     def __init__(self,g,build_dir,volume='events'):
         build=Path(build_dir); build.mkdir(parents=True,exist_ok=True)
@@ -27,17 +26,15 @@ class Walk:
             tmp.replace(lib)
         self.lib=ctypes.CDLL(str(lib)); self.g=g
         fn=self.lib.walks
-        fn.argtypes=[ctypes.c_int64,ctypes.c_int64]+[ctypes.c_void_p]*7+[ctypes.c_int64,ctypes.c_int64]+[ctypes.c_void_p]*4
+        fn.argtypes=[ctypes.c_int64,ctypes.c_int64]+[ctypes.c_void_p]*6+[ctypes.c_int64,ctypes.c_int64]+[ctypes.c_void_p]*4
         fn.restype=None
         u,v=g.ends.T; nodes=np.r_[u,v]; order=np.argsort(nodes,kind='stable')
         self.neighbors=np.ascontiguousarray(np.r_[v,u][order],dtype=np.int64)
         self.edges=np.ascontiguousarray(np.tile(np.arange(g.D),2)[order],dtype=np.int64)
         self.ptr=np.r_[0,np.cumsum(np.bincount(nodes,minlength=g.N))].astype(np.int64)
-        weights=g.m[self.edges]; self.cum=np.cumsum(weights).astype(np.int64)
-        starts=self.ptr[:-1]
-        self.cum-=np.repeat(np.r_[0,np.cumsum(weights)[starts[1:]-1]],np.diff(self.ptr))
         mat=coo_matrix((np.ones(len(nodes)),(nodes,np.r_[v,u])),shape=(g.N,g.N)).tocsr()
-        _,comp=connected_components(mat,directed=False)
+        self.n_components,comp=connected_components(mat,directed=False)
+        self.components=comp
         if volume not in ('events','cells'): raise ValueError(volume)
         self.volume=volume
         self.weight=np.ascontiguousarray(g.m if volume=='events' else g.K,dtype=np.int64)
@@ -50,7 +47,7 @@ class Walk:
         delta=np.zeros(L+1,dtype=np.int64); volumes=np.zeros(len(ss),dtype=np.int64)
         counts=np.zeros((len(ss),self.g.D),dtype=np.int64) if traversals else None
         executed=np.zeros(len(ss),dtype=np.int64)
-        args=[self.ptr,self.neighbors,self.edges,self.cum,self.weight,self.component_volume,ss]
+        args=[self.ptr,self.neighbors,self.edges,self.weight,self.component_volume,ss]
         self.lib.walks(self.g.N,self.g.D,*[a.ctypes.data for a in args],len(ss),L,
                        delta.ctypes.data,volumes.ctypes.data,
                        counts.ctypes.data if counts is not None else None,executed.ctypes.data)
@@ -216,8 +213,8 @@ def budget_parameters(g):
 def calibrate(g,out,build):
     out=Path(out); out.mkdir(parents=True,exist_ok=True)
     params=budget_parameters(g)          # raises early on an undefined budget
-    # The walk is calibrated on discovered active dyad-windows; its transitions
-    # stay event-weighted. Target and seed streams belong to this design.
+    # SRW transition probabilities depend only on neighbor counts. Calibrate
+    # discoveries on K_e with independent calibration/validation seed domains.
     engine=Walk(g,build,volume='cells'); C=min(100*g.D,1_000_000); B=params['T']
     seeds=[seed('walk_calibration_cells',g.key,ARM_ID['S'],i) for i in range(1,257)]
     calfile=out/'calibrated.json'; timefile=out/'timing.json'
@@ -282,6 +279,8 @@ def calibrate(g,out,build):
     if cal['search_limit_reached_without_budget']: walk_reasons.append('calibration_cap')
     if abs(mean-B)/B>BUDGET_TOLERANCE: walk_reasons.append('validation_mean_outside_5_percent')
     if se/B>.01: walk_reasons.append('validation_mcse_above_1_percent')
+    ceiling=float(np.mean(engine.component_volume))
+    if ceiling<B: walk_reasons.append('component_structural_ceiling_below_target')
     # Complete budget matching, not only the walk: every arm is judged on its own
     # expected-volume deviation. B keeps each event with probability exactly p.
     by_arm={'R':abs(params['node_relative_budget_error'])<=BUDGET_TOLERANCE,
@@ -292,7 +291,9 @@ def calibrate(g,out,build):
     if not by_arm['R']: reasons.append('R:node_panel_outside_5_percent')
     if not by_arm['H']: reasons.append('H:expected_volume_outside_5_percent')
     if not by_arm['B']: reasons.append('B:expected_volume_outside_5_percent')
-    result={**params,**cal,'validation_n':len(volumes),'validation_mean':mean,
+    result={**params,**cal,'walk_type':'simple_random_walk','walk_components':engine.n_components,
+            'walk_expected_component_ceiling':ceiling,'walk_structural_target_unreachable':ceiling<B,
+            'validation_n':len(volumes),'validation_mean':mean,
             'validation_mcse':se,'validation_relative_error':(mean-B)/B,
             'walk_budget_matched':not walk_reasons,'walk_unmatched_reasons':walk_reasons,
             'budget_matched_by_arm':by_arm,

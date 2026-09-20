@@ -11,7 +11,7 @@
 set -euo pipefail
 EXP="${1:?experiment directory under \$WS}"
 SHARDS="${2:-6}"
-ARMS="${3:-H}"
+ARMS="${3:-S}"
 WS=/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot
 cd "$WS/$EXP/mainexp"
 mkdir -p logs

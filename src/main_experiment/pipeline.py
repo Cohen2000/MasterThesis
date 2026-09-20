@@ -46,7 +46,7 @@ def source_inventory():
     paths=[*Path(__file__).parent.glob('*.py'),*Path(__file__).parent.glob('*.cpp'),
            * (ROOT/'config/main_experiment').glob('*.txt'),ROOT/'config/study.yaml',
            ROOT/'config/datasets.yaml',ROOT/'scripts/run_main_offline.py',ROOT/'scripts/evaluate_main_responses.py',
-           ROOT/'src/dataset_census.py',ROOT/'src/census.py',ROOT/'docs/PROTOCOL_HTIME_20260920.md',ROOT/'docs/MAIN_FREEZE_SOURCE.txt']
+           ROOT/'src/dataset_census.py',ROOT/'src/census.py',ROOT/'docs/PROTOCOL_SRW_20260920.md',ROOT/'docs/MAIN_FREEZE_SOURCE.txt']
     return {str(p.relative_to(ROOT)):sha(p) for p in sorted(paths)}
 
 

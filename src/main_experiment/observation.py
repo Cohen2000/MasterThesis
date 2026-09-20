@@ -11,7 +11,7 @@ RULE_FILES={'R':'rule_R.txt','S':'rule_S.txt','B':'rule_B.txt',
 HEADER='pattern,dyads,events'
 ALL_PATTERNS=[f'{p:05b}' for p in range(1,32)]
 LEGACY_PATTERNS=['??'+f'{p:03b}' for p in range(1,8)]
-FEATURE_VERSION='features-v4-htime-20260920'
+FEATURE_VERSION='features-v5-srw-htime-20260920'
 BASE_FEATURE_NAMES=(['N_obs','D_obs','M_obs']+[f'window_{i}' for i in range(1,6)]+
  [f'access_{i}' for i in range(1,6)]+[f'{p:05b}_{x}' for p in range(1,32) for x in ['dyads','events']]+
  [f'A_{i}' for i in range(1,6)]+[f'arm_{a}' for a in ARMS]+[PARAMS[a] for a in ARMS]+['history_fraction'])
@@ -45,7 +45,7 @@ def make(g,arm,budget,counts,traversals):
     h=budget.get('history_fraction',H_FRACTION); access=access_for(arm,h)
     if any(counts[:,j].any() for j,a in enumerate(access) if not a): raise ValueError('inaccessible events')
     table=[(p,int(ds[int(p.replace('?','0'),2)]),int(es[int(p.replace('?','0'),2)])) for p in patterns_for(arm,h)]
-    A=np.bincount(g.K,weights=traversals/g.m,minlength=6)[1:6].tolist() if arm=='S' else None
+    A=np.bincount(g.K,weights=traversals,minlength=6)[1:6].tolist() if arm=='S' else None
     par=budget['legacy_suffix_panel']['n_panel_suffix'] if arm==LEGACY_H else budget[PARAMS[arm]]
     obs={'arm':arm,'N_obs':int(len(np.unique(g.ends[occupied]))),'D_obs':int(occupied.sum()),
          'M_obs':int(counts.sum()),'Temporal_access':access,
@@ -92,6 +92,7 @@ def validate(o):
     if arm=='S':
         if A is None or len(A)!=5 or any(not math.isfinite(x) or x<0 for x in A): raise ValueError('A')
         if bool(D)!=bool(sum(A)): raise ValueError('walk mass')
+        if any(x!=int(x) for x in A) or sum(A)!=par: raise ValueError('SRW traversal counts must sum to L')
     elif A is not None: raise ValueError('inapplicable A')
 
 
@@ -157,6 +158,9 @@ def features(o):
 def messages(block):
     o=parse(block); spec=ROOT/'config/main_experiment'
     system=(spec/'system.txt').read_text().rstrip('\n'); common=(spec/'user_prefix.txt').read_text().rstrip('\n')
+    if o['arm']=='S':
+        common=common.replace('sums of r_e/m_e','sums of r_e').replace('m_e counts its full-archive events. ',
+            'The counts are not divided by event multiplicities. ')
     rule=(spec/RULE_FILES[o['arm']]).read_text().rstrip('\n')
     user=common+'\nSampling rule: '+rule+'\n'+block+'\nReturn the four full-archive estimates in the specified JSON format.'
     return [{'role':'system','content':system},{'role':'user','content':user}]

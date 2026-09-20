@@ -10,4 +10,4 @@ Historical experiment-specific tests and diagnostics are preserved under
 `archive/` and are not part of the active test suite.
 
 The current experiment protocol is documented in
-`docs/PROTOCOL_HTIME_20260920.md`.
+`docs/PROTOCOL_SRW_20260920.md`.

@@ -15,7 +15,7 @@ PARAMETERS=dict(n_estimators=500,criterion='squared_error',max_features=1.0,
 # than the real block in row count, so without this the real sources would be
 # drowned out by sheer volume.
 BLOCK_WEIGHTS={'real':.50,'dar':.25,'ad':.25}
-TRAINING_REVISION='baseline-revision-6-htime60-20260920'
+TRAINING_REVISION='baseline-revision-7-srw-htime60-20260920'
 
 
 def _group(r):

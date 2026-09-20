@@ -14,7 +14,7 @@ static uint64_t bounded(uint64_t &s,uint64_t n) {
     return x%n;
 }
 extern "C" void walks(int64_t N,int64_t D,const int64_t *ptr,
- const int64_t *neighbors,const int64_t *edges,const int64_t *cumulative,
+ const int64_t *neighbors,const int64_t *edges,
  const int64_t *m,const int64_t *component_volume,const uint64_t *seeds,
  int64_t paths,int64_t L,int64_t *delta,int64_t *volumes,int64_t *traversals,
  int64_t *executed) {
@@ -27,8 +27,7 @@ extern "C" void walks(int64_t N,int64_t D,const int64_t *ptr,
         executed[p]=0;
         for(int64_t s=1;s<=L;s++) {
             int64_t begin=ptr[node],end=ptr[node+1];
-            int64_t ticket=bounded(state,cumulative[end-1]);
-            int64_t j=std::upper_bound(cumulative+begin,cumulative+end,ticket)-cumulative;
+            int64_t j=begin+bounded(state,end-begin);
             int64_t e=edges[j]; node=neighbors[j]; executed[p]++;
             if(traversals) traversals[p*D+e]++;
             if(!seen[e]) { seen[e]=1; volume+=m[e]; delta[s]+=m[e]; }

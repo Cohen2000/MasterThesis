@@ -56,6 +56,9 @@ def corrector(o):
     if D==0: raise ValueError('empty sample requires fold median')
     if o['arm']=='R': return plugin(o)
     if o['arm']=='S':
+        # Raw traversal frequency: stationary undirected edges are uniform
+        # inside the visited component. Not unbiased at finite L or globally
+        # on a disconnected graph with uniform-node component selection.
         A=o['Walk_A']; den=sum(A)
         return [sum(A[k-1:])/den for k in range(2,6)]
     if o['arm']=='H': return h_extrapolator(o)['prediction']

@@ -38,8 +38,7 @@ def reference(w,s,L):
             if x>=threshold: return x%n
     node=bounded(w.g.N); re=np.zeros(w.g.D,dtype=np.int64); volumes=[0]
     for _ in range(L):
-        a,b=w.ptr[node:node+2]; ticket=bounded(int(w.cum[b-1])); j=a
-        while w.cum[j]<=ticket: j+=1
+        a,b=w.ptr[node:node+2]; j=a+bounded(int(b-a))
         e=w.edges[j]; re[e]+=1; node=w.neighbors[j]
         volumes.append(int(w.g.m[re>0].sum()))
     return re,volumes

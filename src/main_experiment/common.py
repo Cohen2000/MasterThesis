@@ -21,17 +21,17 @@ ARMS = ('R','S','H','B')
 # budget matched event volume, which let H and B see 46 % and 37 % of the active
 # dyad-windows of the real sources against 2.4 % for S. The date-like suffix of
 # budget10-20261001 is a revision label, not a date.
-DESIGN_VERSION = 'cells10-htime60-20260920'
-PREVIOUS_DESIGN_VERSION = 'cells10-json-20260918'
-ARCHIVED_ROOT = ROOT/'archive/pre_h_time_20260920'
-PREVIOUS_RUN = ARCHIVED_ROOT/'results/main_experiment/cells10_json_20260918'
-PREVIOUS_REVISION = ARCHIVED_ROOT/'results/baseline_revision_cells10_json_20260918'
+DESIGN_VERSION = 'cells10-srw-htime60-20260920'
+PREVIOUS_DESIGN_VERSION = 'cells10-htime60-20260920'
+ARCHIVED_ROOT = ROOT/'archive/pre_srw_20260920'
+PREVIOUS_RUN = ARCHIVED_ROOT/'results/main_experiment/cells10_htime60_20260920'
+PREVIOUS_REVISION = ARCHIVED_ROOT/'results/baseline_revision_cells10_htime60_20260920'
 MATCHED_QUANTITY = 'expected_observed_active_dyad_windows'
 COVERAGE_FRACTION = 0.10     # share of sum_e K_e every arm observes in expectation
 BUDGET_FRACTION = 0.10       # event budget of the superseded designs; legacy variants only
 BUDGET_TOLERANCE = 0.05      # unchanged relative tolerance for the matched expectation
-CURRENT_RUN = 'results/main_experiment/cells10_htime60_20260920'
-CURRENT_REVISION = 'results/baseline_revision_cells10_htime60_20260920'
+CURRENT_RUN = 'results/main_experiment/cells10_srw_htime60_20260920'
+CURRENT_REVISION = 'results/baseline_revision_cells10_srw_htime60_20260920'
 SAMPLER_DRAWS = 5            # sampler draws per graph and arm, if the draw is random
 LLM_REPEATS = 3
 CONFIGS = ('sol','deepseek','qwen_thinking','qwen_nonthinking')
@@ -49,11 +49,11 @@ H_SENSITIVITY = (0.40, 0.60, 0.80)
 H_CAP = 5
 LEGACY_H = 'H_suffix_v1'
 LEGACY_ARMS = (LEGACY_H,)
-# Sampling identity stays c10: this revision changes inference and the training
-# pool, not the main observation mechanism. Request IDs have a separate protocol
-# suffix; old answers are never reusable under the revised generation contract.
+# S changes its transition mechanism and therefore gets new sampling/generation
+# identities. R/B retain their JSON identities; H retains its time-suffix identity.
+# Reuse requires full block, prompt, payload, seed and generation hash equality.
 DESIGN_TAG = 'c10'
-ARM_ID = {'R':'R-c10','S':'S-c10','H':'H-htime60-c10','B':'B-c10',LEGACY_H:'H'}
+ARM_ID = {'R':'R-c10','S':'S-srw-c10','H':'H-htime60-c10','B':'B-c10',LEGACY_H:'H'}
 
 
 def draws_for(arm,budget):
