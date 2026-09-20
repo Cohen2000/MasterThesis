@@ -20,6 +20,10 @@ New cluster workspace:
 `/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/cells10_htime60_20260920/mainexp`.
 After offline verification and the pre-generation commit:
 
+**Already executed:** freeze `e1b25a6`, rounds `7065832/7065833/7065834`,
+archive `7065835`. The following submission commands document the execution;
+do not run them again for this workspace.
+
 ```bash
 bash scripts/cluster_bundle.sh cells10_htime60_20260920 results/main_experiment/cells10_htime60_20260920
 ssh uc3 'cd /pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/cells10_htime60_20260920/mainexp && bash submit_production.sh cells10_htime60_20260920 2 H'
@@ -35,6 +39,12 @@ checksum, then copy its H answer and attempt files into the combined collection
 `results/main_experiment/cells10_htime60_20260920_qwen/answers/`.
 Keep the new H engine binding in its own archive; it must not replace the old
 binding recorded by the R/S/B reuse manifest.
+
+Read-only status:
+
+```bash
+ssh uc3 'squeue -j 7065832,7065833,7065834,7065835; sacct -j 7065832,7065833,7065834,7065835 --format=JobID,State,ExitCode,Elapsed -P'
+```
 
 ```bash
 .venv/bin/python scripts/collect_qwen_answers.py \

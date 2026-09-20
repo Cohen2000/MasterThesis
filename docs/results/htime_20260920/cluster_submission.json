@@ -1,0 +1,17 @@
+{
+  "design_version": "cells10-htime60-20260920",
+  "freeze_commit": "e1b25a69d010db7c66150855c851a3c9c43a5b1e",
+  "host": "uc3",
+  "workspace": "/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/cells10_htime60_20260920/mainexp",
+  "bundle_verified": true,
+  "arms": ["H"],
+  "shards": 2,
+  "planned": 420,
+  "thinking_planned": 210,
+  "nonthinking_planned": 210,
+  "jobs": {"round1": 7065832, "round2": 7065833, "round3": 7065834, "archive": 7065835},
+  "status_at_handoff": "both round1 shards running; later jobs pending dependency",
+  "initial_found": 0,
+  "final_result": false,
+  "resubmit": false
+}

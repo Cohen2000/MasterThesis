@@ -1,7 +1,7 @@
 # Status: cells10-htime60-20260920
 
 Offline implementation and computation completed on 2026-09-20. New Qwen H
-generation and its final evaluation remain outstanding at this checkpoint.
+generation is running; its retrieval and final evaluation remain outstanding.
 The previous current state is preserved under `archive/pre_h_time_20260920/`;
 its local bulk results were moved without changing their contents.
 
@@ -59,6 +59,21 @@ not additive fractions of total absolute error or generalization claims.
 ## Pending completion
 
 420 new primary Qwen H answers are planned: 210 thinking, 210 non-thinking.
+Pre-generation freeze: `e1b25a69d010db7c66150855c851a3c9c43a5b1e`.
+The bundle was verified on uc3 (`BUNDLE_OK`, 280 observations), then submitted:
+
+| Stage | Slurm job |
+| --- | --- |
+| Round 1 (2 shards) | 7065832 |
+| Round 2 | 7065833 |
+| Round 3 | 7065834 |
+| Archive | 7065835 |
+
+At handoff both round-1 shards were RUNNING; successors waited on dependencies.
+Initial H status: planned/found/valid/invalid/missing = **420/0/0/0/420**.
+These are uncompleted requests, not observed model failures. Do not submit a
+second chain. This job chain continues independently of the interactive session.
+
 Finish the independent H cluster chain, retrieve and verify its archive, merge
 only its H files with the proven R/S/B collection, and run the current evaluator
 against the newly trained references. The whole Qwen study then has 1680
