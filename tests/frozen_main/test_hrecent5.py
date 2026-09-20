@@ -337,7 +337,6 @@ class EngineRunnerTests(unittest.TestCase):
     def test_selection_sharding_and_layout(self):
         if not (RUN / 'requests.jsonl').exists(): self.skipTest('run not present')
         from run_qwen_engine import load_requests, parse_passes, result_path, GENERATION_CONFIG, MODES
-        import run_qwen_batch as batch
         passes = parse_passes('thinking:1,thinking:2,thinking:3,nonthinking:1,nonthinking:2,nonthinking:3')
         whole = load_requests(RUN, passes, {'H'}, 0, 1)
         report = json.loads((RUN / 'report.json').read_text())
@@ -351,9 +350,12 @@ class EngineRunnerTests(unittest.TestCase):
         r = whole[0]
         path = result_path(pathlib.Path('/x'), r)
         self.assertEqual(path.parent.name, f"{r['mode']}_r{r['repeat_index']}")
-        self.assertEqual(MODES, batch.MODES)
+        self.assertEqual(MODES, {
+            'thinking': dict(temperature=1.0, top_p=0.95, enable_thinking=True, config_id='qwen_thinking'),
+            'nonthinking': dict(temperature=0.7, top_p=0.80, enable_thinking=False, config_id='qwen_nonthinking'),
+        })
         self.assertEqual((GENERATION_CONFIG['top_k'], GENERATION_CONFIG['presence_penalty']),
-                         (batch.TOP_K, batch.PRESENCE_PENALTY))
+                         (20, 1.5))
         with tempfile.TemporaryDirectory() as d:
             from run_qwen_engine import write_result
             write_result(pathlib.Path(d), r, {'status': 'completed'})

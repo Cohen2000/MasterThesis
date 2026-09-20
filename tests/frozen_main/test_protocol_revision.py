@@ -180,14 +180,15 @@ class EvaluationIntegration(unittest.TestCase):
         from evaluate_main_responses import evaluate
         from main_experiment.requests import planned
         from main_experiment.observation import messages
+        from main_experiment.common import CURRENT_RUN, CURRENT_REVISION
         root=pathlib.Path(__file__).resolve().parents[2]
-        old=root/'results/main_experiment/cells10_20260917'
-        prim=root/'results/baseline_revision_cells10_20260917/primary_baselines.json'
-        if not prim.exists(): self.skipTest('historical fixture absent')
+        current=root/CURRENT_RUN
+        prim=root/CURRENT_REVISION/'primary_baselines.json'
+        if not prim.exists(): self.skipTest('current offline fixture absent')
         with tempfile.TemporaryDirectory(suffix='_mock') as td:
             run=pathlib.Path(td)/'run'; run.mkdir()
             bs=read_json(prim); selected={}; obs=[]
-            for path in sorted((old/'observations/sample').glob('dar_a0_r*__R-c10__*.json')):
+            for path in sorted((current/'observations/sample').glob('dar_a0_r*__R-c10__*.json')):
                 row=read_json(path); obs.append(row)
                 write_json(run/'observations/sample'/path.name,row)
                 selected[row['id']]={**bs['observations'][row['id']],'block_sha256':row['block_sha256']}

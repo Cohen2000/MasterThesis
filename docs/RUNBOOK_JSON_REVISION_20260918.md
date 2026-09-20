@@ -1,6 +1,9 @@
 # Durchführung der Revision cells10-json-20260918
 
 Maßgebend ist [die Protokollrevision](PROTOCOL_REVISION_20260918.md).
+Qwen-Endstand vom 20.09.2026: **1680/1680 Antworten gültig**, beide Modi fertig.
+Siehe [Ergebnisse, Provenienz und Tests](QWEN_RESULTS_JSON_20260918.md).
+Die unten beschriebenen Generierungsschritte sind bereits abgeschlossen.
 Die alten Ergebnisse unter `cells10_20260917` bleiben historische Ergebnisse.
 Die Word-Datei ist für die dort ersetzten Regeln überholt; insbesondere entfällt
 „ungültige Antwort → Plug-in“ vollständig aus der LLM-Auswertung.

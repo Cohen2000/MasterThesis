@@ -223,7 +223,7 @@ class RunnerChainTests(unittest.TestCase):
     def test_reasoning_split_matches_the_chat_template(self):
         """The template opens the block in the prompt, so the output carries only
         the closing tag in thinking mode and no tag at all otherwise."""
-        from run_qwen_batch import split_reasoning
+        from run_qwen_engine import split_reasoning
         # thinking mode: reasoning, then the closing tag, then the answer
         r, f, closed = split_reasoning('weighing it up\n</think>\n\n{"rho_2": 0.5}', True)
         self.assertEqual(r, 'weighing it up')
@@ -246,29 +246,29 @@ class RunnerChainTests(unittest.TestCase):
 
     def test_request_selection_is_disjoint_across_modes_and_repeats(self):
         if not (RUN / 'requests.jsonl').exists(): self.skipTest('run not present')
-        from run_qwen_batch import load_requests
+        from run_qwen_engine import load_requests
         seen = set(); total = 0
         for mode in ('thinking', 'nonthinking'):
             for repeat in (1, 2, 3):
-                ids = {r['id'] for r in load_requests(RUN, mode, repeat, 0, 1)}
+                ids = {r['id'] for r in load_requests(RUN, [(mode, repeat)], set(), 0, 1)}
                 self.assertFalse(ids & seen, 'repeats or modes overlap')
                 seen |= ids; total += len(ids)
         self.assertEqual(total, self.report_calls() // 2)
 
     def test_shards_partition_the_work_exactly(self):
         if not (RUN / 'requests.jsonl').exists(): self.skipTest('run not present')
-        from run_qwen_batch import load_requests
-        whole = [r['id'] for r in load_requests(RUN, 'thinking', 1, 0, 1)]
+        from run_qwen_engine import load_requests
+        whole = [r['id'] for r in load_requests(RUN, [('thinking', 1)], set(), 0, 1)]
         parts = []
         for i in range(4):
-            parts += [r['id'] for r in load_requests(RUN, 'thinking', 1, i, 4)]
+            parts += [r['id'] for r in load_requests(RUN, [('thinking', 1)], set(), i, 4)]
         self.assertEqual(sorted(parts), sorted(whole))
         self.assertEqual(len(set(parts)), len(parts))
 
     def test_prompts_are_verified_against_the_manifest(self):
         if not (RUN / 'requests.jsonl').exists(): self.skipTest('run not present')
-        from run_qwen_batch import load_requests
-        rows = load_requests(RUN, 'thinking', 1, 0, 1)
+        from run_qwen_engine import load_requests
+        rows = load_requests(RUN, [('thinking', 1)], set(), 0, 1)
         self.assertTrue(rows)
         for r in rows[:5]:
             self.assertEqual(len(r['messages']), 2)

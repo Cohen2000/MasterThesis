@@ -8,6 +8,10 @@ temporal graphs.
 
 Design: `cells10-json-20260918`
 
+Qwen final (verified 2026-09-20): 1680/1680 answers present and valid, 840 per
+mode; no missing answers, technical failures or token-limit hits. GPT/Sol and
+DeepSeek have not been started. See [results and audit](docs/QWEN_RESULTS_JSON_20260918.md).
+
 - 6 real temporal-network sources
 - 8 synthetic main-test instances
 - observation mechanisms R, S, H and B
