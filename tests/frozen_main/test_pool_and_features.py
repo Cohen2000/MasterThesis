@@ -12,7 +12,8 @@ from main_experiment.observation import (FEATURE_NAMES, BASE_FEATURE_NAMES,
 from main_experiment.synthetic import generate_pair
 from main_experiment.training import fold_rows, BLOCK_WEIGHTS
 
-FROZEN=pathlib.Path('results/main_experiment/frozen_20260916')
+from main_experiment.common import PREVIOUS_RUN
+FROZEN=PREVIOUS_RUN
 # Observation blocks follow the current design; the superseded suffix design is
 # kept under frozen_20260916 and is not read for contract checks any more.
 from main_experiment.common import CURRENT_RUN
@@ -87,7 +88,7 @@ class FrozenGeneratorTests(unittest.TestCase):
                     self.assertEqual((m['N_full'],m['D_full'],m['M_full']),(g.N,g.D,g.M),g.key)
                     # m['B'] is the superseded suffix budget of the previous
                     # design; it must still equal this graph's suffix volume.
-                    self.assertEqual(m['B'],g.M_suffix,g.key)
+                    self.assertEqual(m['B'],g.B,g.key)
                     self.assertEqual(m['truth'],list(g.truth),g.key)
                     self.assertEqual(m.get('shared_latents'),meta.get('shared_latents'),g.key)
                     self.assertEqual(m.get('states_sha256'),meta.get('states_sha256'),g.key)
@@ -99,15 +100,15 @@ class FeatureTests(unittest.TestCase):
     def test_counts(self):
         # 88 original base entries plus 31 at-cap counts; 45 original derived
         # entries plus 31 at-cap shares.
-        self.assertEqual(len(BASE_FEATURE_NAMES),119)
-        self.assertEqual(len(DERIVED_FEATURE_NAMES),76)
-        self.assertEqual(len(FEATURE_NAMES),195)
-        self.assertEqual(len(set(FEATURE_NAMES)),195)
+        self.assertEqual(len(BASE_FEATURE_NAMES),89)
+        self.assertEqual(len(DERIVED_FEATURE_NAMES),45)
+        self.assertEqual(len(FEATURE_NAMES),134)
+        self.assertEqual(len(set(FEATURE_NAMES)),134)
 
     def test_base_block_structure(self):
         self.assertEqual(BASE_FEATURE_NAMES[:3],['N_obs','D_obs','M_obs'])
         # One parameter slot per arm; H carries its dyad-sample size.
-        self.assertEqual(BASE_FEATURE_NAMES[-4:],['n_panel','L','n_dyads','p'])
+        self.assertEqual(BASE_FEATURE_NAMES[-5:],['n_panel','L','n_panel_history','p','history_fraction'])
         self.assertNotIn('n_panel_suffix',FEATURE_NAMES)
 
     def test_derived_block_is_scale_free_and_consistent(self):
@@ -130,27 +131,23 @@ class FeatureTests(unittest.TestCase):
            'table':[(f'{p:05b}',0,0) for p in range(1,32)]}
         validate(o)
         v=features(o)
-        self.assertEqual(len(v),195)
+        self.assertEqual(len(v),134)
         self.assertTrue(np.isfinite(v).all())
         self.assertTrue((v[len(BASE_FEATURE_NAMES):]==0).all())
 
-    def test_h_features_carry_the_cap_column_and_no_suffix_correction(self):
-        """The at-cap column enters as counts and shares, and the corrector slots of
-        arm H hold the bound midpoint, not the three-to-five-window extrapolation."""
+    def test_h_features_carry_history_and_binomial_reference(self):
         if not (RUN/'observations').exists(): self.skipTest('current run not present')
-        from main_experiment.baselines import h_midpoint, activity, profile
-        f=sorted((RUN/'observations'/'sample').glob('*__H-recent5-c10__*.json'))[0]
+        from main_experiment.baselines import h_extrapolator
+        f=sorted((RUN/'observations'/'sample').glob('*__H-htime60-c10__*.json'))[0]
         o=parse(json.loads(f.read_text())['block'])
         v=features(o); names=list(FEATURE_NAMES)
-        caps=[r[3] for r in o['table']]
-        self.assertEqual([v[names.index(f'{p:05b}_at_cap')] for p in range(1,32)],caps)
-        for p,c in zip(range(1,32),caps):
-            self.assertAlmostEqual(v[names.index(f'share_{p:05b}_at_cap')],c/o['D_obs'],places=12)
-        self.assertEqual([v[names.index(f'corrector_rho_{k}')] for k in range(2,6)],h_midpoint(o))
-        self.assertEqual([v[names.index(f'access_{i}')] for i in range(1,6)],[1.]*5)
+        self.assertFalse(any('at_cap' in n for n in names))
+        self.assertEqual(v[names.index('history_fraction')],.6)
+        self.assertEqual([v[names.index(f'corrector_rho_{k}')] for k in range(2,6)],h_extrapolator(o)['prediction'])
+        self.assertEqual([v[names.index(f'access_{i}')] for i in range(1,6)],[0.,0.,1.,1.,1.])
         g=sorted((RUN/'observations'/'sample').glob('*__B-c10__*.json'))[0]
         b=features(parse(json.loads(g.read_text())['block']))
-        self.assertTrue(all(b[names.index(f'{p:05b}_at_cap')]==0 for p in range(1,32)))
+        self.assertEqual(b[names.index('history_fraction')],1.)
 
     def test_no_forbidden_quantity_is_named(self):
         banned=('N_full','D_full','M_full','truth','rho_true','coverage','source','family',

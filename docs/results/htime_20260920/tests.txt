@@ -1,0 +1,135 @@
+test_development_graphs_never_enter_training (test_budget10_design.DataSeparationTests) ... ok
+test_no_main_test_source_leaks_into_its_own_fold (test_budget10_design.DataSeparationTests) ... ok
+test_both_panels_target_the_same_budget (test_budget10_design.DesignConstantTests) ... ok
+test_every_arm_targets_the_same_active_dyad_windows (test_budget10_design.DesignConstantTests) ... ok
+test_expected_cells_are_exact_for_the_analytic_arms (test_budget10_design.DesignConstantTests)
+Monte Carlo over 400 draws: realised active dyad-windows track T for R, H, B. ... ok
+test_sizes_follow_from_the_calibrated_design (test_budget10_design.DesignConstantTests)
+No fixed count: a saturated H graph contributes one H observation. ... ok
+test_undefined_budget_is_rejected_early (test_budget10_design.DesignConstantTests) ... ok
+test_a_fence_with_prose_around_it_is_still_invalid (test_budget10_design.FinalAnswerParsingTests) ... ok
+test_bare_and_fenced_agree_on_the_values (test_budget10_design.FinalAnswerParsingTests) ... ok
+test_duplicate_keys_are_rejected_inside_a_fence (test_budget10_design.FinalAnswerParsingTests) ... ok
+test_every_content_check_still_applies_inside_a_fence (test_budget10_design.FinalAnswerParsingTests) ... ok
+test_only_one_enclosing_fence_is_removed (test_budget10_design.FinalAnswerParsingTests) ... ok
+test_recent_arm_carries_its_sample_size (test_budget10_design.ObservationContractTests) ... ok
+test_suffix_arm_carries_its_panel_size (test_budget10_design.ObservationContractTests) ... ok
+test_every_arm_has_its_design_draw_count (test_budget10_design.RunContentTests) ... ok
+test_observed_cells_track_the_target (test_budget10_design.RunContentTests)
+Every arm is calibrated to the same expected number of observed active ... ok
+test_sizes_and_emptiness (test_budget10_design.RunContentTests) ... ok
+test_prompts_are_verified_against_the_manifest (test_budget10_design.RunnerChainTests) ... ok
+test_reasoning_split_matches_the_chat_template (test_budget10_design.RunnerChainTests)
+The template opens the block in the prompt, so the output carries only ... ok
+test_request_selection_is_disjoint_across_modes_and_repeats (test_budget10_design.RunnerChainTests) ... ok
+test_shards_partition_the_work_exactly (test_budget10_design.RunnerChainTests) ... ok
+test_every_arm_is_stochastic_now (test_budget10_design.SuffixPanelTests) ... ok
+test_only_panel_dyads_and_only_the_suffix_survive (test_budget10_design.SuffixPanelTests) ... ok
+test_panel_leaves_the_window_count_distribution_alone (test_budget10_design.SuffixPanelTests)
+The central claim: the panel selects dyads without looking at activity, ... ok
+test_boundaries_and_duplicates (test_frozen.FrozenTests) ... ok
+test_component_cap_and_validation_freeze (test_frozen.FrozenTests) ... fixture: walk pilot 0.000s
+fixture: walk pilot reused
+ok
+test_corrector_edges (test_frozen.FrozenTests) ... ok
+test_folds_weights_and_mcse (test_frozen.FrozenTests) ... ok
+test_hurdle_against_direct_optimization (test_frozen.FrozenTests) ... ok
+test_invalid_B (test_frozen.FrozenTests) ... ok
+test_parser_and_replacements (test_frozen.FrozenTests) ... ok
+test_sampling_exact_expectations (test_frozen.FrozenTests) ... ok
+test_serialization_features_and_masks (test_frozen.FrozenTests) ... ok
+test_transport_policy_mocks_only (test_frozen.FrozenTests) ... ok
+test_walk_optimized_vs_reference (test_frozen.FrozenTests) ... ok
+test_ad_pair_synchronous_contacts (test_generators.GeneratorTests) ... ok
+test_dar_paired_stationarity_and_fixed_horizon (test_generators.GeneratorTests) ... ok
+test_binomial_boundary_and_empty (test_htime.TimeHistoryTests) ... ok
+test_cutoff_is_elapsed_time_not_window_or_event_cap (test_htime.TimeHistoryTests) ... ok
+test_disappearance_is_history_not_node_selection (test_htime.TimeHistoryTests) ... ok
+test_integer_calibration_and_exact_panel_expectation (test_htime.TimeHistoryTests) ... ok
+test_likelihood_fit_against_independent_optimization (test_htime.TimeHistoryTests) ... ok
+test_masks_roundtrip_features_and_unobserved_dyads (test_htime.TimeHistoryTests) ... ok
+test_new_h_shards_and_attempt_resume (test_htime.TimeHistoryTests) ... ok
+test_paired_panels_nested_and_saturated_once (test_htime.TimeHistoryTests) ... ok
+test_rsb_complete_generation_identity_is_preserved (test_htime.TimeHistoryTests) ... ok
+test_time_translation_scaling_preserves_access (test_htime.TimeHistoryTests) ... ok
+test_real_generator_observations (test_mixtures.AssumptionViolationTests) ... ok
+test_boundary_does_not_hide_a_start_disagreement (test_mixtures.DiagnosticIndependenceTests) ... ok
+test_every_flag_is_reachable_on_real_fits (test_mixtures.DiagnosticIndependenceTests)
+The flags are exercised by actual development fits, not only by hand. ... ok
+test_flatness_ignores_failed_profile_optimisations (test_mixtures.DiagnosticIndependenceTests)
+A profile optimisation that fails must not contribute a rise. ... ok
+test_interior_agreeing_fit_is_reliable (test_mixtures.DiagnosticIndependenceTests) ... ok
+test_missing_flatness_is_not_read_as_good_identifiability (test_mixtures.DiagnosticIndependenceTests) ... ok
+test_empty_sample (test_mixtures.EventCandidateTests) ... ok
+test_homogeneous_data_matches_the_hurdle_corrector (test_mixtures.EventCandidateTests) ... ok
+test_joint_lambda_is_reported_against_event_only (test_mixtures.EventCandidateTests) ... ok
+test_recovers_its_own_model (test_mixtures.EventCandidateTests)
+20000 dyads, thinning p=0.5. Same four-sigma argument as for the suffix. ... ok
+test_retention_identity (test_mixtures.EventCandidateTests)
+d(lambda,p) as derived, checked against a direct thinning computation. ... ok
+test_cell_probs_match_exact_rational (test_mixtures.ExactnessTests)
+Independent reference: the same identity in exact rational arithmetic. ... ok
+test_cell_probs_sum_to_one (test_mixtures.ExactnessTests) ... ok
+test_homogeneous_limit_is_binomial (test_mixtures.ExactnessTests)
+kappa -> infinity must collapse onto the existing homogeneous model. ... ok
+test_profile_is_monotone_and_in_range (test_mixtures.ExactnessTests) ... ok
+test_profile_matches_hand_computation (test_mixtures.ExactnessTests)
+BetaBinomial(5,2,3) conditioned on K>=1, computed exactly by hand. ... ok
+test_bound_sensitivity_reports_a_stable_fit_as_stable (test_mixtures.NumericalGuardTests) ... ok
+test_failed_optimiser_is_rejected_with_its_status (test_mixtures.NumericalGuardTests) ... ok
+test_kappa_upper_bound_is_an_approximation_not_the_limit (test_mixtures.NumericalGuardTests)
+kappa=1e6 is close to, but not equal to, the homogeneous model. ... ok
+test_penalty_region_is_never_accepted_as_a_fit (test_mixtures.NumericalGuardTests)
+A finite objective is not a fit: the invalid region returns PENALTY. ... ok
+test_profile_clamp_only_absorbs_last_bit_noise (test_mixtures.NumericalGuardTests) ... ok
+test_zero_class_of_the_thinned_positive_poisson (test_mixtures.NumericalGuardTests)
+The closed form holds for k>=1 only; k=0 needs its own expression. ... ok
+test_empty_sample (test_mixtures.SuffixCandidateTests) ... ok
+test_homogeneous_data_hits_the_homogeneous_boundary (test_mixtures.SuffixCandidateTests)
+Binomial data are the kappa -> infinity edge of the family. ... ok
+test_low_information_is_flagged_not_hidden (test_mixtures.SuffixCandidateTests) ... ok
+test_recovers_its_own_model (test_mixtures.SuffixCandidateTests)
+Data from the assumed model. 20000 dyads give a rho_2 standard error of ... ok
+test_strong_heterogeneity_beats_the_homogeneous_answer (test_mixtures.SuffixCandidateTests)
+A U-shaped Beta is exactly what the homogeneous corrector cannot see. ... ok
+test_base_block_structure (test_pool_and_features.FeatureTests) ... ok
+test_counts (test_pool_and_features.FeatureTests) ... ok
+test_derived_block_is_scale_free_and_consistent (test_pool_and_features.FeatureTests) ... ok
+test_empty_sample_codes_derived_features_as_zero (test_pool_and_features.FeatureTests) ... ok
+test_h_features_carry_history_and_binomial_reference (test_pool_and_features.FeatureTests) ... ok
+test_no_forbidden_quantity_is_named (test_pool_and_features.FeatureTests) ... ok
+test_main_synthetic_instances_are_unchanged (test_pool_and_features.FrozenGeneratorTests)
+Parameterising the generators must not move the eight frozen instances. ... ok
+test_counts_and_partitions (test_pool_and_features.PoolDefinitionTests) ... ok
+test_definition_is_deterministic (test_pool_and_features.PoolDefinitionTests) ... ok
+test_every_stratum_cell_is_filled (test_pool_and_features.PoolDefinitionTests) ... ok
+test_keys_and_seeds_unique (test_pool_and_features.PoolDefinitionTests) ... ok
+test_parameters_stay_inside_the_declared_ranges (test_pool_and_features.PoolDefinitionTests) ... ok
+test_pool_streams_disjoint_from_main_tests (test_pool_and_features.PoolDefinitionTests)
+No pool graph may share a stream with a synthetic main-test pair. ... ok
+test_train_and_dev_streams_are_disjoint (test_pool_and_features.PoolDefinitionTests) ... ok
+test_block_shares_are_exact (test_pool_and_features.WeightingTests) ... ok
+test_equal_weight_per_graph_arm_and_observation (test_pool_and_features.WeightingTests) ... ok
+test_held_out_source_and_all_its_rows_are_removed (test_pool_and_features.WeightingTests) ... ok
+test_real_only_fold_keeps_the_original_scale (test_pool_and_features.WeightingTests) ... ok
+test_synthetic_pool_cannot_outvote_the_real_block_by_volume (test_pool_and_features.WeightingTests) ... ok
+test_all_invalid_incomplete_and_mixed_validity_without_imputation (test_protocol_revision.EvaluationIntegration) ... ok
+test_baseline_entrypoint_imports_without_running (test_protocol_revision.ScientificRevision) ... ok
+test_conditional_weights_and_missing_source_are_explicit (test_protocol_revision.ScientificRevision) ... ok
+test_failure_never_becomes_plugin_or_median (test_protocol_revision.ScientificRevision) ... ok
+test_mcse_matches_direct_complete_case_formula (test_protocol_revision.ScientificRevision) ... ok
+test_pool_balances_each_partition_and_ad_joint_grid (test_protocol_revision.ScientificRevision) ... ok
+test_ambiguous_batch_create_reconciles_without_second_post (test_protocol_revision.TransportRegression) ... ok
+test_cost_cap_reserves_every_request_before_admission (test_protocol_revision.TransportRegression) ... ok
+test_deepseek_transport_persists_raw_usage_and_never_retries (test_protocol_revision.TransportRegression) ... ok
+test_no_repeated_admission_even_after_restart (test_protocol_revision.TransportRegression) ... ok
+test_release_blocks_before_network (test_protocol_revision.TransportRegression) ... ok
+test_status_is_readable_while_writer_lock_is_held (test_protocol_revision.TransportRegression) ... ok
+test_stream_reasoning_never_becomes_final_and_truncation_is_failure (test_protocol_revision.TransportRegression) ... ok
+test_unknown_billing_keeps_reserve_and_blocks_further_calls (test_protocol_revision.TransportRegression) ... ok
+test_completed_checkpoint_corruption_is_rejected (test_resume.ResumeTests) ... ok
+
+----------------------------------------------------------------------
+Ran 108 tests in 25.259s
+
+OK

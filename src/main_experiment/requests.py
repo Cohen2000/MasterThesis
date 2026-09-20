@@ -1,10 +1,14 @@
 """Frozen request construction; transport lives in execution.py."""
-from .common import CONFIGS, LLM_REPEATS, ARM_ID, DESIGN_VERSION, seed, digest
+from .common import CONFIGS, LLM_REPEATS, ARM_ID, DESIGN_VERSION, PREVIOUS_DESIGN_VERSION, seed, digest
 
 QWEN='Qwen/Qwen3.6-35B-A3B'
 REVISION='995ad96eacd98c81ed38be0c5b274b04031597b0'
 
-def payload(config,messages,request_seed):
+def generation_version(arm):
+    return DESIGN_VERSION if arm=='H' else PREVIOUS_DESIGN_VERSION
+
+
+def payload(config,messages,request_seed,version=DESIGN_VERSION):
     if config=='sol':
         return {'model':'gpt-5.6-sol','input':messages,'reasoning':{'effort':'high'},
                 'text':{'format':{'type':'json_object'}},'max_output_tokens':128000}
@@ -22,7 +26,7 @@ def payload(config,messages,request_seed):
             'chat_template_kwargs':{'enable_thinking':thinking},'seed':request_seed,
             'structured_output':{'json_object':True,'reasoning_parser':'qwen3',
                                  'applies':'after reasoning end'},
-            'design_version':DESIGN_VERSION,
+            'design_version':version,
             'executed_transport':'vllm offline engine (LLM.enqueue + LLMEngine.step)',
             'executed_streaming':False}
 
@@ -47,14 +51,15 @@ def planned(observations):
                 for config in CONFIGS:
                     # R, S and B keep their letters, so their seeds are those of the
                     # previous design; the new H has its own identifier.
-                    s=seed('llm',obs['graph_id'],ARM_ID[obs['arm']],obs['sample_index'],repeat,config+':'+DESIGN_VERSION)
-                    rid=f'{obs["id"]}__{config}__r{repeat}__{DESIGN_VERSION}'
+                    version=generation_version(obs['arm'])
+                    s=seed('llm',obs['graph_id'],ARM_ID[obs['arm']],obs['sample_index'],repeat,config+':'+version)
+                    rid=f'{obs["id"]}__{config}__r{repeat}__{version}'
                     records.append({'id':rid,'observation_id':obs['id'],'graph_id':obs['graph_id'],
                         'arm':obs['arm'],'sample_index':obs['sample_index'],'repeat_index':repeat,
                         'config_id':config,'stratum':stratum,'seed':s,
                         'status':'skipped_empty' if obs['empty'] else 'not_started',
                         'started':False,'mock':False,'prompt_sha256':obs['prompt_sha256'],
-                        'payload':payload(config,obs['messages'],s),
+                        'payload':payload(config,obs['messages'],s,version),
                         # Qwen is authorised for this study; the paid providers
                         # are planned but not released.
                         'production_dispatch_enabled':config.startswith('qwen'),

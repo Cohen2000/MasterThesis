@@ -14,7 +14,9 @@ base = Path(sys.argv[1] if len(sys.argv) > 1 else '.')
 answers = sys.argv[2] if len(sys.argv) > 2 else 'answers'
 planned = [json.loads(l) for l in (base / 'run' / 'requests.jsonl').read_text().splitlines()]
 by_id = {r['id']: r for r in planned}
+arms=set(sys.argv[3].split(',')) if len(sys.argv)>3 and sys.argv[3]!='all' else set()
 want = {r['id'] for r in planned if r['config_id'].startswith('qwen') and r['status'] != 'skipped_empty'}
+if arms: want={rid for rid in want if by_id[rid]['arm'] in arms}
 rows = [json.loads(f.read_text()) for f in (base / answers).glob('*_r*/*.json')]
 ids = [d['id'] for d in rows]
 per = Counter(f"{d['mode']}_r{d['repeat_index']}" for d in rows if d.get('status') == 'completed')

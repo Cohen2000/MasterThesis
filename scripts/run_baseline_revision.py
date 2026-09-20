@@ -6,11 +6,8 @@ Runs offline only. No LLM call, no API access, no paid job. Earlier runs
 (frozen_20260916, budget10_20261001 and their baseline revisions) are never
 written to; every revision writes into its own output directory.
 
-Design cells10-20260917 (arms matched on expected observed active dyad-windows):
-arm H is a uniform dyad sample with the five most recent events per dyad. Its
-fixed reference is the bound midpoint (baselines.h_midpoint); it has no mixture
-candidate, and the old three-to-five-window suffix correction is used nowhere for
-it. Arm B keeps its mixture candidate.
+Current H uses uniform nodes and a common time suffix. Its fixed reference is
+the homogeneous zero-truncated Binomial extrapolator. B keeps its fixed mixture.
 """
 import argparse,math,os,sys,time
 from pathlib import Path
@@ -21,7 +18,7 @@ from main_experiment.common import REAL_TEST as REAL_TEST_LIST, SYNTH as SYNTH_L
 from main_experiment import pool as poolmod
 from main_experiment.training import fit_folds,TRAINING_REVISION
 from main_experiment.observation import parse,features,FEATURE_NAMES,FEATURE_VERSION
-from main_experiment.baselines import plugin,corrector,activity,bisect,h_bounds
+from main_experiment.baselines import plugin,corrector,activity,bisect,h_extrapolator
 from main_experiment import mixtures
 
 # Current design run. frozen_20260916 and budget10_20261001 hold superseded
@@ -132,8 +129,7 @@ def _predict(o,models,medians,graph_truth,arm):
     out['extratrees_pooled']={'prediction':list(map(float,models['pooled'].predict(x)[0])),'status':'ok'}
     out['extratrees_real_only']={'prediction':list(map(float,models['real_only'].predict(x)[0])),'status':'ok'}
     if arm=='H':
-        lo,hi=h_bounds(o)
-        out['h_bounds']={'lower':lo,'upper':hi}
+        out['corrector']=h_extrapolator(o)
     if arm=='B':
         mu0,lam0=_homogeneous_start(o)
         fit=mixtures.fit_events(o,mu0,lam0)
@@ -353,10 +349,9 @@ def stage_main(out):
 
 # Which corrector is primary for which arm. R, S and B as fixed in
 # results/baseline_revision_20261001/CORRECTOR_DECISION.md. For the new H the
-# 'corrector' is the fixed bound midpoint (baselines.h_midpoint), set by the
-# revision specification before any H result of this design existed.
+# H is the homogeneous zero-truncated Binomial working-model extrapolator.
 PRIMARY_CORRECTOR={'R':'corrector','S':'corrector','H':'corrector','B':'candidate'}
-PRIMARY_NAME={'R':'plugin_equivalent_corrector','S':'walk_ratio','H':'bound_midpoint','B':'beta_ztp_mixture'}
+PRIMARY_NAME={'R':'plugin_equivalent_corrector','S':'walk_ratio','H':'homogeneous_zero_truncated_binomial','B':'beta_ztp_mixture'}
 
 
 def _primary_baselines(rows,man,models,fold_med,med_syn):
@@ -369,10 +364,9 @@ def _primary_baselines(rows,man,models,fold_med,med_syn):
     use a reference the decision record does not designate.
     """
     import numpy as np
-    out={'decision':'results/baseline_revision_20261001/CORRECTOR_DECISION.md (R,S,B); '
-                     'docs/MAIN_EXPERIMENT_IMPLEMENTATION.md, design budget10-hrecent5-20260917 (H)',
+    out={'decision':'docs/PROTOCOL_HTIME_20260920.md; R/S/B references unchanged, H fixed before generation',
          'design_version':DESIGN_VERSION,
-         'protocol':'docs/PROTOCOL_REVISION_20260918.md',
+         'protocol':'docs/PROTOCOL_HTIME_20260920.md',
          'primary_corrector_by_arm':PRIMARY_CORRECTOR,
          'primary_corrector_meaning':PRIMARY_NAME,
          'primary_trained_reference':'extratrees_pooled',

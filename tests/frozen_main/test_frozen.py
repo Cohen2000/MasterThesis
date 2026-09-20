@@ -127,8 +127,8 @@ class FrozenTests(unittest.TestCase):
                 block=serialize(o); restored=parse(block)
                 self.assertEqual(serialize(restored),block)
                 self.assertEqual(restored['arm'],arm)
-                self.assertEqual(len(o['table']),7 if arm==LEGACY_H else 31)
-                self.assertEqual({len(row) for row in o['table']},{4} if arm=='H' else {3})
+                self.assertEqual(len(o['table']),7 if arm in ('H',LEGACY_H) else 31)
+                self.assertEqual({len(row) for row in o['table']},{3})
                 text=messages(block)[1]['content']
                 self.assertNotIn('fixture',text); self.assertNotIn('budget_matched',text)
                 if arm==LEGACY_H:
@@ -141,15 +141,16 @@ class FrozenTests(unittest.TestCase):
                 np.testing.assert_array_equal(features(o),features(restored))
                 self.assertEqual(len(features(o)),len(FEATURE_NAMES))
                 if arm=='H':
-                    self.assertIn('pattern,dyads,events,at_cap_dyads',block)
-                    self.assertEqual(restored['Temporal_access'],[1]*5)
-                    self.assertNotIn(None,restored['Events_per_window'])
+                    self.assertIn('History_fraction=',block)
+                    self.assertEqual(restored['Temporal_access'],[0,0,1,1,1])
+                    self.assertEqual(restored['Events_per_window'][:2],[None,None])
 
     def test_corrector_edges(self):
         self.assertEqual(profile(0),[0.]*4); self.assertEqual(profile(1),[1.]*4)
         for n in [3,5]:
             self.assertEqual(activity(1,n),0); self.assertEqual(activity(n,n),1)
         g=fixture(); b=budget_parameters(g)
+        b.update(n_panel_history=g.N,h_saturated=True)
         for arm in ('H',LEGACY_H):
             c,r=draw(g,arm,1,'sample',b); o=make(g,arm,b,c,r)
             self.assertTrue(all(0<=x<=1 for x in corrector(o)))
@@ -205,7 +206,8 @@ class FrozenTests(unittest.TestCase):
                  good.replace('0.5','1.1'),good.replace('0.5','-0.1'),good.replace('0.5','0.01'),
                  good.replace('"rho_5":0','"rho_5":0,"rho_5":0'),good[:-3]]
         for text in invalid: self.assertIsNone(parse_final(text)[0],text)
-        g=fixture(); b=budget_parameters(g); c,r=draw(g,'H',1,'sample',b); o=make(g,'H',b,c,r)
+        g=fixture(); b=budget_parameters(g)|{'n_panel_history':g.N,'h_saturated':True}
+        c,r=draw(g,'H',1,'sample',b); o=make(g,'H',b,c,r)
         self.assertIsNone(resolve(o,[.4]*4)['prediction'])
         result=resolve(o,[.4]*4,{'started':True,'terminal':True,'limit_hit':True,'final_text':good})
         self.assertTrue(result['valid']); self.assertTrue(result['limit_hit'])

@@ -129,7 +129,7 @@ class SuffixPanelTests(unittest.TestCase):
 class ObservationContractTests(unittest.TestCase):
     def test_suffix_arm_carries_its_panel_size(self):
         self.assertEqual(PARAMS[LEGACY_H], 'n_panel_suffix')
-        self.assertEqual(PARAMS['H'], 'n_dyads')
+        self.assertEqual(PARAMS['H'], 'n_panel_history')
         self.assertEqual(len(set(PARAMS.values())), len(PARAMS))   # parser needs distinct names
         g = fixture(n=60, per=8, seed=11)
         b = budget_parameters(g)
@@ -151,10 +151,11 @@ class ObservationContractTests(unittest.TestCase):
         b = budget_parameters(g)
         c, _ = draw(g, 'H', 1, 'sample', b)
         block = serialize(make(g, 'H', b, c, None))
-        self.assertIn(f'n_dyads={b["n_dyads"]}', block)
+        self.assertIn(f'n_panel_history={b["n_panel_history"]}', block)
         back = parse(block)
-        self.assertEqual((back['arm'], back['parameter'], back['D_obs']), ('H', b['n_dyads'], b['n_dyads']))
-        self.assertEqual(back['Temporal_access'], [1] * 5)
+        self.assertEqual((back['arm'], back['parameter']), ('H', b['n_panel_history']))
+        self.assertLessEqual(back['N_obs'],b['n_panel_history'])
+        self.assertEqual(back['Temporal_access'], [0,0,1,1,1])
 
 
 class RunContentTests(unittest.TestCase):

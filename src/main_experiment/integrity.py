@@ -36,6 +36,6 @@ def validate_request(r):
     messages=r['payload'].get('messages',r['payload'].get('input'))
     if r.get('prompt_sha256')!=digest(messages): raise ValueError('request prompt mismatch')
 
-    from .requests import payload
-    if r['payload']!=payload(r['config_id'],messages,r['seed']):
+    from .requests import payload,generation_version
+    if r['payload']!=payload(r['config_id'],messages,r['seed'],generation_version(r.get('arm','H'))):
         raise ValueError('payload differs from frozen configuration')

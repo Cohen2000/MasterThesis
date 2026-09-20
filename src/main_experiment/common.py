@@ -21,14 +21,17 @@ ARMS = ('R','S','H','B')
 # budget matched event volume, which let H and B see 46 % and 37 % of the active
 # dyad-windows of the real sources against 2.4 % for S. The date-like suffix of
 # budget10-20261001 is a revision label, not a date.
-DESIGN_VERSION = 'cells10-json-20260918'
-PREVIOUS_DESIGN_VERSION = 'cells10-20260917'
+DESIGN_VERSION = 'cells10-htime60-20260920'
+PREVIOUS_DESIGN_VERSION = 'cells10-json-20260918'
+ARCHIVED_ROOT = ROOT/'archive/pre_h_time_20260920'
+PREVIOUS_RUN = ARCHIVED_ROOT/'results/main_experiment/cells10_json_20260918'
+PREVIOUS_REVISION = ARCHIVED_ROOT/'results/baseline_revision_cells10_json_20260918'
 MATCHED_QUANTITY = 'expected_observed_active_dyad_windows'
 COVERAGE_FRACTION = 0.10     # share of sum_e K_e every arm observes in expectation
 BUDGET_FRACTION = 0.10       # event budget of the superseded designs; legacy variants only
 BUDGET_TOLERANCE = 0.05      # unchanged relative tolerance for the matched expectation
-CURRENT_RUN = 'results/main_experiment/cells10_json_20260918'
-CURRENT_REVISION = 'results/baseline_revision_cells10_json_20260918'
+CURRENT_RUN = 'results/main_experiment/cells10_htime60_20260920'
+CURRENT_REVISION = 'results/baseline_revision_cells10_htime60_20260920'
 SAMPLER_DRAWS = 5            # sampler draws per graph and arm, if the draw is random
 LLM_REPEATS = 3
 CONFIGS = ('sol','deepseek','qwen_thinking','qwen_nonthinking')
@@ -38,10 +41,11 @@ SYNTH = tuple(f'{family}_{mode}_r{r}' for family,modes in
               for r in (1,2) for mode in modes)
 MAIN_GRAPHS = len(REAL_TEST)+len(SYNTH)
 
-# Arm H of this design: a uniform dyad sample keeping the H_CAP most recent events
-# of every sampled dyad. The superseded suffix-panel H stays available as a
-# versioned development variant under its own arm code; it is never part of ARMS.
-H_VARIANT = 'recent5'
+# Arm H: uniform nodes, then a common elapsed-time suffix. Legacy constants are
+# retained only for historical helper tests; they never define the current H.
+H_VARIANT = 'uniform_nodes_time_suffix'
+H_FRACTION = 0.60
+H_SENSITIVITY = (0.40, 0.60, 0.80)
 H_CAP = 5
 LEGACY_H = 'H_suffix_v1'
 LEGACY_ARMS = (LEGACY_H,)
@@ -49,13 +53,13 @@ LEGACY_ARMS = (LEGACY_H,)
 # pool, not the main observation mechanism. Request IDs have a separate protocol
 # suffix; old answers are never reusable under the revised generation contract.
 DESIGN_TAG = 'c10'
-ARM_ID = {'R':'R-c10','S':'S-c10','H':'H-recent5-c10','B':'B-c10',LEGACY_H:'H'}
+ARM_ID = {'R':'R-c10','S':'S-c10','H':'H-htime60-c10','B':'B-c10',LEGACY_H:'H'}
 
 
 def draws_for(arm,budget):
     """Distinct sampler draws for one graph and arm.
 
-    A saturated H sample (every active dyad drawn) is deterministic, so repeating
+    A saturated H sample (every node drawn) is deterministic, so repeating
     it would only duplicate one observation. It is carried once; model repeats of
     that single observation are a separate kind of repetition.
     """

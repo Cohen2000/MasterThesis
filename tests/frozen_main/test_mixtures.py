@@ -365,7 +365,8 @@ class DiagnosticIndependenceTests(unittest.TestCase):
         """The flags are exercised by actual development fits, not only by hand."""
         import glob
         from main_experiment.common import read_json
-        files = sorted(glob.glob('results/baseline_revision_20261001/pool/observations/*dev*.json'))[:25]
+        from main_experiment.common import CURRENT_REVISION
+        files = sorted(glob.glob(CURRENT_REVISION+'/pool/observations/*dev*.json'))[:25]
         if not files: self.skipTest('development pool not built')
         seen = set(); n = 0
         for f in files:
@@ -399,7 +400,8 @@ class AssumptionViolationTests(unittest.TestCase):
     def test_real_generator_observations(self):
         import glob
         from main_experiment.common import read_json
-        files=sorted(glob.glob('results/baseline_revision_20261001/pool/observations/*.json'))[:6]
+        from main_experiment.common import CURRENT_REVISION
+        files=sorted(glob.glob(CURRENT_REVISION+'/pool/observations/*.json'))[:6]
         if not files: self.skipTest('current pool not built')
         checked=0
         for f in files:

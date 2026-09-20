@@ -7,7 +7,7 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from .common import (ROOT, seed, rng, sha, write_json, read_json, atomic_npz, BUDGET_FRACTION,
                      BUDGET_TOLERANCE, H_CAP, H_VARIANT, LEGACY_H, ARM_ID, draws_for,
-                     COVERAGE_FRACTION, MATCHED_QUANTITY, DESIGN_VERSION)
+                     COVERAGE_FRACTION, MATCHED_QUANTITY, DESIGN_VERSION, H_FRACTION)
 
 class Walk:
     """Event-weighted walk. Transitions always use full-archive event counts m_e.
@@ -126,33 +126,35 @@ def reservoir_counts(counts,cap,r):
     return out
 
 
-def h_parameters(g,T,cap=H_CAP):
-    """Arm H parameters for a target T of expected observed active dyad-windows.
+def history_start(g,h=H_FRACTION):
+    """Common query at archive end; time-based access, independent of W."""
+    from decimal import Decimal
+    if not 0<h<=1: raise ValueError('history fraction must be in (0,1]')
+    start_fraction=float(Decimal(1)-Decimal(str(h)))
+    return g.horizon[0]+start_fraction*(g.horizon[1]-g.horizon[0])
 
-    A uniform sample of d of the D active dyads observes sum_e J_e * d/D active
-    dyad-windows in expectation, where J_e counts the windows covered by dyad e's
-    cap most recent events. d is the integer in 1..D closest to T, ties to the
-    smaller d, fixed before any draw.
 
-    Reported separately, never merged:
-    target_unreachable: even every active dyad shows fewer than T windows.
-    saturated: the closest integer is d=D, so the sample is the whole population.
-    within_tolerance: the unchanged 5 % rule on the matched expectation.
-    The cap is a design constant and does not depend on the source.
-    """
-    J=(recent_counts(g.counts,cap)>0).sum(1)
-    visible=int(J.sum())
-    capped=int(np.minimum(g.m,cap).sum())
-    d,expected=_dyads_for(visible,T,g.D)
+def history_counts(g,h=H_FRACTION):
+    keep=g.t>=history_start(g,h)
+    width=g.counts.shape[1]
+    return np.bincount(g.pair[keep]*width+g.w[keep],minlength=g.D*width).reshape(g.D,width)
+
+
+def h_parameters(g,T,h=H_FRACTION):
+    """Calibrate pi(n)*sum J_e to T; no outcome-dependent choice of h."""
+    recent=history_counts(g,h)
+    visible=int((recent>0).sum())
+    n,expected=_panel_for(visible,T,g.N)
+    # If the suffix is empty the maximally accessible panel still yields zero.
+    if not visible: n=g.N
+    pi=n*(n-1)/(g.N*(g.N-1))
     rel=float((expected-T)/T)
-    return {'h_variant':H_VARIANT,'h_cap':cap,'C_cap':capped,'J_total':visible,
-            'n_dyads':d,'h_dyad_share':d/g.D,'h_expected_cells':expected,
-            'h_expected_events':d*capped/g.D,
-            'h_relative_budget_error':rel,
-            'h_target_unreachable':bool(visible<T),'h_saturated':bool(d==g.D),
-            'h_within_tolerance':bool(abs(rel)<=BUDGET_TOLERANCE),
-            'h_capped_dyad_share':float(np.mean(g.m>cap)),
-            'h_at_cap_dyad_share':float(np.mean(g.m>=cap))}
+    return {'h_variant':H_VARIANT,'history_fraction':h,'history_start':history_start(g,h),
+            'query_time':float(g.horizon[1]),'J_total':visible,'n_panel_history':n,
+            'h_node_share':n/g.N,'h_panel_dyad_inclusion':pi,'h_expected_cells':expected,
+            'h_expected_events':float(pi*recent.sum()),
+            'h_relative_budget_error':rel,'h_target_unreachable':bool(visible<T),
+            'h_saturated':bool(n==g.N),'h_within_tolerance':bool(abs(rel)<=BUDGET_TOLERANCE)}
 
 
 def bernoulli_p(g,T):
@@ -304,13 +306,18 @@ def _panel_mask(g,r,size):
     return panel[g.ends[:,0]] & panel[g.ends[:,1]]
 
 
-def sample_dyads(g,index,domain,budget):
-    """Indices of the H dyad sample; uniform without replacement over E_full."""
+def history_panel_mask(g,index,domain,budget):
+    """All full-archive dyads in the chosen node panel, including suffix-invisible ones.
+
+    Common random ordering across h values is deliberate for paired sensitivity.
+    Prefixes of a uniform permutation give uniform, nested panels at every size.
+    """
+    if budget['h_saturated'] and index!=1:
+        raise ValueError('a saturated H panel has only one draw')
     r=rng(domain,g.key,ARM_ID['H'],index)
-    if budget['h_saturated']:
-        if index!=1: raise ValueError('a saturated H sample is deterministic; only index 1 exists')
-        return np.arange(g.D)
-    return np.sort(r.choice(g.D,budget['n_dyads'],replace=False))
+    panel=np.zeros(g.N,dtype=bool)
+    panel[r.permutation(g.N)[:budget['n_panel_history']]]=True
+    return panel[g.ends[:,0]] & panel[g.ends[:,1]]
 
 
 def draw(g,arm,index,domain,budget,walk=None):
@@ -325,12 +332,8 @@ def draw(g,arm,index,domain,budget,walk=None):
         _,_,rr,_=walk.run([seed(domain,g.key,ARM_ID[arm],index)],int(budget['L']),True)
         re=rr[0]; counts=g.counts*(re>0)[:,None]
     elif arm=='H':
-        # Uniform over active dyads, drawn without looking at any event count, so
-        # the sampled dyads' true profile is a simple random sample of E_full.
-        # Each sampled dyad then keeps its H_CAP most recent events.
-        sel=sample_dyads(g,index,domain,budget)
-        counts=np.zeros_like(g.counts)
-        counts[sel]=recent_counts(g.counts[sel],budget['h_cap'])
+        sel=history_panel_mask(g,index,domain,budget)
+        counts=history_counts(g,budget['history_fraction'])*sel[:,None]
     elif arm==LEGACY_H:
         # budget10-20261001 arm H: uniform node panel, then only windows 3-5.
         r=rng(domain,g.key,ARM_ID[arm],index)

@@ -12,8 +12,8 @@ from main_experiment.common import (REAL_TEST,TRAIN,SYNTH,ARMS,CONFIGS,H_CAP,BUD
                                     planned_sizes,observations_per_graph,draws_for,observation_id,
                                     COVERAGE_FRACTION)
 from main_experiment.observation import parse,features,messages,make,serialize,FEATURE_NAMES
-from main_experiment.baselines import plugin,corrector,h_midpoint
-from main_experiment.sampling import Walk,draw,recent_counts
+from main_experiment.baselines import plugin,corrector,h_extrapolator
+from main_experiment.sampling import Walk,draw,history_panel_mask
 from main_experiment.data import load_graph
 
 
@@ -55,19 +55,16 @@ def verify(root):
         # R: pi(n)*W closest to T.
         nn=np.arange(g.N+1); pi=nn*(nn-1)/(g.N*(g.N-1))
         assert b['n_panel']==int(np.argmin(np.abs(pi*W-T)))
-        # H: J_e = windows of the cap most recent events, by explicit timestamp sort;
-        # d minimises |d*sum(J)/D - T| over 1..D with ties to the smaller d.
-        order=np.lexsort((g.t,g.pair)); pr,ww=g.pair[order],g.w[order]
-        starts=np.r_[0,np.flatnonzero(np.diff(pr))+1]
-        ends_=np.r_[starts[1:],len(pr)]
-        rank=np.concatenate([np.arange(e-s_-1,-1,-1) for s_,e in zip(starts,ends_)])
-        keep=rank<H_CAP
-        Jcells=np.unique(pr[keep]*5+ww[keep]); J=np.bincount(Jcells//5,minlength=g.D)
-        dd=np.arange(1,g.D+1)
-        d=int(dd[np.argmin(np.abs(dd*J.sum()/g.D-T))])
-        assert (b['J_total'],b['n_dyads'])==(int(J.sum()),d)
-        assert b['h_saturated']==(d==g.D) and b['h_target_unreachable']==(J.sum()<T)
-        rel=(d*J.sum()/g.D-T)/T
+        # Independent timestamp filtering and exhaustive integer-panel calibration.
+        cutoff=g.horizon[0]+.4*(g.horizon[1]-g.horizon[0])
+        keep=g.t>=cutoff
+        Jcells=np.unique(g.pair[keep]*5+g.w[keep])
+        visible=len(Jcells)
+        n=int(np.argmin(np.abs(pi*visible-T))) if visible else g.N
+        assert (b['J_total'],b['n_panel_history'])==(visible,n)
+        assert b['history_fraction']==.6 and b['history_start']==cutoff
+        assert b['h_saturated']==(n==g.N) and b['h_target_unreachable']==(visible<T)
+        rel=(pi[n]*visible-T)/T
         assert abs(rel-b['h_relative_budget_error'])<1e-12 and b['h_within_tolerance']==(abs(rel)<=BUDGET_TOLERANCE)
         # B: the expected observed cells at p reproduce T.
         ncell=g.counts[g.counts>0]
@@ -90,12 +87,12 @@ def verify(root):
         assert serialize(make(g,row['arm'],b,c,re))==row['block']
         if row['arm']=='H':
             seen=c.sum(1)>0
-            assert o['D_obs']==b['n_dyads']==int(seen.sum())
-            assert (c[seen].sum(1)==np.minimum(g.m[seen],H_CAP)).all()
-            np.testing.assert_array_equal(c[seen],recent_counts(g.counts[seen]))
-            # The at-cap column is the observed count, never the true truncation flag.
-            assert sum(r[3] for r in o['table'])==int((c[seen].sum(1)==H_CAP).sum())
-            np.testing.assert_array_equal(features(o)[-4:],h_midpoint(o))
+            panel=history_panel_mask(g,row['sample_index'],path.parent.name,b)
+            keep=panel[g.pair] & (g.t>=b['history_start'])
+            expected=np.bincount(g.pair[keep]*5+g.w[keep],minlength=g.D*5).reshape(-1,5)
+            np.testing.assert_array_equal(c,expected)
+            assert o['D_obs']==int(seen.sum()) and o['N_obs']<=b['n_panel_history']
+            np.testing.assert_array_equal(features(o)[-4:],h_extrapolator(o)['prediction'])
         assert messages(row['block'])==row['messages']
         assert digest(row['messages'])==row['prompt_sha256']
         assert len(features(o))==len(FEATURE_NAMES)

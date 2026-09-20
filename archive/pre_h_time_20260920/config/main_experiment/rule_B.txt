@@ -1,0 +1,1 @@
+Bernoulli event sampling: each event record anywhere in the full archive is independently retained with the stated probability p. Only retained event records are observed. There is no subsequent history retrieval. A window or an entire dyad may have no retained event even if it was active in the full archive.

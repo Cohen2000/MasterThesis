@@ -46,7 +46,7 @@ def source_inventory():
     paths=[*Path(__file__).parent.glob('*.py'),*Path(__file__).parent.glob('*.cpp'),
            * (ROOT/'config/main_experiment').glob('*.txt'),ROOT/'config/study.yaml',
            ROOT/'config/datasets.yaml',ROOT/'scripts/run_main_offline.py',ROOT/'scripts/evaluate_main_responses.py',
-           ROOT/'src/dataset_census.py',ROOT/'src/census.py',ROOT/'docs/PROTOCOL_REVISION_20260918.md',ROOT/'docs/MAIN_FREEZE_SOURCE.txt',ROOT/'docs/MAIN_EXPERIMENT_IMPLEMENTATION.md']
+           ROOT/'src/dataset_census.py',ROOT/'src/census.py',ROOT/'docs/PROTOCOL_HTIME_20260920.md',ROOT/'docs/MAIN_FREEZE_SOURCE.txt']
     return {str(p.relative_to(ROOT)):sha(p) for p in sorted(paths)}
 
 
@@ -96,7 +96,7 @@ def run(args):
             budget,walk=calibrate(g,out/'calibration'/key,out/'build')
             budgets.append({'graph_id':key,**budget}); budget_by_graph[key]=budget
             print(f'{key}: N={g.N} D={g.D} M={g.M} W={g.cells} T={budget["T"]:.1f} n={budget["n_panel"]} '
-                  f'L={budget["L"]} d={budget["n_dyads"]} p={budget["p"]:.5f} '
+                  f'L={budget["L"]} n_H={budget["n_panel_history"]} p={budget["p"]:.5f} '
                   f'H_saturated={budget["h_saturated"]} matched={budget["budget_matched"]}',flush=True)
             for domain in (['training'] if key in TRAIN and key not in REAL_TEST else
                            ['training','sample'] if key in REAL_TEST else ['sample']):
