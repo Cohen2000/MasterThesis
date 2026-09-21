@@ -1,0 +1,294 @@
+[
+  {
+    "arm": "R",
+    "budget": 0.025,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.025388291517323778,
+    "min_expected_coverage": 0.023783783783783784,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "S",
+    "budget": 0.025,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.025223207282254016,
+    "min_expected_coverage": 0.024384781036296686,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "H",
+    "budget": 0.025,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.025287997853084464,
+    "min_expected_coverage": 0.023838597633778356,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "B",
+    "budget": 0.025,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.02500000000000001,
+    "min_expected_coverage": 0.025,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "R",
+    "budget": 0.05,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.05067447139828521,
+    "min_expected_coverage": 0.04900900900900901,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "S",
+    "budget": 0.05,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.05016489658589203,
+    "min_expected_coverage": 0.0494065259417109,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "H",
+    "budget": 0.05,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.05038784050615674,
+    "min_expected_coverage": 0.04767719526755671,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "B",
+    "budget": 0.05,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.05000000000000001,
+    "min_expected_coverage": 0.05,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "R",
+    "budget": 0.1,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.10048591958875068,
+    "min_expected_coverage": 0.09942284569138277,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "S",
+    "budget": 0.1,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.10045545518805891,
+    "min_expected_coverage": 0.09967277931897302,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "H",
+    "budget": 0.1,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.10037014507262611,
+    "min_expected_coverage": 0.09875990448279605,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "B",
+    "budget": 0.1,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.10000000000000002,
+    "min_expected_coverage": 0.1,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "R",
+    "budget": 0.2,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.20216216216216218,
+    "min_expected_coverage": 0.19866871479774706,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "S",
+    "budget": 0.2,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.20042031743161495,
+    "min_expected_coverage": 0.19934216344346156,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "H",
+    "budget": 0.2,
+    "graphs": 24,
+    "matched": 23,
+    "max_expected_coverage": 0.20059204456738744,
+    "min_expected_coverage": 0.15509229379114495,
+    "saturated_H": 1,
+    "unmatched": [
+      "snap_collegemsg (H:expected_volume_outside_5_percent, coverage 0.155)"
+    ]
+  },
+  {
+    "arm": "B",
+    "budget": 0.2,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.20000000000000015,
+    "min_expected_coverage": 0.2,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "R",
+    "budget": 0.3,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.30101166187797285,
+    "min_expected_coverage": 0.2954954954954955,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "S",
+    "budget": 0.3,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.30090659521304575,
+    "min_expected_coverage": 0.2992530955013655,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "H",
+    "budget": 0.3,
+    "graphs": 24,
+    "matched": 22,
+    "max_expected_coverage": 0.3049012610716977,
+    "min_expected_coverage": 0.15509229379114495,
+    "saturated_H": 2,
+    "unmatched": [
+      "snap_collegemsg (H:expected_volume_outside_5_percent, coverage 0.155)",
+      "snap_collegemsg__pwt (H:expected_volume_outside_5_percent, coverage 0.268)"
+    ]
+  },
+  {
+    "arm": "B",
+    "budget": 0.3,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.30000000000000016,
+    "min_expected_coverage": 0.3,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "R",
+    "budget": 0.4,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.4064864864864865,
+    "min_expected_coverage": 0.39750810718552654,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "S",
+    "budget": 0.4,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.4010050220278801,
+    "min_expected_coverage": 0.3985037095924365,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "H",
+    "budget": 0.4,
+    "graphs": 24,
+    "matched": 22,
+    "max_expected_coverage": 0.40185064582654945,
+    "min_expected_coverage": 0.15509229379114495,
+    "saturated_H": 2,
+    "unmatched": [
+      "snap_collegemsg (H:expected_volume_outside_5_percent, coverage 0.155)",
+      "snap_collegemsg__pwt (H:expected_volume_outside_5_percent, coverage 0.268)"
+    ]
+  },
+  {
+    "arm": "B",
+    "budget": 0.4,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.4000000000000001,
+    "min_expected_coverage": 0.4,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "R",
+    "budget": 0.5,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.5026881720430108,
+    "min_expected_coverage": 0.49657657657657656,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "S",
+    "budget": 0.5,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.5008933293874672,
+    "min_expected_coverage": 0.4979731869606663,
+    "saturated_H": 0,
+    "unmatched": []
+  },
+  {
+    "arm": "H",
+    "budget": 0.5,
+    "graphs": 24,
+    "matched": 21,
+    "max_expected_coverage": 0.5019727558884185,
+    "min_expected_coverage": 0.15509229379114495,
+    "saturated_H": 6,
+    "unmatched": [
+      "sp_workplace (H:expected_volume_outside_5_percent, coverage 0.447)",
+      "snap_collegemsg (H:expected_volume_outside_5_percent, coverage 0.155)",
+      "snap_collegemsg__pwt (H:expected_volume_outside_5_percent, coverage 0.268)"
+    ]
+  },
+  {
+    "arm": "B",
+    "budget": 0.5,
+    "graphs": 24,
+    "matched": 24,
+    "max_expected_coverage": 0.5000000000000002,
+    "min_expected_coverage": 0.5,
+    "saturated_H": 0,
+    "unmatched": []
+  }
+]
