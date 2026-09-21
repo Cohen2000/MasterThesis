@@ -53,6 +53,9 @@ TRAINING_DRAWS = 5           # training sampler draws per graph and arm
 LLM_REPEATS = 3
 CONFIGS = ('sol', 'deepseek', 'qwen_thinking', 'qwen_nonthinking')
 QWEN_CONFIGS = ('qwen_thinking', 'qwen_nonthinking')
+# Budget-sensitivity study (separate from the main study, which is fixed at 0.10).
+BUDGET_GRID = (0.025, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50)
+BUDGET_SENSITIVITY = ROOT/'results/panel888_budget_sensitivity'
 
 
 def parent_source(key):
@@ -88,8 +91,15 @@ def draws_for(arm, budget, domain='sample'):
     return TRAINING_DRAWS if domain in ('training', 'pool_train', 'pool_dev') else SAMPLER_DRAWS
 
 
-def observation_id(graph_id, arm, index):
-    return f'{graph_id}__{ARM_ID[arm]}__s{index}'
+def sampler_id(arm, fraction=COVERAGE_FRACTION):
+    """Versioned sampler identity. Every budget other than the main 0.10 gets its own
+    identity, hence its own random streams, observation IDs and request IDs."""
+    if fraction == COVERAGE_FRACTION: return ARM_ID[arm]
+    return f'{ARM_ID[arm]}-b{round(fraction*1000):03d}'
+
+
+def observation_id(graph_id, arm, index, fraction=COVERAGE_FRACTION):
+    return f'{graph_id}__{sampler_id(arm, fraction)}__s{index}'
 
 
 def planned_sizes(budgets):

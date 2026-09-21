@@ -1,16 +1,21 @@
 #!/bin/bash
 # Upload the sealed, committed study to the cluster workspace $WS/<EXP> and verify it there.
-#   bash scripts/cluster_bundle.sh panel888_pwt_srw_20260921
+#   bash scripts/cluster_bundle.sh panel888_pwt_srw_20260921                       (main study)
+#   bash scripts/cluster_bundle.sh panel888_budget_sensitivity results/panel888_budget_sensitivity/run
 # Requires a clean working tree whose HEAD contains the sealed sources, and an
 # open ssh ControlMaster to uc3. Refuses to overwrite an existing $WS/<EXP>.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 EXP="${1:?experiment name}"
+RUN="${2:-results/panel888/prepared}"
 [[ "$EXP" =~ ^[a-zA-Z0-9_-]+$ ]] || { echo "invalid experiment name" >&2; exit 2; }
 if [ -n "$(git status --porcelain)" ]; then echo 'Refusing bundle: commit the offline freeze first.' >&2; exit 1; fi
-.venv/bin/python scripts/seal_offline.py --verify
+if [ "$RUN" = results/panel888/prepared ]; then
+    .venv/bin/python scripts/seal_offline.py --verify
+else
+    grep -q '"verified": true' "$RUN/report.json" || { echo "Refusing bundle: $RUN is not audited" >&2; exit 1; }
+fi
 WS=/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot
-RUN=results/panel888/prepared
 TMP=$(mktemp -d); B="$TMP/$EXP"
 mkdir -p "$B/src/main_experiment" "$B/config" "$B/docs/results" "$B/mainexp/run/observations/sample" "$B/mainexp/logs"
 cp src/main_experiment/*.py src/main_experiment/*.cpp "$B/src/main_experiment/"

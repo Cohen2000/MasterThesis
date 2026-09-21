@@ -4,7 +4,7 @@ All four configurations see identical observations, prompts and three repeats.
 Only the two Qwen configurations are enabled for dispatch; Sol and DeepSeek
 requests are prepared but require a separate technical release (execution.py).
 """
-from .common import CONFIGS, LLM_REPEATS, ARM_ID, DESIGN_VERSION, seed, digest
+from .common import CONFIGS, LLM_REPEATS, DESIGN_VERSION, seed, digest
 
 QWEN='Qwen/Qwen3.6-35B-A3B'
 REVISION='995ad96eacd98c81ed38be0c5b274b04031597b0'
@@ -53,7 +53,8 @@ def planned(observations):
                 for config in CONFIGS:
                     # Fresh versioned generation stream per request; common random
                     # numbers apply to sampling only, never to model generation.
-                    s=seed('llm',obs['graph_id'],ARM_ID[obs['arm']],obs['sample_index'],repeat,config+':'+DESIGN_VERSION)
+                    sampler=obs['id'].rsplit('__',2)[1]      # versioned sampler identity, e.g. R-p888-20260921
+                    s=seed('llm',obs['graph_id'],sampler,obs['sample_index'],repeat,config+':'+DESIGN_VERSION)
                     rid=f'{obs["id"]}__{config}__r{repeat}__{DESIGN_VERSION}'
                     records.append({'id':rid,'observation_id':obs['id'],'graph_id':obs['graph_id'],
                         'arm':obs['arm'],'sample_index':obs['sample_index'],'repeat_index':repeat,

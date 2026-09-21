@@ -29,7 +29,7 @@ import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from .common import (ARM_ID, BUDGET_TOLERANCE, COVERAGE_FRACTION, DESIGN_VERSION, H_FRACTION,
-                     parent_source, rng, seed, sha)
+                     parent_source, rng, sampler_id, seed, sha)
 from .data import window_counts
 
 CALIBRATION_WALKS = 256
@@ -146,16 +146,16 @@ def bernoulli_p(g, T):
     return hi, expected_cells(hi)
 
 
-def analytic_parameters(g):
-    """Parameters of R, H and B, each matched to T = 0.10 * sum_e K_e."""
+def analytic_parameters(g, fraction=COVERAGE_FRACTION):
+    """Parameters of R, H and B, each matched to T = fraction * sum_e K_e (main study: 0.10)."""
     if g.N < 2: raise ValueError('undefined budget')
     cells = g.cells
-    T = COVERAGE_FRACTION*cells
+    T = fraction*cells
     n, expected_r = panel_size(cells, T, g.N)
     pi = n*(n-1)/(g.N*(g.N-1))
     p, expected_b = bernoulli_p(g, T)
     return {'design_version': DESIGN_VERSION, 'matched_quantity': 'expected_observed_active_dyad_windows',
-            'coverage_fraction': COVERAGE_FRACTION, 'active_dyad_windows': cells, 'T': T,
+            'coverage_fraction': fraction, 'active_dyad_windows': cells, 'T': T,
             'budget_tolerance': BUDGET_TOLERANCE,
             'n_panel': n, 'node_expected_cells': expected_r, 'node_relative_budget_error': float((expected_r-T)/T),
             'node_expected_events': pi*g.M, 'node_dyad_share': pi,
@@ -207,14 +207,14 @@ def validate_walk_length(g, walk, L, T):
             'validation_volumes': values}
 
 
-def calibrate(g, build_dir):
+def calibrate(g, build_dir, fraction=COVERAGE_FRACTION):
     """Complete budget of one graph: analytic arms plus the calibrated walk length.
 
     Returns (budget, walk engine). budget['budget_matched_by_arm'] records whether
     each arm's expectation lies within 5% of T; unmatched arms are reported, never
     dropped or re-tuned.
     """
-    budget = analytic_parameters(g)
+    budget = analytic_parameters(g, fraction)
     T = budget['T']
     walk = Walk(g, build_dir)
     calibration = walk_length(g, walk, T)
@@ -259,8 +259,13 @@ def node_panel_mask(g, r, size):
 def history_panel_mask(g, index, domain, budget):
     if budget['h_saturated'] and index != 1:
         raise ValueError('a saturated H panel has only one draw')
-    r = rng(domain, parent_source(g.key), ARM_ID['H'], index)
+    r = rng(domain, parent_source(g.key), draw_sampler_id('H', budget), index)
     return node_panel_mask(g, r, budget['n_panel_history'])
+
+
+def draw_sampler_id(arm, budget):
+    # Budgets built by h_parameters alone (H diagnostics) belong to the main 0.10 study.
+    return sampler_id(arm, budget.get('coverage_fraction', COVERAGE_FRACTION))
 
 
 def draw(g, arm, index, domain, budget, walk=None):
@@ -270,7 +275,7 @@ def draw(g, arm, index, domain, budget, walk=None):
     counts for arm S and None otherwise.
     """
     if index < 1: raise ValueError('sample indices start at 1')
-    stream = (domain, parent_source(g.key), ARM_ID[arm], index)
+    stream = (domain, parent_source(g.key), draw_sampler_id(arm, budget), index)
     if arm == 'R':
         return g.counts*node_panel_mask(g, rng(*stream), budget['n_panel'])[:, None], None
     if arm == 'S':

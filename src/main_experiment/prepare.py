@@ -47,7 +47,7 @@ def observation_row(g, arm, index, domain, budget, counts, traversals):
     parsed = parse(block)
     if not np.array_equal(features(obs), features(parsed)): raise AssertionError('serialization changes features')
     prompt = messages(block)
-    return {'id': observation_id(g.key, arm, index), 'graph_id': g.key, 'source_family': g.key,
+    return {'id': observation_id(g.key, arm, index, budget['coverage_fraction']), 'graph_id': g.key, 'source_family': g.key,
             'stratum': graph_stratum(g.key), 'parent_source': parent_source(g.key), 'arm': arm,
             'sample_index': index, 'domain': domain, 'empty': parsed['D_obs'] == 0,
             'block': block, 'block_sha256': digest(block), 'messages': prompt, 'prompt_sha256': digest(prompt),

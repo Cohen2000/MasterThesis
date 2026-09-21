@@ -168,6 +168,24 @@ class WalkTests(unittest.TestCase):
         self.assertEqual(np.mean(volumes), 3.)              # one dyad with K_e = 3 per component
 
 
+class BudgetSensitivityTests(unittest.TestCase):
+    def test_main_budget_keeps_its_identity_and_other_budgets_are_versioned(self):
+        from main_experiment.common import BUDGET_GRID, observation_id, sampler_id
+        self.assertEqual(sampler_id('R'), 'R-p888-20260921')
+        self.assertEqual(observation_id('g', 'S', 2, .10), 'g__S-p888-20260921__s2')
+        ids = {sampler_id(arm, b) for arm in 'RSHB' for b in BUDGET_GRID}
+        self.assertEqual(len(ids), 4*len(BUDGET_GRID))
+        self.assertEqual(sampler_id('B', .025), 'B-p888-20260921-b025')
+
+    def test_target_scales_with_the_fraction_and_streams_differ(self):
+        g = ring(n=80, per=6, seed=2)
+        main, high = analytic_parameters(g), analytic_parameters(g, .5)
+        self.assertAlmostEqual(high['T'], .5*g.cells)
+        self.assertAlmostEqual(high['bernoulli_expected_cells'], high['T'], places=6)
+        same_p = high | {'p': main['p']}
+        self.assertFalse(np.array_equal(draw(g, 'B', 1, 'sample', main)[0], draw(g, 'B', 1, 'sample', same_p)[0]))
+
+
 class CommonRandomNumberTests(unittest.TestCase):
     def test_surrogate_draws_share_the_parent_streams(self):
         g = graph([(str(a), str((a+1) % 30), t) for a in range(30) for t in (0., .2, .4, .6, .8, 1.)],

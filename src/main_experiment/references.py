@@ -22,8 +22,8 @@ VARIANTS = ('pooled', 'real_only')
 
 
 # ---------------------------------------------------------------- inputs
-def real_training_rows():
-    rows = [read_json(p) for p in sorted((PREPARED/'observations/training').glob('*.json'))]
+def real_training_rows(prepared=PREPARED):
+    rows = [read_json(p) for p in sorted((prepared/'observations/training').glob('*.json'))]
     for r in rows: r['block_group'] = 'real'
     return rows, {r['source_family']: r['truth'] for r in rows}
 
@@ -61,8 +61,8 @@ def stage_pool(out):
     return {'graphs': definition['n_graphs'], 'seconds': time.perf_counter()-start}
 
 
-def stage_train(out):
-    real, real_truth = real_training_rows()
+def stage_train(out, prepared=PREPARED):
+    real, real_truth = real_training_rows(prepared)
     pool, pool_truth, _ = pool_rows(out, 'train')
     fit_folds(real, {**real_truth, **pool_truth}, out/'models_pooled', pool)
     fit_folds(real, real_truth, out/'models_real_only')
@@ -144,9 +144,9 @@ def development_check(out, models, medians):
 
 
 # ---------------------------------------------------------------- main panel
-def main_references(out, models, medians):
+def main_references(out, models, medians, prepared=PREPARED):
     """All reference predictions for the 288 main observations; the primary one named."""
-    observations = [read_json(p) for p in sorted((PREPARED/'observations/sample').glob('*.json'))]
+    observations = [read_json(p) for p in sorted((prepared/'observations/sample').glob('*.json'))]
     manifests = {k: read_json(PREPARED/'graphs'/k/'manifest.json') for k in {o['graph_id'] for o in observations}}
     entries = {}; records = []
     for row in observations:

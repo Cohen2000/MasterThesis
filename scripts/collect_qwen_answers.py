@@ -20,8 +20,9 @@ def main():
     ap.add_argument('--out', required=True)
     ap.add_argument('--configs', default='qwen_thinking,qwen_nonthinking')
     ap.add_argument('--allow-incomplete', action='store_true')
+    ap.add_argument('--run', default=str(PREPARED), help='local prepared study (default: main study)')
     a = ap.parse_args()
-    run = PREPARED
+    run = Path(a.run)
     configs = set(a.configs.split(','))
     planned = [json.loads(l) for l in (run / 'requests.jsonl').read_text().splitlines()]
     known={r['id']:r for r in planned}
