@@ -22,7 +22,7 @@ step references  $PY scripts/build_references.py references
 # 5: fixed offline diagnostics
 step decomposition   $PY scripts/diagnose_decomposition.py
 step history         $PY scripts/diagnose_history.py
-step srw             $PY scripts/diagnose_srw.py
+step walk            $PY scripts/diagnose_walk.py
 step null_model      $PY scripts/diagnose_null_model.py
 step windows         $PY scripts/diagnose_windows.py
 step mixture_bounds  $PY scripts/diagnose_mixture_bounds.py

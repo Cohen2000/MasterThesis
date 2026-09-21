@@ -26,7 +26,7 @@ def make_observation(patterns, counts, p):
     D = sum(r[1] for r in rows); M = sum(r[2] for r in rows)
     N = min(max(2, math.ceil((1+math.sqrt(1+8*D))/2)), 2*D) if D else 0
     o = {'arm': 'B', 'N_obs': int(N), 'D_obs': int(D), 'M_obs': int(M), 'Temporal_access': [1]*5,
-         'Events_per_window': [int(x) for x in counts.sum(0)], 'Walk_A': None, 'parameter': p, 'table': rows}
+         'Events_per_window': [int(x) for x in counts.sum(0)], 'parameter': p, 'table': rows}
     validate(o)
     return o
 
@@ -39,7 +39,7 @@ def generator_b_observations(draws=3):
             budget = analytic_parameters(g)
             for index in range(1, draws+1):
                 counts, _ = draw(g, 'B', index, 'test', budget)
-                out.append(make(g, 'B', budget, counts, None))
+                out.append(make(g, 'B', budget, counts))
     return out
 
 
@@ -191,7 +191,7 @@ class EventCandidateTests(unittest.TestCase):
 
     def test_empty_sample(self):
         o={'arm':'B','N_obs':0,'D_obs':0,'M_obs':0,'Temporal_access':[1]*5,
-           'Events_per_window':[0]*5,'Walk_A':None,'parameter':.5,
+           'Events_per_window':[0]*5,'parameter':.5,
            'table':[(f'{p:05b}',0,0) for p in range(1,32)]}
         validate(o)
         fit=mx.fit_events(o,.5,1.)

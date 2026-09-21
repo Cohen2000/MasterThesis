@@ -127,7 +127,7 @@ def development_check(out, models, medians):
     fold = {v: models[v]['synthetic'] for v in VARIANTS}
     records = []
     for r in rows:
-        predictions = all_references(parse(r['block']), fold, medians['synthetic'])
+        predictions = all_references(parse(r['block']), fold, medians['synthetic'], r['design_reference'])
         for method, p in predictions.items():
             records.append({'graph_id': r['graph_id'], 'family': graphs[r['graph_id']]['family'], 'arm': r['arm'],
                             'sample_index': r['sample_index'], 'method': method,
@@ -151,7 +151,7 @@ def main_references(out, models, medians, prepared=PREPARED):
     entries = {}; records = []
     for row in observations:
         o = parse(row['block']); g = row['graph_id']; fold = fold_for(g)
-        predictions = all_references(o, {v: models[v][fold] for v in VARIANTS}, medians[fold])
+        predictions = all_references(o, {v: models[v][fold] for v in VARIANTS}, medians[fold], row['design_reference'])
         entry = {m: {k: p[k] for k in ('prediction', 'status', 'fallback', 'flags') if k in p} for m, p in predictions.items()}
         entry.update(primary_corrector=dict(entry[PRIMARY_REFERENCE[row['arm']]]),
                      primary_corrector_name=PRIMARY_REFERENCE_NAME[row['arm']],

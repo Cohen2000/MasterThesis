@@ -24,6 +24,7 @@ real source is excluded from training with all of its derivations.
 from pathlib import Path
 import numpy as np
 from .common import ARMS, BUILD, COVERAGE_FRACTION, DESIGN_VERSION, digest, draws_for, observation_id, rng, seed, write_json
+from .baselines import design_reference
 from .observation import make, parse, serialize
 from .sampling import calibrate, draw
 from .synthetic import generate_one
@@ -182,12 +183,13 @@ def build_pool(out, specs, fraction=COVERAGE_FRACTION):
         for arm in ARMS:
             for index in range(1, draws_for(arm, budget, domain)+1):
                 counts, traversals = draw(g, arm, index, domain, budget, walk)
-                block = serialize(make(g, arm, budget, counts, traversals))
+                block = serialize(make(g, arm, budget, counts))
                 if serialize(parse(block)) != block: raise ValueError('block round trip')
                 rows.append({'id': observation_id(key, arm, index, fraction), 'graph_id': key, 'source_family': key,
                              'arm': arm, 'sample_index': index, 'domain': domain, 'block': block,
                              'block_sha256': digest(block), 'empty': parse(block)['D_obs'] == 0,
-                             'budget_matched': budget['budget_matched_by_arm'][arm]})
+                             'budget_matched': budget['budget_matched_by_arm'][arm],
+                             'design_reference': design_reference(g, traversals) if arm == 'S' else None})
         write_json(out/'observations'/f'{key}.json', {
             'key': key, 'family': spec['family'], 'partition': spec['partition'], 'stratum': spec['stratum'],
             'parameters': spec['parameters'], 'seed': spec['seed'], 'truth': list(g.truth),

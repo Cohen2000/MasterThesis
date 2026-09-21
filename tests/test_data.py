@@ -90,7 +90,7 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(spec['training']['random_state'], seed('extratrees', 'all_folds') % 2**32)
         self.assertEqual(spec['arm_H']['history_fraction'], .6)
         self.assertFalse(spec['evaluation']['llm_imputation'])
-        self.assertEqual(ARM_ID['S'], 'S-p888-20260921')
+        self.assertEqual(ARM_ID['S'], 'S-dbrw-p888-20260921')
 
 
 if __name__ == '__main__':

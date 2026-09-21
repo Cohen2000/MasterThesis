@@ -33,7 +33,7 @@ def observation_row(g, key, h, index, budget, models, median):
            'expected_coverage': budget['h_expected_cells']/g.cells, 'realized_coverage': int((counts > 0).sum())/g.cells,
            'saturated': budget['h_saturated'], 'target_unreachable': budget['h_target_unreachable'],
            'budget_matched': budget['h_within_tolerance'], **decompose(g.counts, counts, panel)}
-    o = make(g, 'H', budget, counts, None)
+    o = make(g, 'H', budget, counts)
     if o['D_obs']:
         fit = h_extrapolator(o)
         row.update(fitted_q=fit['q'], fit_status=fit['status'])

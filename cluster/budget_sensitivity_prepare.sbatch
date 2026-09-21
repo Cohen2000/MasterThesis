@@ -6,7 +6,7 @@
 #SBATCH --mem=64G
 #SBATCH --output=logs/budget_prepare_%A_%a.out
 # Offline preparation of one budget of the budget-sensitivity study (no model calls).
-# Run from a copy of the repository at $WS/budget_sensitivity_offline/repo:
+# Run from a repository copy that already contains results/panel888 (the offline study):
 #   sbatch --array=0-5 cluster/budget_sensitivity_prepare.sbatch
 # Array index i prepares budget BUDGETS[i]; index "check" verifies the environment.
 set -euo pipefail

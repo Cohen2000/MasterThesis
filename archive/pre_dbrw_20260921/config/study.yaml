@@ -1,0 +1,138 @@
+# Descriptive record of the final design. The executable constants live in
+# src/main_experiment/common.py; tests/test_data.py checks that both agree.
+protocol: docs/PROTOCOL_PANEL888_20260921.md
+entry_point: scripts/run_offline.sh
+results: results/panel888
+design_version: panel888-pwt-srw-20260921
+W: 5
+master_seed: 20260921
+target:
+  components:
+  - rho_2
+  - rho_3
+  - rho_4
+  - rho_5
+  primary_error: conditional_MAE2_valid_answers_only
+  secondary_error: conditional_ProfileMAE_valid_answers_only
+sampling:
+  R: uniform_fixed_node_panel_full_history
+  S: simple_random_walk_full_history
+  H: uniform_node_panel_time_suffix
+  B: independent_bernoulli_events
+arm_S:
+  start: uniform_V_full
+  transition: uniform_distinct_neighbor
+  stopping: fixed_L_no_restart_no_burnin
+  history: complete_history_of_traversed_dyads
+  Walk_A: raw_traversal_counts_grouped_by_K_e
+  reference: srw_traversal_frequency
+  reference_scope: stationary_or_asymptotic_within_visited_component_not_unbiased_finite_walk
+arm_H:
+  history_fraction: 0.6
+  sensitivity:
+  - 0.4
+  - 0.6
+  - 0.8
+  query: full_archive_end
+  cutoff: t_start + (1-h)*(t_end-t_start), inclusive
+  parameter: n_panel_history
+  panel_rule: integer n minimizing abs(pi(n)*sum(J_e)-T), ties smaller n
+  fixed_reference: homogeneous_zero_truncated_binomial
+  interpretation: working_model_not_unbiased
+  oracle_diagnostics:
+  - node_selection
+  - dyad_disappearance
+  - within_dyad_history
+  - net_history
+budget:
+  name: expected_observed_active_dyad_windows
+  fraction: 0.1
+  tolerance: 0.05
+  per_arm:
+    R: pi(n)*sum(K_e)
+    S: calibrated_fixed_L_unique_cell_discovery
+    H: pi(n)*sum(J_e)
+    B: event_thinning_cell_expectation
+  calibration_walks: 256
+  validation_walks: 1024
+  extended_validation_walks: 4096
+  max_relative_mcse: 0.01
+  walk_cap: min(100*D_full,1000000)
+  report_unmatched_and_component_unreachable: true
+replication:
+  sampler_draws_per_arm: 3
+  saturated_H_draws: 1
+  llm_repeats: 3
+  training_sampler_draws_per_arm: 5
+training:
+  sources: 16
+  real_test: leave_one_source_out
+  synthetic_pool:
+    train_graphs: 400
+    development_graphs: 100
+  block_weights:
+    real: 0.5
+    dar: 0.25
+    ad: 0.25
+  features: 134
+  feature_version: features-v6-panel888-20260921
+  estimators: 500
+  n_jobs: 1
+  random_state: 1858608657
+  random_state_rule: seed('extratrees','all_folds') modulo 2**32
+evaluation:
+  parser_main: strict_JSON_with_optional_single_whole_answer_fence
+  generation_answer_constraint: generic_JSON_object_after_reasoning
+  llm_imputation: false
+  trailing_JSON_extraction: false
+  weighting: equal_sources_then_equal_valid_answers_within_source
+  uncertainty: hierarchical_MCSE_conditional_on_fixed_panel
+  primary_references:
+    R: plugin_equivalent_corrector
+    S: srw_traversal_frequency
+    H: homogeneous_zero_truncated_binomial
+    B: beta_ztp_mixture
+  secondary:
+  - plugin
+  - training_median
+  - extratrees_pooled
+  - extratrees_real_only
+  - per_source
+llm_execution:
+  qwen_new_generation_arms:
+  - R
+  - S
+  - H
+  - B
+  reusable_arms_only_after_identity_audit: []
+  sol: disabled
+  deepseek: disabled
+panel:
+  real:
+  - sp_hospital
+  - sp_highschool2013
+  - copenhagen_bluetooth
+  - sp_workplace
+  - snap_email_eu
+  - snap_collegemsg
+  - snap_mathoverflow
+  - nr_digg_reply
+  surrogates: one deterministic P[w,t] per real source; suffix __pwt
+  synthetic:
+  - dar_a0_r1
+  - dar_a08_r1
+  - dar_a0_r2
+  - dar_a08_r2
+  - ad_memoryless_r1
+  - ad_memory_r1
+  - ad_memoryless_r2
+  - ad_memory_r2
+surrogates:
+  production_index: 0
+  offline_null_shuffles: 99
+  representation: labeled canonical event records; retain coincident dyad/timestamp
+    multiplicities
+  training: never; parent-excluded LOSO
+  budget: separately T=0.10*sum(K_e)
+  primary_paired_error: AE_Delta_2
+  secondary_paired_error: Delta_ProfileAE

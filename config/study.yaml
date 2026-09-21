@@ -16,17 +16,19 @@ target:
   secondary_error: conditional_ProfileMAE_valid_answers_only
 sampling:
   R: uniform_fixed_node_panel_full_history
-  S: simple_random_walk_full_history
+  S: degree_biased_random_walk_full_history
   H: uniform_node_panel_time_suffix
   B: independent_bernoulli_events
 arm_S:
+  walk: degree_biased_random_walk_alpha_1
+  transition: P(u->v) = d_v / sum_{x in N(u)} d_x, d = distinct neighbours in the full-archive support
   start: uniform_V_full
-  transition: uniform_distinct_neighbor
   stopping: fixed_L_no_restart_no_burnin
-  history: complete_history_of_traversed_dyads
-  Walk_A: raw_traversal_counts_grouped_by_K_e
-  reference: srw_traversal_frequency
-  reference_scope: stationary_or_asymptotic_within_visited_component_not_unbiased_finite_walk
+  history: complete_history_of_each_traversed_dyad_listed_once
+  model_input: deduplicated_dyad_pattern_table_and_L_only
+  reference: stationary_inverse_traversal_weight
+  reference_formula: sum_t I(K_e_t>=k)/(d_u d_v) / sum_t 1/(d_u d_v) over the full traversal sequence
+  reference_scope: consistent_for_component_mixture_target_not_finite_sample_unbiased
 arm_H:
   history_fraction: 0.6
   sensitivity:
@@ -74,8 +76,8 @@ training:
     real: 0.5
     dar: 0.25
     ad: 0.25
-  features: 134
-  feature_version: features-v6-panel888-20260921
+  features: 129
+  feature_version: features-v7-panel888-20260921
   estimators: 500
   n_jobs: 1
   random_state: 1858608657
@@ -89,7 +91,7 @@ evaluation:
   uncertainty: hierarchical_MCSE_conditional_on_fixed_panel
   primary_references:
     R: plugin_equivalent_corrector
-    S: srw_traversal_frequency
+    S: stationary_inverse_traversal_weight
     H: homogeneous_zero_truncated_binomial
     B: beta_ztp_mixture
   secondary:

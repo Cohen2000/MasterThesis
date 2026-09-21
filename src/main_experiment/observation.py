@@ -1,11 +1,15 @@
 """Observations: the observed-only summary of one sampler draw, its text block,
-its prompt messages, and the 134 features of the learned reference.
+its prompt messages, and the 129 features of the learned reference.
+
+Every arm yields the same kind of observation: distinct observed dyads grouped by
+their window pattern, the arm's design parameter and, for H, the history
+fraction. Nothing about how often or through which vertices a dyad was reached
+(e.g. walk traversal counts or degrees) is part of it.
 
 An observation lists, for every observed window pattern (1 = at least one
 observed event in the window, 0 = none, ? = window not retrievable), the number
 of observed dyads and events. Dyads without an observed event are absent.
 """
-import math
 import numpy as np
 from .common import ARMS, ROOT, H_FRACTION, H_SENSITIVITY
 
@@ -13,21 +17,20 @@ PARAMETER_NAME = {'R': 'n_panel', 'S': 'L', 'H': 'n_panel_history', 'B': 'p'}
 INTEGER_PARAMETER_ARMS = ('R', 'S', 'H')
 PROMPTS = ROOT/'config/main_experiment'
 RULE_FILES = {'R': 'rule_R.txt', 'S': 'rule_S.txt', 'H': 'rule_H_time_v3.txt', 'B': 'rule_B.txt'}
-AUXILIARY_FILES = {'S': 'aux_S.txt'}
 HEADER = 'pattern,dyads,events'
 ALL_PATTERNS = [f'{p:05b}' for p in range(1, 32)]
 
-FEATURE_VERSION = 'features-v6-panel888-20260921'
+FEATURE_VERSION = 'features-v7-panel888-20260921'
 BASE_FEATURE_NAMES = (['N_obs', 'D_obs', 'M_obs']+[f'window_{i}' for i in range(1, 6)]+
                       [f'access_{i}' for i in range(1, 6)]+
                       [f'{p}_{x}' for p in ALL_PATTERNS for x in ('dyads', 'events')]+
-                      [f'A_{i}' for i in range(1, 6)]+[f'arm_{a}' for a in ARMS]+
+                      [f'arm_{a}' for a in ARMS]+
                       [PARAMETER_NAME[a] for a in ARMS]+['history_fraction'])
 DERIVED_FEATURE_NAMES = ([f'share_{p}_dyads' for p in ALL_PATTERNS]+[f'share_window_{i}' for i in range(1, 6)]+
                          ['events_per_dyad']+[f'plugin_rho_{k}' for k in range(2, 6)]+
                          [f'corrector_rho_{k}' for k in range(2, 6)])
 FEATURE_NAMES = BASE_FEATURE_NAMES+DERIVED_FEATURE_NAMES
-assert len(FEATURE_NAMES) == 134 and len(set(FEATURE_NAMES)) == 134
+assert len(FEATURE_NAMES) == 129 and len(set(FEATURE_NAMES)) == 129
 
 
 def access_for(arm, h=H_FRACTION):
@@ -45,7 +48,7 @@ def patterns_for(arm, h=H_FRACTION):
     return ['?'*(5-n)+format(p, f'0{n}b') for p in range(1, 2**n)]
 
 
-def make(g, arm, budget, counts, traversals):
+def make(g, arm, budget, counts):
     """Observed-only summary of a draw; `counts` are observed events per dyad and window."""
     per_dyad = counts.sum(1)
     occupied = per_dyad > 0
@@ -60,12 +63,10 @@ def make(g, arm, budget, counts, traversals):
     for p in patterns_for(arm, h):
         index = int(p.replace('?', '0'), 2)
         table.append((p, int(dyads[index]), int(events[index])))
-    # Walk_A_j: traversals of observed dyads with K_e = j (S only, raw counts summing to L).
-    walk_a = np.bincount(g.K, weights=traversals, minlength=6)[1:6].tolist() if arm == 'S' else None
     obs = {'arm': arm, 'N_obs': int(len(np.unique(g.ends[occupied]))), 'D_obs': int(occupied.sum()),
            'M_obs': int(counts.sum()), 'Temporal_access': access,
            'Events_per_window': [int(x) if a else None for x, a in zip(counts.sum(0), access)],
-           'Walk_A': walk_a, 'parameter': budget[PARAMETER_NAME[arm]], 'table': table}
+           'parameter': budget[PARAMETER_NAME[arm]], 'table': table}
     if arm == 'H': obs['history_fraction'] = h
     validate(obs)
     return obs
@@ -110,12 +111,6 @@ def validate(o):
         if not _count(parameter): raise ValueError('integer parameter')
         if arm in ('R', 'H') and N > parameter: raise ValueError('panel smaller than observed nodes')
     elif not isinstance(parameter, (int, float)) or not 0 < parameter <= 1: raise ValueError('p')
-    A = o['Walk_A']
-    if arm == 'S':
-        if A is None or len(A) != 5 or any(not math.isfinite(x) or x < 0 for x in A): raise ValueError('A')
-        if bool(D) != bool(sum(A)): raise ValueError('walk mass')
-        if any(x != int(x) for x in A) or sum(A) != parameter: raise ValueError('SRW traversal counts must sum to L')
-    elif A is not None: raise ValueError('inapplicable A')
 
 
 def _format(x):
@@ -130,7 +125,6 @@ def serialize(o):
     lines += [f'{k}={o[k]}' for k in ('N_obs', 'D_obs', 'M_obs')]
     lines += ['Events_per_window='+','.join(map(_format, o['Events_per_window'])),
               PARAMETER_NAME[o['arm']]+'='+_format(o['parameter'])]
-    if o['arm'] == 'S': lines.append('Walk_A='+','.join(map(_format, o['Walk_A'])))
     if o['arm'] == 'H': lines.append('History_fraction='+_format(o['history_fraction']))
     lines += [HEADER]+[','.join(map(str, row)) for row in o['table']]
     return '\n'.join(lines)
@@ -149,7 +143,6 @@ def parse(text):
     name = names.pop()
     arm = next(a for a, p in PARAMETER_NAME.items() if p == name)
     expected = {'Temporal_access', 'N_obs', 'D_obs', 'M_obs', 'Events_per_window', name}
-    if arm == 'S': expected.add('Walk_A')
     if arm == 'H': expected.add('History_fraction')
     if set(fields) != expected: raise ValueError('unexpected input fields')
     rows = []
@@ -161,7 +154,6 @@ def parse(text):
          **{k: int(fields[k]) for k in ('N_obs', 'D_obs', 'M_obs')},
          'Temporal_access': list(map(int, fields['Temporal_access'].split(','))),
          'Events_per_window': [None if x == 'NA' else int(x) for x in fields['Events_per_window'].split(',')],
-         'Walk_A': list(map(float, fields['Walk_A'].split(','))) if arm == 'S' else None,
          'table': rows}
     if arm == 'H': o['history_fraction'] = float(fields['History_fraction'])
     validate(o)
@@ -169,8 +161,9 @@ def parse(text):
 
 
 def features(o):
-    """134 features: raw observed counts and design parameters, then scale-free
-    shares and the plug-in / arm-specific corrector profiles."""
+    """129 features, all computed from the observation block: raw observed counts
+    and design parameters, then scale-free shares and the plug-in / arm-specific
+    corrector profiles (the S corrector is the plug-in)."""
     from .baselines import plugin, corrector
     validate(o)
     table = {r[0].replace('?', '0'): r[1:] for r in o['table']}
@@ -179,7 +172,6 @@ def features(o):
     f = [o[k] for k in ('N_obs', 'D_obs', 'M_obs')]
     f += [x or 0 for x in o['Events_per_window']]+o['Temporal_access']
     f += [x for p in ALL_PATTERNS for x in cell(p)]
-    f += o['Walk_A'] or [0]*5
     f += [int(o['arm'] == a) for a in ARMS]
     f += [o['parameter'] if a == o['arm'] else 0 for a in ARMS]
     f += [o.get('history_fraction', 1.)]
@@ -200,14 +192,11 @@ def features(o):
 
 
 def messages(block):
-    """System and user message: common task text, the arm's sampling rule,
-    auxiliary statistics (S only) and the observation block."""
+    """System and user message: common task text, the arm's sampling rule and the observation block."""
     o = parse(block)
     system = (PROMPTS/'system.txt').read_text().rstrip('\n')
     parts = [(PROMPTS/'user_prefix.txt').read_text().rstrip('\n'),
              'Sampling rule: '+(PROMPTS/RULE_FILES[o['arm']]).read_text().rstrip('\n')]
-    if o['arm'] in AUXILIARY_FILES:
-        parts.append('Auxiliary statistics: '+(PROMPTS/AUXILIARY_FILES[o['arm']]).read_text().rstrip('\n'))
     parts.append(block)
     parts.append('Return the four full-archive estimates in the specified JSON format.')
     return [{'role': 'system', 'content': system}, {'role': 'user', 'content': '\n'.join(parts)}]

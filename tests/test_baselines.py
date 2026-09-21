@@ -17,17 +17,22 @@ class CorrectorTests(unittest.TestCase):
         self.assertEqual((profile(0), profile(1)), ([0.]*4, [1.]*4))
         for n in (3, 5): self.assertEqual((activity(1, n), activity(n, n)), (0, 1))
         g = graph([('a', 'b', t) for t in (0, .2, .4, .6, 1.)])
-        self.assertEqual(corrector(make(g, 'B', {'p': .1}, g.counts, None)), [1.]*4)   # q = 1
+        self.assertEqual(corrector(make(g, 'B', {'p': .1}, g.counts)), [1.]*4)   # q = 1
         c = np.zeros_like(g.counts); c[0, 0] = 1
-        self.assertEqual(corrector(make(g, 'B', {'p': .2}, c, None)), [0.]*4)          # theta = 0
+        self.assertEqual(corrector(make(g, 'B', {'p': .2}, c)), [0.]*4)          # theta = 0
 
-    def test_s_reference_is_raw_traversal_frequency(self):
+    def test_s_corrector_is_the_plugin_and_the_design_reference_uses_the_traversal_log(self):
+        from main_experiment.baselines import design_reference, plugin
         g = tiny(); b = analytic_parameters(g) | {'L': 51}
         with tempfile.TemporaryDirectory() as d:
             counts, traversals = draw(g, 'S', 1, 'test', b, Walk(g, d))
-        o = make(g, 'S', b, counts, traversals)
-        self.assertEqual(sum(o['Walk_A']), 51)
-        np.testing.assert_allclose(corrector(o), [traversals[g.K >= k].sum()/51 for k in range(2, 6)])
+        o = make(g, 'S', b, counts)
+        self.assertEqual(corrector(o), plugin(o))                  # the model-side observation has no traversal data
+        degree = np.bincount(g.ends.ravel(), minlength=g.N)
+        w = traversals/(degree[g.ends[:, 0]]*degree[g.ends[:, 1]])
+        np.testing.assert_allclose(design_reference(g, traversals), [w[g.K >= k].sum()/w.sum() for k in range(2, 6)])
+        repeated = design_reference(g, 2*traversals)                  # repeated traversals keep their weight
+        np.testing.assert_allclose(repeated, design_reference(g, traversals))
 
     def test_b_hurdle_matches_direct_likelihood_optimisation(self):
         for D, S, M, p in [(20, 37, 80, .4), (20, 90, 95, .2), (50, 75, 250, .8), (30, 50, 52, .7)]:
@@ -39,7 +44,7 @@ class CorrectorTests(unittest.TestCase):
             patterns = (counts > 0)@np.array([16, 8, 4, 2, 1])
             table = [(f'{q:05b}', int((patterns == q).sum()), int(counts[patterns == q].sum())) for q in range(1, 32)]
             o = {'arm': 'B', 'N_obs': D+1, 'D_obs': D, 'M_obs': M, 'Temporal_access': [1]*5,
-                 'Events_per_window': counts.sum(0).tolist(), 'Walk_A': None, 'parameter': p, 'table': table}
+                 'Events_per_window': counts.sum(0).tolist(), 'parameter': p, 'table': table}
 
             def nll(z):
                 q, r = z; d = -np.expm1(-r)/-np.expm1(-r/p); theta = q*d
@@ -57,7 +62,7 @@ class CorrectorTests(unittest.TestCase):
         for h in (.4, .6, .8):
             n = round(5*h); rng = np.random.default_rng(92)
             counts = np.zeros_like(g.counts); counts[:, 5-n:] = rng.random((g.D, n)) < .55
-            fit = h_extrapolator(make(g, 'H', h_parameters(g, g.cells, h), counts, None))
+            fit = h_extrapolator(make(g, 'H', h_parameters(g, g.cells, h), counts))
             j = (counts > 0).sum(1); j = j[j > 0]
             best = minimize_scalar(lambda q: -np.sum(binom.logpmf(j, n, q)-math.log1p(-(1-q)**n)),
                                    bounds=(1e-8, 1-1e-8), method='bounded')
@@ -68,12 +73,12 @@ class CorrectorTests(unittest.TestCase):
         g = complete6(); b = h_parameters(g, g.cells, .6)
         for windows, expected in (([4], [0.]*4), ([2, 3, 4], [1.]*4)):
             c = np.zeros_like(g.counts); c[:, windows] = 1
-            self.assertEqual(h_extrapolator(make(g, 'H', b, c, None))['prediction'], expected)
-        with self.assertRaises(ValueError): h_extrapolator(make(g, 'H', b, np.zeros_like(g.counts), None))
+            self.assertEqual(h_extrapolator(make(g, 'H', b, c))['prediction'], expected)
+        with self.assertRaises(ValueError): h_extrapolator(make(g, 'H', b, np.zeros_like(g.counts)))
 
     def test_empty_observation_uses_the_fold_median_everywhere(self):
         g = tiny()
-        empty = make(g, 'B', {'p': .5}, np.zeros_like(g.counts), None)
+        empty = make(g, 'B', {'p': .5}, np.zeros_like(g.counts))
         references = all_references(empty, {}, [.4]*4)
         self.assertTrue(all(r['prediction'] == [.4]*4 and r['status'] == 'empty_sample' for r in references.values()))
 

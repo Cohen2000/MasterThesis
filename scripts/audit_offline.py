@@ -42,7 +42,9 @@ from main_experiment.training import FOLDS, FOREST_SEED, load_models
 
 PREVIOUS = ROOT/'archive/pre_panel888_20260921'
 PREVIOUS_RUN = PREVIOUS/'results/main_experiment/cells10_final_20260920'
-PROMPT_FILES = ('system.txt', 'user_prefix.txt', 'rule_R.txt', 'rule_S.txt', 'rule_H_time_v3.txt', 'rule_B.txt', 'aux_S.txt')
+PROMPT_FILES = ('system.txt', 'user_prefix.txt', 'rule_R.txt', 'rule_S.txt', 'rule_H_time_v3.txt', 'rule_B.txt')
+UNCHANGED_SINCE_FREEZE = ('system.txt', 'user_prefix.txt', 'rule_R.txt', 'rule_H_time_v3.txt', 'rule_B.txt')
+WALK_PATHS = 1000
 
 
 def generator(*fields):
@@ -147,15 +149,21 @@ def audit_observations(graphs, budgets):
             assert 1 <= row['sample_index'] <= draws_for(row['arm'], b, domain)
             if row['arm'] == 'S' and g.key not in walks: walks[g.key] = Walk(g, BUILD)
             c, traversals = redraw(g, row['arm'], row['sample_index'], domain, b, walks.get(g.key))
-            assert serialize(make(g, row['arm'], b, c, traversals)) == row['block']
+            assert serialize(make(g, row['arm'], b, c)) == row['block']
+            if row['arm'] == 'S':                        # internal reference, recomputed from the traversal log
+                degree = np.bincount(g.ends.ravel(), minlength=g.N)
+                w = traversals/(degree[g.ends[:, 0]]*degree[g.ends[:, 1]])
+                np.testing.assert_allclose(row['design_reference'], [w[g.K >= k].sum()/w.sum() for k in range(2, 6)],
+                                           rtol=1e-12)
+            else:
+                assert row['design_reference'] is None
             assert digest(row['block']) == row['block_sha256'] and serialize(parse(row['block'])) == row['block']
             assert messages(row['block']) == row['messages'] and digest(row['messages']) == row['prompt_sha256']
-            assert len(features(parse(row['block']))) == len(FEATURE_NAMES) == 134
+            assert len(features(parse(row['block']))) == len(FEATURE_NAMES) == 129
             assert row['truth'] == g.truth and row['design_version'] == DESIGN_VERSION
             counts[domain] += 1
-            if domain == 'sample':
-                assert (row['arm'] == 'S') == ('Walk_A=' in row['block'])
-                assert (row['arm'] == 'S') == ('Auxiliary statistics:' in row['messages'][1]['content'])
+            # Every arm, S included, shows only deduplicated dyads: no walk statistics anywhere.
+            assert 'Walk_A' not in row['block'] and 'Auxiliary' not in row['messages'][1]['content']
     return dict(counts)
 
 
@@ -253,7 +261,7 @@ def audit_requests(design):
 def audit_prompt_templates():
     spec = ROOT/'config/main_experiment'
     text = {f: (spec/f).read_text() for f in PROMPT_FILES}
-    for f in PROMPT_FILES:
+    for f in UNCHANGED_SINCE_FREEZE:
         assert sha(spec/f) == sha(PREVIOUS/'config/main_experiment'/f), f'template changed: {f}'
     required = {
         'system.txt': ['Return your final answer as one JSON object with exactly the keys rho_2, rho_3, rho_4, rho_5'],
@@ -263,17 +271,17 @@ def audit_prompt_templates():
                             '? = temporally inaccessible window',
                             'Dyads without any observed event are omitted, so the all-zero pattern is not listed'],
         'rule_R.txt': ['Uniform node panel', 'Accessible zeros for listed dyads therefore indicate true inactive windows.'],
-        'rule_S.txt': ['Simple random walk', 'initial vertex is drawn uniformly from V_full',
-                       'next vertex is chosen uniformly among the distinct neighbors',
+        'rule_S.txt': ['Degree-biased random walk', 'initial vertex is drawn uniformly from V_full',
+                       'with probability d_v / (sum of d_x over all neighbors x of u)',
+                       'Each observed dyad is listed once', 'traversal counts and vertex degrees are not reported',
                        'Exactly L transitions are taken, with no burn-in, no restart, and no stopping'],
-        'aux_S.txt': ['A_j = sum_{e: r_e>0, K_e=j} r_e', 'sum to L'],
         'rule_H_time_v3.txt': ['common query is made at the full archive end (normalized time 1)', 't >= 1-History_fraction'],
         'rule_B.txt': ['Bernoulli event sampling',
                        'An observed 0 in an accessible window can therefore be a false negative']}
     for f, phrases in required.items():
         for phrase in phrases: assert phrase in text[f], (f, phrase)
-    forbidden = {'user_prefix.txt': ['Walk_A', '10%', 'corrector', 'baseline'], 'rule_S.txt': ['Walk_A'],
-                 'aux_S.txt': ['stationary', 'corrector']}
+    forbidden = {'user_prefix.txt': ['Walk_A', '10%', 'corrector', 'baseline'],
+                 'rule_S.txt': ['Walk_A', 'stationary', 'corrector', 'uniformly among']}
     for f, phrases in forbidden.items():
         for phrase in phrases: assert phrase.lower() not in text[f].lower(), (f, phrase)
     return {f: sha(spec/f) for f in PROMPT_FILES}
@@ -295,7 +303,7 @@ def audit_seeds():
         for arm in ARMS:
             for i in range(1, draws_for(arm, budget, domain)+1): seed(domain, key, ARM_ID[arm], i)
     for key in MAIN_KEYS:
-        for i in range(1, 33): seed('srw_diagnostic', key, ARM_ID['S'], i)
+        for i in range(1, WALK_PATHS+1): seed('walk_diagnostic', key, ARM_ID['S'], i)
     for key in REAL_TEST:
         seed('pwt_productive', key)
         for i in range(1, 100): seed('pwt_null_diagnostic', key, '', i)
@@ -319,10 +327,10 @@ def audit_diagnostics():
     windows = read_json(DIAGNOSTICS/'windows/report.json')
     assert windows['rows'] == 24*19 and windows['census_graphs'] == 24
     assert len(pd.read_csv(DIAGNOSTICS/'history/sources.csv')) == 24*3
-    assert len(pd.read_csv(DIAGNOSTICS/'srw/paths.csv')) == 24*32*2
+    assert len(pd.read_csv(DIAGNOSTICS/'walk/paths.csv')) == 24*WALK_PATHS*2
     for name in ('decomposition', 'mixture_bounds'): assert (DIAGNOSTICS/name/'report.json').exists()
     return {name: sha(DIAGNOSTICS/name/'report.json')
-            for name in ('decomposition', 'history', 'srw', 'null_model', 'windows', 'mixture_bounds')}
+            for name in ('decomposition', 'history', 'walk', 'null_model', 'windows', 'mixture_bounds')}
 
 
 def main():

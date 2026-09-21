@@ -6,10 +6,11 @@ T = 0.10 * sum_e K_e, computed per graph (surrogates separately from parents):
   R  uniform node panel of size n; every dyad with both endpoints in the panel is
      observed with its complete history. n minimises |pi(n) sum_e K_e - T| with
      pi(n) = n(n-1)/(N(N-1)).
-  S  one simple random walk: uniform start vertex, uniform distinct neighbour,
-     exactly L transitions, no burn-in or restart; every traversed dyad is
-     observed with its complete history. L is calibrated on 256 walks and
-     validated on 1024 (4096 if the relative MCSE exceeds 1%).
+  S  one degree-biased random walk: uniform start vertex, next vertex v with
+     probability d_v / sum_{x in N(u)} d_x (d = distinct neighbours in the
+     full-archive support), exactly L transitions, no burn-in or restart; every
+     traversed dyad is observed once with its complete history. L is calibrated
+     on 256 walks and validated on 1024 (4096 if the relative MCSE exceeds 1%).
   H  uniform node panel, but only events with t >= t_start + (1-h)(t_end-t_start)
      are retrievable (h = 0.60). n minimises |pi(n) sum_e J_e - T|, where J_e is
      the number of windows with a retrievable event.
@@ -39,7 +40,7 @@ MAX_RELATIVE_MCSE = 0.01
 
 
 class Walk:
-    """Simple random walk on the dyad support, implemented in walk_kernel.cpp.
+    """Degree-biased random walk on the dyad support, implemented in walk_kernel.cpp.
 
     A first traversal of dyad e adds K_e to the walk's discovered volume, the
     quantity calibrated against T. Event multiplicities never affect transitions.
@@ -54,7 +55,7 @@ class Walk:
             subprocess.run(['g++', '-O3', '-std=c++17', '-shared', '-fPIC', str(source), '-o', str(tmp)], check=True)
             tmp.replace(library)
         self.kernel = ctypes.CDLL(str(library)).walks
-        self.kernel.argtypes = ([ctypes.c_int64, ctypes.c_int64]+[ctypes.c_void_p]*6+
+        self.kernel.argtypes = ([ctypes.c_int64, ctypes.c_int64]+[ctypes.c_void_p]*7+
                                 [ctypes.c_int64, ctypes.c_int64]+[ctypes.c_void_p]*4)
         self.kernel.restype = None
         self.g = g
@@ -64,7 +65,13 @@ class Walk:
         order = np.argsort(nodes, kind='stable')
         self.neighbors = np.ascontiguousarray(np.r_[v, u][order], dtype=np.int64)
         self.edges = np.ascontiguousarray(np.tile(np.arange(g.D), 2)[order], dtype=np.int64)
-        self.ptr = np.r_[0, np.cumsum(np.bincount(nodes, minlength=g.N))].astype(np.int64)
+        self.degree = np.bincount(nodes, minlength=g.N).astype(np.int64)
+        self.ptr = np.r_[0, np.cumsum(self.degree)].astype(np.int64)
+        # Cumulative neighbour degrees within each vertex's adjacency range.
+        neighbour_degree = self.degree[self.neighbors]
+        start = np.repeat(self.ptr[:-1], self.degree)
+        total = np.cumsum(neighbour_degree)
+        self.cumulative = np.ascontiguousarray(total-np.r_[0, total][start], dtype=np.int64)
         adjacency = coo_matrix((np.ones(len(nodes)), (nodes, np.r_[v, u])), shape=(g.N, g.N)).tocsr()
         self.n_components, self.components = connected_components(adjacency, directed=False)
         self.weight = np.ascontiguousarray(g.K, dtype=np.int64)
@@ -82,7 +89,7 @@ class Walk:
         volumes = np.zeros(len(seeds), dtype=np.int64)
         counts = np.zeros((len(seeds), self.g.D), dtype=np.int64) if traversals else None
         executed = np.zeros(len(seeds), dtype=np.int64)
-        arrays = [self.ptr, self.neighbors, self.edges, self.weight, self.component_volume, seeds]
+        arrays = [self.ptr, self.neighbors, self.edges, self.cumulative, self.weight, self.component_volume, seeds]
         self.kernel(self.g.N, self.g.D, *[a.ctypes.data for a in arrays], len(seeds), L,
                     delta.ctypes.data, volumes.ctypes.data,
                     counts.ctypes.data if counts is not None else None, executed.ctypes.data)
@@ -235,7 +242,7 @@ def calibrate(g, build_dir, fraction=COVERAGE_FRACTION):
     if not by_arm['B']: reasons.append('B:expected_volume_outside_5_percent')
     budget.update(calibration)
     budget.update({k: v for k, v in validation.items() if k != 'validation_volumes'})
-    budget.update({'walk_type': 'simple_random_walk', 'walk_components': walk.n_components,
+    budget.update({'walk_type': 'degree_biased_random_walk', 'walk_components': walk.n_components,
                    'walk_expected_component_ceiling': ceiling, 'walk_structural_target_unreachable': ceiling < T,
                    'validation_relative_error': (validation['validation_mean']-T)/T,
                    'walk_budget_matched': not walk_reasons, 'walk_unmatched_reasons': walk_reasons,

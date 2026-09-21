@@ -16,6 +16,7 @@ from .common import (ARMS, CONFIGS, DESIGN_VERSION, LLM_REPEATS, MAIN_KEYS, MAST
                      ROOT, SEEDS, SURROGATE_PARENT, SURROGATES, SYNTH, TRAIN, code_hashes, digest, draws_for,
                      fresh_directory, graph_stratum, observation_id, parent_source, planned_sizes, read_json,
                      sha, write_csv, write_json)
+from .baselines import design_reference
 from .data import load_graph, prepare_real, save_graph
 from .observation import FEATURE_VERSION, features, make, messages, parse, serialize
 from .requests import EXECUTION_POLICY, planned
@@ -42,7 +43,9 @@ def build_graph(key, out, raw_dir):
 
 
 def observation_row(g, arm, index, domain, budget, counts, traversals):
-    obs = make(g, arm, budget, counts, traversals)
+    """One stored observation. Only `block`/`messages` are model input; `truth` and the
+    S design_reference (from the traversal log) are internal and never shown."""
+    obs = make(g, arm, budget, counts)
     block = serialize(obs)
     parsed = parse(block)
     if not np.array_equal(features(obs), features(parsed)): raise AssertionError('serialization changes features')
@@ -51,7 +54,8 @@ def observation_row(g, arm, index, domain, budget, counts, traversals):
             'stratum': graph_stratum(g.key), 'parent_source': parent_source(g.key), 'arm': arm,
             'sample_index': index, 'domain': domain, 'empty': parsed['D_obs'] == 0,
             'block': block, 'block_sha256': digest(block), 'messages': prompt, 'prompt_sha256': digest(prompt),
-            'truth': g.truth, 'design_version': DESIGN_VERSION,
+            'truth': g.truth, 'design_reference': design_reference(g, traversals) if arm == 'S' else None,
+            'design_version': DESIGN_VERSION,
             'deterministic_draw': draws_for(arm, budget, domain) == 1,
             'budget_matched': budget['budget_matched_by_arm'][arm],
             'budget_matched_all_arms': budget['budget_matched'],
