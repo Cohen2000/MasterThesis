@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Build the durable archive of a Qwen run (main run, or the H revision with --hrecent5).
+"""Build the durable archive of one Qwen production run: $WS/<EXP>/mainexp/archive.
+
+usage: python build_archive.py --exp <EXP>
 
 The scratch workspace expires, so everything needed to re-read, re-check or
 re-evaluate this run is collected once, hashed, and verified by reading it back.
@@ -7,23 +9,18 @@ Included: the raw answers, the request manifest, the observation blocks, the
 prompts as the tokenizer actually rendered them for each mode, the model,
 tokenizer and chat-template hashes, the pinned environment and the job logs.
 """
-import hashlib, json, os, shutil, sys, tarfile, time
+import argparse, hashlib, json, shutil, sys, time
 from pathlib import Path
 
 WS = Path('/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot')
 MODEL = WS / 'models/Qwen3.6-35B-A3B'
-# --hrecent5: archive the H-revision generation (only its own H prompts rendered).
-# --exp NAME: archive the experiment directory $WS/NAME (all prompts rendered).
-HREC = '--hrecent5' in sys.argv
-ARGS = [a for a in sys.argv[1:] if a != '--hrecent5']
-NAME = None
-if '--exp' in ARGS:
-    i = ARGS.index('--exp'); NAME = ARGS[i + 1]; del ARGS[i:i + 2]
-if HREC: NAME = 'hrecent5'
-EXP = WS / (f'{NAME}/mainexp' if NAME else 'mainexp')
+NAME = argparse.ArgumentParser()
+NAME.add_argument('--exp', required=True)
+NAME = NAME.parse_args().exp
+EXP = WS / NAME / 'mainexp'
 RUN = EXP / 'run'
-SRC = WS / (f'{NAME}/src' if NAME else 'src')
-OUT = Path(ARGS[0] if ARGS else EXP / 'archive')
+SRC = WS / NAME / 'src'
+OUT = EXP / 'archive'
 MODES = {'thinking': True, 'nonthinking': False}
 
 
@@ -47,8 +44,6 @@ def main():
     n = 0
     with open(rendered, 'w') as out:
         for f in sorted((RUN / 'observations/sample').glob('*.json')):
-            if HREC and '__H-recent5__' not in f.name:
-                continue
             d = json.loads(f.read_text())
             for mode, think in MODES.items():
                 text = tok.apply_chat_template(d['messages'], tokenize=False,
@@ -84,9 +79,9 @@ def main():
     logs = OUT / 'logs'; logs.mkdir(exist_ok=True)
     for f in (EXP / 'logs').glob('*.out'):
         shutil.copy2(f, logs / f.name)
-    for extra in ('probe_result_tp1.json', 'qwen_files.txt', 'run_qwen_engine.py', 'qwen_hrecent5.sbatch',
+    for extra in ('run_qwen_engine.py',
                   'qwen_engine.sbatch', 'submit_production.sh', 'production_jobs.txt',
-                  'pip_freeze_job.txt', 'status_final.json', 'SPEC_COMMIT'):
+                  'production_submission_started.txt', 'pip_freeze_job.txt', 'status_final.json', 'SPEC_COMMIT'):
         p = EXP / extra
         if p.exists():
             shutil.copy2(p, OUT / extra)

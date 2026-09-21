@@ -1,13 +1,6 @@
-# Source code
+# Source
 
-`main_experiment/` contains the executable implementation of the current
-`cells10-json-20260918` experiment.
-
-Primary offline entry point: `scripts/run_main_offline.py`.
-
-The package contains data loading, observation construction, sampling, synthetic
-generation, baseline training, request construction, evaluation, integrity checks
-and execution support.
-
-A small number of top-level modules are retained because the current experiment
-imports reusable dataset or graph primitives from them.
+`main_experiment/` implements the final study panel888-pwt-srw-20260921 (see the
+code map in the top-level README and docs/PROTOCOL_PANEL888_20260921.md).
+`census.py` and `dataset_census.py` provide the audited raw-source parsers and the
+inherited dataset-census grids used by the window diagnostics.

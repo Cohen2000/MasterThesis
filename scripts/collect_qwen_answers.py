@@ -11,22 +11,17 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from main_experiment.common import read_json
+from main_experiment.common import PREPARED
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--run', required=True, help='offline run directory with requests.jsonl')
     ap.add_argument('--answers', required=True, help='directory holding <mode>_r<n>/ result files')
     ap.add_argument('--out', required=True)
     ap.add_argument('--configs', default='qwen_thinking,qwen_nonthinking')
     ap.add_argument('--allow-incomplete', action='store_true')
-    ap.add_argument('--extract-trailing-json', action='store_true',
-                    help='Forbidden historical option; always rejected by the current protocol.')
     a = ap.parse_args()
-
-    if a.extract_trailing_json: raise ValueError('trailing JSON extraction is excluded from the revised protocol')
-    run = Path(a.run)
+    run = PREPARED
     configs = set(a.configs.split(','))
     planned = [json.loads(l) for l in (run / 'requests.jsonl').read_text().splitlines()]
     known={r['id']:r for r in planned}
@@ -59,9 +54,10 @@ def main():
                                         and not d.get('reasoning_closed', True)),
               'empty_final_text': sum(1 for d in found.values()
                                       if d.get('status') == 'completed'
-                                      and not (d.get('final_text') or '').strip()),
-              'extract_trailing_json': bool(a.extract_trailing_json)}
+                                      and not (d.get('final_text') or '').strip())}
     print(json.dumps(report, indent=1))
+    Path(a.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(a.out).with_name('collection_report.json').write_text(json.dumps(report, indent=1, sort_keys=True)+'\n')
     if missing and not a.allow_incomplete:
         Path(a.out + '.missing.txt').write_text('\n'.join(missing) + '\n')
         sys.exit(f'{len(missing)} of {len(expected)} answers missing; '

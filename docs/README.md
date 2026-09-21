@@ -1,15 +1,9 @@
-# Current experiment documentation
+# Documentation
 
-Current design/generation: `cells10-final-20260920`.
-
-S is a simple random walk; H retains the common time suffix, primary h=0.60.
-
-- `PROTOCOL_SRW_20260920.md` — current protocol and analysis definitions
-- `RUNBOOK_FINAL_20260920.md` — final-only collection and reproduction
-- `RESULTS_FINAL_20260920.md` — final Qwen and reference results
-- `AUDIT_FINAL_20260920.md` — scope, provenance exceptions and thesis limitations
-- `MAIN_FREEZE_SOURCE.txt` — historical supplied source, superseded by the current protocol
-- `MAIN_FREEZE_SOURCE.txt.json` — extraction metadata
-- `THIRD_PARTY.md` — third-party attribution
-
-Superseded documentation is retained under `../archive/`.
+- [PROTOCOL_PANEL888_20260921.md](PROTOCOL_PANEL888_20260921.md): the final design.
+- [RUNBOOK_PANEL888.md](RUNBOOK_PANEL888.md): how to reproduce and run it.
+- [CURRENT_STATE.md](CURRENT_STATE.md): where the study stands.
+- [SENSITIVITY_INVENTORY_PANEL888.md](SENSITIVITY_INVENTORY_PANEL888.md): offline diagnostics and where they come from.
+- [METHODOLOGICAL_AUDIT_PANEL888.md](METHODOLOGICAL_AUDIT_PANEL888.md): interpretation notes.
+- `results/panel888_offline/`: sealed pre-inference evidence (FREEZE.json, checksums).
+- [THIRD_PARTY.md](THIRD_PARTY.md): data and model licences.

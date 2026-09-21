@@ -1,0 +1,231 @@
+scripts/run_srw_offline.sh:16:.venv/bin/python scripts/analyze_htime.py > "$LOG/h_sensitivity.log" 2>&1
+archive/pre_cells10_json_20260918/docs/REPRODUCIBILITY.md:28:The current design specifies `[0,1)` and W=5. Two inherited implementation
+archive/pre_cells10_json_20260918/docs/REPRODUCIBILITY.md:42:The current census adapter preserves these helpers and publishes their W=5
+archive/pre_cells10_json_20260918/docs/REPRODUCIBILITY.md:44:rule. On all 17 local datasets and W=2..20, its window assignment was checked
+archive/legacy_pre_current_design/docs/TARGET_EVALUATION_FREEZE.md:31:stream over the normalized horizon `[0,1]`. With `W=5` equal-width windows,
+archive/legacy_pre_current_design/docs/TARGET_EVALUATION_FREEZE.md:49:`C_one_step = P(A[e,w+1]=1 | A[e,w]=1)`, pooled over dyads and `w=1..4`,
+archive/legacy_pre_current_design/docs/TARGET_EVALUATION_FREEZE.md:68:Robustness target:
+archive/legacy_pre_current_design/docs/TARGET_EVALUATION_FREEZE.md:79:  active-window-count distributions.
+archive/legacy_pre_current_design/docs/TARGET_EVALUATION_FREEZE.md:81:- Report profile-implied mean-occupancy MAE and lifetime MAE as robustness.
+archive/legacy_pre_current_design/docs/TARGET_EVALUATION_FREEZE.md:172:`W in {4,5,8}` robustness analysis has been run, and the input evidence is
+tests/generators/test_generators.py:45:        events = dar_event_stream(graph, alpha=0.8, chi=0.4, seed=4, W=5)
+tests/generators/test_generators.py:51:            graph, alpha=0.8, chi=0.4, seed=4, W=5))
+tests/generators/test_generators.py:55:                                  seed=4, W=5, event_rate=0)
+tests/generators/test_generators.py:62:                options = dict(n=30, seed=8, slots_per_window=10,
+archive/pre_final_audit_20260920/docs/RESULTS_SRW_20260920.md:18:are unchanged. Sensitivity and both structural diagnostics are rerun.
+archive/pre_final_audit_20260920/docs/RESULTS_SRW_20260920.md:53:of finite-walk effects, not proof of complete mixing at L or a pure separation
+archive/pre_final_audit_20260920/docs/RESULTS_SRW_20260920.md:73:is asserted. ExtraTrees sensitivity at h=0.40/0.80 uses models trained at h=0.60
+archive/pre_h_time_20260920/docs/MAIN_FREEZE_SOURCE.txt:220:Synthetik bleibt bei acht Instanzen: DAR mit N=500, G(500,5000)-Backbone, χ=0,2, α∈{0;0,8}, stationärem Start und 1+Poisson(1) Events je aktivem Fenster; zwei gepaarte Backbone-Replikate. Activity-Driven mit N=500, Dichte f(a)∝a^(−2,8) auf [0,01;1], η=1, m=1, c=1, β=1 und 1.000 Runden; memoryless versus Kontaktgedächtnis mit p_new=1/(n_i+1), alte Partner uniform; zwei gepaarte Aktivitäts-Replikate. Beide Horizonte sind [0;1] mit fünf Fenstern. Die Eventschicht und Parameterwerte bleiben eigene Operationalisierungen; kein weiterer Generator und keine Shuffles werden ergänzt. [24–26]
+archive/pre_h_time_20260920/docs/MAIN_FREEZE_SOURCE.txt:226:Target: The full archive has a known horizon normalized to [0,1], split into W=5 equal windows in chronological order: [0,0.2), [0.2,0.4), [0.4,0.6), [0.6,0.8), [0.8,1]. A dyad is an unordered pair of distinct vertices. E_full contains all dyads with at least one event anywhere in the full archive; it does not contain never-active pairs. V_full is the set of endpoints of these dyads. For e in E_full, K_e is its number of active windows; these need not be consecutive. Estimate rho_k = |{e in E_full: K_e >= k}| / |E_full|, for k=2,3,4,5. Give point estimates on [0,1], satisfying rho_2 >= rho_3 >= rho_4 >= rho_5. Evaluation uses absolute error, primarily for rho_2.
+archive/pre_h_time_20260920/docs/MAIN_FREEZE_SOURCE.txt:242:W=5Temporal_access=<five 0/1 values>N_obs=<integer>D_obs=<integer>M_obs=<integer>Events_per_window=<five integers or NA><one parameter line: n_panel=... / L=... / tau=0.60 / p=...>Walk_A=<five numbers or NA>pattern,dyads,events<all 31 rows, or the seven suffix rows, in lexicographic order>
+tests/frozen_main/test_protocol_revision.py:35:    def test_pool_balances_each_partition_and_ad_joint_grid(self):
+archive/pre_srw_20260920/docs/MAIN_FREEZE_SOURCE.txt:220:Synthetik bleibt bei acht Instanzen: DAR mit N=500, G(500,5000)-Backbone, χ=0,2, α∈{0;0,8}, stationärem Start und 1+Poisson(1) Events je aktivem Fenster; zwei gepaarte Backbone-Replikate. Activity-Driven mit N=500, Dichte f(a)∝a^(−2,8) auf [0,01;1], η=1, m=1, c=1, β=1 und 1.000 Runden; memoryless versus Kontaktgedächtnis mit p_new=1/(n_i+1), alte Partner uniform; zwei gepaarte Aktivitäts-Replikate. Beide Horizonte sind [0;1] mit fünf Fenstern. Die Eventschicht und Parameterwerte bleiben eigene Operationalisierungen; kein weiterer Generator und keine Shuffles werden ergänzt. [24–26]
+archive/pre_srw_20260920/docs/MAIN_FREEZE_SOURCE.txt:226:Target: The full archive has a known horizon normalized to [0,1], split into W=5 equal windows in chronological order: [0,0.2), [0.2,0.4), [0.4,0.6), [0.6,0.8), [0.8,1]. A dyad is an unordered pair of distinct vertices. E_full contains all dyads with at least one event anywhere in the full archive; it does not contain never-active pairs. V_full is the set of endpoints of these dyads. For e in E_full, K_e is its number of active windows; these need not be consecutive. Estimate rho_k = |{e in E_full: K_e >= k}| / |E_full|, for k=2,3,4,5. Give point estimates on [0,1], satisfying rho_2 >= rho_3 >= rho_4 >= rho_5. Evaluation uses absolute error, primarily for rho_2.
+archive/pre_srw_20260920/docs/MAIN_FREEZE_SOURCE.txt:242:W=5Temporal_access=<five 0/1 values>N_obs=<integer>D_obs=<integer>M_obs=<integer>Events_per_window=<five integers or NA><one parameter line: n_panel=... / L=... / tau=0.60 / p=...>Walk_A=<five numbers or NA>pattern,dyads,events<all 31 rows, or the seven suffix rows, in lexicographic order>
+archive/pre_cells10_json_20260918/docs/MAIN_EXPERIMENT_RUNBOOK.md:69:# parser v3 sensitivity: collect with --extract-trailing-json, evaluate into evaluation_v3
+archive/pre_h_time_20260920/docs/PROTOCOL_REVISION_20260918.md:78:Zielgröße, W=5, sechs reale Testquellen, acht synthetische Hauptinstanzen, R/S/H/B,
+tests/data/test_census_evidence.py:12:                            summarize_events, survival, window_sensitivity)
+tests/data/test_census_evidence.py:44:        rows = pd.DataFrame(window_sensitivity("toy", np.array([0, 0, 1]),
+docs/MAIN_FREEZE_SOURCE.txt:220:Synthetik bleibt bei acht Instanzen: DAR mit N=500, G(500,5000)-Backbone, χ=0,2, α∈{0;0,8}, stationärem Start und 1+Poisson(1) Events je aktivem Fenster; zwei gepaarte Backbone-Replikate. Activity-Driven mit N=500, Dichte f(a)∝a^(−2,8) auf [0,01;1], η=1, m=1, c=1, β=1 und 1.000 Runden; memoryless versus Kontaktgedächtnis mit p_new=1/(n_i+1), alte Partner uniform; zwei gepaarte Aktivitäts-Replikate. Beide Horizonte sind [0;1] mit fünf Fenstern. Die Eventschicht und Parameterwerte bleiben eigene Operationalisierungen; kein weiterer Generator und keine Shuffles werden ergänzt. [24–26]
+docs/MAIN_FREEZE_SOURCE.txt:226:Target: The full archive has a known horizon normalized to [0,1], split into W=5 equal windows in chronological order: [0,0.2), [0.2,0.4), [0.4,0.6), [0.6,0.8), [0.8,1]. A dyad is an unordered pair of distinct vertices. E_full contains all dyads with at least one event anywhere in the full archive; it does not contain never-active pairs. V_full is the set of endpoints of these dyads. For e in E_full, K_e is its number of active windows; these need not be consecutive. Estimate rho_k = |{e in E_full: K_e >= k}| / |E_full|, for k=2,3,4,5. Give point estimates on [0,1], satisfying rho_2 >= rho_3 >= rho_4 >= rho_5. Evaluation uses absolute error, primarily for rho_2.
+docs/MAIN_FREEZE_SOURCE.txt:242:W=5Temporal_access=<five 0/1 values>N_obs=<integer>D_obs=<integer>M_obs=<integer>Events_per_window=<five integers or NA><one parameter line: n_panel=... / L=... / tau=0.60 / p=...>Walk_A=<five numbers or NA>pattern,dyads,events<all 31 rows, or the seven suffix rows, in lexicographic order>
+archive/pre_cells10_json_20260918/docs/REPO_CLEANUP_VALIDATION.md:135:`config/study.yaml` states W=5, the four targets/mechanisms and 4×3 replication;
+archive/pre_cells10_json_20260918/docs/REPO_CLEANUP_VALIDATION.md:144:coverage studies and old synthetic grids; old SLURM jobs, runbooks, figures,
+scripts/run_baseline_revision.py:277:    # Pre-registered sensitivity: the pool keeps graphs whose budget did not match
+scripts/run_baseline_revision.py:291:            'budget_matched_sensitivity':sens}
+archive/legacy_pre_current_design/docs/README_V2.md:22:  - within-window timestamp permutation preserving every edge-window count;
+tests/frozen_main/test_budget10_design.py:103:    def test_panel_leaves_the_window_count_distribution_alone(self):
+src/main_experiment/sampling.py:85:    """Window counts of the cap most recent events of every row.
+src/main_experiment/sampling.py:105:    """Window counts of min(cap, m_e) events drawn uniformly without replacement.
+src/main_experiment/sampling.py:313:    Common random ordering across h values is deliberate for paired sensitivity.
+src/main_experiment/common.py:50:H_SENSITIVITY = (0.40, 0.60, 0.80)
+archive/pre_srw_20260920/docs/STATUS_HTIME_20260920.md:29:## h sensitivity
+archive/pre_srw_20260920/docs/STATUS_HTIME_20260920.md:41:are included in the [sensitivity report](results/htime_20260920/sensitivity.json).
+archive/pre_srw_20260920/docs/STATUS_HTIME_20260920.md:85:`scripts/analyze_htime.py` for the reproducible offline sensitivity.
+archive/pre_h_time_20260920/docs/MAIN_EXPERIMENT_IMPLEMENTATION.md:91:`tests/frozen_main/test_budget10_design.py::test_panel_leaves_the_window_count_distribution_alone`.
+archive/pre_h_time_20260920/docs/MAIN_EXPERIMENT_IMPLEMENTATION.md:172:here is unchanged: W=5, the target rho_2..rho_5 over E_full, MAE2 as the main
+archive/pre_h_time_20260920/docs/MAIN_EXPERIMENT_IMPLEMENTATION.md:214:population share of dyads whose *recent* window count reaches k, and the oracle
+archive/pre_h_time_20260920/docs/MAIN_EXPERIMENT_IMPLEMENTATION.md:230:fill the stored window counts from window 5 backwards (`sampling.recent_counts`).
+archive/pre_h_time_20260920/docs/MAIN_EXPERIMENT_IMPLEMENTATION.md:239:window counts, parameter line `n_dyads=d` (equal to D_obs by construction), and a
+archive/pre_h_time_20260920/docs/MAIN_EXPERIMENT_IMPLEMENTATION.md:321:v3 as a separate sensitivity directory, and adds, all labelled secondary or
+archive/pre_h_time_20260920/docs/MAIN_EXPERIMENT_IMPLEMENTATION.md:392:W=5, the target, MAE2 and its replacement rule, sources, generators, labels, the
+tests/frozen_main/test_pool_and_features.py:63:                if 'grid' in s: self.assertIn(p[name],s['grid'],(g['key'],name))
+tests/frozen_main/test_htime.py:11:from main_experiment.common import H_SENSITIVITY,PREVIOUS_RUN,CURRENT_RUN,DESIGN_VERSION,ROOT,digest,read_json
+tests/frozen_main/test_htime.py:29:        for h in (*H_SENSITIVITY,.53):
+tests/frozen_main/test_htime.py:42:        for h in H_SENSITIVITY: np.testing.assert_array_equal(history_counts(g,h),history_counts(shifted,h))
+tests/frozen_main/test_htime.py:46:        for h in H_SENSITIVITY:
+tests/frozen_main/test_htime.py:67:        for h in H_SENSITIVITY:
+tests/frozen_main/test_htime.py:80:        for h in H_SENSITIVITY:
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_stat.txt:14: docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md            |   55 -
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_stat.txt:127: results/coverage/grid_mae_vs_coverage.png          |  Bin 453099 -> 0 bytes
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_stat.txt:128: results/coverage/grid_results.csv                  | 3361 --------
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_stat.txt:179: results_summary/g0d/seed_rule_sensitivity.csv      |    7 -
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_stat.txt:206: results_summary/g3/bootstrap_robustness.csv        |    4 -
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_stat.txt:357: src/analyze_target_robustness.py                   |  103 -
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_stat.txt:411: src/report_bootstrap_robustness.py                 |  142 -
+archive/legacy_pre_current_design/docs/PROMPT_CONTRACT_2026-09.md:24:`irrelevant_context` is a robustness subset, not a seventh condition.
+archive/legacy_pre_current_design/docs/PROMPT_CONTRACT_2026-09.md:321:period, window count — so **all five arms render an identical `metadata_only`
+archive/legacy_pre_current_design/docs/PROMPT_CONTRACT_2026-09.md:331:`mechanism` text, content irrelevant to the estimation. Robustness subset only:
+archive/pre_srw_20260920/docs/PROTOCOL_HTIME_20260920.md:5:sensitivity h={0.40,0.60,0.80} cannot select a different primary value.
+archive/pre_srw_20260920/docs/PROTOCOL_HTIME_20260920.md:9:Graphs, archive horizons, W=5 targets, R/S/B samplers and seeds, pool definition
+archive/pre_srw_20260920/docs/PROTOCOL_HTIME_20260920.md:51:## Offline sensitivity and structural diagnostics
+archive/pre_srw_20260920/docs/PROTOCOL_HTIME_20260920.md:55:at h=0.40/0.80 is explicitly cross-h sensitivity, not an independently trained
+src/main_experiment/observation.py:4:from .common import ARMS, ROOT, LEGACY_H, LEGACY_ARMS, H_FRACTION, H_SENSITIVITY
+src/main_experiment/observation.py:29:        if h not in H_SENSITIVITY: raise ValueError('unsupported analysis history fraction')
+src/main_experiment/observation.py:78:            if not integer(e): raise ValueError('window counts')
+src/main_experiment/observation.py:105:    lines=['W=5','Temporal_access='+','.join(map(str,o['Temporal_access']))]
+src/main_experiment/observation.py:117:    if not lines or lines[0]!='W=5' or HEADER not in lines: raise ValueError('input block')
+docs/AUDIT_FINAL_20260920.md:61:mixing remain relevant. The H homogeneous zero-truncated Binomial extrapolator
+docs/AUDIT_FINAL_20260920.md:86:shift, component/mixing effects and H time heterogeneity remain substantive risks.
+tests/frozen_main/test_mixtures.py:80:        is genuine floating-point error and not a mismatch of inputs. The grid
+tests/frozen_main/test_mixtures.py:320:    def test_bound_sensitivity_reports_a_stable_fit_as_stable(self):
+tests/frozen_main/test_mixtures.py:325:        r=mx.bound_sensitivity(o,activity(mu,3),decades=2.)
+scripts/audit_prompt_freeze.py:25:    assert "W=5" in user_prefix
+scripts/analyze_htime.py:2:"""Offline h sensitivity and oracle diagnostics, fixed before new Qwen results."""
+scripts/analyze_htime.py:7:from main_experiment.common import ROOT,CURRENT_RUN,CURRENT_REVISION,REAL_TEST,SYNTH,H_SENSITIVITY,draws_for,read_json,write_json,sha
+scripts/analyze_htime.py:18:    run=ROOT/CURRENT_RUN; rev=ROOT/CURRENT_REVISION; out=rev/'history_sensitivity'
+scripts/analyze_htime.py:21:        'baselines_sha256':sha(rev/'primary_baselines.json'),'h_values':list(H_SENSITIVITY),
+scripts/analyze_htime.py:32:        for h in H_SENSITIVITY:
+scripts/analyze_htime.py:59:    for h in H_SENSITIVITY:
+scripts/analyze_htime.py:77:    for h in H_SENSITIVITY:
+scripts/analyze_htime.py:94:    write_json(out/'report.json',{'h_primary':.6,'qwen_sensitivity_generated':False,
+scripts/analyze_htime.py:95:        'learned_reference':'trained at primary h=0.60; h=0.40/0.80 are cross-h sensitivity',
+archive/pre_cells10_json_20260918/docs/REPO_CLEANUP_MANIFEST.md:140:| `docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md` | `archive/legacy_pre_current_design/docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md` | LEGACY | Previous V1/V2/V2.1/G0-G4 design; no current dependency after retained-core import audit. |
+archive/pre_cells10_json_20260918/docs/REPO_CLEANUP_MANIFEST.md:183:| `src/analyze_target_robustness.py` | `archive/legacy_pre_current_design/src/analyze_target_robustness.py` | LEGACY | Previous V1/V2/V2.1/G0-G4 design; no current dependency after retained-core import audit. |
+archive/pre_cells10_json_20260918/docs/REPO_CLEANUP_MANIFEST.md:237:| `src/report_bootstrap_robustness.py` | `archive/legacy_pre_current_design/src/report_bootstrap_robustness.py` | LEGACY | Previous V1/V2/V2.1/G0-G4 design; no current dependency after retained-core import audit. |
+archive/pre_cells10_json_20260918/docs/REPO_CLEANUP_MANIFEST.md:379:phase-3 pilots; ER/BA coverage studies and persistence grids; G0/G0b/G0c/G0d
+docs/PROTOCOL_SRW_20260920.md:49:independent of W; the selected fractions align with 2/3/4 complete W=5 windows.
+docs/PROTOCOL_SRW_20260920.md:61:explicitly labeled cross-h sensitivity, not optimized separately.
+src/main_experiment/mixtures.py:32:against exact rational arithmetic over a wide (a,b,d) grid in
+src/main_experiment/mixtures.py:129:                                    # the concentration is called weakly identified
+src/main_experiment/mixtures.py:200:def window_counts(o):
+src/main_experiment/mixtures.py:312:def bound_sensitivity(o,mu0,lam0=None,decades=2.0):
+src/main_experiment/mixtures.py:336:    counts,n=window_counts(o)
+src/main_experiment/mixtures.py:370:    counts,n=window_counts(o)
+src/main_experiment/mixtures.py:413:    concentration is only weakly identified.
+scripts/audit_srw_results.py:80:        'h_sensitivity.json':rev/'history_sensitivity/report.json',
+scripts/audit_srw_results.py:82:        'h_sources.csv':rev/'history_sensitivity/sources.csv',
+src/main_experiment/evaluation.py:119:            elif draws==1 and n>1:
+src/main_experiment/evaluation.py:121:            elif draws==1 and complete: variance=0.
+src/main_experiment/evaluation.py:125:                         'deterministic_draw':draws==1}
+scripts/analyze_srw.py:71:        'interpretation':'Local selection/exploration with complete histories. Finite-start/mixing and component bias remain; no unbiasedness claim.',
+src/main_experiment/pool.py:31: 'W':'5 windows; the estimand and the whole input contract are defined on W=5.',
+src/main_experiment/pool.py:51:  'N':{'grid':[200,300,500,800,1200],'why':'network size; spans a factor of six around '
+src/main_experiment/pool.py:68:  'N':{'grid':[200,300,500,800,1200],'why':'as for DAR.'},
+src/main_experiment/pool.py:76:  'rounds':{'grid':[500,750,1000,1500,2000],'why':'event volume and how far the memory '
+src/main_experiment/pool.py:86:# Every partition covers the grids; AD also balances the full N x rounds grid.
+src/main_experiment/pool.py:99:    """Label-blind stratification, with independently shuffled grids per partition.
+src/main_experiment/pool.py:102:    within AD/partition. Assign these grids randomly to the continuous-parameter
+src/main_experiment/pool.py:107:    sizes=VARIED['dar']['N']['grid']
+src/main_experiment/pool.py:113:        dar_grid=sizes*(COUNTS['dar'][partition]//len(sizes))
+src/main_experiment/pool.py:114:        r.shuffle(dar_grid)
+src/main_experiment/pool.py:116:        ad_grid=[(n,k) for n in range(5) for k in range(5)]*(COUNTS['ad'][partition]//25)
+src/main_experiment/pool.py:117:        r.shuffle(ad_grid)
+src/main_experiment/pool.py:122:                grid=dar_grid[dar_cursor:dar_cursor+count]
+src/main_experiment/pool.py:124:                for N in grid:
+src/main_experiment/pool.py:135:                pairs=ad_grid[ad_cursor:ad_cursor+count]
+src/main_experiment/pool.py:138:                    p={'N':sizes[n],'rounds':VARIED['ad']['rounds']['grid'][k],
+scripts/report_final_study.py:53:            'SRW finite mixing/component bias; H homogeneous/stationary working-model assumptions',
+scripts/report_final_study.py:66:        'h_sensitivity.json':rev/'history_sensitivity/report.json','srw_diagnostics.json':rev/'srw_diagnostics/report.json'}
+archive/pre_cells10_json_20260918/docs/reviews_2026-09-18/h_identifiability_counterexample.json:31:  "block": "W=5\nTemporal_access=1,1,1,1,1\nN_obs=16\nD_obs=20\nM_obs=100\nEvents_per_window=0,0,0,0,100\nn_dyads=20\nWalk_A=NA\npattern,dyads,events,at_cap_dyads\n00001,20,100,20\n00010,0,0,0\n00011,0,0,0\n00100,0,0,0\n00101,0,0,0\n00110,0,0,0\n00111,0,0,0\n01000,0,0,0\n01001,0,0,0\n01010,0,0,0\n01011,0,0,0\n01100,0,0,0\n01101,0,0,0\n01110,0,0,0\n01111,0,0,0\n10000,0,0,0\n10001,0,0,0\n10010,0,0,0\n10011,0,0,0\n10100,0,0,0\n10101,0,0,0\n10110,0,0,0\n10111,0,0,0\n11000,0,0,0\n11001,0,0,0\n11010,0,0,0\n11011,0,0,0\n11100,0,0,0\n11101,0,0,0\n11110,0,0,0\n11111,0,0,0",
+archive/legacy_pre_current_design/docs/G4_FIRST_RESULTS_2026-09-02.md:7:robustness rows were all finished before the `mechanism` leg of any Qwen model
+scripts/verify_srw_revision.py:32:            if o['arm']=='S': assert o['id'] not in byid; pool_new+=1
+archive/legacy_pre_current_design/docs/README_BENCHMARK.md:182:be motivated by observed failure regions rather than by a blind Cartesian grid.
+archive/legacy_pre_current_design/docs/CHANNEL_SANITY_AND_REACHABILITY_2026-09-02.md:127:per-window counts, so the prompt cannot verify it. The MLE is identified under
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:14: D docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:127: D results/coverage/grid_mae_vs_coverage.png
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:128: D results/coverage/grid_results.csv
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:179: D results_summary/g0d/seed_rule_sensitivity.csv
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:206: D results_summary/g3/bootstrap_robustness.csv
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:357: D src/analyze_target_robustness.py
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:411: D src/report_bootstrap_robustness.py
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:492:?? archive/legacy_pre_current_design/docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:612:?? archive/legacy_pre_current_design/results/coverage/grid_mae_vs_coverage.png
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:613:?? archive/legacy_pre_current_design/results/coverage/grid_results.csv
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:664:?? archive/legacy_pre_current_design/results_summary/g0d/seed_rule_sensitivity.csv
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:691:?? archive/legacy_pre_current_design/results_summary/g3/bootstrap_robustness.csv
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:841:?? archive/legacy_pre_current_design/src/analyze_target_robustness.py
+archive/pre_cells10_json_20260918/docs/repo_cleanup_git_status.txt:899:?? archive/legacy_pre_current_design/src/report_bootstrap_robustness.py
+archive/legacy_pre_current_design/docs/CODEX_SCOPE_2026-09-02.md:132:`codex-cli 0.151.0`, and mixing two CLI versions inside one arm would change the
+archive/legacy_pre_current_design/docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md:8:4,000 draws, seed 20260901. `results_summary/g3/bootstrap_robustness.csv`.
+archive/legacy_pre_current_design/docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md:45:robustness rows are recomputed on the full panel before any of them is quoted
+archive/legacy_pre_current_design/docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md:54:python src/report_bootstrap_robustness.py
+archive/legacy_pre_current_design/docs/FREEZE_2026-09.md:262:as a robustness target, so v21 is the file consistent with the freeze and the
+archive/legacy_pre_current_design/docs/FREEZE_2026-09.md:285:| irrelevant_context (robustness subset)                            |        64 | primary only |
+archive/legacy_pre_current_design/docs/FREEZE_2026-09.md:308:robustness and diagnostic items where the strongest reader is the most
+archive/legacy_pre_current_design/docs/FREEZE_2026-09.md:736:5. A robustness row beside every preregistered interval: wild cluster bootstrap
+archive/legacy_pre_current_design/docs/FREEZE_2026-09.md:741:   `docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md`.
+archive/legacy_pre_current_design/docs/FREEZE_2026-09.md:783:mechanism-space coverage figure and the bootstrap robustness rows are finished.
+archive/legacy_pre_current_design/docs/FREEZE_2026-09.md:850:#### Budget robustness of the net sign — scoped, not yet run
+archive/legacy_pre_current_design/docs/FREEZE_2026-09.md:896:mechanism-space figure and the bootstrap robustness rows are finished. The
+archive/legacy_pre_current_design/docs/MECHANISM_SPACE_2026-09-02.md:73:budget grid, not put through the coverage-parity procedure the five arms went
+archive/legacy_pre_current_design/docs/HEADROOM_G0D_2026-09.md:34:Budgets were selected with `src/g0d_budget_ladder.py` over a 28-point grid.
+archive/legacy_pre_current_design/docs/HEADROOM_G0D_2026-09.md:37:single cumulative pass prices the whole grid exactly.  The ladder was verified
+archive/legacy_pre_current_design/docs/HEADROOM_G0D_2026-09.md:302:confirms the closed-form derivation directly.  **This is a sensitivity, not a
+archive/legacy_pre_current_design/docs/NONWALK_SCREEN_PREREG_2026-08-20.md:87:  identify persistence.  Its precise likelihood, regularization/grid, and
+archive/legacy_pre_current_design/docs/NONWALK_SCREEN_PREREG_2026-08-20.md:95:- input: exact frequency table of sampled five-window count vectors, also
+archive/legacy_pre_current_design/docs/NONWALK_SCREEN_PREREG_2026-08-20.md:100:  a common component rate; inactive-window counts are zero;
+archive/legacy_pre_current_design/docs/NONWALK_SCREEN_PREREG_2026-08-20.md:101:- rate grid: 28 geometric points from `0.02` to
+archive/legacy_pre_current_design/docs/NONWALK_SCREEN_PREREG_2026-08-20.md:102:  `min(1e5, max(20, 2*(max_observed_window_count+1)/p))`;
+archive/legacy_pre_current_design/docs/NONWALK_SCREEN_PREREG_2026-08-20.md:112:reservoir estimator.  Convergence rate and sensitivity to sampling fraction
+archive/legacy_pre_current_design/docs/NONWALK_SCREEN_PREREG_2026-08-20.md:117:because weights continued to move among near-equivalent rate-grid points.  The
+archive/legacy_pre_current_design/docs/NONWALK_SCREEN_PREREG_2026-08-20.md:120:rate-grid weight, the stopping rule is now five consecutive iterations with a
+archive/legacy_pre_current_design/docs/PRESENTATION_NUMBERS.md:278:| bootstrap robustness | preregistered [0.734, 0.974]; wild cluster Rademacher [0.718, 0.937]; instance-level [0.704, 0.950] | `bootstrap_robustness.csv` |
+archive/legacy_pre_current_design/docs/PRESENTATION_NUMBERS.md:307:  empirical direction sensitivity, not exact derivation.
+archive/legacy_pre_current_design/docs/LLM_NOISE_RESULT.md:55:So reproducibility does not predict input sensitivity, and the earlier reading
+docs/results/final_20260920/audit.json:186:    "SRW finite mixing/component bias; H homogeneous/stationary working-model assumptions",
+archive/legacy_pre_current_design/docs/HEADROOM_G0C_2026-09.md:195:## G0c.3 — Coverage-matched sensitivity
+archive/legacy_pre_current_design/docs/HEADROOM_G0C_2026-09.md:209:Estimator ladder at the sensitivity budget:
+archive/legacy_pre_current_design/docs/TWIN_COVERAGE_CONFOUND_2026-09-02.md:15:nothing about mechanism sensitivity.
+docs/results/final_20260920/h_sensitivity.json:4:  "learned_reference": "trained at primary h=0.60; h=0.40/0.80 are cross-h sensitivity",
+docs/results/final_20260920/h_sensitivity.json:5:  "qwen_sensitivity_generated": false,
+docs/results/final_20260920/CHECKSUMS.json:10:  "h_sensitivity.json": "e2b695c369dc80883f176405303e5faa275d1c4a7b7186e69f5af9c752f9b22f",
+archive/legacy_pre_current_design/docs/PROJECT_STATUS.md:44:- Validation of response noise, input sensitivity, and model/harness effects.
+archive/legacy_pre_current_design/docs/BUDGET_SIGN_STABILITY_2026-09-02.md:71:This varies the budget only. It does not vary the graph panel, the window count
+docs/results/final_20260920/tests.txt:49:test_panel_leaves_the_window_count_distribution_alone (frozen_main.test_budget10_design.SuffixPanelTests)
+docs/results/final_20260920/tests.txt:99:test_bound_sensitivity_reports_a_stable_fit_as_stable (frozen_main.test_mixtures.NumericalGuardTests) ... ok
+docs/results/final_20260920/tests.txt:142:test_pool_balances_each_partition_and_ad_joint_grid (frozen_main.test_protocol_revision.ScientificRevision) ... ok
+docs/results/final_20260920/srw_diagnostics.json:341:  "interpretation": "Local selection/exploration with complete histories. Finite-start/mixing and component bias remain; no unbiasedness claim.",
+archive/legacy_pre_current_design/docs/LLM_EVIDENCE.md:79:Bei endlichem Budget können Start-, Mixing- und Lokalitätseffekte die
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:616:      "path": "docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:623:      "old_path": "docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:626:      "new_path": "archive/legacy_pre_current_design/docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:5880:      "path": "results/coverage/grid_mae_vs_coverage.png",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:5887:      "old_path": "results/coverage/grid_mae_vs_coverage.png",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:5890:      "new_path": "archive/legacy_pre_current_design/results/coverage/grid_mae_vs_coverage.png",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:5894:      "path": "results/coverage/grid_results.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:5901:      "old_path": "results/coverage/grid_results.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:5904:      "new_path": "archive/legacy_pre_current_design/results/coverage/grid_results.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:20132:      "path": "results/g0d_headroom_2026_09/seed_rule_sensitivity.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:20139:      "old_path": "results/g0d_headroom_2026_09/seed_rule_sensitivity.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:20142:      "new_path": "archive/legacy_pre_current_design/results/g0d_headroom_2026_09/seed_rule_sensitivity.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29204:      "path": "results/target_diagnostics/w_robustness_final32/summary.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29211:      "old_path": "results/target_diagnostics/w_robustness_final32/summary.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29214:      "new_path": "archive/legacy_pre_current_design/results/target_diagnostics/w_robustness_final32/summary.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29218:      "path": "results/target_diagnostics/w_robustness_final32/targets_by_W.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29225:      "old_path": "results/target_diagnostics/w_robustness_final32/targets_by_W.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29228:      "new_path": "archive/legacy_pre_current_design/results/target_diagnostics/w_robustness_final32/targets_by_W.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29610:      "path": "results_summary/g0d/seed_rule_sensitivity.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29617:      "old_path": "results_summary/g0d/seed_rule_sensitivity.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29620:      "new_path": "archive/legacy_pre_current_design/results_summary/g0d/seed_rule_sensitivity.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29988:      "path": "results_summary/g3/bootstrap_robustness.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29995:      "old_path": "results_summary/g3/bootstrap_robustness.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:29998:      "new_path": "archive/legacy_pre_current_design/results_summary/g3/bootstrap_robustness.csv",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:32172:      "path": "src/analyze_target_robustness.py",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:32179:      "old_path": "src/analyze_target_robustness.py",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:32182:      "new_path": "archive/legacy_pre_current_design/src/analyze_target_robustness.py",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:32984:      "path": "src/report_bootstrap_robustness.py",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:32991:      "old_path": "src/report_bootstrap_robustness.py",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:32994:      "new_path": "archive/legacy_pre_current_design/src/report_bootstrap_robustness.py",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:33600:      "path": "src/__pycache__/analyze_target_robustness.cpython-310.pyc",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:33607:      "old_path": "src/__pycache__/analyze_target_robustness.cpython-310.pyc",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:33610:      "new_path": "src/__pycache__/analyze_target_robustness.cpython-310.pyc",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:34384:      "path": "src/__pycache__/report_bootstrap_robustness.cpython-310.pyc",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:34391:      "old_path": "src/__pycache__/report_bootstrap_robustness.cpython-310.pyc",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:34394:      "new_path": "src/__pycache__/report_bootstrap_robustness.cpython-310.pyc",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:35906:      "old_path": "docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:35907:      "new_path": "archive/legacy_pre_current_design/docs/BOOTSTRAP_ROBUSTNESS_2026-09-02.md"
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:36078:      "old_path": "src/analyze_target_robustness.py",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:36079:      "new_path": "archive/legacy_pre_current_design/src/analyze_target_robustness.py"
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:36294:      "old_path": "src/report_bootstrap_robustness.py",
+archive/pre_cells10_json_20260918/docs/repo_cleanup_inventory.json:36295:      "new_path": "archive/legacy_pre_current_design/src/report_bootstrap_robustness.py"

@@ -21,10 +21,14 @@ Independence from every main test:
 Real sources are governed by the existing leave-one-source-out rule; a held-out
 real source is excluded from training with all of its derivations.
 """
+from pathlib import Path
 import numpy as np
-from .common import rng, seed
+from .common import ARMS, BUILD, DESIGN_VERSION, digest, draws_for, observation_id, rng, seed, write_json
+from .observation import make, parse, serialize
+from .sampling import calibrate, draw
+from .synthetic import generate_one
 
-POOL_VERSION='pool-v2-balanced-20260918'
+POOL_VERSION='pool-v3-panel888-20260921'
 
 # Held constant across the pool, with the reason each one is not varied.
 CONSTANTS={
@@ -163,79 +167,44 @@ def pool_definition():
             'counts':COUNTS,'n_graphs':len(specs),'graphs':specs}
 
 
-def build_pool(out,specs=None,limit=None,progress=True):
-    """Generate the pool and its observations with the current samplers and budget.
+def build_pool(out, specs):
+    """Generate every pool graph and its training/development observations.
 
-    One writer, one process: each graph is finished and written atomically before
-    the next is started, so an interrupted run resumes without duplicating work.
-    Graphs themselves are not persisted; they are cheap to regenerate and the
-    calibration checkpoints are what a resume actually needs.
+    Graphs are cheap to regenerate from their seed and are not stored; each
+    graph's truth, full budget and serialized observations are.
     """
-    from pathlib import Path
-    import time
-    from .common import write_json, read_json, digest, ARMS, draws_for, observation_id, DESIGN_VERSION, sha
-    from .synthetic import generate_one
-    from .sampling import calibrate, draw
-    from .observation import make, serialize, parse
-    from .integrity import bind,code_binding
-    out=Path(out); (out/'observations').mkdir(parents=True,exist_ok=True)
-    if specs is None: specs=pool_definition()['graphs']
-    bind(out/'inputs.json',{'code':code_binding(),'pool_version':POOL_VERSION,'specs':specs})
-    if limit: specs=specs[:limit]
-    failures={}; done=0; start=time.perf_counter()
-    for sp in specs:
-        key=sp['key']; dest=out/'observations'/f'{key}.json'
-        if dest.exists():
-            stored=read_json(dest)
-            checksum=dest.with_suffix('.sha256')
-            if not checksum.exists() or checksum.read_text().strip()!=sha(dest):
-                raise ValueError(f'unverified pool checkpoint: {dest}')
-            if any(stored[k]!=sp[k] for k in ('key','family','partition','parameters','seed','stratum')):
-                raise ValueError(f'pool specification changed: {key}')
-            done+=1; continue
-        try:
-            domain=f"pool_{sp['partition']}"
-            params={k:v for k,v in sp['parameters'].items() if v is not None and k!='mean_degree'}
-            g,x,meta=generate_one(key,sp['family'],params,domain='pool')
-            budget,walk=calibrate(g,out/'calibration'/key,out/'build')
-            rows=[]
-            for arm in ARMS:
-                for ix in range(1,draws_for(arm,budget)+1):
-                    counts,traversals=draw(g,arm,ix,domain,budget,walk)
-                    block=serialize(make(g,arm,budget,counts,traversals))
-                    if serialize(parse(block))!=block: raise ValueError('block round trip')
-                    rows.append({'id':observation_id(key,arm,ix),'graph_id':key,'source_family':key,
-                                 'arm':arm,'sample_index':ix,'domain':domain,'block':block,
-                                 'block_sha256':digest(block),'empty':parse(block)['D_obs']==0,
-                                 'budget_matched':budget['budget_matched_by_arm'][arm]})
-            write_json(dest,{'key':key,'family':sp['family'],'partition':sp['partition'],
-                             'stratum':sp['stratum'],'parameters':sp['parameters'],
-                             'seed':sp['seed'],'truth':list(g.truth),
-                             'N_full':g.N,'D_full':g.D,'M_full':g.M,'B':g.B,
-                             'active_dyad_windows':g.cells,'T':budget['T'],
-                             'matched_quantity':budget['matched_quantity'],
-                             'design_version':DESIGN_VERSION,
-                             'budget_matched':budget['budget_matched'],
-                             'budget_matched_by_arm':budget['budget_matched_by_arm'],
-                             'unmatched_reasons':budget['unmatched_reasons'],
-                             'L':budget['L'],'p':budget['p'],'n_panel':budget['n_panel'],
-                             'n_panel_history':budget['n_panel_history'],'history_fraction':budget['history_fraction'],
-                             'h_saturated':budget['h_saturated'],
-                             'h_target_unreachable':budget['h_target_unreachable'],
-                             'h_relative_budget_error':budget['h_relative_budget_error'],
-                             'h_within_tolerance':budget['h_within_tolerance'],
-                             'node_relative_budget_error':budget['node_relative_budget_error'],
-                             'bernoulli_relative_budget_error':budget['bernoulli_relative_budget_error'],
-                             'walk_validation_relative_error':budget['validation_relative_error'],
-                             'latents_sha256':meta.get('latents_sha256'),
-                             'observations':rows})
-            dest.with_suffix('.sha256').write_text(sha(dest)+'\n')
-            done+=1
-        except (ValueError,FloatingPointError,ArithmeticError,MemoryError) as e:
-            failures[key]=f'{type(e).__name__}: {e}'
-            if progress: print(f'BLOCKED {key}: {e}',flush=True)
-        if progress and done%25==0 and done:
-            print(f'{done}/{len(specs)} graphs, {time.perf_counter()-start:.0f}s',flush=True)
-    write_json(out/'pool_failures.json',failures)
-    return {'graphs_done':done,'failures':len(failures),
-            'elapsed_seconds':time.perf_counter()-start}
+    out = Path(out)
+    for number, spec in enumerate(specs, 1):
+        key = spec['key']
+        domain = 'pool_'+spec['partition']
+        g, budget, walk = pool_graph(spec, BUILD)
+        rows = []
+        for arm in ARMS:
+            for index in range(1, draws_for(arm, budget, domain)+1):
+                counts, traversals = draw(g, arm, index, domain, budget, walk)
+                block = serialize(make(g, arm, budget, counts, traversals))
+                if serialize(parse(block)) != block: raise ValueError('block round trip')
+                rows.append({'id': observation_id(key, arm, index), 'graph_id': key, 'source_family': key,
+                             'arm': arm, 'sample_index': index, 'domain': domain, 'block': block,
+                             'block_sha256': digest(block), 'empty': parse(block)['D_obs'] == 0,
+                             'budget_matched': budget['budget_matched_by_arm'][arm]})
+        write_json(out/'observations'/f'{key}.json', {
+            'key': key, 'family': spec['family'], 'partition': spec['partition'], 'stratum': spec['stratum'],
+            'parameters': spec['parameters'], 'seed': spec['seed'], 'truth': list(g.truth),
+            'N_full': g.N, 'D_full': g.D, 'M_full': g.M, 'active_dyad_windows': g.cells,
+            'design_version': DESIGN_VERSION, 'budget': budget, 'observations': rows})
+        if number % 50 == 0: print(f'pool: {number}/{len(specs)} graphs', flush=True)
+
+
+def regenerate(spec):
+    """Regenerate one pool graph from its specification (graphs are not stored)."""
+    parameters = {k: v for k, v in spec['parameters'].items() if v is not None and k != 'mean_degree'}
+    g, _, _ = generate_one(spec['key'], spec['family'], parameters, domain='pool')
+    return g
+
+
+def pool_graph(spec, build_dir):
+    """Regenerate one pool graph and calibrate its budget."""
+    g = regenerate(spec)
+    budget, walk, _ = calibrate(g, build_dir)
+    return g, budget, walk

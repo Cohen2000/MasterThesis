@@ -1,14 +1,15 @@
-"""Frozen request construction; transport lives in execution.py."""
-from .common import CONFIGS, LLM_REPEATS, ARM_ID, DESIGN_VERSION, PREVIOUS_DESIGN_VERSION, seed, digest
+"""Request manifest: one request per (observation, configuration, model repeat).
+
+All four configurations see identical observations, prompts and three repeats.
+Only the two Qwen configurations are enabled for dispatch; Sol and DeepSeek
+requests are prepared but require a separate technical release (execution.py).
+"""
+from .common import CONFIGS, LLM_REPEATS, ARM_ID, DESIGN_VERSION, seed, digest
 
 QWEN='Qwen/Qwen3.6-35B-A3B'
 REVISION='995ad96eacd98c81ed38be0c5b274b04031597b0'
 
-def generation_version(arm):
-    return DESIGN_VERSION
-
-
-def payload(config,messages,request_seed,version=DESIGN_VERSION):
+def payload(config,messages,request_seed):
     if config=='sol':
         return {'model':'gpt-5.6-sol','input':messages,'reasoning':{'effort':'high'},
                 'text':{'format':{'type':'json_object'}},'max_output_tokens':128000}
@@ -26,15 +27,16 @@ def payload(config,messages,request_seed,version=DESIGN_VERSION):
             'chat_template_kwargs':{'enable_thinking':thinking},'seed':request_seed,
             'structured_output':{'json_object':True,'reasoning_parser':'qwen3',
                                  'applies':'after reasoning end'},
-            'design_version':version,
+            'design_version':DESIGN_VERSION,
             'executed_transport':'vllm offline engine (LLM.enqueue + LLMEngine.step)',
             'executed_streaming':False}
 
 
 def planned(observations):
-    # Real block first, then synthetic; cyclic graph x arm cells, then sample/repeat.
+    """Requests in dispatch order: real, surrogate, synthetic block; within a block
+    cycle over (graph, arm) cells, then sample index, then repeat."""
     records=[]
-    for stratum in ['real','synthetic']:
+    for stratum in ['real','surrogate','synthetic']:
         cells={}
         for o in observations:
             if o['stratum']==stratum: cells.setdefault((o['graph_id'],o['arm']),[]).append(o)
@@ -49,17 +51,16 @@ def planned(observations):
                 if turn>=len(queue): continue
                 obs,repeat=queue[turn]
                 for config in CONFIGS:
-                    # R, S and B keep their letters, so their seeds are those of the
-                    # previous design; the new H has its own identifier.
-                    version=generation_version(obs['arm'])
-                    s=seed('llm',obs['graph_id'],ARM_ID[obs['arm']],obs['sample_index'],repeat,config+':'+version)
-                    rid=f'{obs["id"]}__{config}__r{repeat}__{version}'
+                    # Fresh versioned generation stream per request; common random
+                    # numbers apply to sampling only, never to model generation.
+                    s=seed('llm',obs['graph_id'],ARM_ID[obs['arm']],obs['sample_index'],repeat,config+':'+DESIGN_VERSION)
+                    rid=f'{obs["id"]}__{config}__r{repeat}__{DESIGN_VERSION}'
                     records.append({'id':rid,'observation_id':obs['id'],'graph_id':obs['graph_id'],
                         'arm':obs['arm'],'sample_index':obs['sample_index'],'repeat_index':repeat,
                         'config_id':config,'stratum':stratum,'seed':s,
                         'status':'skipped_empty' if obs['empty'] else 'not_started',
                         'started':False,'mock':False,'prompt_sha256':obs['prompt_sha256'],
-                        'payload':payload(config,obs['messages'],s,version),
+                        'payload':payload(config,obs['messages'],s),
                         # Qwen is authorised for this study; the paid providers
                         # are planned but not released.
                         'production_dispatch_enabled':config.startswith('qwen'),
@@ -70,27 +71,16 @@ def planned(observations):
     return records
 
 
-def retry_decision(attempt,model_tokens,status,transient=False,ambiguous=False,retry_after=0):
-    # One generation attempt. Ambiguous delivery must be reconciled, never resent.
-    if ambiguous: return {'action':'reconcile','delay':None}
-    if status in (400,401,403) or status in ('ignored_parameter','repeated_oom'):
-        return {'action':'stop_configuration','delay':None}
-    return {'action':'terminal_no_retry','delay':None}
+def validate_request(r):
+    """A request must carry the current design, its own payload/prompt hashes and
+    exactly the payload the frozen configuration produces."""
+    if r.get('design_version')!=DESIGN_VERSION: raise ValueError('request protocol mismatch')
+    if r.get('payload_sha256')!=digest(r['payload']): raise ValueError('request payload mismatch')
+    messages=r['payload'].get('messages',r['payload'].get('input'))
+    if r.get('prompt_sha256')!=digest(messages): raise ValueError('request prompt mismatch')
+    if r['payload']!=payload(r['config_id'],messages,r['seed']):
+        raise ValueError('payload differs from frozen configuration')
 
-
-def reserve_allowed(provider,paid,reserved,new_count,retry=False):
-    if min(paid,reserved,new_count)<0: raise ValueError('negative ledger')
-    if provider=='sol': cap=200 if retry else 180; unit=1.30
-    elif provider=='deepseek': cap=50; unit=.48
-    else: raise ValueError('not a paid provider')
-    return paid+reserved+unit*new_count<=cap
-
-
-def watchdog(active_seconds,first_token_seconds,last_token_age,model_tokens):
-    if active_seconds>=86400: return 'active_deadline'
-    if not model_tokens and first_token_seconds>=1800: return 'first_token_deadline'
-    if model_tokens and last_token_age>=3600: return 'model_progress_deadline'
-    return None
 
 EXECUTION_POLICY={
  'dispatch_enabled':True,'inference_authorized':['qwen_thinking','qwen_nonthinking'],
@@ -119,7 +109,7 @@ EXECUTION_POLICY={
          'required_gpus':'1 x H100 94GB','max_model_len':262144,
          'max_output_tokens':258048,'gpu_memory_utilization':.90,
          'reasoning_split':'<think>...</think> markers of the pinned chat template',
-         'server_seed':20260916,'language_model_only':True,'yarn':False,
+         'server_seed':20260921,'language_model_only':True,'yarn':False,
          'sampling_source':'official model card, Qwen3.6-35B-A3B',
          'thinking':{'temperature':1.0,'top_p':.95,'top_k':20,'min_p':0.,
                      'presence_penalty':1.5,'repetition_penalty':1.0},

@@ -12,7 +12,9 @@ import http.client
 from pathlib import Path
 from datetime import datetime,timezone
 from .common import read_json,write_json,sha,digest,DESIGN_VERSION
-from .integrity import bind,validate_request,code_binding
+from .integrity import bind
+from .requests import validate_request
+from .common import code_hashes
 
 CAP={'sol':180_000_000,'deepseek':50_000_000}  # micro-USD; no retry budget in v2
 RESERVE={'sol':1_300_000,'deepseek':480_000}
@@ -56,7 +58,7 @@ class Ledger:
         self.requests={r['id']:r for r in requests}
         if len(self.requests)!=len(requests): raise ValueError('duplicate requests')
         for r in requests: validate_request(r)
-        bind(self.out/'inputs.json',{'requests':digest(requests),'inputs':inputs,'code':code_binding()})
+        bind(self.out/'inputs.json',{'requests':digest(requests),'inputs':inputs,'code':code_hashes()})
         self.path=self.out/'ledger.json'
         self.state=read_json(self.path) if self.path.exists() else {'requests':{},'batches':{},'halted':{}}
         self.save()

@@ -1,0 +1,308 @@
+# Dataset registry for the persistence census.
+# Download each file manually into --data-dir (default: ./data/), keep the
+# filename given under "file". URLs are page links; exact filenames can change,
+# so run `python census.py --peek <key>` after download to verify column layout.
+#
+# format fields:
+#   delimiter: "whitespace" or ","
+#   columns:   0-based indices of source node, target node, timestamp
+#   comment:   lines starting with any of these characters are skipped
+#   skiprows:  number of header lines to skip
+
+datasets:
+  # ---------- SocioPatterns (proximity, CC BY-NC-SA, cite their papers) ----------
+  sp_hospital:
+    census_audit:
+      expected_fields: 5
+      originally_directed: "no"
+      timestamp_unit: seconds
+      metadata_source: "registry_page"
+      time_unit_evidence: "Registered provider page documents seconds."
+      parser_note: "Local full-file widths and timestamp field agree with the registered provider format."
+    label: "Hospital ward (SocioPatterns)"
+    domain: proximity
+    page_url: "https://sociopatterns.org/datasets/hospital-ward-dynamic-contact-network/"
+    file: "hospital_lyon_contacts.dat.gz"
+    format: {delimiter: whitespace, columns: {t: 0, u: 1, v: 2}, comment: "#%", skiprows: 0}
+    notes: "Cols: t i j Si Sj. 20s resolution, ~3 days."
+
+  sp_primaryschool:
+    census_audit:
+      expected_fields: 5
+      originally_directed: "no"
+      timestamp_unit: seconds
+      metadata_source: "registry_page"
+      time_unit_evidence: "Registered provider page documents seconds."
+      parser_note: "Local full-file widths and timestamp field agree with the registered provider format."
+    label: "Primary school (SocioPatterns)"
+    domain: proximity
+    page_url: "https://sociopatterns.org/datasets/primary-school-temporal-network-data/"
+    file: "primaryschool.csv.gz"
+    format: {delimiter: whitespace, columns: {t: 0, u: 1, v: 2}, comment: "#%", skiprows: 0}
+    notes: "Cols: t i j Ci Cj (tab-separated). 2 days."
+
+  sp_highschool2013:
+    census_audit:
+      expected_fields: 5
+      originally_directed: "no"
+      timestamp_unit: seconds
+      metadata_source: "registry_page"
+      time_unit_evidence: "Registered provider page documents seconds."
+      parser_note: "Local full-file widths and timestamp field agree with the registered provider format."
+    label: "High school 2013 (SocioPatterns)"
+    domain: proximity
+    page_url: "https://sociopatterns.org/datasets/high-school-contact-and-friendship-networks/"
+    file: "HighSchool2013_proximity_net.csv.gz"
+    format: {delimiter: whitespace, columns: {t: 0, u: 1, v: 2}, comment: "#%", skiprows: 0}
+    notes: "Cols: t i j Ci Cj. 5 days."
+
+  sp_workplace:
+    census_audit:
+      expected_fields: 3
+      originally_directed: "no"
+      timestamp_unit: seconds
+      metadata_source: "registry_page"
+      time_unit_evidence: "Registered provider page documents seconds."
+      parser_note: "Local full-file widths and timestamp field agree with the registered provider format."
+    label: "Workplace InVS15 (SocioPatterns)"
+    domain: proximity
+    page_url: "https://sociopatterns.org/datasets/test/"
+    file: "workplace_InVS15_tij.dat.gz"
+    format: {delimiter: whitespace, columns: {t: 0, u: 1, v: 2}, comment: "#%", skiprows: 0}
+    notes: "Cols: t i j. ~2 weeks office building."
+
+  sp_hypertext2009:
+    census_audit:
+      expected_fields: 3
+      originally_directed: "no"
+      timestamp_unit: seconds
+      metadata_source: "registry_page"
+      time_unit_evidence: "Registered provider page documents seconds."
+      parser_note: "Local full-file widths and timestamp field agree with the registered provider format."
+    label: "Hypertext 2009 conference (SocioPatterns)"
+    domain: proximity
+    page_url: "https://sociopatterns.org/datasets/hypertext-2009-dynamic-contact-network/"
+    file: "ht2009_contact_list.dat.gz"
+    format: {delimiter: whitespace, columns: {t: 0, u: 1, v: 2}, comment: "#%", skiprows: 0}
+    notes: "Cols: t i j. ~2.5 days conference."
+
+  # ---------- SNAP (timestamp is last column) ----------
+  snap_collegemsg:
+    census_audit:
+      expected_fields: 3
+      originally_directed: "yes"
+      timestamp_unit: seconds
+      metadata_source: "registry_page"
+      time_unit_evidence: "Registered provider page documents seconds."
+      parser_note: "Local full-file widths and timestamp field agree with the registered provider format."
+    label: "CollegeMsg (SNAP)"
+    domain: messaging
+    page_url: "https://snap.stanford.edu/data/CollegeMsg.html"
+    file: "CollegeMsg.txt.gz"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 0}
+    notes: "SRC DST UNIXTS. ~6 months."
+
+  snap_email_eu:
+    census_audit:
+      expected_fields: 3
+      originally_directed: "yes"
+      timestamp_unit: seconds
+      metadata_source: "registry_page"
+      time_unit_evidence: "Registered provider page documents seconds."
+      parser_note: "Local full-file widths and timestamp field agree with the registered provider format."
+    label: "email-Eu-core-temporal (SNAP)"
+    domain: email
+    page_url: "https://snap.stanford.edu/data/email-Eu-core-temporal.html"
+    file: "email-Eu-core-temporal.txt.gz"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 0}
+    notes: "SRC DST TS(seconds, rel.). ~18 months."
+
+  snap_mathoverflow:
+    census_audit:
+      expected_fields: 3
+      originally_directed: "yes"
+      timestamp_unit: seconds
+      metadata_source: "registry_page"
+      time_unit_evidence: "Registered provider page documents seconds."
+      parser_note: "Local full-file widths and timestamp field agree with the registered provider format."
+    label: "sx-mathoverflow (SNAP)"
+    domain: qna
+    page_url: "https://snap.stanford.edu/data/sx-mathoverflow.html"
+    file: "sx-mathoverflow.txt.gz"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 0}
+    notes: "SRC DST UNIXTS. ~7 years."
+
+  snap_bitcoin_otc:
+    census_audit:
+      expected_fields: 4
+      originally_directed: "yes"
+      timestamp_unit: seconds
+      metadata_source: "registry_page"
+      time_unit_evidence: "Registered provider page documents seconds."
+      parser_note: "Local full-file widths and timestamp field agree with the registered provider format."
+    label: "soc-sign-bitcoinotc (SNAP)"
+    domain: trust
+    page_url: "https://snap.stanford.edu/data/soc-sign-bitcoin-otc.html"
+    file: "soc-sign-bitcoinotc.csv.gz"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 3}, comment: "#%", skiprows: 0}
+    notes: "SOURCE,TARGET,RATING,TIME. ~5 years."
+
+  snap_wikitalk:
+    census_audit:
+      expected_fields: 3
+      originally_directed: "yes"
+      timestamp_unit: seconds
+      metadata_source: "registry_page"
+      time_unit_evidence: "Registered provider page documents seconds."
+      parser_note: "Local full-file widths and timestamp field agree with the registered provider format."
+    label: "wiki-talk-temporal (SNAP)"
+    domain: web
+    page_url: "https://snap.stanford.edu/data/wiki-talk-temporal.html"
+    file: "wiki-talk-temporal.txt.gz"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 0}
+    notes: "Large (~7.8M events). Run last; needs a few GB RAM."
+
+  # ---------- Network Repository (zips; '%' header lines; check cols via --peek) ----------
+  nr_radoslaw_email:
+    census_audit:
+      expected_fields: 4
+      originally_directed: "yes"
+      timestamp_unit: unknown
+      metadata_source: "registry_page"
+      time_unit_evidence: "Physical unit remains unknown."
+      parser_note: "Local full-file audit: u v weight timestamp; weight is 1 throughout; timestamp is column 3 (zero-based)."
+      warnings: "Physical unit not explicitly established for this local export; epoch-sized numbers alone are insufficient."
+    label: "ia-radoslaw-email (NetRepo)"
+    domain: email
+    page_url: "https://networkrepository.com/ia-radoslaw-email.php"
+    file: "ia-radoslaw-email.edges"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 3}, comment: "%#", skiprows: 0}
+    notes: "Rows: u v w t. Manufacturing company email, ~9 months."
+
+  nr_enron_employees:
+    census_audit:
+      expected_fields: 4
+      originally_directed: "unknown"
+      timestamp_unit: unknown
+      metadata_source: "registry_page"
+      time_unit_evidence: "Physical unit remains unknown."
+      parser_note: "Local full-file audit: u v weight timestamp; weight is 1 throughout; timestamp is column 3 (zero-based)."
+      warnings: "Physical unit not explicitly established for this local export; epoch-sized numbers alone are insufficient. Original direction is not established by the headerless export/provider landing page. Ambiguous duplicates: about 48% of retained events repeat an earlier same-dyad same-timestamp row; kept as events (no deduplication), which inflates m_e-based columns and count bounds but not K or rho."
+    label: "ia-enron-employees (NetRepo)"
+    domain: email
+    page_url: "https://networkrepository.com/ia-enron-employees.php"
+    file: "ia-enron-employees.edges"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 3}, comment: "%#", skiprows: 0}
+    notes: "Rows: u v w t."
+
+  nr_digg_reply:
+    census_audit:
+      expected_fields: 4
+      originally_directed: "yes"
+      timestamp_unit: unknown
+      metadata_source: "registry_page"
+      time_unit_evidence: "Physical unit remains unknown."
+      parser_note: "Local full-file audit: u v weight timestamp; weight is 1 throughout; timestamp is column 3 (zero-based)."
+      warnings: "Physical unit not explicitly established for this local export; epoch-sized numbers alone are insufficient."
+    label: "ia-digg-reply (NetRepo)"
+    domain: forum
+    page_url: "https://networkrepository.com/ia-digg-reply.php"
+    file: "ia-digg-reply.edges"
+    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 3}, comment: "%#", skiprows: 0}
+    notes: "Rows: u v t (check with --peek; some NR files carry a weight column)."
+
+  # ---------- JODIE / standard TG-learning benchmarks (snap.stanford.edu/jodie) ----------
+  # Bipartite user-item interactions; the bipartite flag keeps id spaces apart.
+  # Published reoccurrence/surprise values exist for these (EdgeBank paper, TGB),
+  # so they double as an external sanity check for rho.
+  jodie_wikipedia:
+    census_audit:
+      expected_fields: 3
+      originally_directed: "yes"
+      timestamp_unit: unknown
+      metadata_source: "https://github.com/claws-lab/jodie#dataset-format"
+      time_unit_evidence: "Physical unit remains unknown."
+      parser_note: "Local three-column projection has header user_id,item_id,timestamp; preserve distinct ID namespaces."
+      expected_header: "user_id,item_id,timestamp"
+      warnings: "Physical unit of local three-column export is undocumented; source specifies numeric timestamps without a unit."
+      direction_note: "yes denotes user-to-item action direction, not a claim about the embedding model graph."
+    label: "Wikipedia (JODIE)"
+    domain: web_bipartite
+    page_url: "https://snap.stanford.edu/jodie/"
+    file: "wikipedia.csv"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 1, bipartite: true}
+    notes: "user_id,item_id,timestamp,... ~1 month of page edits. Standard TG benchmark."
+
+  jodie_reddit:
+    census_audit:
+      expected_fields: 3
+      originally_directed: "yes"
+      timestamp_unit: unknown
+      metadata_source: "https://github.com/claws-lab/jodie#dataset-format"
+      time_unit_evidence: "Physical unit remains unknown."
+      parser_note: "Local three-column projection has header user_id,item_id,timestamp; preserve distinct ID namespaces."
+      expected_header: "user_id,item_id,timestamp"
+      warnings: "Physical unit of local three-column export is undocumented; source specifies numeric timestamps without a unit."
+      direction_note: "yes denotes user-to-item action direction, not a claim about the embedding model graph."
+    label: "Reddit (JODIE)"
+    domain: web_bipartite
+    page_url: "https://snap.stanford.edu/jodie/"
+    file: "reddit.csv"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 1, bipartite: true}
+    notes: "user posts in subreddits, ~1 month. Standard TG benchmark."
+
+  jodie_lastfm:
+    census_audit:
+      expected_fields: 3
+      originally_directed: "yes"
+      timestamp_unit: unknown
+      metadata_source: "https://github.com/claws-lab/jodie#dataset-format"
+      time_unit_evidence: "Physical unit remains unknown."
+      parser_note: "Local three-column projection has header user_id,item_id,timestamp; preserve distinct ID namespaces."
+      expected_header: "user_id,item_id,timestamp"
+      warnings: "Physical unit of local three-column export is undocumented; source specifies numeric timestamps without a unit."
+      direction_note: "yes denotes user-to-item action direction, not a claim about the embedding model graph."
+    label: "LastFM (JODIE)"
+    domain: media_bipartite
+    page_url: "https://snap.stanford.edu/jodie/"
+    file: "lastfm.csv"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 1, bipartite: true}
+    notes: "user-song plays over years; expected high-recurrence pole (cf. TGB-Seq critique)."
+
+  jodie_mooc:
+    census_audit:
+      expected_fields: 3
+      originally_directed: "yes"
+      timestamp_unit: unknown
+      metadata_source: "https://github.com/claws-lab/jodie#dataset-format"
+      time_unit_evidence: "Physical unit remains unknown."
+      parser_note: "Local three-column projection has header user_id,item_id,timestamp; preserve distinct ID namespaces."
+      expected_header: "user_id,item_id,timestamp"
+      warnings: "Physical unit of local three-column export is undocumented; source specifies numeric timestamps without a unit."
+      direction_note: "yes denotes user-to-item action direction, not a claim about the embedding model graph."
+    label: "MOOC (JODIE, optional)"
+    domain: education_bipartite
+    page_url: "https://snap.stanford.edu/jodie/"
+    file: "mooc.csv"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 1, bipartite: true}
+    notes: "Optional. student-course interactions, ~1 month."
+
+  # ---------- Optional preprocessed Copenhagen Networks Study ----------
+  # The public CNS release has changed packaging over time. To avoid silently
+  # assuming a release-specific column layout, export Bluetooth encounters to
+  # this canonical three-column file before running the benchmark.
+  copenhagen_bluetooth:
+    census_audit:
+      expected_fields: 3
+      originally_directed: "no"
+      timestamp_unit: seconds
+      metadata_source: "https://www.nature.com/articles/s41597-019-0325-x"
+      time_unit_evidence: "Published data description specifies seconds; local provenance records projection of bt_symmetric.csv."
+      parser_note: "Local header u,v,t; merge provenance identifies filtered bt_symmetric.csv; all times are multiples of 300."
+      expected_header: "u,v,t"
+    label: "Copenhagen Networks Study Bluetooth (preprocessed)"
+    domain: proximity
+    page_url: "https://www.copenhagenetworksstudy.org/"
+    file: "copenhagen_bluetooth.csv.gz"
+    format: {delimiter: ",", columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 1}
+    notes: "Optional canonical export with header u,v,t. Keep one row per Bluetooth encounter."

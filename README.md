@@ -1,61 +1,49 @@
-# Persistence estimation in partially observed temporal graphs
+# Temporal persistence from sampled interaction data
 
-This repository contains the current Master's thesis experiment for estimating the
-full-archive persistence profile rho_k for k = 2,3,4,5 from partially observed
-temporal graphs.
+Can a language model estimate how persistent the dyads of a temporal network are
+from a small sampled observation of it? The single final study is
+**panel888-pwt-srw-20260921**:
 
-## Current experiment
+- 8 real human–human sources, 8 matched P[w,t] timestamp-shuffled surrogates
+  (one per real source) and 8 synthetic instances;
+- W = 5 windows, estimand rho_2..rho_5 (primary MAE2, secondary ProfileMAE);
+- four observation mechanisms matched to 10% of the active dyad-windows:
+  R node panel, S simple random walk, H node panel with elapsed-time history
+  (h = .60), B Bernoulli event thinning;
+- 3 test sampler draws x 3 model repeats (288 observations, 864 requests per
+  model configuration), 5 training draws for the learned references.
 
-Design/generation: `cells10-final-20260920`; freeze `aaaac491006aa6981aeebc95b913b8847da76120`.
+Documents: [protocol](docs/PROTOCOL_PANEL888_20260921.md) (design),
+[runbook](docs/RUNBOOK_PANEL888.md) (how to run), [current state](docs/CURRENT_STATE.md),
+[sensitivity inventory](docs/SENSITIVITY_INVENTORY_PANEL888.md),
+[methodological notes](docs/METHODOLOGICAL_AUDIT_PANEL888.md).
 
-S is a simple random walk: uniform start vertex and uniform current neighbor,
-with a fixed calibrated length and full histories for traversed dyads. Its raw
-traversal-frequency reference is stationary/asymptotic, not finite-walk unbiased.
-H uses uniform node sampling and the most recent 60% of archive time, calibrated
-to the same 10% active-dyad-window coverage as R/S/B. Offline sensitivity uses
-h=0.40/0.60/0.80. Its primary reference is a homogeneous zero-truncated Binomial
-extrapolator, treated as a working model. See [protocol](docs/PROTOCOL_SRW_20260920.md).
-All 1,680 final Qwen answers were generated anew; no development answers are reused.
-Final audit: 1,678 valid, two invalid empty JSON objects; no missing answers or token limits.
-GPT/Sol and DeepSeek remain unstarted.
+## Code map
 
-- 6 real temporal-network sources
-- 8 synthetic main-test instances
-- observation mechanisms R, S, H and B
-- 5 sampler draws per arm where applicable
-- 3 LLM responses per configuration
-- primary target: `rho_2`
-- secondary profile: `rho_2` to `rho_5`
-- matched observation budget: 10% of full active dyad-windows
+`src/main_experiment/` — the scientific modules:
 
-The executable implementation is in `src/main_experiment/`.
+| Module | Content |
+|---|---|
+| `common.py` | panel, design constants, seed rule, I/O helpers |
+| `data.py` | canonical graphs, windows, truth rho_k, real-source loading |
+| `synthetic.py` | DAR and activity-driven generators |
+| `surrogates.py` | P[w,t] timestamp shuffles and their invariant audit |
+| `sampling.py`, `walk_kernel.cpp` | the four arms, budget calibration, simple random walk |
+| `observation.py` | observation blocks, prompts, 134 features |
+| `baselines.py`, `mixtures.py` | plug-in, arm-specific correctors, B Beta-mixture |
+| `pool.py`, `training.py` | synthetic training pool, LOSO ExtraTrees |
+| `prepare.py`, `references.py` | the offline stages |
+| `requests.py`, `evaluation.py` | request manifest, strict answer parsing, MCSE |
+| `history_diagnostics.py`, `token_sizes.py` | H oracle decomposition, prompt sizes |
+| `execution.py`, `integrity.py` | Sol/DeepSeek transport (disabled), resume guards |
 
-## Main entry points
+`scripts/` — entry points: `run_offline.sh` (whole offline study), `diagnose_*.py`
+(offline diagnostics), `audit_offline.py`, `seal_offline.py`, `cluster_bundle.sh`
+and `run_qwen_engine.py` (Qwen production), `integrate_qwen.sh` (after inference).
+`cluster/` — SLURM submission, status and archive jobs. `tests/` — unit tests.
 
-Final audit and reproduction: [runbook](docs/RUNBOOK_FINAL_20260920.md).
-Do not rerun development dispatch scripts against the final freeze.
+`src/census.py` and `src/dataset_census.py` hold the audited parsers of the raw
+sources and the inherited dataset-census grids.
 
-Qwen production:
-- `scripts/cluster_bundle.sh`
-- `cluster/qwen_engine.sbatch`
-- `cluster/submit_production.sh`
-- `cluster/status.py`
-- `cluster/build_archive.py`
-
-Evaluation:
-
-- `scripts/audit_final_study.py`
-- `scripts/collect_qwen_answers.py`
-- `scripts/evaluate_main_responses.py`
-- `scripts/report_final_study.py`
-
-Current documentation:
-
-- `docs/PROTOCOL_SRW_20260920.md`
-- `docs/RUNBOOK_FINAL_20260920.md`
-- `docs/RESULTS_FINAL_20260920.md`
-- `docs/AUDIT_FINAL_20260920.md`
-
-Historical designs, diagnostics and results are retained under `archive/`.
-Raw datasets, generated graphs, fitted models and other bulk artifacts remain local
-and are ignored by Git.
+Earlier designs, runs and answers are development provenance under `archive/`;
+they are not part of the final panel. Sol and DeepSeek are prepared only.

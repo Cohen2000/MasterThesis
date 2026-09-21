@@ -1,0 +1,35 @@
+{
+  "budgets_identical": true,
+  "diagnostics_identical": {
+    "decomposition_main": true,
+    "history": true,
+    "mixture_bounds": true,
+    "null_model": true,
+    "srw_paths": true,
+    "windows": true
+  },
+  "extratrees": {
+    "models": 18,
+    "pickles_identical": true,
+    "random_state": 1858608657
+  },
+  "graphs": {
+    "count": 32,
+    "npz_identical": true
+  },
+  "note": "Pre-cleanup run (uncommitted code on b95fa3e, seed 1858608657) vs. full clean rerun of scripts/run_offline.sh with the cleaned code. Budget/observation JSON layouts changed (legacy fields dropped); compared fields are the scientific ones.",
+  "reference_predictions": {
+    "compared": 1800,
+    "identical": true
+  },
+  "requests_jsonl_identical": true,
+  "requests_sha256": "2dc20315a5562912d82b856d741a5b9a91638794489b31f77fa5fbdb18e5ad6e",
+  "sample_observations": {
+    "block_prompt_truth_identical": true,
+    "count": 288
+  },
+  "training_observations": {
+    "block_prompt_truth_identical": true,
+    "count": 320
+  }
+}

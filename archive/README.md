@@ -1,16 +1,12 @@
-# Historical archive
+# Development and provenance archive
 
-This directory contains material that is preserved for provenance but is not part
-of the active experiment.
+No directory here is an additional study panel. The single final study is
+panel888-pwt-srw-20260921 (see the top-level README).
 
-- `legacy_pre_current_design/` contains the older thesis designs, pilots, screens,
-  implementations, documentation and historical results.
-- `pre_cells10_json_20260918/` contains material superseded by the current
-  `cells10-json-20260918` experiment, including earlier runbooks, diagnostics,
-  cluster helpers and tracked result summaries.
+- `pre_panel888_cleanup_20260921/`: source snapshot before the final code cleanup,
+  the cleanup equivalence check and the two panel888 implementation passes.
+- `pre_panel888_20260921/`: source commit b95fa3e with all superseded code, config,
+  docs, tests and results, including earlier Qwen answers (ARCHIVE_MANIFEST.json).
+- Older directories hold the preceding development history.
 
-Files were moved rather than deleted. Previously tracked historical artifacts remain
-available here through Git history and their archived paths. Large generated local
-artifacts remain ignored and are not published accidentally.
-
-Do not use archived runners or configuration as the current execution workflow.
+Archived runners are historical and must not be used to run the current study.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Qwen offline engine for the revised generic-JSON protocol.
+"""Qwen production runner (vLLM offline engine), executed on the cluster per shard.
 
 One attempt per request. Admission is persisted before enqueue; interrupted
 admissions are never automatically regenerated. Completed records and the
@@ -25,14 +25,18 @@ GENERATION_CONFIG = {
     'seed_rule': 'request_seed % 2**31', 'skip_special_tokens': False,
     'dtype': 'bfloat16', 'tensor_parallel_size': 1, 'gpu_memory_utilization': 0.90,
     'limit_mm_per_prompt': {'image': 0, 'video': 0}, 'enforce_eager': False,
-    'engine_seed': 20260916,
+    'engine_seed': 20260921,
     'structured_output': {'json_object': True, 'reasoning_parser': 'qwen3'},
     'chat_template': 'tokenizer.apply_chat_template(add_generation_prompt=True, enable_thinking=mode)',
 }
 
 
 def split_reasoning(text, thinking):
-    """Identical to run_qwen_batch.split_reasoning; see there for the reasoning."""
+    """Split raw output at the chat template's </think> marker.
+
+    Only the text after </think> is the final answer. A thinking-mode output that
+    never closes its reasoning has no final answer (reasoning_closed=False).
+    """
     if '</think>' in text:
         head, _, tail = text.partition('</think>')
         return head.split('<think>')[-1].strip(), tail.strip(), True
@@ -42,7 +46,7 @@ def split_reasoning(text, thinking):
 
 
 def load_requests(run, passes, arms, shard_index, shard_count):
-    from main_experiment.integrity import validate_request
+    from main_experiment.requests import validate_request
     rows = [json.loads(l) for l in (run / 'requests.jsonl').read_text().splitlines()]
     wanted = {(MODES[m]['config_id'], rep): m for m, rep in passes}
     obs = {}

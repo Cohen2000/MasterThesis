@@ -11,7 +11,6 @@ import hashlib
 import json
 import math
 from pathlib import Path
-import zlib
 
 import numpy as np
 import pandas as pd
@@ -206,49 +205,12 @@ def count_feasibility(dataset, counts, empirical_rho_2=None, distinct_counts=Non
     return row
 
 
-def realized_feasibility(dataset, raw, seed_base=20260911):
-    """Exactly one call per target to retained functions; save no event streams."""
-    from benchmark_generators import family_from_events, normalize_event_stream
-    from generator import make_instance
-
-    original = normalize_event_stream(raw)
-    family = family_from_events(original, name=dataset, W=5, T=1.0)
-    # Keep the retained generator's empirical timestamp pool mode explicit.
-    family.timestamps = "empirical"
-    expected_counts = original.groupby(["u", "v"]).size().sort_index()
-    expected_nodes = set(original.u) | set(original.v)
-    rows = []
-    for target in TARGETS:
-        seed = zlib.crc32(f"{seed_base}|census_twin|{dataset}|{target}".encode()) & 0xFFFFFFFF
-        row = {"dataset": dataset, "requested_rho_2": float(target), "seed": seed,
-               "W": 5, "span_layout": "contiguous", "timestamp_mode": "empirical",
-               "hub_bias": False}
-        try:
-            instance = make_instance(family, float(target), seed=seed,
-                                     hub_bias=False, span_layout="contiguous")
-            observed = instance.events.groupby(["u", "v"]).size().sort_index()
-            x, pairs, times, counts, quality = prepare_complete(instance.events)
-            achieved = float(np.mean(occupancy_counts(pairs, times, 5) >= 2))
-            row.update(status="ok", achieved_rho_2=achieved,
-                       absolute_deviation=abs(achieved - float(target)),
-                       nodes_preserved=(set(x.u.astype(int)) | set(x.v.astype(int))) == expected_nodes,
-                       topology_preserved=expected_counts.index.equals(observed.index),
-                       per_dyad_counts_preserved=expected_counts.equals(observed),
-                       timestamps_preserved=np.array_equal(np.sort(original.t),
-                                                           np.sort(instance.events.t)),
-                       allocation_deviations=instance.deviations, error="")
-        except (ValueError, RuntimeError, AssertionError) as exc:
-            row.update(status="error", error=str(exc))
-        rows.append(row)
-    return rows
-
-
-def compute_census(registry_path, raw_dir, dataset_keys=None, realized=False, progress=None):
+def compute_census(registry_path, raw_dir, dataset_keys=None):
     registry = load_registry(Path(registry_path))
     keys = list(registry) if dataset_keys is None else list(dataset_keys)
     if set(keys) - set(registry):
         raise ValueError(f"unknown dataset keys: {sorted(set(keys) - set(registry))}")
-    main, sensitivity, feasible, twins = [], [], [], []
+    main, sensitivity, feasible = [], [], []
     for key in keys:
         spec = registry[key]
         audit = spec.get("census_audit", {})
@@ -268,8 +230,6 @@ def compute_census(registry_path, raw_dir, dataset_keys=None, realized=False, pr
             row.update(status="absent", warnings="Registered but unavailable; not downloaded.")
             main.append(row)
             continue
-        if progress:
-            progress(key, "census")
         try:
             raw, parser_quality = parse_audited(path, spec["format"], audit)
             x, pairs, times, counts, quality = prepare_complete(raw)
@@ -288,14 +248,10 @@ def compute_census(registry_path, raw_dir, dataset_keys=None, realized=False, pr
             sensitivity.extend(window_sensitivity(key, pairs, times, counts))
             feasible.append(count_feasibility(key, counts, row["rho_2"],
                                               distinct_timestamp_counts(pairs, times)))
-            if realized:
-                if progress:
-                    progress(key, "one low/high timing attempt")
-                twins.extend(realized_feasibility(key, x))
         except (OSError, ValueError) as exc:
             row.update(status="error", warnings=(warnings + " " + str(exc)).strip())
         main.append(row)
-    tables = [pd.DataFrame(rows) for rows in (main, sensitivity, feasible, twins)]
+    tables = [pd.DataFrame(rows) for rows in (main, sensitivity, feasible)]
     # Nullable integers keep counts integral in CSV despite absent/error rows.
     for column in INTEGER_COLUMNS:
         if column in tables[0]:

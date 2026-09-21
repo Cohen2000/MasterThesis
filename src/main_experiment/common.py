@@ -1,3 +1,9 @@
+"""Design constants, deterministic seeds and small I/O helpers of the final study.
+
+The study has one panel (design panel888-pwt-srw-20260921): eight real sources,
+one matched P[w,t] temporal surrogate per real source, and eight synthetic
+instances. docs/PROTOCOL_PANEL888_20260921.md is the authoritative description.
+"""
 from pathlib import Path
 import hashlib
 import json
@@ -5,143 +11,180 @@ import os
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-REAL_TEST = ('sp_hospital','sp_highschool2013','copenhagen_bluetooth',
-             'snap_email_eu','snap_collegemsg','snap_mathoverflow')
-TRAIN = ('sp_hospital','sp_primaryschool','sp_highschool2013','sp_workplace',
-         'sp_hypertext2009','snap_collegemsg','snap_email_eu','snap_mathoverflow',
-         'snap_bitcoin_otc','nr_radoslaw_email','nr_digg_reply','jodie_wikipedia',
-         'jodie_reddit','jodie_lastfm','jodie_mooc','copenhagen_bluetooth')
-ARMS = ('R','S','H','B')
-# Design revision history, newest last. budget10-20261001 made the budget a fixed
-# share of the full event archive. budget10-hrecent5-20260917 replaced arm H by a
-# uniform sample of active dyads, each with its five most recent events.
-# cells10-20260917 keeps every mechanism but matches the arms on the quantity the
-# target is made of: the expected number of observed active dyad-windows is ten
-# percent of all active dyad-windows of the full archive (sum_e K_e). The event
-# budget matched event volume, which let H and B see 46 % and 37 % of the active
-# dyad-windows of the real sources against 2.4 % for S. The date-like suffix of
-# budget10-20261001 is a revision label, not a date.
-# cells10-srw-htime60-20260920 established classic SRW for S.
-# cells10-final-20260920 implements the final unified prompt harness across all arms R, S, H, B.
-DESIGN_VERSION = 'cells10-final-20260920'
-PREVIOUS_DESIGN_VERSION = 'cells10-srw-htime60-20260920'
-ARCHIVED_ROOT = ROOT/'results'
-PREVIOUS_RUN = ROOT/'results/main_experiment/cells10_srw_htime60_20260920'
-PREVIOUS_REVISION = ROOT/'results/baseline_revision_cells10_srw_htime60_20260920'
-MATCHED_QUANTITY = 'expected_observed_active_dyad_windows'
-COVERAGE_FRACTION = 0.10     # share of sum_e K_e every arm observes in expectation
-BUDGET_FRACTION = 0.10       # event budget of the superseded designs; legacy variants only
-BUDGET_TOLERANCE = 0.05      # unchanged relative tolerance for the matched expectation
-CURRENT_RUN = 'results/main_experiment/cells10_final_20260920'
-CURRENT_REVISION = 'results/baseline_revision_cells10_srw_htime60_20260920'
-SAMPLER_DRAWS = 5            # sampler draws per graph and arm, if the draw is random
-LLM_REPEATS = 3
-CONFIGS = ('sol','deepseek','qwen_thinking','qwen_nonthinking')
-QWEN_CONFIGS = ('qwen_thinking','qwen_nonthinking')
-SYNTH = tuple(f'{family}_{mode}_r{r}' for family,modes in
-              [('dar',('a0','a08')),('ad',('memoryless','memory'))]
-              for r in (1,2) for mode in modes)
-MAIN_GRAPHS = len(REAL_TEST)+len(SYNTH)
+DESIGN_VERSION = 'panel888-pwt-srw-20260921'
+MASTER_SEED = 20260921
 
-# Arm H: uniform nodes, then a common elapsed-time suffix. Legacy constants are
-# retained only for historical helper tests; they never define the current H.
-H_VARIANT = 'uniform_nodes_time_suffix'
-H_FRACTION = 0.60
+# Output tree of the current study. Every stage writes into its own subfolder.
+RESULTS = ROOT/'results/panel888'
+PREPARED = RESULTS/'prepared'         # graphs, calibration, observations, requests
+REFERENCES = RESULTS/'references'     # training pool, ExtraTrees folds, baseline predictions
+DIAGNOSTICS = RESULTS/'diagnostics'   # offline sensitivity and diagnostic analyses
+AUDIT = RESULTS/'audit'               # independent audits of the prepared study
+QWEN = RESULTS/'qwen'                 # collected Qwen answers and their evaluation
+BUILD = RESULTS/'build'               # compiled walk kernel (not an artifact)
+
+# ---------------------------------------------------------------- panel
+REAL_TEST = ('sp_hospital', 'sp_highschool2013', 'copenhagen_bluetooth', 'sp_workplace',
+             'snap_email_eu', 'snap_collegemsg', 'snap_mathoverflow', 'nr_digg_reply')
+SURROGATES = tuple(key+'__pwt' for key in REAL_TEST)
+SURROGATE_PARENT = dict(zip(SURROGATES, REAL_TEST))
+SYNTH = ('dar_a0_r1', 'dar_a08_r1', 'dar_a0_r2', 'dar_a08_r2',
+         'ad_memoryless_r1', 'ad_memory_r1', 'ad_memoryless_r2', 'ad_memory_r2')
+MAIN_KEYS = REAL_TEST + SURROGATES + SYNTH
+# The 16 real training sources; the eight real test sources are among them and
+# are excluded from their own leave-one-source-out fold.
+TRAIN = ('sp_hospital', 'sp_primaryschool', 'sp_highschool2013', 'sp_workplace',
+         'sp_hypertext2009', 'snap_collegemsg', 'snap_email_eu', 'snap_mathoverflow',
+         'snap_bitcoin_otc', 'nr_radoslaw_email', 'nr_digg_reply', 'jodie_wikipedia',
+         'jodie_reddit', 'jodie_lastfm', 'jodie_mooc', 'copenhagen_bluetooth')
+# Reporting blocks: real, surrogate, and the four synthetic generator conditions.
+STRATA = ('real', 'surrogate', 'dar_a0', 'dar_a08', 'ad_memoryless', 'ad_memory')
+
+# ---------------------------------------------------------------- design
+W = 5
+ARMS = ('R', 'S', 'H', 'B')
+ARM_ID = {arm: arm+'-p888-20260921' for arm in ARMS}   # versioned sampler identity
+COVERAGE_FRACTION = 0.10     # T = 0.10 * sum_e K_e expected observed active dyad-windows
+BUDGET_TOLERANCE = 0.05      # relative tolerance of every arm's expectation around T
+H_FRACTION = 0.60            # primary elapsed-time history fraction of arm H
 H_SENSITIVITY = (0.40, 0.60, 0.80)
-H_CAP = 5
-LEGACY_H = 'H_suffix_v1'
-LEGACY_ARMS = (LEGACY_H,)
-# S changes its transition mechanism and therefore gets new sampling/generation
-# identities. R/B retain their JSON identities; H retains its time-suffix identity.
-# Reuse requires full block, prompt, payload, seed and generation hash equality.
-DESIGN_TAG = 'c10'
-ARM_ID = {'R':'R-c10','S':'S-srw-c10','H':'H-htime60-c10','B':'B-c10',LEGACY_H:'H'}
+SAMPLER_DRAWS = 3            # test sampler draws per graph and arm
+TRAINING_DRAWS = 5           # training sampler draws per graph and arm
+LLM_REPEATS = 3
+CONFIGS = ('sol', 'deepseek', 'qwen_thinking', 'qwen_nonthinking')
+QWEN_CONFIGS = ('qwen_thinking', 'qwen_nonthinking')
 
 
-def draws_for(arm,budget):
+def parent_source(key):
+    """A surrogate shares its parent's sampler streams (common random numbers)."""
+    return SURROGATE_PARENT.get(key, key)
+
+
+def graph_stratum(key):
+    if key in SURROGATE_PARENT: return 'surrogate'
+    if key in TRAIN: return 'real'
+    return 'synthetic'
+
+
+def in_stratum(graph_id, stratum):
+    """Reporting block of a main graph: real, surrogate or one synthetic condition."""
+    if stratum in ('real', 'surrogate'): return graph_stratum(graph_id) == stratum
+    return graph_id.startswith(stratum+'_r')
+
+
+def fold_for(key):
+    """LOSO fold: a real source and its surrogate use the fold without the parent."""
+    parent = parent_source(key)
+    return parent if parent in REAL_TEST else 'synthetic'
+
+
+def draws_for(arm, budget, domain='sample'):
     """Distinct sampler draws for one graph and arm.
 
-    A saturated H sample (every node drawn) is deterministic, so repeating
-    it would only duplicate one observation. It is carried once; model repeats of
-    that single observation are a separate kind of repetition.
+    A saturated H panel (every node drawn) is deterministic, so it is drawn once;
+    its model repeats are a different kind of repetition.
     """
-    if arm=='H' and budget['h_saturated']: return 1
-    return SAMPLER_DRAWS
+    if arm == 'H' and budget['h_saturated']: return 1
+    return TRAINING_DRAWS if domain in ('training', 'pool_train', 'pool_dev') else SAMPLER_DRAWS
 
 
-def observations_per_graph(budget):
-    return sum(draws_for(a,budget) for a in ARMS)
-
-
-def observation_id(graph_id,arm,index):
+def observation_id(graph_id, arm, index):
     return f'{graph_id}__{ARM_ID[arm]}__s{index}'
 
 
-def planned_sizes(budgets,main_graphs,training_graphs):
-    """Design sizes derived from the calibrated budgets, never from literals.
+def planned_sizes(budgets):
+    """Main/training observation and request counts derived from the calibrated budgets."""
+    main = sum(draws_for(arm, budgets[g]) for g in MAIN_KEYS for arm in ARMS)
+    training = sum(draws_for(arm, budgets[g], 'training') for g in TRAIN for arm in ARMS)
+    return {'main_observations': main, 'training_observations': training,
+            'planned_calls': main*len(CONFIGS)*LLM_REPEATS,
+            'qwen_calls': main*len(QWEN_CONFIGS)*LLM_REPEATS}
 
-    budgets maps graph id -> budget dict. Main and training counts are returned
-    separately because the four real test sources that are also training
-    sources draw both domains.
-    """
-    main=sum(observations_per_graph(budgets[g]) for g in main_graphs)
-    train=sum(observations_per_graph(budgets[g]) for g in training_graphs)
-    return {'main_observations':main,'training_observations':train,
-            'planned_calls':main*len(CONFIGS)*LLM_REPEATS,
-            'qwen_calls':main*len(QWEN_CONFIGS)*LLM_REPEATS,
-            'calls_per_observation':len(CONFIGS)*LLM_REPEATS}
 
+# ---------------------------------------------------------------- seeds
+# Every random stream of the study is seed(domain, graph, arm, sample, repeat, config).
+# SEEDS records each derived seed so that two different field tuples mapping to
+# the same 63-bit seed are detected (domain separation / collision guard).
 SEEDS = {}
 
+
 def seed(domain, graph_id='', arm_id='', sample_index=0, repeat_index=0, config_id=''):
-    fields=[20260916,domain,graph_id,arm_id,sample_index,repeat_index,config_id]
-    s=int.from_bytes(hashlib.sha256(json.dumps(fields,separators=(',',':'),ensure_ascii=False).encode()).digest()[:8],'big') % 2**63
-    key=json.dumps(fields,separators=(',',':'))
-    if s in SEEDS and SEEDS[s]!=key:
+    fields = [MASTER_SEED, domain, graph_id, arm_id, sample_index, repeat_index, config_id]
+    key = json.dumps(fields, separators=(',', ':'))
+    value = int.from_bytes(hashlib.sha256(json.dumps(fields, separators=(',', ':'), ensure_ascii=False)
+                                          .encode()).digest()[:8], 'big') % 2**63
+    if SEEDS.get(value, key) != key:
         raise RuntimeError('seed collision')
-    SEEDS[s]=key
-    return s
+    SEEDS[value] = key
+    return value
+
 
 def rng(*args):
     return np.random.Generator(np.random.PCG64(seed(*args)))
 
+
+# ---------------------------------------------------------------- I/O
 def sha(path):
-    h=hashlib.sha256()
-    with open(path,'rb') as f:
-        for b in iter(lambda:f.read(1024*1024),b''): h.update(b)
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            h.update(block)
     return h.hexdigest()
 
-def digest(x):
-    return hashlib.sha256(json.dumps(x,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
 
-def write_json(path,x):
-    path=Path(path); path.parent.mkdir(parents=True,exist_ok=True)
-    tmp=path.with_name(path.name+'.tmp')
-    with open(tmp,'w') as f:
-        json.dump(x,f,indent=2,sort_keys=True,allow_nan=False); f.write('\n'); f.flush(); os.fsync(f.fileno())
+def digest(value):
+    """SHA256 of a canonical JSON encoding (used for blocks, prompts, payloads)."""
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
+                                     allow_nan=False).encode()).hexdigest()
+
+
+def write_json(path, value):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name+'.tmp')
+    with open(tmp, 'w') as f:
+        json.dump(value, f, indent=2, sort_keys=True, allow_nan=False)
+        f.write('\n'); f.flush(); os.fsync(f.fileno())
     tmp.replace(path)
+
 
 def read_json(path):
     return json.loads(Path(path).read_text())
 
-def atomic_npz(path,**arrays):
-    path=Path(path); path.parent.mkdir(parents=True,exist_ok=True)
-    tmp=path.with_name(path.name+'.tmp')
-    with open(tmp,'wb') as f:
-        np.savez_compressed(f,**arrays); f.flush(); os.fsync(f.fileno())
+
+def read_jsonl(path):
+    return [json.loads(line) for line in Path(path).read_text().splitlines()]
+
+
+def write_csv(path, rows):
+    """CSV with the union of row keys; nested values are JSON encoded."""
+    import csv
+    if not rows: return
+    keys = list(dict.fromkeys(k for row in rows for k in row))
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name+'.tmp')
+    with open(tmp, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=keys)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({k: json.dumps(v) if isinstance(v, (dict, list)) else v for k, v in row.items()})
     tmp.replace(path)
 
-def verify_immutable_checkpoints(out):
-    """Reject altered completed inputs while allowing mutable timing/status reports.
 
-    Newly committed checkpoints after an interrupted run may not yet be listed;
-    stage files themselves are atomically written. Full audit checks every file.
-    """
-    out=Path(out)
-    if not (out/'checksums.json').exists(): return
-    for name,expected in read_json(out/'checksums.json').items():
-        p=Path(name)
-        immutable=p.parts[0] in ('graphs','observations','models') or (
-            p.parts[0]=='calibration' and (p.name.startswith(('prefix_','validation_')) or p.name=='calibrated.json'))
-        if immutable and sha(out/p)!=expected:
-            raise ValueError(f'completed checkpoint checksum mismatch: {name}')
+def fresh_directory(path):
+    """Stages never resume: each writes into a new, empty directory."""
+    path = Path(path)
+    if path.exists() and any(path.iterdir()):
+        raise FileExistsError(f'{path} is not empty; remove it to recompute this stage')
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def code_hashes():
+    """Hashes of the scientific modules, recorded in every stage's inputs."""
+    folder = ROOT/'src/main_experiment'
+    files = sorted([*folder.glob('*.py'), *folder.glob('*.cpp'), *(ROOT/'config/main_experiment').glob('*.txt'),
+                    ROOT/'config/study.yaml', ROOT/'config/datasets.yaml',
+                    ROOT/'src/census.py', ROOT/'src/dataset_census.py'])
+    return {str(p.relative_to(ROOT)): sha(p) for p in files}

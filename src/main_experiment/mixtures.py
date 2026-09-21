@@ -1,13 +1,13 @@
-"""Two Beta-mixture development candidates for the suffix and event-sampling arms.
+"""Beta-mixture reference of arm B (independent Bernoulli event thinning).
 
 Model family after Dorazio & Royle (2003), Mixture Models for Estimating the Size
 of a Closed Population When Capture Rates Vary among Individuals,
 https://doi.org/10.1111/1541-0420.00042. That paper motivates a Beta mixture over
-individual detection rates; the coupling to our samplers and to the persistence
+individual detection rates; the coupling to our sampler and to the persistence
 profile below is our own derivation, and it carries no guarantee about MAE.
 
-Shared latent structure
------------------------
+Latent structure
+----------------
 Each dyad e carries q_e ~ Beta(a,b). Given q_e the five archive windows are
 conditionally independent and exchangeable with activity probability q_e, so the
 true number of active windows is K_e | q_e ~ Bin(5, q_e). The estimand is the
@@ -27,40 +27,11 @@ windows out of n satisfies Pr{J=j} = C(n,j) E[(qd)^j (1-qd)^(n-j)]. Substituting
     E[q^r (1-q)^s] = B(a+r,b+s)/B(a,b) = prod(a+t)_r prod(b+t)_s / prod(a+b+t)_(r+s),
 
 in which no term is ever subtracted, so the result carries full precision for
-every (a,b,d). The equivalent expansion in the plain moments E[q^r] is the same
-identity but cancels catastrophically when qd concentrates near one. Checked
-against exact rational arithmetic over a wide (a,b,d) grid in
-tests/frozen_main/test_mixtures.py; worst relative error 8.3e-16. No quadrature
-and no regularisation is used anywhere. predict_profile does clamp its four
-outputs into [0,1]; the clamp is a guard against last-bit excursions only and
-raises if it ever has to move a value by more than CLAMP_TOL.
+every (a,b,d). Checked against exact rational arithmetic over a wide (a,b,d)
+grid in tests/test_mixtures.py. predict_profile clamps its four outputs into
+[0,1] only against last-bit excursions and raises if a clamp exceeds CLAMP_TOL.
 
-Candidate 1 -- suffix (legacy arm H_suffix_v1), d = 1
------------------------------------------------------
-Development variant of budget10-20261001 only. Arm H of the current design
-(budget10-hrecent5-20260917) observes all five windows with capped recent
-histories, so this three-to-five-window extrapolation does not apply to it and is
-neither a reference nor a feature there.
-
-The suffix arm observes windows 3,4,5 in full: every event in an observed window
-is retained, so there is no thinning and d = 1. A dyad appears in the table iff at
-least one of the three observed windows is active, hence
-
-    J | J>=1  ~  zero-truncated BetaBinomial(3, a, b).
-
-Sufficiency: the pattern table already gives n_j, the number of dyads with exactly
-j active observed windows. Under this model the event layer is independent of q
-given activity, so the event counts carry no additional information about (a,b)
-and are correctly unused. The table alone is sufficient for this likelihood.
-
-Identifiability: conditioned on J>=1 the data are two free cell probabilities and
-the model has two parameters, so the fit is exactly saturated -- zero degrees of
-freedom and no possible goodness-of-fit test. Data that are under-dispersed
-relative to a Binomial lie outside the Beta-Binomial family and drive the fit to
-the homogeneous boundary. Extrapolating a shape estimated on three windows to a
-five-window profile is an untestable extrapolation. Both are reported, not hidden.
-
-Candidate 2 -- Bernoulli event sampling (arm B), d = d(lambda,p)
+Bernoulli event sampling (arm B), d = d(lambda,p)
 ---------------------------------------------------------------
 Given a truly active window the true event count is N ~ ZTP(lambda), and arm B
 retains each event independently with the known probability p. For k >= 1,
@@ -117,9 +88,8 @@ import math
 from dataclasses import dataclass, field
 import numpy as np
 from scipy.optimize import minimize
-from .common import LEGACY_H
 
-# Fixed before any performance check; see docs/MAIN_EXPERIMENT_IMPLEMENTATION.md.
+# Fixed before any performance check.
 LOGIT_BOUND=12.0                    # mu in [6.1e-6, 1-6.1e-6]
 LOG_KAPPA_BOUNDS=(math.log(1e-3),math.log(1e6))   # 1e6 is the homogeneous boundary
 LOG_LAMBDA_BOUNDS=(math.log(1e-6),math.log(1e3))
@@ -198,10 +168,9 @@ def _unpack(z):
 
 
 def window_counts(o):
-    """n_j = number of observed dyads with exactly j active observed windows."""
-    if o['arm'] not in (LEGACY_H,'B'):
-        raise ValueError('mixture candidates exist for the legacy suffix arm and arm B only')
-    n=3 if o['arm']==LEGACY_H else 5
+    """n_j = number of observed dyads with exactly j active observed windows (arm B, n=5)."""
+    if o['arm']!='B': raise ValueError('the mixture reference exists for arm B only')
+    n=5
     c=[0]*(n+1)
     for row in o['table']: c[row[0].count('1')]+=row[1]
     return c,n
@@ -309,7 +278,7 @@ def _widen(bounds,decades):
     return out
 
 
-def bound_sensitivity(o,mu0,lam0=None,decades=2.0):
+def bound_sensitivity(o,mu0,lam0,decades=2.0):
     """How much does the answer depend on the artificial parameter box?
 
     Refits with every bound widened by `decades` and reports the movement of the
@@ -317,9 +286,8 @@ def bound_sensitivity(o,mu0,lam0=None,decades=2.0):
     shows up here as a large profile shift, which is a problem to report rather
     than a result to keep.
     """
-    base=fit_events(o,mu0,lam0) if lam0 is not None else fit_suffix(o,mu0)
-    wide=(fit_events(o,mu0,lam0,decades=decades) if lam0 is not None
-          else fit_suffix(o,mu0,decades=decades))
+    base=fit_events(o,mu0,lam0)
+    wide=fit_events(o,mu0,lam0,decades=decades)
     if base.status=='empty_sample' or wide.status=='empty_sample':
         return {'status':'empty_sample'}
     shift=max(abs(x-y) for x,y in zip(base.prediction,wide.prediction))
@@ -330,42 +298,8 @@ def bound_sensitivity(o,mu0,lam0=None,decades=2.0):
             'kappa':base.kappa,'kappa_widened':wide.kappa}
 
 
-def fit_suffix(o,homogeneous_mu,decades=0.):
-    """Candidate 1: zero-truncated Beta-Binomial on the three observed windows."""
-    import time; t0=time.perf_counter()
-    counts,n=window_counts(o)
-    D=sum(counts[1:])
-    if D<=0: return Fit([0.,0.,0.,0.],'empty_sample')
-    def nll(z):
-        a,b=_unpack(z)
-        if not (a>0 and b>0 and math.isfinite(a) and math.isfinite(b)): return PENALTY
-        p=cell_probs(a,b,1.,n)
-        tr=math.fsum(p[1:])
-        if tr<=0: return PENALTY
-        s=0.
-        for j in range(1,n+1):
-            if counts[j]:
-                if p[j]<=0: return PENALTY
-                s+=counts[j]*(math.log(p[j])-math.log(tr))
-        return -s
-    bounds=_widen([(-LOGIT_BOUND,LOGIT_BOUND),LOG_KAPPA_BOUNDS],decades) if decades else [(-LOGIT_BOUND,LOGIT_BOUND),LOG_KAPPA_BOUNDS]
-    mu0=min(max(homogeneous_mu,1e-6),1-1e-6)
-    starts=[_pack(mu0,k) for k in START_KAPPAS]
-    best,values,rejected=_solve(nll,starts,bounds)
-    if best is None:
-        return Fit([0.,0.,0.,0.],'not_converged',n_starts=len(starts),
-                   n_accepted=0,notes=rejected,seconds=time.perf_counter()-t0)
-    a,b=_unpack(best.x)
-    flat=_flatness(nll,best,bounds,1)
-    spread=max(values)-min(values)
-    st,flags=diagnose(best.x,bounds,spread,flat)
-    return Fit(predict_profile(a,b),st,flags=flags,a=a,b=b,mu=a/(a+b),kappa=a+b,nll=float(best.fun),
-               nll_spread=spread,flat_per_decade=flat,n_starts=len(starts),
-               n_accepted=len(values),notes=rejected,seconds=time.perf_counter()-t0)
-
-
 def fit_events(o,homogeneous_mu,homogeneous_lambda,decades=0.):
-    """Candidate 2: Beta-mixed activity with the ZTP event layer and known retention p."""
+    """Beta-mixed activity with the ZTP event layer and known retention p."""
     import time; t0=time.perf_counter()
     counts,n=window_counts(o)
     D=sum(counts[1:]); S=sum(j*counts[j] for j in range(1,n+1)); M=o['M_obs']; p=o['parameter']

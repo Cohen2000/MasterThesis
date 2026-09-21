@@ -1,9 +1,15 @@
-"""Strict final-answer parsing and hierarchical error aggregation; no transport."""
+"""Strict parsing of final answers and hierarchical error aggregation.
+
+An answer is valid only if its final text is one JSON object with exactly the
+keys rho_2..rho_5, finite numbers in [0,1], non-increasing, optionally wrapped
+in a single whole-answer code fence. Invalid answers are never imputed;
+accuracy is conditional on valid answers.
+"""
 import json
 import math
 import re
 import numpy as np
-from .common import SAMPLER_DRAWS, LLM_REPEATS
+from .common import SAMPLER_DRAWS
 
 KEYS=tuple(f'rho_{k}' for k in range(2,6))
 FENCE=re.compile(r'\A```[A-Za-z0-9_+-]*\s*\n(.*?)\n?```\s*\Z',re.S)
@@ -50,8 +56,8 @@ def parse_final(raw):
 EVALUATION_VERSION='validity-conditional-mae-v1-20260918'
 
 
-def resolve(o,median=None,record=None):
-    """Failures have no estimate. median is accepted only for caller compatibility."""
+def resolve(o,record=None):
+    """State and parsed prediction of one planned request; failures have no estimate."""
     base={'prediction':None,'valid':None,'replacement':None,'started':False,'terminal':False}
     if o['D_obs']==0:
         return {**base,'status':'empty','valid':False,'terminal':True}
@@ -74,19 +80,8 @@ def errors(prediction,truth):
     return {'AE2':float(abs(diff[0])),'ProfileAE':float(np.mean(abs(diff))),'signed_rho2':float(diff[0])}
 
 
-def cell_variance(a):
-    """Direct variance of the mean; no estimated additive components."""
-    a=np.asarray(a,float)
-    if a.ndim!=2 or not a.size or not np.isfinite(a).all():
-        raise ValueError('finite draw x repeat array required')
-    s,r=a.shape
-    total=float(np.var(a.mean(1),ddof=1)/s) if s>1 else (
-          float(np.var(a[0],ddof=1)/r) if r>1 else 0.)
-    return {'total':total,'deterministic_draw':s==1}
-
-
-def paired_summary(cells,expected=None):
-    """Equal-source summary of complete cells, clustered on sampler draws."""
+def complete_summary(cells,expected=None):
+    """conditional_summary for cells that must be complete (baselines, validity)."""
     for source,values in cells.items():
         a=np.asarray(values,float)
         if (a.ndim!=2 or a.shape[0]!=(expected or {}).get(source,SAMPLER_DRAWS)

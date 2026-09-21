@@ -1,0 +1,956 @@
+{
+  "budgets": [
+    {
+      "T": 190.10000000000002,
+      "graph_id": "sp_hospital",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.0002416935609991112,
+        "R": -0.005405405405405507,
+        "S": 0.004554551880589043
+      }
+    },
+    {
+      "T": 1503.2,
+      "graph_id": "sp_primaryschool",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.007809769436418178,
+        "R": 0.0033949453036589044,
+        "S": -0.0031006768893028507
+      }
+    },
+    {
+      "T": 1124.4,
+      "graph_id": "sp_highschool2013",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": -0.005470839375133228,
+        "R": 0.004859195887506634,
+        "S": 0.0013265755625221532
+      }
+    },
+    {
+      "T": 622.0,
+      "graph_id": "sp_workplace",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.0017937611029613984,
+        "R": 0.0010240655401945636,
+        "S": 0.0010001130426045017
+      }
+    },
+    {
+      "T": 300.8,
+      "graph_id": "sp_hypertext2009",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.018330595865723495,
+        "R": -0.0044247787610620076,
+        "S": -0.0008869576961436548
+      }
+    },
+    {
+      "T": 1549.4,
+      "graph_id": "snap_collegemsg",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 5.4934353447593634e-05,
+        "R": 0.0004711036977478434,
+        "S": 0.000829075972957215
+      }
+    },
+    {
+      "T": 3213.7000000000003,
+      "graph_id": "snap_email_eu",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 1.4150273855259173e-16,
+        "H": -0.0001481187752363833,
+        "R": -0.000916382656686123,
+        "S": 0.000583804298783249
+      }
+    },
+    {
+      "T": 20867.7,
+      "graph_id": "snap_mathoverflow",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 8.320056306694164e-05,
+        "R": 4.466353164493199e-05,
+        "S": 0.0009328299537083277
+      }
+    },
+    {
+      "T": 2202.5,
+      "graph_id": "snap_bitcoin_otc",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.00012284920244697966,
+        "R": -8.328446154865704e-05,
+        "S": 0.002651461407491487
+      }
+    },
+    {
+      "T": 782.9000000000001,
+      "graph_id": "nr_radoslaw_email",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.012645219420240609,
+        "R": -0.005843734218310539,
+        "S": -0.0019553702580151883
+      }
+    },
+    {
+      "T": 8542.800000000001,
+      "graph_id": "nr_digg_reply",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 7.518144621363875e-05,
+        "R": -3.5152464702979104e-06,
+        "S": -0.00101170265457474
+      }
+    },
+    {
+      "T": 2586.4,
+      "graph_id": "jodie_wikipedia",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 5.452407123332083e-05,
+        "R": -0.00012031251369262435,
+        "S": -0.00788212500966598
+      }
+    },
+    {
+      "T": 15129.400000000001,
+      "graph_id": "jodie_reddit",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.0001090779341370988,
+        "R": 0.00012225077503402658,
+        "S": -0.003484755880933907
+      }
+    },
+    {
+      "T": 25794.100000000002,
+      "graph_id": "jodie_lastfm",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 1.410391836540803e-16,
+        "H": 0.00046850149432542084,
+        "R": -0.0015108130317833428,
+        "S": 7.048002256321473e-05
+      }
+    },
+    {
+      "T": 20719.800000000003,
+      "graph_id": "jodie_mooc",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.00030366281119580227,
+        "R": -0.0004188158118137524,
+        "S": -8.98898638019146e-05
+      }
+    },
+    {
+      "T": 14447.6,
+      "graph_id": "copenhagen_bluetooth",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": -0.00290480247751261,
+        "R": -0.0015726558644170387,
+        "S": 0.0008221115661078404
+      }
+    },
+    {
+      "T": 496.3,
+      "graph_id": "dar_a0_r1",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.003304210678055678,
+        "R": -0.005771543086172373,
+        "S": 0.0009519664265564953
+      }
+    },
+    {
+      "T": 498.3,
+      "graph_id": "dar_a08_r1",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": -0.0007226976529820728,
+        "R": -0.005771543086172417,
+        "S": -0.0028028891982741547
+      }
+    },
+    {
+      "T": 494.5,
+      "graph_id": "dar_a0_r2",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.0020695789962128924,
+        "R": -0.0057715430861723215,
+        "S": -0.0008788075075834176
+      }
+    },
+    {
+      "T": 489.8,
+      "graph_id": "dar_a08_r2",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": -0.002265084020855913,
+        "R": -0.001778657717040532,
+        "S": -0.0019064701153532287
+      }
+    },
+    {
+      "T": 1103.4,
+      "graph_id": "ad_memoryless_r1",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.0006176572830270298,
+        "R": -0.005771543086172473,
+        "S": 4.2836346746337726e-05
+      }
+    },
+    {
+      "T": 574.5,
+      "graph_id": "ad_memory_r1",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": -0.004947796376042018,
+        "R": -0.00577154308617237,
+        "S": -0.0032722068102697998
+      }
+    },
+    {
+      "T": 1062.2,
+      "graph_id": "ad_memoryless_r2",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.000925820762217283,
+        "R": -0.005771543086172406,
+        "S": -0.0003730832823385854
+      }
+    },
+    {
+      "T": 554.5,
+      "graph_id": "ad_memory_r2",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.0029801857999136767,
+        "R": -0.005771543086172385,
+        "S": 0.002900628381424707
+      }
+    },
+    {
+      "T": 398.40000000000003,
+      "graph_id": "sp_hospital__pwt",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 1.4267926420885546e-16,
+        "H": -0.01240095517203954,
+        "R": -0.005405405405405448,
+        "S": 0.004530818586847303
+      }
+    },
+    {
+      "T": 1677.0,
+      "graph_id": "sp_highschool2013__pwt",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.000403956884549886,
+        "R": 0.004859195887506738,
+        "S": 0.0008688319916517591
+      }
+    },
+    {
+      "T": 24759.2,
+      "graph_id": "copenhagen_bluetooth__pwt",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.0006430135292343136,
+        "R": -0.0015726558644170116,
+        "S": 0.0008112593626813173
+      }
+    },
+    {
+      "T": 1026.5,
+      "graph_id": "sp_workplace__pwt",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 0.0037014507262610155,
+        "R": 0.0010240655401946325,
+        "S": -0.00026923252557233316
+      }
+    },
+    {
+      "T": 4138.3,
+      "graph_id": "snap_email_eu__pwt",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": -0.0002542081980372669,
+        "R": -0.0009163826566860905,
+        "S": -0.001180426971824223
+      }
+    },
+    {
+      "T": 2526.6000000000004,
+      "graph_id": "snap_collegemsg__pwt",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": -0.00027802088781294965,
+        "R": 0.0004711036977477318,
+        "S": -0.0029044095820471632
+      }
+    },
+    {
+      "T": 29482.0,
+      "graph_id": "snap_mathoverflow__pwt",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 2.4679321668080273e-16,
+        "H": -7.099008546392228e-06,
+        "R": 4.466353164502796e-05,
+        "S": -8.71493093243335e-05
+      }
+    },
+    {
+      "T": 8592.300000000001,
+      "graph_id": "nr_digg_reply__pwt",
+      "matched_B": true,
+      "matched_H": true,
+      "matched_R": true,
+      "matched_S": true,
+      "relative_errors": {
+        "B": 0.0,
+        "H": 3.359174667246855e-05,
+        "R": -3.5152464703777996e-06,
+        "S": -0.0010533822797738777
+      }
+    }
+  ],
+  "checksums": 771,
+  "common_random_numbers": [
+    {
+      "L": [
+        124,
+        124
+      ],
+      "n_panel": [
+        24,
+        24
+      ],
+      "n_panel_history": [
+        30,
+        30
+      ],
+      "p": [
+        0.007853281401042305,
+        0.015698077596235538
+      ],
+      "parent": "sp_hospital"
+    },
+    {
+      "L": [
+        632,
+        632
+      ],
+      "n_panel": [
+        104,
+        104
+      ],
+      "n_panel_history": [
+        137,
+        134
+      ],
+      "p": [
+        0.010056324696968398,
+        0.013558491800151385
+      ],
+      "parent": "sp_highschool2013"
+    },
+    {
+      "L": [
+        8419,
+        8420
+      ],
+      "n_panel": [
+        219,
+        219
+      ],
+      "n_panel_history": [
+        271,
+        281
+      ],
+      "p": [
+        0.008177784127316852,
+        0.014700258112881785
+      ],
+      "parent": "copenhagen_bluetooth"
+    },
+    {
+      "L": [
+        462,
+        461
+      ],
+      "n_panel": [
+        69,
+        69
+      ],
+      "n_panel_history": [
+        103,
+        100
+      ],
+      "p": [
+        0.011301330005196099,
+        0.01718635705705029
+      ],
+      "parent": "sp_workplace"
+    },
+    {
+      "L": [
+        1745,
+        1742
+      ],
+      "n_panel": [
+        312,
+        312
+      ],
+      "n_panel_history": [
+        444,
+        448
+      ],
+      "p": [
+        0.01368176798627202,
+        0.01783705761991374
+      ],
+      "parent": "snap_email_eu"
+    },
+    {
+      "L": [
+        1574,
+        1561
+      ],
+      "n_panel": [
+        601,
+        601
+      ],
+      "n_panel_history": [
+        1525,
+        1161
+      ],
+      "p": [
+        0.03044262418268091,
+        0.0481320133867284
+      ],
+      "parent": "snap_collegemsg"
+    },
+    {
+      "L": [
+        21213,
+        21046
+      ],
+      "n_panel": [
+        7830,
+        7830
+      ],
+      "n_panel_history": [
+        10699,
+        10649
+      ],
+      "p": [
+        0.05779617791321861,
+        0.07853067693562238
+      ],
+      "parent": "snap_mathoverflow"
+    },
+    {
+      "L": [
+        11485,
+        11487
+      ],
+      "n_panel": [
+        9601,
+        9601
+      ],
+      "n_panel_history": [
+        11520,
+        11521
+      ],
+      "p": [
+        0.09922187320778225,
+        0.0997143509751496
+      ],
+      "parent": "nr_digg_reply"
+    }
+  ],
+  "design": {
+    "main_observations": 288,
+    "planned_calls": 3456,
+    "qwen_calls": 1728,
+    "training_observations": 320
+  },
+  "design_version": "panel888-pwt-srw-20260921",
+  "deterministic_h_graphs": [],
+  "diagnostics": {
+    "decomposition": "7403bda926372448af05530ce6c14248c04340fef3496ddd7c68965027c0951c",
+    "history": "00124f62ad9ed485cb8253e4d8d2fac8be119ba700a01c4e34f944671edf2d85",
+    "mixture_bounds": "cfe0c22d86c5117a2a827b1b2fd63c0683344860cea32b5651d29a029f6d3845",
+    "null_model": "8848d2c7dd05e023d2ce6dfb50a171c3adc2314613d964dd9954c52925e6d15d",
+    "srw": "843c586443281155f7f286b28e70fc92597f7623087d4655b554a353c4261c2f",
+    "windows": "b456bcbb134626e0b5280aa8cbcde5b1d3fb8ce16a9ba1772800370b6d2259fb"
+  },
+  "models": [
+    {
+      "fold": "sp_hospital",
+      "model_sha256": "ec252d655d8b9f8a78bc7c48ef48f4b2174142cfb4277e3c9e0f806d87e9eaaf",
+      "random_state": 1858608657,
+      "training_rows": 8300,
+      "variant": "pooled"
+    },
+    {
+      "fold": "sp_highschool2013",
+      "model_sha256": "498492052ba9dc12daa860c2722f19b279ed6ea6ba047562ce734b44eeb2ad5f",
+      "random_state": 1858608657,
+      "training_rows": 8300,
+      "variant": "pooled"
+    },
+    {
+      "fold": "copenhagen_bluetooth",
+      "model_sha256": "6c9c44e7c75b2e23001c1ea75b40d082bfb2df376024021a65b8eac2d828ba9b",
+      "random_state": 1858608657,
+      "training_rows": 8300,
+      "variant": "pooled"
+    },
+    {
+      "fold": "sp_workplace",
+      "model_sha256": "e55a48adf9f4af2a28ffff3f954525cf8ad0c724d7d714ff55ffb4698510c40b",
+      "random_state": 1858608657,
+      "training_rows": 8300,
+      "variant": "pooled"
+    },
+    {
+      "fold": "snap_email_eu",
+      "model_sha256": "a8729d7a5bcda52795e576f7f8361131d6b203d0fdbfb0267253d7152175dc15",
+      "random_state": 1858608657,
+      "training_rows": 8300,
+      "variant": "pooled"
+    },
+    {
+      "fold": "snap_collegemsg",
+      "model_sha256": "e406cad03670a07174387b7d1c6e4243bc7781e376bfdaa7b46bf7b9ea60a957",
+      "random_state": 1858608657,
+      "training_rows": 8300,
+      "variant": "pooled"
+    },
+    {
+      "fold": "snap_mathoverflow",
+      "model_sha256": "7fa4d4370930fd595a3fa442ddf8d0391b73e5426fbaaac2d26342bac09483f3",
+      "random_state": 1858608657,
+      "training_rows": 8300,
+      "variant": "pooled"
+    },
+    {
+      "fold": "nr_digg_reply",
+      "model_sha256": "12fa4b0a15034559c14e5772906eb15707e9cac783960fc51bddd081e7c0c97c",
+      "random_state": 1858608657,
+      "training_rows": 8300,
+      "variant": "pooled"
+    },
+    {
+      "fold": "synthetic",
+      "model_sha256": "aed84fa510631dfdef57cf495dc98c9b40e640dc73291bcca5b098106c908dd6",
+      "random_state": 1858608657,
+      "training_rows": 8320,
+      "variant": "pooled"
+    },
+    {
+      "fold": "sp_hospital",
+      "model_sha256": "3ce8f30e65eff690800503e5cb4099a9e978ca442d9047dc0f6ebf6a6427e349",
+      "random_state": 1858608657,
+      "training_rows": 300,
+      "variant": "real_only"
+    },
+    {
+      "fold": "sp_highschool2013",
+      "model_sha256": "de0055e407f543ad2b33d6aca5e31b6b4225962d15fec808440459d9be434bac",
+      "random_state": 1858608657,
+      "training_rows": 300,
+      "variant": "real_only"
+    },
+    {
+      "fold": "copenhagen_bluetooth",
+      "model_sha256": "78dac93c5190a6f0eef42242a7073528e3307e26c6b40c69d55e2ea449df76eb",
+      "random_state": 1858608657,
+      "training_rows": 300,
+      "variant": "real_only"
+    },
+    {
+      "fold": "sp_workplace",
+      "model_sha256": "220456b4a27f6bd6c2e08cf4343e2e443186d90ab5db723f3855706a8d0f5134",
+      "random_state": 1858608657,
+      "training_rows": 300,
+      "variant": "real_only"
+    },
+    {
+      "fold": "snap_email_eu",
+      "model_sha256": "78c5de792b02ae03141c9db07a5bc8b66db24354f6f65904115b9e9d72ecde92",
+      "random_state": 1858608657,
+      "training_rows": 300,
+      "variant": "real_only"
+    },
+    {
+      "fold": "snap_collegemsg",
+      "model_sha256": "2ca0c711e999a0263427ec69046ae5ea3550f1f92f0cfee4619d6e9dfd323622",
+      "random_state": 1858608657,
+      "training_rows": 300,
+      "variant": "real_only"
+    },
+    {
+      "fold": "snap_mathoverflow",
+      "model_sha256": "d297ecaf1fb2c30cf89393676b158ed736315de292b925e606a68d5564bf14eb",
+      "random_state": 1858608657,
+      "training_rows": 300,
+      "variant": "real_only"
+    },
+    {
+      "fold": "nr_digg_reply",
+      "model_sha256": "f7c1758f9a7900b08d8f14811af228eb4418092af888a3404b9f3d4b4a0f6103",
+      "random_state": 1858608657,
+      "training_rows": 300,
+      "variant": "real_only"
+    },
+    {
+      "fold": "synthetic",
+      "model_sha256": "db7eb42010c4dfb72fa13cb099c59cc07ec4ce0db89129212ca68091e6b1e197",
+      "random_state": 1858608657,
+      "training_rows": 320,
+      "variant": "real_only"
+    }
+  ],
+  "observations_rederived": {
+    "sample": 288,
+    "training": 320
+  },
+  "prompt_templates": {
+    "aux_S.txt": "af86f4c1a685e30fef6a909b425b9dbdcbd6491813232233ce3be090b81fbf30",
+    "rule_B.txt": "06cd8addbc248768d6685e0bcd5f1b3baabf382fa583a09df611543ec23e5057",
+    "rule_H_time_v3.txt": "45c8d26bf920ad85d96789a9df98d6500b2176975812b5ef4fcea618d7ace138",
+    "rule_R.txt": "e791165e6a7ba520ac8445b74bb12daf5f93435d2bd4a68fc4c1fcf640f803f6",
+    "rule_S.txt": "791dad67ca2268e8c8e2b30026c57fbc1c5e97cedf69ce16d1eb58ce9ed7bcb2",
+    "system.txt": "402ac97f8c3b0cf6b48d18ebf0a20eb1b39dcc314042801883e48a0a973a867d",
+    "user_prefix.txt": "0f9a7e95378a126a643108bd5fabdc350ebad02e2fbc983e73eecf4a936558f7"
+  },
+  "requests": {
+    "per_config": {
+      "deepseek": 864,
+      "qwen_nonthinking": 864,
+      "qwen_thinking": 864,
+      "sol": 864
+    },
+    "previous_request_ids_reused": 0,
+    "requests": 3456,
+    "requests_sha256": "2dc20315a5562912d82b856d741a5b9a91638794489b31f77fa5fbdb18e5ad6e"
+  },
+  "seeds": {
+    "alias_scope": "sampler streams R/S/H/B keyed by the parent source by design",
+    "collisions": 0,
+    "crn_aliases": {
+      "copenhagen_bluetooth__pwt": "copenhagen_bluetooth",
+      "nr_digg_reply__pwt": "nr_digg_reply",
+      "snap_collegemsg__pwt": "snap_collegemsg",
+      "snap_email_eu__pwt": "snap_email_eu",
+      "snap_mathoverflow__pwt": "snap_mathoverflow",
+      "sp_highschool2013__pwt": "sp_highschool2013",
+      "sp_hospital__pwt": "sp_hospital",
+      "sp_workplace__pwt": "sp_workplace"
+    },
+    "domains": {
+      "extratrees": 1,
+      "graph": 4,
+      "llm": 3456,
+      "pool": 500,
+      "pool_definition": 2,
+      "pool_dev": 2000,
+      "pool_train": 8000,
+      "pwt_null_diagnostic": 792,
+      "pwt_productive": 8,
+      "sample": 192,
+      "srw_diagnostic": 768,
+      "training": 320,
+      "walk_calibration_cells": 136192,
+      "walk_validation_cells": 624640
+    },
+    "manifest_sha256": "778392e318715905bd1e08bb8efa9d33c1034d2b5cbf9d51cca394407b4adce1",
+    "previous_generation_overlap": 0,
+    "unique_streams": 776875
+  },
+  "sol_deepseek_started": 0,
+  "surrogates": [
+    {
+      "events": 32424,
+      "parent": "sp_hospital",
+      "parent_collisions": 0,
+      "rho_parent": [
+        0.44512730465320455,
+        0.16417910447761194,
+        0.0456540825285338,
+        0.014047410008779631
+      ],
+      "rho_surrogate": [
+        0.8349429323968394,
+        0.704126426690079,
+        0.5636523266022827,
+        0.39508340649692714
+      ],
+      "surrogate_collisions": 399
+    },
+    {
+      "events": 188508,
+      "parent": "sp_highschool2013",
+      "parent_collisions": 0,
+      "rho_parent": [
+        0.4855620488140254,
+        0.2671020969405294,
+        0.12822275696115504,
+        0.05173599174974218
+      ],
+      "rho_surrogate": [
+        0.6632863526985219,
+        0.512547267102097,
+        0.40477827432107255,
+        0.301821931935373
+      ],
+      "surrogate_collisions": 7541
+    },
+    {
+      "events": 2426279,
+      "parent": "copenhagen_bluetooth",
+      "parent_collisions": 0,
+      "rho_parent": [
+        0.44692568841946434,
+        0.22074688796680497,
+        0.1074311580535647,
+        0.041518923676600025
+      ],
+      "rho_surrogate": [
+        0.7147617251351691,
+        0.572073431409531,
+        0.467534263799824,
+        0.3588205708537659
+      ],
+      "surrogate_collisions": 146100
+    },
+    {
+      "events": 78249,
+      "parent": "sp_workplace",
+      "parent_collisions": 0,
+      "rho_parent": [
+        0.2901263453439401,
+        0.11909218530650445,
+        0.04609265325222274,
+        0.0
+      ],
+      "rho_surrogate": [
+        0.6321946654188114,
+        0.4473561066916238,
+        0.3221806270472625,
+        0.0
+      ],
+      "surrogate_collisions": 517
+    },
+    {
+      "events": 332334,
+      "parent": "snap_email_eu",
+      "parent_collisions": 5001,
+      "rho_parent": [
+        0.5057270916334662,
+        0.2975597609561753,
+        0.1593625498007968,
+        0.03791085657370518
+      ],
+      "rho_surrogate": [
+        0.6871887450199203,
+        0.4856200199203187,
+        0.3252614541832669,
+        0.07806274900398406
+      ],
+      "surrogate_collisions": 627
+    },
+    {
+      "events": 59835,
+      "parent": "snap_collegemsg",
+      "parent_collisions": 40,
+      "rho_parent": [
+        0.10304957363780894,
+        0.013007660066483595,
+        0.003251915016620899,
+        0.00036132389073565546
+      ],
+      "rho_surrogate": [
+        0.5098280098280098,
+        0.21701112877583467,
+        0.07754010695187166,
+        0.021462639109697933
+      ],
+      "surrogate_collisions": 0
+    },
+    {
+      "events": 390441,
+      "parent": "snap_mathoverflow",
+      "parent_collisions": 27,
+      "rho_parent": [
+        0.08438394348515314,
+        0.01923015543710702,
+        0.005303586437287883,
+        0.0011490217356611662
+      ],
+      "rho_surrogate": [
+        0.35078676071622356,
+        0.13837732597108296,
+        0.05772238358175609,
+        0.021421808006979244
+      ],
+      "surrogate_collisions": 0
+    },
+    {
+      "events": 86203,
+      "parent": "nr_digg_reply",
+      "parent_collisions": 0,
+      "rho_parent": [
+        0.0030649991192531266,
+        0.00011743291644647995,
+        2.348658328929599e-05,
+        0.0
+      ],
+      "rho_surrogate": [
+        0.00814984440138571,
+        0.0006928542070342317,
+        0.00015266279138042394,
+        2.348658328929599e-05
+      ],
+      "surrogate_collisions": 0
+    }
+  ],
+  "verified": true
+}
