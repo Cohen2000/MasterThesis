@@ -1,9 +1,9 @@
-# Runbook: panel888-pwt-srw-20260921
+# Runbook
 
 One offline entry point, one Qwen production path, one integration path.
 The scientific design is in [PROTOCOL_PANEL888_20260921.md](PROTOCOL_PANEL888_20260921.md).
 
-## 1. Offline study (local, no model calls, about 25 minutes)
+## 1. Offline study (no model calls, about 25 minutes; on uc3: `cluster/offline_study.sbatch`)
 
 Requirements: the pinned `.venv`, raw sources in `data/raw/`, tokenizers in
 `data/tokenizers/` (`scripts/fetch_tokenizers.py`), and `g++` for the walk kernel.
@@ -23,7 +23,7 @@ Steps and outputs (logs in `results/panel888/logs/`):
 | development check and main reference predictions | `build_references.py references` | `references/primary_baselines.json` |
 | oracle selection/history decomposition | `diagnose_decomposition.py` | `diagnostics/decomposition/` |
 | H at h = .40/.60/.80 | `diagnose_history.py` | `diagnostics/history/` |
-| SRW components, 32 paths at L and 4L | `diagnose_srw.py` | `diagnostics/srw/` |
+| S construct validity, 1000 walks at L and 4L | `diagnose_walk.py` | `diagnostics/walk/` |
 | 99 offline P[w,t] null shuffles per parent | `diagnose_null_model.py` | `diagnostics/null_model/` |
 | W = 2..20, {4,5,8}, thresholds, census descriptors | `diagnose_windows.py` | `diagnostics/windows/` |
 | B mixture bound widening | `diagnose_mixture_bounds.py` | `diagnostics/mixture_bounds/` |
@@ -41,14 +41,20 @@ and record the commit SHA. The working tree must be clean.
 
 ## 3. Qwen production (cluster uc3; needs the open ssh ControlMaster)
 
-Before anything: `squeue -u $USER`, and check that `$WS/panel888_pwt_srw_20260921`
-does not exist yet (or reconcile its `mainexp/production_jobs.txt`; never submit twice).
+Before anything: `squeue -u $USER`, and check that `$WS/panel888_main` does not exist
+yet (or reconcile its `mainexp/production_jobs.txt`; never submit twice).
 
 ```
-bash scripts/cluster_bundle.sh panel888_pwt_srw_20260921          # verifies the seal against HEAD
-ssh uc3 'cd /pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/panel888_pwt_srw_20260921/mainexp && \
-         bash submit_production.sh panel888_pwt_srw_20260921 6 all <commit>'
+bash scripts/cluster_bundle.sh panel888_main          # verifies the seal against HEAD
+ssh uc3 'cd /pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/panel888_main/mainexp && \
+         bash submit_production.sh panel888_main 6 all <commit>'
 ```
+
+Answers to requests whose request record is byte-identical to one of an earlier
+production workspace may be copied into `mainexp/answers/` before submission (with
+`answers/REUSED_ANSWERS.json` listing each file; `cluster/reuse_answers.py`); the runner then admits only the
+remaining requests and the archive verification checks every answer's ID, prompt,
+payload, seed and runner hash. In this study the R and H answers were obtained so.
 
 `submit_production.sh` verifies the bundle checksums, the commit and the clean
 source status, takes a lock, refuses if a chain was ever submitted, and writes each
