@@ -202,19 +202,20 @@ def tidy_rows(fraction, references, requests, responses):
 
 def summarise(rows):
     """Equal-source conditional MAE per budget x block x arm x method, draw-clustered MCSE."""
+    groups = {}
+    for r in rows: groups.setdefault((r['budget'], r['evidence_block'], r['arm'], r['method']), []).append(r)
     summary = []
     for fraction in BUDGET_GRID:
         for block in STRATA:
             for arm in ARMS:
                 for method in (*REFERENCE_METHODS, *QWEN_CONFIGS):
-                    group = [r for r in rows if r['budget'] == fraction and r['evidence_block'] == block
-                             and r['arm'] == arm and r['method'] == method]
+                    group = groups[fraction, block, arm, method]
                     sources = sorted({r['graph_id'] for r in group})
                     draws = {s: max(r['sample_index'] for r in group if r['graph_id'] == s) for s in sources}
                     result = {'budget': fraction, 'evidence_block': block, 'arm': arm, 'method': method,
                               'sources': len(sources), 'planned': len(group),
                               'valid': sum(r['valid'] for r in group),
-                              'missing': sum(r['status'] in ('not_started', 'in_progress') for r in group),
+                              'missing': sum(r['status'] in ('not_started', 'in_progress') for r in group),  # no answer yet
                               'empty_observations': sum(r['status'] == 'empty' for r in group),
                               'expected_coverage': float(np.mean([np.mean([r['expected_coverage'] for r in group if r['graph_id'] == s])
                                                                   for s in sources])),
