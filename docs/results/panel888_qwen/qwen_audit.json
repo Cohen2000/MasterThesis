@@ -1,0 +1,15 @@
+{
+  "counts": {
+    "qwen_nonthinking:output_limit": 0,
+    "qwen_nonthinking:valid": 864,
+    "qwen_thinking:invalid": 1,
+    "qwen_thinking:output_limit": 0,
+    "qwen_thinking:valid": 863
+  },
+  "expected": 1728,
+  "responses": 1728,
+  "responses_sha256": "514e68aeb1a2f88850de520c06eacf4450eae1798056190a945ec45930bdbf3c",
+  "sol_deepseek_started": 0,
+  "valid": 1727,
+  "verified": true
+}
