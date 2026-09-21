@@ -11,5 +11,5 @@
 set -euo pipefail
 WS=/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot
 module load devel/python/3.12.3-gnu-14.2
-mkdir -p .venv/bin && ln -sf "$WS/venv_offline/bin/python" .venv/bin/python
-bash scripts/run_offline.sh
+source "$WS/venv_offline/bin/activate"
+PYTHON=python bash scripts/run_offline.sh

@@ -1,0 +1,53 @@
+{
+  "arm_rules": {
+    "B": "06cd8addbc248768d6685e0bcd5f1b3baabf382fa583a09df611543ec23e5057",
+    "H": "45c8d26bf920ad85d96789a9df98d6500b2176975812b5ef4fcea618d7ace138",
+    "R": "e791165e6a7ba520ac8445b74bb12daf5f93435d2bd4a68fc4c1fcf640f803f6",
+    "S": "791dad67ca2268e8c8e2b30026c57fbc1c5e97cedf69ce16d1eb58ce9ed7bcb2"
+  },
+  "audit_passed": true,
+  "auxiliary_templates": {
+    "S": "af86f4c1a685e30fef6a909b425b9dbdcbd6491813232233ce3be090b81fbf30"
+  },
+  "common_templates": {
+    "system_sha256": "402ac97f8c3b0cf6b48d18ebf0a20eb1b39dcc314042801883e48a0a973a867d",
+    "user_prefix_sha256": "0f9a7e95378a126a643108bd5fabdc350ebad02e2fbc983e73eecf4a936558f7"
+  },
+  "design_version": "cells10-final-20260920",
+  "offline_run": "results/main_experiment/cells10_final_20260920",
+  "paid_api_dispatch_authorized": false,
+  "request_manifest": {
+    "deepseek_requests_unauthorized": 840,
+    "per_arm_config": {
+      "B_deepseek": 210,
+      "B_qwen_nonthinking": 210,
+      "B_qwen_thinking": 210,
+      "B_sol": 210,
+      "H_deepseek": 210,
+      "H_qwen_nonthinking": 210,
+      "H_qwen_thinking": 210,
+      "H_sol": 210,
+      "R_deepseek": 210,
+      "R_qwen_nonthinking": 210,
+      "R_qwen_thinking": 210,
+      "R_sol": 210,
+      "S_deepseek": 210,
+      "S_qwen_nonthinking": 210,
+      "S_qwen_thinking": 210,
+      "S_sol": 210
+    },
+    "qwen_requests": 1680,
+    "sol_requests_unauthorized": 840,
+    "total_requests": 3360
+  },
+  "sample_observations": {
+    "per_arm": {
+      "B": 70,
+      "H": 70,
+      "R": 70,
+      "S": 70
+    },
+    "total": 280
+  },
+  "statement": "The final prompt revision aligns the task representation with the finalized observation mechanisms and removes inapplicable historical fields. No wording or field was selected based on comparative LLM accuracy."
+}

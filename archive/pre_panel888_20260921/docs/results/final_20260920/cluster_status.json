@@ -1,0 +1,41 @@
+{
+ "planned_qwen": 1680,
+ "present": 1680,
+ "missing": 0,
+ "unexpected": 0,
+ "duplicates": 0,
+ "complete": true,
+ "per_pass": {
+  "nonthinking_r1": 280,
+  "nonthinking_r2": 280,
+  "nonthinking_r3": 280,
+  "thinking_r1": 280,
+  "thinking_r2": 280,
+  "thinking_r3": 280
+ },
+ "per_arm": {
+  "B": 420,
+  "H": 420,
+  "R": 420,
+  "S": 420
+ },
+ "end_states": {
+  "model_end": 1680
+ },
+ "unclosed_reasoning": 0,
+ "empty_final_text": 0,
+ "strict_parser": {
+  "nonthinking:valid": 840,
+  "thinking:keys_or_object": 2,
+  "thinking:valid": 838
+ },
+ "output_tokens": {
+  "n": 1680,
+  "max": 58394,
+  "median": 3649,
+  "sum": 8001266
+ },
+ "payload_hash_mismatch": 0,
+ "prompt_hash_mismatch": 0,
+ "engine_vs_own_input_tokens_mismatch": 0
+}

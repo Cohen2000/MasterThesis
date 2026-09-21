@@ -37,6 +37,7 @@ CLAUDE.local.md
 
 # Prevent accidental addition of untracked bulk artifacts inside archives
 /archive/**/results/**
+!/archive/*/docs/results/**
 /archive/**/logs/**
 
 # Transient execution artifacts

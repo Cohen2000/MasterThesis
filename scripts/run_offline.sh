@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
-PY=.venv/bin/python
+PY="${PYTHON:-.venv/bin/python}"
 OUT=results/panel888
 LOG=$OUT/logs
 if [ -e "$OUT" ]; then echo "$OUT exists; move it away to recompute" >&2; exit 1; fi
