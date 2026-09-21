@@ -3,7 +3,7 @@ import json
 import unittest
 from collections import Counter
 from main_experiment import pool
-from main_experiment.common import REAL_TEST, SURROGATES, TRAIN, seed
+from main_experiment.common import ARMS, REAL_TEST, SURROGATES, TRAIN, seed
 from main_experiment.training import BLOCK_WEIGHTS, FOLDS, FOREST_SEED, fold_rows
 
 
@@ -48,9 +48,9 @@ class PoolDefinitionTests(unittest.TestCase):
 class FoldTests(unittest.TestCase):
     def rows(self):
         real = [{'id': f'{s}__{a}__s{i}', 'source_family': s, 'arm': a, 'block_group': 'real'}
-                for s in TRAIN for a in 'RSHB' for i in range(1, 6)]
+                for s in TRAIN for a in ARMS for i in range(1, 6)]
         synthetic = [{'id': f'{family}{k}__{a}__s{i}', 'source_family': f'{family}{k}', 'arm': a, 'block_group': family}
-                     for family in ('dar', 'ad') for k in range(200) for a in 'RSHB' for i in range(1, 6)]
+                     for family in ('dar', 'ad') for k in range(200) for a in ARMS for i in range(1, 6)]
         return real, synthetic
 
     def test_the_held_out_source_is_removed_completely(self):
@@ -82,7 +82,7 @@ class FoldTests(unittest.TestCase):
         self.assertAlmostEqual(w.sum(), 1., places=12)
         h = [x for r, x in zip(selected, w) if r['source_family'] == 'sp_workplace' and r['arm'] == 'H']
         self.assertEqual(len(h), 1)
-        self.assertAlmostEqual(h[0], 1/(15*4), places=12)     # one deterministic draw carries the whole H weight
+        self.assertAlmostEqual(h[0], 1/(15*len(ARMS)), places=12)   # one deterministic draw carries the whole H weight
 
     def test_versioned_forest_seed(self):
         self.assertEqual(FOREST_SEED, 1858608657)

@@ -17,14 +17,15 @@ class SerializationTests(unittest.TestCase):
             walk = Walk(g, d)
             for arm in ARMS:
                 counts, traversals = draw(g, arm, 1, 'sample', b, walk)
-                o = make(g, arm, b, counts)
+                o = make(g, arm, b, counts, traversals)
                 block = serialize(o); back = parse(block)
                 self.assertEqual((serialize(back), back['arm']), (block, arm))
                 self.assertEqual(len(o['table']), 7 if arm == 'H' else 31)
+                self.assertNotIn('9999999', block)                     # floats have 12 significant digits
                 np.testing.assert_array_equal(features(o), features(back))
                 text = messages(block)[1]['content']
                 self.assertNotIn('fixture', text); self.assertNotIn('budget_matched', text)
-                self.assertNotIn('Walk_A', block); self.assertNotIn('Auxiliary', text)   # S shows deduplicated dyads only
+                self.assertEqual('traversals,inverse_degree_weight' in block, arm == 'S2')   # only S2 shows walker data
 
     def test_h_blocks_mark_inaccessible_windows(self):
         g = complete6()
@@ -50,10 +51,12 @@ class SerializationTests(unittest.TestCase):
 
 class FeatureTests(unittest.TestCase):
     def test_feature_blocks(self):
-        self.assertEqual((len(BASE_FEATURE_NAMES), len(DERIVED_FEATURE_NAMES), len(FEATURE_NAMES)), (84, 45, 129))
+        self.assertEqual((len(BASE_FEATURE_NAMES), len(DERIVED_FEATURE_NAMES), len(FEATURE_NAMES)), (85, 107, 192))
         self.assertEqual(BASE_FEATURE_NAMES[-5:], ['n_panel', 'L', 'n_panel_history', 'p', 'history_fraction'])
+        self.assertEqual([n for n in FEATURE_NAMES if 'traversal' in n or 'degree' in n],
+                         [f'share_{p:05b}_{x}' for x in ('traversals', 'inverse_degree_weight') for p in range(1, 32)])
         banned = ('N_full', 'D_full', 'M_full', 'truth', 'coverage', 'source', 'family', 'alpha', 'chi', 'generator',
-                  'traversal', 'degree', 'Walk', 'A_')
+                  'Walk', 'A_')
         for name in FEATURE_NAMES:
             for word in banned: self.assertNotIn(word, name)
 

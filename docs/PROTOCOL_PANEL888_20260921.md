@@ -25,9 +25,9 @@ randomized; this can change many edge-local temporal properties, not only
 persistence. Index 0 is the sole productive surrogate; 99 further shuffles are
 offline null diagnostics, never selected, trained on or sent to a model.
 
-Sampler streams key on the parent: R/H use the same node permutation, S the same
-start/transition stream (hence the same walk prefix on the identical support), B
-the same uniform per stable event index. Each graph, including each surrogate, is
+Sampler streams key on the parent: R/H use the same node permutation, S1/S2 the
+same start/transition stream (hence the same walk prefix on the identical
+support), B the same uniform per stable event index. Each graph, including each surrogate, is
 calibrated separately to T = 0.10 * sum_e K_e.
 
 ## Estimand, mechanisms and references
@@ -37,14 +37,15 @@ All arms match the expected number of observed active dyad-windows to T within
 5%; unreachable targets are reported, never re-tuned.
 
 - R: uniform node panel; complete histories of all dyads inside the panel.
-- S: one degree-biased random walk (alpha = 1): uniform start vertex; from u the
-  next vertex v has probability d_v / sum_{x in N(u)} d_x, with d the number of
-  distinct neighbours in the full-archive support; event multiplicities do not
-  affect transitions; exactly L transitions, no burn-in or restart. Every dyad
-  traversed at least once is observed once with its complete history. L is
+- S1 and S2: one degree-biased random walk (alpha = 1): uniform start vertex;
+  from u the next vertex v has probability d_v / sum_{x in N(u)} d_x, with d the
+  number of distinct neighbours in the full-archive support; event multiplicities
+  do not affect transitions; exactly L transitions, no burn-in or restart. Every
+  dyad traversed at least once is observed once with its complete history. L is
   calibrated on unique active dyad-window discovery: 256 calibration walks,
   1024 validation walks (4096 if the relative MCSE exceeds .01), cap
-  min(100 D, 10^6).
+  min(100 D, 10^6). S1 and S2 are the identical draws (same stream, L and walk);
+  they differ only in what the observation shows (below).
 - H: uniform node panel with elapsed-time history h = .60 (events with
   t >= t_start + .4 (t_end - t_start)).
 - B: independent Bernoulli thinning of event records.
@@ -52,19 +53,25 @@ All arms match the expected number of observed active dyad-windows to T within
 The model-side observation of every arm is the same kind of table: distinct
 observed dyads grouped by window pattern with dyad and event counts, window event
 totals, the arm's design parameter (n_panel, L, n_panel_history with h, p) and
-the arm's sampling rule. For S nothing about traversal counts, revisits or
-degrees is shown. The LLM, the plug-in and the learned references use only this
-observation: 129 features computed from the block (counts, shares, design
-parameter, plug-in profile and the arm corrector computed from the block).
+the arm's sampling rule. S1 shows nothing about traversal counts, revisits or
+degrees. S2 adds, per pattern row, the number of walk traversals of its dyads and
+the sum over these traversals of 1/(d_u d_v) — exactly the information the
+design-aware correction needs, but not the estimate itself. Floats are written
+with 12 significant digits. Within each arm the LLM, the statistical baseline and
+the learned references use the same information: 192 features computed from the
+block (counts, shares, design parameter, plug-in and arm-baseline profiles, and
+for S2 the per-pattern traversal and weight shares).
 
-Primary references: R plug-in-equivalent corrector; S the stationary
-inverse-traversal-weight (Hájek / Hansen–Hurwitz type) estimator on the full
-traversal sequence including repeats,
+Primary references are the same-information statistical baselines: R the
+plug-in-equivalent corrector; S1 the plug-in; S2 the design-aware
+inverse-traversal-weight (Hájek / Hansen–Hurwitz type) estimator
 rho_k = sum_t I(K_{e_t} >= k)/(d_u_t d_v_t) / sum_t 1/(d_u_t d_v_t),
-computed internally from the traversal log and degrees (consistent for the
-walk's component-mixture target; not finite-sample unbiased); H homogeneous
-zero-truncated Binomial working model; B beta-ZTP mixture with fixed fallback.
-Plug-in, arm corrector, training median and pooled / real-only ExtraTrees are
+computed from the S2 block; H the homogeneous zero-truncated Binomial working
+model; B the beta-ZTP mixture with fixed fallback. The same estimator computed
+from the internal traversal log is reported for S1 and S2 as a design-aware
+oracle reference (for S1 it uses information the S1 observation lacks). It is
+consistent for the walk's component-mixture target, not finite-sample unbiased.
+Plug-in, arm baseline, training median and pooled / real-only ExtraTrees are
 reported for every arm.
 
 ## Draws, training and evaluation
@@ -95,9 +102,9 @@ and correlations are descriptive only.
 ## Offline analyses
 
 Listed in SENSITIVITY_INVENTORY_PANEL888.md: H at h = .40/.60/.80 with the
-oracle decomposition; the walk construct-validity check (1000 walks per graph at
-L and 4L: plug-in and design-reference bias/variance, component and degree
-selection targets, coverage, revisits, concentration); W = 2..20 incl. {4,5,8};
+oracle decomposition; the construct-validity check of the S1/S2 walk (1000 walks
+per graph at L and 4L: plug-in and design-reference bias/variance, component and
+degree selection targets, coverage, revisits, concentration); W = 2..20 incl. {4,5,8};
 calibration and MCSE; the P[w,t] null; B mixture bounds; error decomposition.
 The budget sensitivity (BUDGET_SENSITIVITY.md) repeats the study at 2.5–50%
 coverage as an ancillary analysis. No diagnostic selects a design parameter.

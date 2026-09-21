@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 COMMIT="${1:?frozen source commit}"
-EXP=panel888_main
+EXP=panel888_final_main
 WS=/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot
 PY=.venv/bin/python
 OUT=results/panel888

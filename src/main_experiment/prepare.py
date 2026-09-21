@@ -45,7 +45,7 @@ def build_graph(key, out, raw_dir):
 def observation_row(g, arm, index, domain, budget, counts, traversals):
     """One stored observation. Only `block`/`messages` are model input; `truth` and the
     S design_reference (from the traversal log) are internal and never shown."""
-    obs = make(g, arm, budget, counts)
+    obs = make(g, arm, budget, counts, traversals)
     block = serialize(obs)
     parsed = parse(block)
     if not np.array_equal(features(obs), features(parsed)): raise AssertionError('serialization changes features')
@@ -54,7 +54,7 @@ def observation_row(g, arm, index, domain, budget, counts, traversals):
             'stratum': graph_stratum(g.key), 'parent_source': parent_source(g.key), 'arm': arm,
             'sample_index': index, 'domain': domain, 'empty': parsed['D_obs'] == 0,
             'block': block, 'block_sha256': digest(block), 'messages': prompt, 'prompt_sha256': digest(prompt),
-            'truth': g.truth, 'design_reference': design_reference(g, traversals) if arm == 'S' else None,
+            'truth': g.truth, 'design_reference': design_reference(g, traversals) if arm in ('S1', 'S2') else None,
             'design_version': DESIGN_VERSION,
             'deterministic_draw': draws_for(arm, budget, domain) == 1,
             'budget_matched': budget['budget_matched_by_arm'][arm],

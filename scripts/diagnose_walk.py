@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Arm S (degree-biased random walk) construct-validity and walk diagnostics.
+"""Construct validity of the degree-biased random walk shared by S1 and S2.
 
 For each of the 24 main graphs and two lengths (production L and min(4L, 10^6)),
 1000 independent diagnostic walks from uniform starts. Per walk:
@@ -46,7 +46,7 @@ def targets(g, walk):
 
 def path_rows(g, key, label, L, walk, component, hubs):
     rows = []
-    seeds = [seed('walk_diagnostic', key, ARM_ID['S'], i) for i in range(1, PATHS+1)]
+    seeds = [seed('walk_diagnostic', key, ARM_ID['S1'], i) for i in range(1, PATHS+1)]
     product = (walk.degree[g.ends[:, 0]]*walk.degree[g.ends[:, 1]]).astype(float)
     for first in range(0, PATHS, BATCH):
         _, volumes, traversals, executed = walk.run(seeds[first:first+BATCH], int(L), True)

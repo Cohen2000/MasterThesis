@@ -1,15 +1,20 @@
 """Non-LLM references for the persistence profile.
 
   plugin     profile of the observed dyads' observed patterns.
-  corrector  arm-specific working model computed from the observation alone:
-               R, S  plugin (complete histories of the observed dyads),
+  corrector  the same-information statistical baseline, computed from the
+             observation alone:
+               R, S1  plugin (complete histories of the observed dyads),
+               S2     design-aware inverse-traversal-weight estimate from the
+                      block's per-pattern weights,
                H  homogeneous zero-truncated Binomial on the retrievable windows,
                B  homogeneous hurdle corrector for event thinning.
-  design_reference  arm S only: stationary inverse-traversal-weight (Hajek /
+  design_reference  S1 and S2: the inverse-traversal-weight (Hajek /
              Hansen-Hurwitz type) estimator on the full traversal sequence,
-             sum_t I(K_{e_t}>=k)/(d_u d_v) / sum_t 1/(d_u d_v). It uses the
-             traversal log and vertex degrees, which the models never see; it is
-             consistent for the walk's component-mixture target, not unbiased.
+             sum_t I(K_{e_t}>=k)/(d_u d_v) / sum_t 1/(d_u d_v), computed from the
+             internal traversal log. For S1 it is a design-aware oracle reference
+             (the S1 observation lacks this information); for S2 it equals the
+             corrector up to the 12-digit rounding of the block. Consistent for
+             the walk's component-mixture target, not finite-sample unbiased.
   mixture    arm B only: Beta-mixed activity with a ZTP event layer (mixtures.py);
              falls back to the B corrector when the fit is unreliable.
   median     median training-source profile of the fold.
@@ -22,8 +27,10 @@ import numpy as np
 from . import mixtures
 from .observation import validate
 
-PRIMARY_REFERENCE = {'R': 'corrector', 'S': 'design_reference', 'H': 'corrector', 'B': 'mixture'}
-PRIMARY_REFERENCE_NAME = {'R': 'plugin_equivalent_corrector', 'S': 'stationary_inverse_traversal_weight',
+# The primary reference of each arm is its same-information baseline.
+PRIMARY_REFERENCE = {'R': 'corrector', 'S1': 'corrector', 'S2': 'corrector', 'H': 'corrector', 'B': 'mixture'}
+PRIMARY_REFERENCE_NAME = {'R': 'plugin_equivalent_corrector', 'S1': 'plugin_same_information',
+                          'S2': 'design_aware_inverse_traversal_weight',
                           'H': 'homogeneous_zero_truncated_binomial', 'B': 'beta_ztp_mixture'}
 METHODS = ('plugin', 'corrector', 'median', 'extratrees_pooled', 'extratrees_real_only', 'mixture',
            'design_reference')
@@ -98,7 +105,8 @@ def corrector(o):
     validate(o)
     D = o['D_obs']
     if D == 0: raise ValueError('empty sample requires fold median')
-    if o['arm'] in ('R', 'S'): return plugin(o)
+    if o['arm'] in ('R', 'S1'): return plugin(o)
+    if o['arm'] == 'S2': return design_estimate(o)
     if o['arm'] == 'H': return h_extrapolator(o)['prediction']
     # B: observed-window activity theta = q * d, with d the probability that an
     # active window keeps at least one of its ZTP(lambda) events at retention p.
@@ -109,8 +117,14 @@ def corrector(o):
     return profile(q) if q <= 1 else [1.]*4
 
 
+def design_estimate(o):
+    """S2: inverse-traversal-weight estimate from the block's per-pattern weights."""
+    total = sum(row[4] for row in o['table'])
+    return [sum(row[4] for row in o['table'] if row[0].count('1') >= k)/total for k in range(2, 6)]
+
+
 def design_reference(g, traversals):
-    """Arm S: inverse-traversal-weight estimate from the traversal counts r_e.
+    """S1/S2 oracle: inverse-traversal-weight estimate from the traversal counts r_e.
 
     The stationary traversal probability of dyad (u, v) under the degree-biased walk
     is proportional to d_u d_v, so each traversal is weighted by 1/(d_u d_v):
@@ -147,7 +161,7 @@ def all_references(o, models, median, design=None):
 
     models = {'pooled': fitted forest, 'real_only': fitted forest} of the
     observation's fold; median = that fold's median training profile; design =
-    the stored design_reference of an S observation. An empty observation has no
+    the stored design_reference of an S1/S2 observation. An empty observation has no
     observed dyad, so every reference is the fold median.
     """
     if o['D_obs'] == 0:
@@ -166,6 +180,6 @@ def all_references(o, models, median, design=None):
         out['extratrees_'+name] = {'prediction': list(map(float, models[name].predict(x)[0])), 'status': 'ok'}
     if o['arm'] == 'B':
         out['mixture'] = mixture_reference(o, out['corrector']['prediction'])
-    if o['arm'] == 'S':
+    if o['arm'] in ('S1', 'S2'):
         out['design_reference'] = {'prediction': list(design), 'status': 'ok'}
     return out

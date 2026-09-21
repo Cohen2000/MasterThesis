@@ -116,7 +116,7 @@ EXECUTION_POLICY={
                      'presence_penalty':1.5,'repetition_penalty':1.0},
          'nonthinking':{'temperature':.7,'top_p':.80,'top_k':20,'min_p':0.,
                         'presence_penalty':1.5,'repetition_penalty':1.0}},
- 'order':'real block, synthetic block; cycle graph x arm cells; sample index then repeat',
+ 'order':'real, surrogate, synthetic block; cycle graph x arm cells; sample index then repeat',
  'stop_configuration':['400','401','ignored_required_parameter','repeated_oom','confirmed_model_change'],
  'record_provider_metadata':['UTC','returned_model','system_fingerprint','usage','finish_reason','reasoning'],
  'smoke_tests_executed':0,

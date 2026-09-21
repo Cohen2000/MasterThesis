@@ -1,7 +1,7 @@
 #!/bin/bash
 # Upload the sealed, committed study to the cluster workspace $WS/<EXP> and verify it there.
-#   bash scripts/cluster_bundle.sh panel888_main                                   (main study)
-#   bash scripts/cluster_bundle.sh panel888_budget results/panel888_budget_sensitivity/run
+#   bash scripts/cluster_bundle.sh panel888_final_main                             (main study)
+#   bash scripts/cluster_bundle.sh panel888_final_budget results/panel888_budget_sensitivity/run
 # Requires a clean working tree whose HEAD contains the sealed sources, and an
 # open ssh ControlMaster to uc3. Refuses to overwrite an existing $WS/<EXP>.
 set -euo pipefail

@@ -16,19 +16,25 @@ target:
   secondary_error: conditional_ProfileMAE_valid_answers_only
 sampling:
   R: uniform_fixed_node_panel_full_history
-  S: degree_biased_random_walk_full_history
+  S1: degree_biased_random_walk_full_history
+  S2: same_draw_as_S1_plus_walker_information
   H: uniform_node_panel_time_suffix
   B: independent_bernoulli_events
-arm_S:
+arms_S:
   walk: degree_biased_random_walk_alpha_1
   transition: P(u->v) = d_v / sum_{x in N(u)} d_x, d = distinct neighbours in the full-archive support
   start: uniform_V_full
   stopping: fixed_L_no_restart_no_burnin
   history: complete_history_of_each_traversed_dyad_listed_once
-  model_input: deduplicated_dyad_pattern_table_and_L_only
-  reference: stationary_inverse_traversal_weight
-  reference_formula: sum_t I(K_e_t>=k)/(d_u d_v) / sum_t 1/(d_u d_v) over the full traversal sequence
+  S1_model_input: deduplicated_pattern_table_and_L
+  S2_model_input: S1_table_plus_per_pattern_traversals_and_inverse_degree_weight
+  S2_draw: identical_to_S1 (same stream, L and walk)
+  S1_baseline: plugin (same information)
+  S2_baseline: design_aware_inverse_traversal_weight_from_the_block
+  oracle_reference: inverse_traversal_weight_on_the_internal_traversal_log (S1 and S2)
+  reference_formula: sum_t I(K_e_t>=k)/(d_u d_v) / sum_t 1/(d_u d_v)
   reference_scope: consistent_for_component_mixture_target_not_finite_sample_unbiased
+float_format_in_prompts: 12_significant_digits
 arm_H:
   history_fraction: 0.6
   sensitivity:
@@ -52,7 +58,7 @@ budget:
   tolerance: 0.05
   per_arm:
     R: pi(n)*sum(K_e)
-    S: calibrated_fixed_L_unique_cell_discovery
+    S1/S2: calibrated_fixed_L_unique_cell_discovery
     H: pi(n)*sum(J_e)
     B: event_thinning_cell_expectation
   calibration_walks: 256
@@ -76,8 +82,8 @@ training:
     real: 0.5
     dar: 0.25
     ad: 0.25
-  features: 129
-  feature_version: features-v7-panel888-20260921
+  features: 192
+  feature_version: features-v8-panel888-20260921
   estimators: 500
   n_jobs: 1
   random_state: 1858608657
@@ -91,7 +97,8 @@ evaluation:
   uncertainty: hierarchical_MCSE_conditional_on_fixed_panel
   primary_references:
     R: plugin_equivalent_corrector
-    S: stationary_inverse_traversal_weight
+    S1: plugin
+    S2: design_aware_inverse_traversal_weight
     H: homogeneous_zero_truncated_binomial
     B: beta_ztp_mixture
   secondary:
@@ -103,7 +110,8 @@ evaluation:
 llm_execution:
   qwen_new_generation_arms:
   - R
-  - S
+  - S1
+  - S2
   - H
   - B
   reusable_arms_only_after_identity_audit: []

@@ -183,13 +183,13 @@ def build_pool(out, specs, fraction=COVERAGE_FRACTION):
         for arm in ARMS:
             for index in range(1, draws_for(arm, budget, domain)+1):
                 counts, traversals = draw(g, arm, index, domain, budget, walk)
-                block = serialize(make(g, arm, budget, counts))
+                block = serialize(make(g, arm, budget, counts, traversals))
                 if serialize(parse(block)) != block: raise ValueError('block round trip')
                 rows.append({'id': observation_id(key, arm, index, fraction), 'graph_id': key, 'source_family': key,
                              'arm': arm, 'sample_index': index, 'domain': domain, 'block': block,
                              'block_sha256': digest(block), 'empty': parse(block)['D_obs'] == 0,
                              'budget_matched': budget['budget_matched_by_arm'][arm],
-                             'design_reference': design_reference(g, traversals) if arm == 'S' else None})
+                             'design_reference': design_reference(g, traversals) if arm in ('S1', 'S2') else None})
         write_json(out/'observations'/f'{key}.json', {
             'key': key, 'family': spec['family'], 'partition': spec['partition'], 'stratum': spec['stratum'],
             'parameters': spec['parameters'], 'seed': spec['seed'], 'truth': list(g.truth),

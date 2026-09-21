@@ -6,11 +6,12 @@ T = 0.10 * sum_e K_e, computed per graph (surrogates separately from parents):
   R  uniform node panel of size n; every dyad with both endpoints in the panel is
      observed with its complete history. n minimises |pi(n) sum_e K_e - T| with
      pi(n) = n(n-1)/(N(N-1)).
-  S  one degree-biased random walk: uniform start vertex, next vertex v with
+  S1/S2  one degree-biased random walk: uniform start vertex, next vertex v with
      probability d_v / sum_{x in N(u)} d_x (d = distinct neighbours in the
      full-archive support), exactly L transitions, no burn-in or restart; every
      traversed dyad is observed once with its complete history. L is calibrated
      on 256 walks and validated on 1024 (4096 if the relative MCSE exceeds 1%).
+     S1 and S2 share the draw; they differ only in what the observation shows.
   H  uniform node panel, but only events with t >= t_start + (1-h)(t_end-t_start)
      are retrievable (h = 0.60). n minimises |pi(n) sum_e J_e - T|, where J_e is
      the number of windows with a retrievable event.
@@ -18,7 +19,7 @@ T = 0.10 * sum_e K_e, computed per graph (surrogates separately from parents):
      that sum over active cells of 1-(1-p)^(events in cell) equals T.
 
 Common random numbers: the sampler stream is keyed by the parent source, so a
-surrogate uses its parent's node permutation (R, H), walk stream (S) and
+surrogate uses its parent's node permutation (R, H), walk stream (S1/S2) and
 per-record uniforms (B). Only the full-archive quantities above are used to
 set n, L and p; no realised sample is ever used.
 """
@@ -182,7 +183,7 @@ def walk_length(g, walk, T):
     target (or the cap C = min(100 D, 10^6)) is reached and then bisects.
     """
     C = min(100*g.D, 1_000_000)
-    seeds = [seed('walk_calibration_cells', g.key, ARM_ID['S'], i) for i in range(1, CALIBRATION_WALKS+1)]
+    seeds = [seed('walk_calibration_cells', g.key, ARM_ID['S1'], i) for i in range(1, CALIBRATION_WALKS+1)]
     target = CALIBRATION_WALKS*T
     bound = 1
     while True:
@@ -206,7 +207,7 @@ def walk_length(g, walk, T):
 def validate_walk_length(g, walk, L, T):
     """Mean discovered cells of independent validation walks at the fixed L (no adaptation)."""
     def volumes(first, last):
-        seeds = [seed('walk_validation_cells', g.key, ARM_ID['S'], i) for i in range(first, last+1)]
+        seeds = [seed('walk_validation_cells', g.key, ARM_ID['S1'], i) for i in range(first, last+1)]
         return walk.run(seeds, L)[1].tolist()
     values = volumes(1, VALIDATION_WALKS)
     mcse = float(np.std(values, ddof=1)/np.sqrt(len(values)))
@@ -236,7 +237,7 @@ def calibrate(g, build_dir, fraction=COVERAGE_FRACTION):
     if validation['validation_mcse']/T > MAX_RELATIVE_MCSE: walk_reasons.append('validation_mcse_above_1_percent')
     if ceiling < T: walk_reasons.append('component_structural_ceiling_below_target')
     by_arm = {'R': abs(budget['node_relative_budget_error']) <= BUDGET_TOLERANCE,
-              'S': not walk_reasons,
+              'S1': not walk_reasons, 'S2': not walk_reasons,
               'H': budget['h_within_tolerance'],
               'B': abs(budget['bernoulli_relative_budget_error']) <= BUDGET_TOLERANCE}
     reasons = [f'S:{x}' for x in walk_reasons]
@@ -282,13 +283,14 @@ def draw(g, arm, index, domain, budget, walk=None):
     """Observed events per dyad and window for one sampler draw.
 
     Returns (counts, traversals); traversals are the walk's per-dyad traversal
-    counts for arm S and None otherwise.
+    counts for S1/S2 and None otherwise.
     """
     if index < 1: raise ValueError('sample indices start at 1')
-    stream = (domain, parent_source(g.key), draw_sampler_id(arm, budget), index)
+    stream_arm = 'S1' if arm == 'S2' else arm           # S2 is the S1 walk, shown with more information
+    stream = (domain, parent_source(g.key), draw_sampler_id(stream_arm, budget), index)
     if arm == 'R':
         return g.counts*node_panel_mask(g, rng(*stream), budget['n_panel'])[:, None], None
-    if arm == 'S':
+    if arm in ('S1', 'S2'):
         traversals = walk.run([seed(*stream)], int(budget['L']), True)[2][0]
         return g.counts*(traversals > 0)[:, None], traversals
     if arm == 'H':

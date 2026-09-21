@@ -1,36 +1,38 @@
 """Observations: the observed-only summary of one sampler draw, its text block,
-its prompt messages, and the 129 features of the learned reference.
+its prompt messages, and the features of the learned reference.
 
-Every arm yields the same kind of observation: distinct observed dyads grouped by
-their window pattern, the arm's design parameter and, for H, the history
-fraction. Nothing about how often or through which vertices a dyad was reached
-(e.g. walk traversal counts or degrees) is part of it.
-
-An observation lists, for every observed window pattern (1 = at least one
-observed event in the window, 0 = none, ? = window not retrievable), the number
-of observed dyads and events. Dyads without an observed event are absent.
+Every arm yields the same kind of table: distinct observed dyads grouped by
+their window pattern (1 = at least one observed event in the window, 0 = none,
+? = window not retrievable) with dyad and event counts, plus the arm's design
+parameter and, for H, the history fraction. Dyads without an observed event are
+absent. S2 additionally reports, per pattern row, the walk's traversals of those
+dyads and the inverse-degree-product weight of these traversals; S1 shows the
+same walk without any walker information.
 """
 import numpy as np
 from .common import ARMS, ROOT, H_FRACTION, H_SENSITIVITY
 
-PARAMETER_NAME = {'R': 'n_panel', 'S': 'L', 'H': 'n_panel_history', 'B': 'p'}
-INTEGER_PARAMETER_ARMS = ('R', 'S', 'H')
+PARAMETER_NAME = {'R': 'n_panel', 'S1': 'L', 'S2': 'L', 'H': 'n_panel_history', 'B': 'p'}
+PARAMETERS = ('n_panel', 'L', 'n_panel_history', 'p')          # one feature slot each
+INTEGER_PARAMETER_ARMS = ('R', 'S1', 'S2', 'H')
 PROMPTS = ROOT/'config/main_experiment'
-RULE_FILES = {'R': 'rule_R.txt', 'S': 'rule_S.txt', 'H': 'rule_H_time_v3.txt', 'B': 'rule_B.txt'}
+RULE_FILES = {'R': 'rule_R.txt', 'S1': 'rule_S1.txt', 'S2': 'rule_S2.txt', 'H': 'rule_H.txt', 'B': 'rule_B.txt'}
 HEADER = 'pattern,dyads,events'
+S2_HEADER = HEADER+',traversals,inverse_degree_weight'
 ALL_PATTERNS = [f'{p:05b}' for p in range(1, 32)]
 
-FEATURE_VERSION = 'features-v7-panel888-20260921'
+FEATURE_VERSION = 'features-v8-panel888-20260921'
 BASE_FEATURE_NAMES = (['N_obs', 'D_obs', 'M_obs']+[f'window_{i}' for i in range(1, 6)]+
                       [f'access_{i}' for i in range(1, 6)]+
                       [f'{p}_{x}' for p in ALL_PATTERNS for x in ('dyads', 'events')]+
-                      [f'arm_{a}' for a in ARMS]+
-                      [PARAMETER_NAME[a] for a in ARMS]+['history_fraction'])
+                      [f'arm_{a}' for a in ARMS]+list(PARAMETERS)+['history_fraction'])
 DERIVED_FEATURE_NAMES = ([f'share_{p}_dyads' for p in ALL_PATTERNS]+[f'share_window_{i}' for i in range(1, 6)]+
                          ['events_per_dyad']+[f'plugin_rho_{k}' for k in range(2, 6)]+
-                         [f'corrector_rho_{k}' for k in range(2, 6)])
+                         [f'corrector_rho_{k}' for k in range(2, 6)]+
+                         [f'share_{p}_traversals' for p in ALL_PATTERNS]+
+                         [f'share_{p}_inverse_degree_weight' for p in ALL_PATTERNS])
 FEATURE_NAMES = BASE_FEATURE_NAMES+DERIVED_FEATURE_NAMES
-assert len(FEATURE_NAMES) == 129 and len(set(FEATURE_NAMES)) == 129
+assert len(FEATURE_NAMES) == 192 and len(set(FEATURE_NAMES)) == 192
 
 
 def access_for(arm, h=H_FRACTION):
@@ -48,21 +50,31 @@ def patterns_for(arm, h=H_FRACTION):
     return ['?'*(5-n)+format(p, f'0{n}b') for p in range(1, 2**n)]
 
 
-def make(g, arm, budget, counts):
-    """Observed-only summary of a draw; `counts` are observed events per dyad and window."""
+def rounded(x):
+    """Floats are shown and stored with 12 significant digits."""
+    return float(f'{x:.12g}')
+
+
+def make(g, arm, budget, counts, traversals=None):
+    """Observed-only summary of a draw; `counts` are observed events per dyad and window.
+
+    `traversals` (per-dyad walk traversal counts) is used for S2 only.
+    """
     per_dyad = counts.sum(1)
     occupied = per_dyad > 0
     pattern = (counts > 0)@np.array([16, 8, 4, 2, 1])
-    dyads = np.bincount(pattern[occupied], minlength=32)
-    events = np.zeros(32, dtype=np.int64)
-    np.add.at(events, pattern[occupied], per_dyad[occupied])
     h = budget.get('history_fraction', H_FRACTION)
     access = access_for(arm, h)
     if any(counts[:, j].any() for j, a in enumerate(access) if not a): raise ValueError('inaccessible events')
+    if arm == 'S2':
+        degree = np.bincount(g.ends.ravel(), minlength=g.N)
+        weight = traversals/(degree[g.ends[:, 0]]*degree[g.ends[:, 1]])
     table = []
     for p in patterns_for(arm, h):
-        index = int(p.replace('?', '0'), 2)
-        table.append((p, int(dyads[index]), int(events[index])))
+        rows = occupied & (pattern == int(p.replace('?', '0'), 2))
+        row = (p, int(rows.sum()), int(per_dyad[rows].sum()))
+        if arm == 'S2': row += (int(traversals[rows].sum()), rounded(weight[rows].sum()))
+        table.append(row)
     obs = {'arm': arm, 'N_obs': int(len(np.unique(g.ends[occupied]))), 'D_obs': int(occupied.sum()),
            'M_obs': int(counts.sum()), 'Temporal_access': access,
            'Events_per_window': [int(x) if a else None for x, a in zip(counts.sum(0), access)],
@@ -85,13 +97,18 @@ def validate(o):
     for k in ('N_obs', 'D_obs', 'M_obs'):
         if not _count(o[k]): raise ValueError(k)
     if [r[0] for r in o['table']] != patterns_for(arm, h): raise ValueError('table patterns/order')
-    if any(len(r) != 3 for r in o['table']): raise ValueError('table width')
+    if any(len(r) != (5 if arm == 'S2' else 3) for r in o['table']): raise ValueError('table width')
     D = M = 0
-    for pattern, d, e in o['table']:
+    for pattern, d, e, *walker in o['table']:
         if not _count(d) or not _count(e) or (d == 0) != (e == 0) or e < d*pattern.count('1'):
             raise ValueError('inconsistent counts')
+        if walker:                       # S2: every observed dyad was traversed at least once
+            t, w = walker
+            if not _count(t) or t < d or (d == 0) != (t == 0): raise ValueError('traversal counts')
+            if not isinstance(w, float) or not 0 <= w <= t or (t == 0) != (w == 0): raise ValueError('weights')
         D += d; M += e
     if (D, M) != (o['D_obs'], o['M_obs']): raise ValueError('table totals')
+    if arm == 'S2' and sum(r[3] for r in o['table']) != o['parameter']: raise ValueError('traversals must sum to L')
     access = access_for(arm, h)
     if o['Temporal_access'] != access or len(o['Events_per_window']) != 5: raise ValueError('access')
     for j, (a, e) in enumerate(zip(access, o['Events_per_window'])):
@@ -115,7 +132,7 @@ def validate(o):
 
 def _format(x):
     if x is None: return 'NA'
-    return format(x, '.17g') if type(x) is float else str(x)
+    return format(x, '.12g') if type(x) is float else str(x)
 
 
 def serialize(o):
@@ -126,29 +143,34 @@ def serialize(o):
     lines += ['Events_per_window='+','.join(map(_format, o['Events_per_window'])),
               PARAMETER_NAME[o['arm']]+'='+_format(o['parameter'])]
     if o['arm'] == 'H': lines.append('History_fraction='+_format(o['history_fraction']))
-    lines += [HEADER]+[','.join(map(str, row)) for row in o['table']]
+    lines.append(S2_HEADER if o['arm'] == 'S2' else HEADER)
+    lines += [','.join(map(_format, row)) for row in o['table']]
     return '\n'.join(lines)
 
 
 def parse(text):
     """Inverse of serialize; validates the result."""
     lines = text.splitlines()
-    if not lines or lines[0] != 'W=5' or HEADER not in lines: raise ValueError('input block')
-    header = lines.index(HEADER)
+    header_line = S2_HEADER if S2_HEADER in lines else HEADER
+    if not lines or lines[0] != 'W=5' or header_line not in lines: raise ValueError('input block')
+    header = lines.index(header_line)
     pairs = [line.split('=', 1) for line in lines[1:header]]
     fields = dict(pairs)
     if len(fields) != len(pairs): raise ValueError('duplicate field')
-    names = set(fields) & set(PARAMETER_NAME.values())
+    names = set(fields) & set(PARAMETERS)
     if len(names) != 1: raise ValueError('parameter count')
     name = names.pop()
-    arm = next(a for a, p in PARAMETER_NAME.items() if p == name)
+    arm = 'S2' if header_line == S2_HEADER else next(a for a, p in PARAMETER_NAME.items() if p == name)
+    if PARAMETER_NAME[arm] != name: raise ValueError('parameter does not match the table')
     expected = {'Temporal_access', 'N_obs', 'D_obs', 'M_obs', 'Events_per_window', name}
     if arm == 'H': expected.add('History_fraction')
     if set(fields) != expected: raise ValueError('unexpected input fields')
     rows = []
     for line in lines[header+1:]:
         cells = line.split(',')
-        rows.append((cells[0], *map(int, cells[1:])))
+        row = (cells[0], *map(int, cells[1:4]))
+        if arm == 'S2': row += (float(cells[4]),)
+        rows.append(row)
     o = {'arm': arm,
          'parameter': int(fields[name]) if arm in INTEGER_PARAMETER_ARMS else float(fields[name]),
          **{k: int(fields[k]) for k in ('N_obs', 'D_obs', 'M_obs')},
@@ -161,19 +183,20 @@ def parse(text):
 
 
 def features(o):
-    """129 features, all computed from the observation block: raw observed counts
-    and design parameters, then scale-free shares and the plug-in / arm-specific
-    corrector profiles (the S corrector is the plug-in)."""
+    """192 features, all computed from the observation block: raw observed counts
+    and design parameters, scale-free shares, the plug-in and arm-corrector profiles,
+    and (S2 only, zero otherwise) per-pattern traversal and weight shares."""
     from .baselines import plugin, corrector
     validate(o)
     table = {r[0].replace('?', '0'): r[1:] for r in o['table']}
+    walker = o['arm'] == 'S2' and o['D_obs'] > 0
 
-    def cell(p): return table.get(p, (0, 0))
+    def cell(p): return table.get(p, (0, 0, 0, 0.))
     f = [o[k] for k in ('N_obs', 'D_obs', 'M_obs')]
     f += [x or 0 for x in o['Events_per_window']]+o['Temporal_access']
-    f += [x for p in ALL_PATTERNS for x in cell(p)]
+    f += [x for p in ALL_PATTERNS for x in cell(p)[:2]]
     f += [int(o['arm'] == a) for a in ARMS]
-    f += [o['parameter'] if a == o['arm'] else 0 for a in ARMS]
+    f += [o['parameter'] if PARAMETER_NAME[o['arm']] == name else 0 for name in PARAMETERS]
     f += [o.get('history_fraction', 1.)]
     if len(f) != len(BASE_FEATURE_NAMES): raise AssertionError('base feature count')
     D = o['D_obs']; M = o['M_obs']
@@ -187,6 +210,11 @@ def features(o):
     else:
         plug = corrected = [0.]*4
     f += list(plug)+list(corrected)
+    if walker:
+        traversals = sum(r[3] for r in o['table']); weight = sum(r[4] for r in o['table'])
+        f += [cell(p)[2]/traversals for p in ALL_PATTERNS]+[cell(p)[3]/weight for p in ALL_PATTERNS]
+    else:
+        f += [0.]*(2*len(ALL_PATTERNS))
     if len(f) != len(FEATURE_NAMES): raise AssertionError('feature count')
     return np.array(f, float)
 

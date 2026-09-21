@@ -40,8 +40,8 @@ from main_experiment.token_sizes import TokenCounters
 EXTRA_BUDGETS = tuple(b for b in BUDGET_GRID if b != COVERAGE_FRACTION)
 REFERENCE_METHODS = ('plugin', 'primary_corrector', 'median', 'extratrees_pooled', 'extratrees_real_only')
 # Expected observed active dyad-windows of each arm, from the calibrated budget.
-EXPECTED_CELLS = {'R': 'node_expected_cells', 'S': 'validation_mean', 'H': 'h_expected_cells',
-                  'B': 'bernoulli_expected_cells'}
+EXPECTED_CELLS = {'R': 'node_expected_cells', 'S1': 'validation_mean', 'S2': 'validation_mean',
+                  'H': 'h_expected_cells', 'B': 'bernoulli_expected_cells'}
 
 
 def folder(fraction):
@@ -104,7 +104,8 @@ def feasibility():
                              'expected_cells': b[EXPECTED_CELLS[arm]],
                              'expected_coverage': b[EXPECTED_CELLS[arm]]/b['active_dyad_windows'],
                              'matched': b['budget_matched_by_arm'][arm],
-                             'reasons': ';'.join(r for r in b['unmatched_reasons'] if r.startswith(arm+':')),
+                             'reasons': ';'.join(r for r in b['unmatched_reasons']
+                                                 if r.startswith(('S:' if arm in ('S1', 'S2') else arm+':'))),
                              'h_saturated': b['h_saturated'] if arm == 'H' else None,
                              'draws': draws_for(arm, b)})
     write_csv(BUDGET_SENSITIVITY/'feasibility.csv', rows)

@@ -34,7 +34,7 @@ from main_experiment.common import (ARM_ID, ARMS, AUDIT, BUDGET_TOLERANCE, BUILD
                                     fold_for, observation_id, planned_sizes, read_json, read_jsonl, seed, sha,
                                     write_json)
 from main_experiment.data import CNS_ORIGINAL_MD5, load_graph
-from main_experiment.observation import FEATURE_NAMES, features, make, messages, parse, serialize
+from main_experiment.observation import FEATURE_NAMES, S2_HEADER, features, make, messages, parse, serialize
 from main_experiment.pool import pool_definition
 from main_experiment.requests import validate_request
 from main_experiment.sampling import Walk
@@ -42,8 +42,10 @@ from main_experiment.training import FOLDS, FOREST_SEED, load_models
 
 PREVIOUS = ROOT/'archive/pre_panel888_20260921'
 PREVIOUS_RUN = PREVIOUS/'results/main_experiment/cells10_final_20260920'
-PROMPT_FILES = ('system.txt', 'user_prefix.txt', 'rule_R.txt', 'rule_S.txt', 'rule_H_time_v3.txt', 'rule_B.txt')
-UNCHANGED_SINCE_FREEZE = ('system.txt', 'user_prefix.txt', 'rule_R.txt', 'rule_H_time_v3.txt', 'rule_B.txt')
+PROMPT_FILES = ('system.txt', 'user_prefix.txt', 'rule_R.txt', 'rule_S1.txt', 'rule_S2.txt', 'rule_H.txt', 'rule_B.txt')
+# Templates byte-identical to the previous prompt freeze (current name: name there).
+UNCHANGED_SINCE_FREEZE = {'system.txt': 'system.txt', 'user_prefix.txt': 'user_prefix.txt', 'rule_R.txt': 'rule_R.txt',
+                          'rule_H.txt': 'rule_H_time_v3.txt', 'rule_B.txt': 'rule_B.txt'}
 WALK_PATHS = 1000
 
 
@@ -113,12 +115,13 @@ def audit_budget(g, b):
     assert len(volumes) == b['validation_n'] in (1024, 4096)
     assert float(np.mean(volumes)) == b['validation_mean']
     assert float(np.std(volumes, ddof=1)/np.sqrt(len(volumes))) == b['validation_mcse']
-    by_arm = {'R': bool(abs(b['node_relative_budget_error']) <= BUDGET_TOLERANCE), 'S': b['walk_budget_matched'],
+    by_arm = {'R': bool(abs(b['node_relative_budget_error']) <= BUDGET_TOLERANCE),
+              'S1': b['walk_budget_matched'], 'S2': b['walk_budget_matched'],
               'H': bool(abs(relative) <= BUDGET_TOLERANCE),
               'B': bool(abs(b['bernoulli_relative_budget_error']) <= BUDGET_TOLERANCE)}
     assert b['budget_matched_by_arm'] == by_arm and b['budget_matched'] == all(by_arm.values())
     return {'graph_id': g.key, 'T': T, **{f'matched_{a}': v for a, v in by_arm.items()},
-            'relative_errors': {'R': b['node_relative_budget_error'], 'S': b['validation_relative_error'],
+            'relative_errors': {'R': b['node_relative_budget_error'], 'S1/S2': b['validation_relative_error'],
                                 'H': relative, 'B': b['bernoulli_relative_budget_error']}}
 
 
@@ -126,7 +129,7 @@ def audit_budget(g, b):
 def redraw(g, arm, index, domain, b, walk):
     """Observed counts re-derived with an explicit parent-keyed stream."""
     parent = g.key.removesuffix('__pwt')
-    stream = (domain, parent, ARM_ID[arm], index)
+    stream = (domain, parent, ARM_ID['S1' if arm == 'S2' else arm], index)
     if arm in ('R', 'H'):
         size = b['n_panel'] if arm == 'R' else b['n_panel_history']
         chosen = np.zeros(g.N, bool); chosen[generator(*stream).permutation(g.N)[:size]] = True
@@ -147,10 +150,10 @@ def audit_observations(graphs, budgets):
             row = read_json(path); g = graphs[row['graph_id']]; b = budgets[row['graph_id']]
             assert path.stem == observation_id(row['graph_id'], row['arm'], row['sample_index'])
             assert 1 <= row['sample_index'] <= draws_for(row['arm'], b, domain)
-            if row['arm'] == 'S' and g.key not in walks: walks[g.key] = Walk(g, BUILD)
+            if row['arm'] in ('S1', 'S2') and g.key not in walks: walks[g.key] = Walk(g, BUILD)
             c, traversals = redraw(g, row['arm'], row['sample_index'], domain, b, walks.get(g.key))
-            assert serialize(make(g, row['arm'], b, c)) == row['block']
-            if row['arm'] == 'S':                        # internal reference, recomputed from the traversal log
+            assert serialize(make(g, row['arm'], b, c, traversals)) == row['block']
+            if row['arm'] in ('S1', 'S2'):              # internal reference, recomputed from the traversal log
                 degree = np.bincount(g.ends.ravel(), minlength=g.N)
                 w = traversals/(degree[g.ends[:, 0]]*degree[g.ends[:, 1]])
                 np.testing.assert_allclose(row['design_reference'], [w[g.K >= k].sum()/w.sum() for k in range(2, 6)],
@@ -159,11 +162,15 @@ def audit_observations(graphs, budgets):
                 assert row['design_reference'] is None
             assert digest(row['block']) == row['block_sha256'] and serialize(parse(row['block'])) == row['block']
             assert messages(row['block']) == row['messages'] and digest(row['messages']) == row['prompt_sha256']
-            assert len(features(parse(row['block']))) == len(FEATURE_NAMES) == 129
+            assert len(features(parse(row['block']))) == len(FEATURE_NAMES) == 192
             assert row['truth'] == g.truth and row['design_version'] == DESIGN_VERSION
             counts[domain] += 1
-            # Every arm, S included, shows only deduplicated dyads: no walk statistics anywhere.
-            assert 'Walk_A' not in row['block'] and 'Auxiliary' not in row['messages'][1]['content']
+            # Only S2 shows walker information (two per-pattern columns); nothing else anywhere.
+            assert (S2_HEADER in row['block']) == (row['arm'] == 'S2') and 'Walk_A' not in row['block']
+            if row['arm'] == 'S2':                      # S2 shows the S1 walk: same dyads and events
+                twin = read_json(path.with_name(path.name.replace(ARM_ID['S2'], ARM_ID['S1'])))
+                s1, s2 = parse(twin['block']), parse(row['block'])
+                assert [r[:3] for r in s2['table']] == s1['table'] and s1['parameter'] == s2['parameter']
     return dict(counts)
 
 
@@ -179,7 +186,7 @@ def audit_common_random_numbers(graphs, budgets):
             small, large = sorted((bg['n_panel'], bs['n_panel']))
             assert set(permutation[:small]) <= set(permutation[:large])
             L = min(bg['L'], bs['L'])
-            walk_seed = seed('sample', parent, ARM_ID['S'], index)
+            walk_seed = seed('sample', parent, ARM_ID['S1'], index)
             a = Walk(g, BUILD).run([walk_seed], L, True)[2]
             b = Walk(s, BUILD).run([walk_seed], L, True)[2]
             assert np.array_equal(a, b)                 # identical support, identical walk prefix
@@ -261,8 +268,8 @@ def audit_requests(design):
 def audit_prompt_templates():
     spec = ROOT/'config/main_experiment'
     text = {f: (spec/f).read_text() for f in PROMPT_FILES}
-    for f in UNCHANGED_SINCE_FREEZE:
-        assert sha(spec/f) == sha(PREVIOUS/'config/main_experiment'/f), f'template changed: {f}'
+    for f, previous in UNCHANGED_SINCE_FREEZE.items():
+        assert sha(spec/f) == sha(PREVIOUS/'config/main_experiment'/previous), f'template changed: {f}'
     required = {
         'system.txt': ['Return your final answer as one JSON object with exactly the keys rho_2, rho_3, rho_4, rho_5'],
         'user_prefix.txt': ['W=5', 'E_full', 'K_e', 'rho_2 >= rho_3 >= rho_4 >= rho_5',
@@ -271,17 +278,21 @@ def audit_prompt_templates():
                             '? = temporally inaccessible window',
                             'Dyads without any observed event are omitted, so the all-zero pattern is not listed'],
         'rule_R.txt': ['Uniform node panel', 'Accessible zeros for listed dyads therefore indicate true inactive windows.'],
-        'rule_S.txt': ['Degree-biased random walk', 'initial vertex is drawn uniformly from V_full',
+        'rule_S2.txt': ['Degree-biased random walk', 'initial vertex is drawn uniformly from V_full',
+                        'the traversals of all rows sum to L',
+                        'inverse_degree_weight is the sum over these transitions of 1/(d_u*d_v)'],
+        'rule_S1.txt': ['Degree-biased random walk', 'initial vertex is drawn uniformly from V_full',
                        'with probability d_v / (sum of d_x over all neighbors x of u)',
                        'Each observed dyad is listed once', 'traversal counts and vertex degrees are not reported',
                        'Exactly L transitions are taken, with no burn-in, no restart, and no stopping'],
-        'rule_H_time_v3.txt': ['common query is made at the full archive end (normalized time 1)', 't >= 1-History_fraction'],
+        'rule_H.txt': ['common query is made at the full archive end (normalized time 1)', 't >= 1-History_fraction'],
         'rule_B.txt': ['Bernoulli event sampling',
                        'An observed 0 in an accessible window can therefore be a false negative']}
     for f, phrases in required.items():
         for phrase in phrases: assert phrase in text[f], (f, phrase)
     forbidden = {'user_prefix.txt': ['Walk_A', '10%', 'corrector', 'baseline'],
-                 'rule_S.txt': ['Walk_A', 'stationary', 'corrector', 'uniformly among']}
+                 'rule_S1.txt': ['Walk_A', 'stationary', 'corrector', 'uniformly among', 'inverse_degree_weight'],
+                 'rule_S2.txt': ['Walk_A', 'stationary', 'corrector', 'uniformly among', 'rho']}
     for f, phrases in forbidden.items():
         for phrase in phrases: assert phrase.lower() not in text[f].lower(), (f, phrase)
     return {f: sha(spec/f) for f in PROMPT_FILES}
@@ -297,13 +308,13 @@ def audit_seeds():
         key = spec['key']
         budget = read_json(REFERENCES/'pool/observations'/f'{key}.json')['budget']
         seed('pool', key)
-        for i in range(1, 257): seed('walk_calibration_cells', key, ARM_ID['S'], i)
-        for i in range(1, budget['validation_n']+1): seed('walk_validation_cells', key, ARM_ID['S'], i)
+        for i in range(1, 257): seed('walk_calibration_cells', key, ARM_ID['S1'], i)
+        for i in range(1, budget['validation_n']+1): seed('walk_validation_cells', key, ARM_ID['S1'], i)
         domain = 'pool_'+spec['partition']
         for arm in ARMS:
             for i in range(1, draws_for(arm, budget, domain)+1): seed(domain, key, ARM_ID[arm], i)
     for key in MAIN_KEYS:
-        for i in range(1, WALK_PATHS+1): seed('walk_diagnostic', key, ARM_ID['S'], i)
+        for i in range(1, WALK_PATHS+1): seed('walk_diagnostic', key, ARM_ID['S1'], i)
     for key in REAL_TEST:
         seed('pwt_productive', key)
         for i in range(1, 100): seed('pwt_null_diagnostic', key, '', i)

@@ -13,7 +13,7 @@ import pickle
 import numpy as np
 import sklearn
 from sklearn.ensemble import ExtraTreesRegressor
-from .common import REAL_TEST, TRAIN, digest, seed, sha, write_json
+from .common import ARMS, REAL_TEST, TRAIN, digest, read_json, seed, sha, write_json
 from .observation import FEATURE_NAMES, FEATURE_VERSION, features, parse
 
 FOLDS = (*REAL_TEST, 'synthetic')
@@ -36,8 +36,8 @@ def fold_sources(fold):
 def fold_rows(rows, fold, pool_rows=None):
     """Rows and normalised weights of one fold.
 
-    Within a block every graph carries the same weight, within a graph the four
-    arms, within an arm its observations. A saturated H draw is one observation
+    Within a block every graph carries the same weight, within a graph every arm,
+    within an arm its observations. A saturated H draw is one observation
     and carries the whole H weight of its graph.
     """
     allowed = fold_sources(fold)
@@ -52,7 +52,7 @@ def fold_rows(rows, fold, pool_rows=None):
     per_arm = {}
     for r in selected:
         per_arm[r['source_family'], r['arm']] = per_arm.get((r['source_family'], r['arm']), 0)+1
-    weights = np.array([graph_share[r['block_group']]/(4*per_arm[r['source_family'], r['arm']]) for r in selected])
+    weights = np.array([graph_share[r['block_group']]/(len(ARMS)*per_arm[r['source_family'], r['arm']]) for r in selected])
     # Normalising is a no-op with all three blocks and restores the scale for real_only.
     return selected, weights/weights.sum()
 
@@ -89,7 +89,6 @@ def fit_folds(rows, truth, out, pool_rows=None):
 
 def load_models(folder):
     """{fold: model} of one variant directory, verifying each pickle's recorded hash."""
-    from .common import read_json
     models = {}
     for fold in FOLDS:
         manifest = read_json(Path(folder)/fold/'manifest.json')

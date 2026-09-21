@@ -6,7 +6,7 @@ import unittest
 from dataclasses import replace
 import numpy as np
 from helpers import complete6, graph, ring, tiny
-from main_experiment.common import (COVERAGE_FRACTION, H_SENSITIVITY, MAIN_KEYS, TRAIN, draws_for, planned_sizes,
+from main_experiment.common import (ARMS, COVERAGE_FRACTION, H_SENSITIVITY, MAIN_KEYS, TRAIN, draws_for, planned_sizes,
                                     seed)
 from main_experiment.sampling import (Walk, analytic_parameters, calibrate, draw, h_parameters, history_counts,
                                       history_panel_mask, history_start)
@@ -46,11 +46,11 @@ class DesignSizeTests(unittest.TestCase):
     def test_sizes_follow_from_the_budgets(self):
         free = {k: {'h_saturated': False} for k in set(TRAIN) | set(MAIN_KEYS)}
         s = planned_sizes(free)
-        self.assertEqual((s['main_observations'], s['training_observations']), (288, 320))
-        self.assertEqual((s['planned_calls'], s['qwen_calls']), (3456, 1728))
+        self.assertEqual((s['main_observations'], s['training_observations']), (360, 400))
+        self.assertEqual((s['planned_calls'], s['qwen_calls']), (4320, 2160))
         free['sp_highschool2013'] = {'h_saturated': True}       # deterministic H: one draw only
         s = planned_sizes(free)
-        self.assertEqual((s['main_observations'], s['training_observations']), (286, 316))
+        self.assertEqual((s['main_observations'], s['training_observations']), (358, 396))
         self.assertEqual(draws_for('R', free['sp_highschool2013']), 3)
 
 
@@ -203,7 +203,7 @@ class WalkTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             budget, _, volumes = calibrate(g, d)
         self.assertEqual(budget['L'], budget['C'])
-        self.assertFalse(budget['budget_matched_by_arm']['S'])
+        self.assertFalse(budget['budget_matched_by_arm']['S1'] or budget['budget_matched_by_arm']['S2'])
         self.assertIn('S:calibration_cap', budget['unmatched_reasons'])
         self.assertEqual(np.mean(volumes), 3.)              # one dyad with K_e = 3 per component
 
@@ -212,9 +212,9 @@ class BudgetSensitivityTests(unittest.TestCase):
     def test_main_budget_keeps_its_identity_and_other_budgets_are_versioned(self):
         from main_experiment.common import BUDGET_GRID, observation_id, sampler_id
         self.assertEqual(sampler_id('R'), 'R-p888-20260921')
-        self.assertEqual(observation_id('g', 'S', 2, .10), 'g__S-dbrw-p888-20260921__s2')
-        ids = {sampler_id(arm, b) for arm in 'RSHB' for b in BUDGET_GRID}
-        self.assertEqual(len(ids), 4*len(BUDGET_GRID))
+        self.assertEqual(observation_id('g', 'S1', 2, .10), 'g__S-dbrw-p888-20260921__s2')
+        ids = {sampler_id(arm, b) for arm in ARMS for b in BUDGET_GRID}
+        self.assertEqual(len(ids), len(ARMS)*len(BUDGET_GRID))
         self.assertEqual(sampler_id('B', .025), 'B-p888-20260921-b025')
 
     def test_target_scales_with_the_fraction_and_streams_differ(self):
@@ -233,8 +233,8 @@ class CommonRandomNumberTests(unittest.TestCase):
         s = shuffle(g); b = analytic_parameters(g) | {'L': 101}
         np.testing.assert_array_equal(history_panel_mask(g, 1, 'sample', b), history_panel_mask(s, 1, 'sample', b))
         with tempfile.TemporaryDirectory() as d:
-            np.testing.assert_array_equal(draw(g, 'S', 1, 'sample', b, Walk(g, d))[1],
-                                          draw(s, 'S', 1, 'sample', b, Walk(s, d))[1])
+            np.testing.assert_array_equal(draw(g, 'S1', 1, 'sample', b, Walk(g, d))[1],
+                                          draw(s, 'S1', 1, 'sample', b, Walk(s, d))[1])
         # Same p and uniforms: the same event records are kept, their times differ.
         np.testing.assert_array_equal(draw(g, 'B', 1, 'sample', b)[0].sum(1), draw(s, 'B', 1, 'sample', b)[0].sum(1))
         np.testing.assert_array_equal(draw(g, 'R', 1, 'sample', b)[0].sum(1) > 0, draw(s, 'R', 1, 'sample', b)[0].sum(1) > 0)
