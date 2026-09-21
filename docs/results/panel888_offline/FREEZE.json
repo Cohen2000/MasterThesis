@@ -2,7 +2,7 @@
   "design_version": "panel888-pwt-srw-20260921",
   "evidence_sha256": {
     "ARTIFACT_CHECKSUMS.json": "8914d90871c72c8a419902bd782f2613b25373b0099c3909412cd9f3e6dfe07e",
-    "SOURCE_CHECKSUMS.json": "449e5d0cf5d7a1230ff83a8485d881f370e69562c3bf6bea969b7a4c2ff2e0a3",
+    "SOURCE_CHECKSUMS.json": "3b0d71d3d78f0bb185eb66d965945fc875b0659ea408b64729525205c4039221",
     "W_4_5_8_comparisons.csv": "6a6d942348782ec00b54fb6f864f163b79beda648825f845c38c20cab8730c24",
     "budget_summary.csv": "f61c1c2d449ebbbc6bb919e6e4a692a3d831d511961bfa51b566af773682c1c2",
     "census_sensitivities.csv": "6c277bdc5d7f18dd64a6b8308991ec9dbc487ad0bcb6cd1583a1357a2118ac6b",
