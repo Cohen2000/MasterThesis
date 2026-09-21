@@ -139,7 +139,9 @@ def bernoulli_p(g, T):
     """Retention probability p with expected observed active cells equal to T.
 
     A cell with n events is observed with probability 1-(1-p)^n; the expectation
-    increases in p, so bisection (80 halvings) finds p to machine precision.
+    increases in p, so bisection (80 halvings) finds p to machine precision. p is
+    then kept to 12 significant digits, so that the Bernoulli draws do not depend
+    on last-bit floating-point differences between machines.
     """
     n = g.counts[g.counts > 0].astype(float)
 
@@ -150,7 +152,8 @@ def bernoulli_p(g, T):
         mid = (lo+hi)/2
         if expected_cells(mid) < T: lo = mid
         else: hi = mid
-    return hi, expected_cells(hi)
+    p = float(f'{hi:.12g}')
+    return p, expected_cells(p)
 
 
 def analytic_parameters(g, fraction=COVERAGE_FRACTION):

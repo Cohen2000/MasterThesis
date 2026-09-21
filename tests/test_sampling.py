@@ -70,6 +70,13 @@ class AnalyticArmTests(unittest.TestCase):
         self.assertAlmostEqual(expected, b['T'])
         self.assertAlmostEqual(b['T'], COVERAGE_FRACTION*g.cells)
 
+    def test_retention_probability_is_machine_independent(self):
+        from main_experiment.sampling import bernoulli_p
+        g = ring(n=80, per=6, seed=2)
+        p, expected = bernoulli_p(g, .1*g.cells)
+        self.assertEqual(p, float(f'{p:.12g}'))                      # 12 significant digits
+        self.assertAlmostEqual(expected, .1*g.cells, delta=1e-6*g.cells)
+
     def test_realised_cells_track_the_expectation(self):
         g = ring(n=80, per=6, seed=2); b = analytic_parameters(g)
         for arm, key in (('R', 'node_expected_cells'), ('H', 'h_expected_cells'), ('B', 'bernoulli_expected_cells')):
