@@ -1,0 +1,12 @@
+{
+ "empty_final_text": 2,
+ "end_states": {
+  "job_deadline": 1,
+  "model_end": 10235
+ },
+ "expected": 10236,
+ "found": 10236,
+ "missing": 0,
+ "output_limit_hits": 0,
+ "unclosed_reasoning": 2
+}

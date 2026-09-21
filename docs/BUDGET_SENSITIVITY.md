@@ -47,3 +47,39 @@ Observations / Qwen requests per budget: 2.5% 288/1,728; 5% 288/1,728; 20% 286/1
 30% 284/1,704; 40% 284/1,704; 50% 276/1,656 — 10,236 new Qwen requests in total
 (5,118 per mode). Audit ([audit.json](results/panel888_budget_sensitivity/audit.json)):
 no seed collision, no request ID shared with the main study or between budgets.
+
+## Qwen run and results
+
+One chain from commit 2ac8373 (jobs 7094845 round 1, 7094846/7094847 rounds 2/3,
+7094848 archive). All 10,236 requests had a result after round 1; the no-op
+rounds 2/3 (they only admit never-started requests) were then cancelled so the
+archive job could run. Archive verified (checksums, requests, observations,
+runner, engine, model revision), collected strictly: 10,236 of 10,236, no
+duplicates, no missing answers, 0 output-limit hits; one thinking answer was in
+flight at a job deadline (technical failure, not regenerated), two thinking
+answers never closed their reasoning (no final answer). An independent re-parse
+agrees with the evaluation on all 11,964 Qwen rows including the 10% anchor.
+
+Valid answers (thinking / non-thinking): 2.5% 862/864, 864/864; 5% 862/864, 863/864;
+10% (main) 863/864, 864/864; 20% 855/858, 858/858; 30% 851/852, 851/852;
+40% 852/852, 852/852; 50% 828/828, 826/828.
+
+Real sources, Qwen thinking MAE2 (equal-source, valid answers):
+
+| Arm | 2.5% | 5% | 10% (main) | 20% | 30% | 40% | 50% |
+|---|---|---|---|---|---|---|---|
+| R | 0.029 | 0.025 | 0.015 | 0.012 | 0.013 | 0.010 | 0.006 |
+| S | 0.030 | 0.019 | 0.014 | 0.009 | 0.010 | 0.006 | 0.005 |
+| H | 0.226 | 0.242 | 0.213 | 0.216 | 0.211 | 0.237 | 0.220 |
+| B | 0.318 | 0.266 | 0.215 | 0.194 | 0.146 | 0.162 | 0.147 |
+
+Evidence in [results/panel888_budget_sensitivity/](results/panel888_budget_sensitivity/):
+`tidy_results.csv.gz` (one row per budget x observation x estimator x repeat: budget,
+expected and observed coverage, graph, evidence block, arm, method, status, validity,
+AE2, ProfileAE, signed error), `summary.csv` (equal-source MAE2/ProfileMAE with
+draw-clustered MCSE and valid fractions per budget x block x arm x method), plots
+`MAE2_<block>.png` (primary: `MAE2_real.png`; surrogate and the four synthetic
+conditions separately), `ProfileMAE_real.png`, `valid_fraction_real.png`, and
+`RESULT_FREEZE.json` with all hashes. The x-axis is the achieved expected
+dyad-window coverage; H is capped where its target is unreachable. The dotted
+line marks the main study's fixed 10%; it was not chosen from these curves.
