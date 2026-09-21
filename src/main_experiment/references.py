@@ -5,7 +5,7 @@
   train       nine LOSO folds x {pooled, real_only} forests (training.py).
   references  development check of every reference on the 100 development
               graphs (synthetic fold), and every reference prediction for the
-              288 main observations (primary_baselines.json), which the LLM
+              360 main observations (primary_baselines.json), which the LLM
               evaluation compares against.
 """
 import time
@@ -145,7 +145,7 @@ def development_check(out, models, medians):
 
 # ---------------------------------------------------------------- main panel
 def main_references(out, models, medians, prepared=PREPARED):
-    """All reference predictions for the 288 main observations; the primary one named."""
+    """All reference predictions for the 360 main observations; the primary one named."""
     observations = [read_json(p) for p in sorted((prepared/'observations/sample').glob('*.json'))]
     manifests = {k: read_json(PREPARED/'graphs'/k/'manifest.json') for k in {o['graph_id'] for o in observations}}
     entries = {}; records = []

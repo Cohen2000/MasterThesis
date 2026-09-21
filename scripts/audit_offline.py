@@ -354,7 +354,7 @@ def main():
     for k in keys: audit_graph(graphs[k], read_json(PREPARED/'graphs'/k/'manifest.json'))
     audit_copenhagen()
     design = planned_sizes(budgets)
-    assert (design['main_observations'], design['training_observations'], design['planned_calls']) == (288, 320, 3456)
+    assert (design['main_observations'], design['training_observations'], design['planned_calls']) == (360, 400, 4320)
     result = {
         'design_version': DESIGN_VERSION, 'checksums': checksums, 'design': design,
         'surrogates': [audit_surrogate(graphs[p], graphs[p+'__pwt']) for p in REAL_TEST],

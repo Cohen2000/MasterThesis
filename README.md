@@ -8,10 +8,13 @@ from a small sampled observation of it? The study (design identifier
   (one per real source) and 8 synthetic instances;
 - W = 5 windows, estimand rho_2..rho_5 (primary MAE2, secondary ProfileMAE);
 - four observation mechanisms matched to 10% of the active dyad-windows:
-  R node panel, S degree-biased random walk, H node panel with elapsed-time
-  history (h = .60), B Bernoulli event thinning;
-- 3 test sampler draws x 3 model repeats (288 observations, 864 requests per
-  model configuration), 5 training draws for the learned references;
+  R node panel, a degree-biased random walk, H node panel with elapsed-time
+  history (h = .60), B Bernoulli event thinning; the walk is shown in two
+  information conditions on the identical draws: S1 (observed dyads only) and
+  S2 (plus the walker information needed for a design-aware correction);
+- five arms R, S1, S2, H, B x 3 test draws x 3 model repeats (360 observations,
+  1,080 requests per model configuration), 5 training draws for the learned
+  references;
 - an ancillary budget sensitivity at 2.5–50% coverage.
 
 Documents: [protocol](docs/PROTOCOL_PANEL888_20260921.md) (design),
@@ -30,8 +33,8 @@ Documents: [protocol](docs/PROTOCOL_PANEL888_20260921.md) (design),
 | `synthetic.py` | DAR and activity-driven generators |
 | `surrogates.py` | P[w,t] timestamp shuffles and their invariant audit |
 | `sampling.py`, `walk_kernel.cpp` | the four arms, budget calibration, degree-biased random walk |
-| `observation.py` | observation blocks, prompts, 129 features |
-| `baselines.py`, `mixtures.py` | plug-in, arm correctors, S design reference, B Beta-mixture |
+| `observation.py` | observation blocks, prompts, 192 features |
+| `baselines.py`, `mixtures.py` | same-information baselines, S1/S2 design-aware oracle, B Beta-mixture |
 | `pool.py`, `training.py` | synthetic training pool, LOSO ExtraTrees |
 | `prepare.py`, `references.py` | the offline stages |
 | `requests.py`, `evaluation.py` | request manifest, strict answer parsing, MCSE |
