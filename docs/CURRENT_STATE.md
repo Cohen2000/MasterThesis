@@ -1,14 +1,11 @@
 # Current state
 
-Design panel888-pwt-srw-20260921 (the single final panel).
+Design identifier panel888-pwt-srw-20260921; S is the degree-biased random walk.
 
-- Offline freeze: commit 54d5832ce450f8bad9ac557070df5324fcd7c8b1 (pushed). Full clean
-  `scripts/run_offline.sh` run, independent audit and 104 tests green; evidence in
-  `docs/results/panel888_offline/`. Code cleanup verified equivalent to the pre-cleanup
-  implementation (`archive/pre_panel888_cleanup_20260921/CLEANUP_EQUIVALENCE.json`).
-- Qwen main production: complete (one chain, jobs 7093897–7093900, never resubmitted).
-  1,728/1,728 answers, 1,727 valid; integrated and audited, see RESULTS_PANEL888.md.
-- Budget sensitivity (ancillary, grid .025–.50, 10% = main study): complete. One Qwen chain
-  (jobs 7094845–7094848, commit 2ac8373), 10,236/10,236 answers collected; results and
-  plots in docs/results/panel888_budget_sensitivity, see BUDGET_SENSITIVITY.md.
-- Sol / DeepSeek: prepared only (864 requests each), not started.
+- Offline study sealed (`docs/results/panel888_offline/`, sources of commit b5702e3):
+  full `run_offline.sh` on uc3 (job 7098486), audit and tests green; laptop reproduces
+  all R/H/B parameters and observations exactly. Budget sensitivity prepared
+  (job 7098487), feasibility and audit in `docs/results/panel888_budget_sensitivity/`.
+- Qwen: R and H answers are reused by byte-identical request; S and B answers are
+  being generated (workspaces `panel888_main`, `panel888_budget`).
+- Sol / DeepSeek: prepared only, not started.
