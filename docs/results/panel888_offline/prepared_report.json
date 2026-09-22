@@ -1,0 +1,33 @@
+{
+  "budget_unmatched_graphs": {},
+  "coverage_fraction": 0.1,
+  "design_version": "panel888-pwt-srw-20260921",
+  "deterministic_h_graphs": [],
+  "empty_observations": 0,
+  "feature_version": "features-v8-panel888-20260921",
+  "h_target_unreachable_graphs": [],
+  "llm_study_conducted": false,
+  "matched_quantity": "expected_observed_active_dyad_windows",
+  "max_prompt_tokens": {
+    "deepseek_message_texts": 1482,
+    "qwen_nonthinking": 2055,
+    "qwen_thinking": 2053,
+    "sol_o200k_message_proxy": 1458
+  },
+  "offline_ready": true,
+  "planned_logical_calls": 4320,
+  "planned_observations": 360,
+  "planned_qwen_calls": 2160,
+  "planned_training_observations": 400,
+  "prepared_observations": 360,
+  "prompt_sizes_checked": 360,
+  "request_manifest_rows": 4320,
+  "requests_per_config": {
+    "deepseek": 1080,
+    "qwen_nonthinking": 1080,
+    "qwen_thinking": 1080,
+    "sol": 1080
+  },
+  "started_calls": 0,
+  "training_observations": 400
+}
