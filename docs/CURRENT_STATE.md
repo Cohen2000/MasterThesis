@@ -2,123 +2,57 @@
 
 Design identifier panel888-access-v9-20260922; active arms R, S1, H, B (S2 retired).
 
-## Qwen production (final v9)
+## Final v9 results: complete for all five main methods
 
-- Main + all six budget-sensitivity levels (b025/b050/b200/b300/b400/b500): every
-  chain's round1/round2/round3/archive completed successfully (jobs
-  7118786-7118817, archives 7118789/7118797/7118801/7118805/7118809/7118813/7118817).
-  Untouched. Main integrated locally this session (see below).
-- H-known ablation (h=.60 spelled out in the prompt): the original round1-3
-  (jobs 7119193-7119221) all failed with a `design_version` mismatch between
-  the ablation's own `-hknown` label and the deployed contract. Fixed
-  (`scripts/build_hknown_requests.py`: keep the real `DESIGN_VERSION`,
-  distinguish only the request `id`; also fixed a second real bug this session
-  found -- the paired observation's stored `messages` must carry the h=0.60
-  wording too, or `run_qwen_engine.load_requests` rejects every request with
-  `prompt hash mismatch`) and regenerated + resubmitted for all seven
-  workspaces: main 7126667/7126672/7126673/7126674, b025
-  7126675/7126676/7126677/7126678, b050 7126679/7126680/7126681/7126682, b200
-  7126683/7126684/7126685/7126686, b300 7126687/7126688/7126689/7126690, b400
-  7126691/7126692/7126693/7126694, b500 7126695/7126696/7126697/7126698
-  (round1/round2/round3/archive). round1 (and, for main, round2) ran against
-  the pre-fix data and failed as expected; round3 onward runs against the
-  corrected `mainexp/run/` and should succeed -- not confirmed complete at
-  session end (queued behind the GPU node backlog; not polled further, per
-  instructions). `tests/test_hknown_requests.py` (5 tests) pins both bugs and
-  the H-known/H-unknown identity requirement.
-- No Sol/DeepSeek jobs exist or were started.
+`docs/results/panel888_analysis_snapshot/` (ANALYSIS_SNAPSHOT.md plus
+MAIN_METHOD_COMPARISON, MAIN_REAL_BY_SOURCE, BUDGET_METHOD_COMPARISON,
+SURROGATE_COMPARISON, SYNTHETIC_COMPARISON, MAIN_SECONDARY_REFERENCE,
+FIT_DIAGNOSTICS) covers Main (0.10) and the full coverage grid
+(0.025/0.05/0.10/0.20/0.30/0.40/0.50) x R/S1/H/B x real/surrogate/synthetic for
+plugin, shared_mle, mixed-budget extratrees, qwen_thinking, qwen_nonthinking.
+Regenerate with `scripts/build_analysis_snapshot.py` (reads the gitignored
+`results/` tree; the committed copies live in `docs/results/`).
 
-## Final-v9 CPU chain (offline + budget-sensitivity prep + mixed-budget ET)
+- plugin: computed from each level's observations (no model).
+- shared_mle: `scripts/build_shared_mle.py`, run locally on the sealed
+  observations; `docs/results/panel888_shared_mle/` (1994 observations,
+  fallback 5.6-9.9 % per level; adequacy on dev/training only).
+- extratrees (mixed-budget): `scripts/build_mixed_budget_et.py`, job 7128339
+  (48 cores, ~25 min): 36 arm x fold forests (PARAMETERS unchanged, 58,211
+  training rows pooled over all seven levels, budget not a feature), scored in
+  the same run on all 1994 test observations; `docs/results/panel888_et_mixed/`
+  (evaluation.csv, report.json). The 20 GB of forests and their manifests stay
+  on the cluster: `$WS/panel888_access_v9_cpu/results/panel888_et_mixed/models/`.
+- Qwen thinking/non-thinking: final v9 archives of `panel888_access_v9_{main,
+  b025,...,b500}` collected with `collect_qwen_answers.py` (all expected answers
+  found, 0 missing), scored on formally valid answers only (validity >= 0.9976).
 
-Sealed successfully this session: **offline 7126631** (after 10 earlier
-resubmissions to fix, in order: `record_environment` crashing on git in the
-rsynced CPU workspace; a stray root-level `main_experiment/` duplicate on that
-workspace shadowing `src/main_experiment` during `-m unittest` test discovery
-[moved aside, not deleted: `_stray_root_main_experiment_dup_20260922`]; and,
-in `scripts/audit_offline.py`, five separate v9-migration staleness bugs --
-hardcoded `(360,400,4320)`/`192` from the pre-S2 design, a stale
-`'p888-20260921'` id substring, ExtraTrees' anchor+residual scheme not added
-back before comparison, an unconditional `[0,1]`/monotone check applied to
-that same unconstrained residual, and `rule_R.txt`/`rule_S1.txt`/`rule_H.txt`
-checked against pre-v9 wording that the v9 access contract deliberately
-changed [n_panel/L/degree hidden] -- plus two local-only archived files
-(`archive/pre_panel888_20260921/.../requests.jsonl` and `.../seed_manifest.json`,
-gitignored, needed by the audit's "no ID/seed reuse across generations"
-checks) that existed on this laptop but never reached the cluster checkout).
-`OFFLINE_FREEZE_SEALED, 1364 artifacts`; 122 tests green on the cluster too.
+Changes to the ET script, none methodological: features/anchors computed once
+per row instead of twice per fold (arm B alone would otherwise have needed
+~300k Beta-mixture fits, ~3.5 h); fits and scoring parallel; empty draws
+(D_obs=0, only at 2.5 % coverage) excluded, as in `training.fold_rows`; and
+the 0.10 level's training pool is now included -- the old script looked for
+it under `prepared/pool`, which does not exist (it is `references/pool`, train
+partition), so the main level's pool was silently missing.
 
-Then **budget-sensitivity prepare 7126706** (array 1-5) + **7126781** (index 0
-retry): found and fixed one more real bug, in `src/main_experiment/training.py`
-`fold_rows` -- at low budget-sensitivity coverage (2.5%) a training draw can
-have zero observed dyads, and `fit_folds` called `baselines.anchor_profile`
-on it unconditionally, which raises (`plugin` refuses an empty sample).
-`observation.features()` already had the equivalent zero-fallback; `fold_rows`
-now excludes empty draws the same way. `tests/test_training.py` gained
-`test_empty_draws_are_excluded_from_training`. Both prepare jobs completed;
-chained to **mixed-budget ET 7126790** and **shared-MLE offline evaluation
-7126792** (`afterok:7126706:7126790`... i.e. both prepare jobs) -- running at
-session end, not polled to completion (see below).
+## Cluster state
 
-Three earlier dead attempts from before this session's fixes
-(7118905/7118941, 7118954/7118957, 7119020/7119026/7119028, plus the
-once-thought-fixed 7119233/7119235/7119236 and 7123951/7124537/7124542,
-7126124/7126126/7126149, 7126612/7126637/7126643) are permanently stuck
-`DependencyNeverSatisfied`/dead in `squeue`; cancelling was blocked by this
-session's tool permissions (`scancel`), so they are still listed and harmless
--- the user can `scancel` them in bulk.
+- Offline study sealed (job 7126631, `OFFLINE_FREEZE_SEALED`, 1364 artifacts);
+  budget-sensitivity prepare 7126706 (1-5) + 7126781 (index 0) completed.
+- H-known ablation (fixed request builder, resubmitted this session): b050,
+  b200, b300, b500 archived with all answers; b025 and b400 have all answers,
+  archive jobs pending/running; main 421/432 answers, round 3 running. Not
+  integrated yet.
+- Dead jobs still listed in `squeue` (DependencyNeverSatisfied, harmless; the
+  user can `scancel` them): 7118941, 7118957, 7119026, 7119028, 7119235,
+  7119236, 7124537, 7124542, 7126149, 7126643, 7126713, 7126790, 7126792.
+- No Sol/DeepSeek jobs.
 
-## Shared statistical working-model baseline
+## Open
 
-- `src/main_experiment/shared_mle.py`: shared zero-truncated Beta-Binomial MLE
-  across R/S1/H (visible-window likelihood, W=5 target from the same fitted
-  alpha/beta -- H at m=5 is bit-identical to R/S1, test-checked) and B (reuses
-  `mixtures.fit_events`, same activity/ZTP/thinning model, not duplicated).
-  Deterministic homogeneous-binomial fallback (`fit_profile_from_counts`),
-  reported and counted, shared between the fit path and the offline adequacy
-  diagnostics. `tests/test_shared_mle.py`: 13 tests (input-contract leakage,
-  validity, likelihood/synthetic-recovery, fallback wiring).
-- `scripts/build_shared_mle.py`: offline runner for Main + every budget level
-  (`results/panel888_shared_mle/`), plus three fixed adequacy diagnostics
-  (full-data representation, H-like extrapolation, B-like observation) on
-  development/training material only -- fully local, no cluster artifact
-  needed (real graphs rebuilt from `data/raw`, synthetic dev graphs
-  regenerated from their seed).
-- `scripts/build_shared_mle_main_quicklook.py`: fast Main-only quicklook
-  (`results/panel888_shared_mle_main_quicklook/`) reading only the already
-  -prepared main observations + existing plugin/corrector baselines; no Slurm
-  wait needed once those two stages exist.
-- `scripts/build_qwen_main_quicklook.py`: Qwen main validity/MAE2 by arm x
-  config from an already-collected `responses.jsonl`, no re-inference.
-- `scripts/build_analysis_snapshot.py`: `results/panel888_analysis_snapshot/`
-  -- MAIN_METHOD_COMPARISON.csv, MAIN_REAL_BY_SOURCE.csv,
-  SURROGATE/SYNTHETIC_COMPARISON.csv, FIT_DIAGNOSTICS.csv,
-  ANALYSIS_SNAPSHOT.md. Main only so far; budget columns and the mixed-budget
-  ET column are added once `results/panel888_shared_mle/main_and_budget_observations.csv`
-  and the ET job exist (script already checks for and skips them cleanly).
-- `docs/PROTOCOL_PANEL888_20260921.md`: new section describing the baseline,
-  its assumptions and its limitations (S1 selection left uncorrected, H
-  extrapolation is a working-model assumption).
-- No new Qwen/Sol/DeepSeek jobs; no ExtraTrees redesign (only the
-  empty-draw-exclusion bugfix above, not a design change); no shared-MLE
-  hyperparameter tuning; existing plugin/corrector/mixture/ExtraTrees
-  references untouched.
+- Integrate H-known once its seven archives are complete.
+- Mechanism-aware secondary reference exists for Main only (budget levels
+  would need `main_references` output per level; not needed for the five-method
+  comparison).
 
-## Local quicklook results (Main, 288 observations; Qwen main pulled and
-integrated from the cluster archive; MAE2 = conditional mean absolute error
-of rho_2)
-
-| arm | plugin | shared_mle | mechanism-aware ref | qwen_thinking | qwen_nonthinking |
-|---|---|---|---|---|---|
-| R  | 0.019 | 0.026 | 0.019 | 0.017 | 0.314 |
-| S1 | 0.056 | 0.068 | 0.056 | 0.049 | 0.325 |
-| H  | 0.088 | 0.060 | 0.119 | 0.159 | 0.274 |
-| B  | 0.295 | 0.098 | 0.102 | 0.293 | 0.370 |
-
-Qwen validity (formally valid final answers): thinking 1.000, non-thinking
-1.000. Shared-MLE adequacy (development/training only): full-data
-representation MAE2=0.007 (fallback 5/116); H-like extrapolation MAE2=0.035
-(fallback 14/116); B-like observation MAE2=0.112 (fallback 62/500). No model
-change was made based on any of this.
-
-Sealed offline reference point (pre-v9, unaffected by this session):
-commit 9db974e, results/panel888 archived under docs/results/panel888_offline.
+Sealed pre-v9 reference point: commit 9db974e, docs/results/panel888_offline.

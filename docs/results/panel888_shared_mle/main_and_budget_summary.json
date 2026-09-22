@@ -1,0 +1,422 @@
+{
+  "by_budget_arm": [
+    {
+      "MAE2": 0.1413765043208259,
+      "ProfileMAE": 0.12809963388515874,
+      "arm": "B",
+      "budget": 0.025,
+      "fallback_count": 10,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.05959834211115411,
+      "ProfileMAE": 0.04926549746689337,
+      "arm": "H",
+      "budget": 0.025,
+      "fallback_count": 1,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.03120658730172542,
+      "ProfileMAE": 0.025952910334114353,
+      "arm": "R",
+      "budget": 0.025,
+      "fallback_count": 1,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.07580413987456308,
+      "ProfileMAE": 0.047985087755784396,
+      "arm": "S1",
+      "budget": 0.025,
+      "fallback_count": 4,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.11579322012780713,
+      "ProfileMAE": 0.11417994692504528,
+      "arm": "B",
+      "budget": 0.05,
+      "fallback_count": 15,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.06208022122873593,
+      "ProfileMAE": 0.04638635352029553,
+      "arm": "H",
+      "budget": 0.05,
+      "fallback_count": 5,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.02393576695264793,
+      "ProfileMAE": 0.020805499580151304,
+      "arm": "R",
+      "budget": 0.05,
+      "fallback_count": 0,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.07434775814815174,
+      "ProfileMAE": 0.045124292794917566,
+      "arm": "S1",
+      "budget": 0.05,
+      "fallback_count": 4,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.09756930095203098,
+      "ProfileMAE": 0.0818975139670553,
+      "arm": "B",
+      "budget": 0.1,
+      "fallback_count": 10,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.05950278902424611,
+      "ProfileMAE": 0.04759957449475797,
+      "arm": "H",
+      "budget": 0.1,
+      "fallback_count": 6,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.0263598506562341,
+      "ProfileMAE": 0.01938838684371008,
+      "arm": "R",
+      "budget": 0.1,
+      "fallback_count": 2,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.06788761933528521,
+      "ProfileMAE": 0.04492522714216324,
+      "arm": "S1",
+      "budget": 0.1,
+      "fallback_count": 2,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.08268685931000498,
+      "ProfileMAE": 0.0695663811611345,
+      "arm": "B",
+      "budget": 0.2,
+      "fallback_count": 12,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.05479484032788275,
+      "ProfileMAE": 0.04508758649925127,
+      "arm": "H",
+      "budget": 0.2,
+      "fallback_count": 10,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.017508672267837217,
+      "ProfileMAE": 0.014742857070039661,
+      "arm": "R",
+      "budget": 0.2,
+      "fallback_count": 0,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.05550288559674699,
+      "ProfileMAE": 0.0320595086574977,
+      "arm": "S1",
+      "budget": 0.2,
+      "fallback_count": 3,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.057484644158589476,
+      "ProfileMAE": 0.05545122045984405,
+      "arm": "B",
+      "budget": 0.3,
+      "fallback_count": 8,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.07129091858145124,
+      "ProfileMAE": 0.05378645492837797,
+      "arm": "H",
+      "budget": 0.3,
+      "fallback_count": 15,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.01822625381938267,
+      "ProfileMAE": 0.01410644543878769,
+      "arm": "R",
+      "budget": 0.3,
+      "fallback_count": 1,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.04939053545402782,
+      "ProfileMAE": 0.030664924871070226,
+      "arm": "S1",
+      "budget": 0.3,
+      "fallback_count": 4,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.05337972972145958,
+      "ProfileMAE": 0.04935359847921448,
+      "arm": "B",
+      "budget": 0.4,
+      "fallback_count": 5,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.052454426832837686,
+      "ProfileMAE": 0.04226680902244546,
+      "arm": "H",
+      "budget": 0.4,
+      "fallback_count": 11,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.018743156597212582,
+      "ProfileMAE": 0.01592418982386139,
+      "arm": "R",
+      "budget": 0.4,
+      "fallback_count": 2,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.04620072815936923,
+      "ProfileMAE": 0.02827652333654342,
+      "arm": "S1",
+      "budget": 0.4,
+      "fallback_count": 5,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.03918046326932299,
+      "ProfileMAE": 0.03920229612017749,
+      "arm": "B",
+      "budget": 0.5,
+      "fallback_count": 6,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.05752418106202656,
+      "ProfileMAE": 0.04497143744403657,
+      "arm": "H",
+      "budget": 0.5,
+      "fallback_count": 11,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.015932207207917087,
+      "ProfileMAE": 0.013801890252297255,
+      "arm": "R",
+      "budget": 0.5,
+      "fallback_count": 1,
+      "graphs": 24
+    },
+    {
+      "MAE2": 0.043442361116478985,
+      "ProfileMAE": 0.026087380050903632,
+      "arm": "S1",
+      "budget": 0.5,
+      "fallback_count": 5,
+      "graphs": 24
+    }
+  ],
+  "by_evidence_block_arm": [
+    {
+      "MAE2": 0.10287657346086526,
+      "ProfileMAE": 0.12337362056630487,
+      "arm": "B",
+      "evidence_block": "ad_memory",
+      "fallback_count": 3,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.04053849891663926,
+      "ProfileMAE": 0.03885098835349414,
+      "arm": "H",
+      "evidence_block": "ad_memory",
+      "fallback_count": 0,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.01480183440432115,
+      "ProfileMAE": 0.01965300330732566,
+      "arm": "R",
+      "evidence_block": "ad_memory",
+      "fallback_count": 0,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.01795524657772414,
+      "ProfileMAE": 0.02580526271073641,
+      "arm": "S1",
+      "evidence_block": "ad_memory",
+      "fallback_count": 0,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.01997030514941931,
+      "ProfileMAE": 0.005582713797700941,
+      "arm": "B",
+      "evidence_block": "ad_memoryless",
+      "fallback_count": 11,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.015089481890200769,
+      "ProfileMAE": 0.004252751157516891,
+      "arm": "H",
+      "evidence_block": "ad_memoryless",
+      "fallback_count": 13,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.01380036938440486,
+      "ProfileMAE": 0.004069221880663717,
+      "arm": "R",
+      "evidence_block": "ad_memoryless",
+      "fallback_count": 3,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.043927097718254315,
+      "ProfileMAE": 0.01268081331055838,
+      "arm": "S1",
+      "evidence_block": "ad_memoryless",
+      "fallback_count": 2,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.09627071533893447,
+      "ProfileMAE": 0.03943173735114677,
+      "arm": "B",
+      "evidence_block": "dar_a0",
+      "fallback_count": 1,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.027828991057672847,
+      "ProfileMAE": 0.011141263497199728,
+      "arm": "H",
+      "evidence_block": "dar_a0",
+      "fallback_count": 0,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.020051404420855387,
+      "ProfileMAE": 0.008633062478115676,
+      "arm": "R",
+      "evidence_block": "dar_a0",
+      "fallback_count": 0,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.02079573387099347,
+      "ProfileMAE": 0.008604184569335108,
+      "arm": "S1",
+      "evidence_block": "dar_a0",
+      "fallback_count": 0,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.0935605123527258,
+      "ProfileMAE": 0.13021049539447827,
+      "arm": "B",
+      "evidence_block": "dar_a08",
+      "fallback_count": 2,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.03692216868962343,
+      "ProfileMAE": 0.09958691376816955,
+      "arm": "H",
+      "evidence_block": "dar_a08",
+      "fallback_count": 0,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.022367075526973382,
+      "ProfileMAE": 0.02900245214935239,
+      "arm": "R",
+      "evidence_block": "dar_a08",
+      "fallback_count": 0,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.022137781441204478,
+      "ProfileMAE": 0.02813495553294751,
+      "arm": "S1",
+      "evidence_block": "dar_a08",
+      "fallback_count": 0,
+      "graphs": 2
+    },
+    {
+      "MAE2": 0.0554360666073237,
+      "ProfileMAE": 0.03365158368082708,
+      "arm": "B",
+      "evidence_block": "real",
+      "fallback_count": 24,
+      "graphs": 8
+    },
+    {
+      "MAE2": 0.07250112953236189,
+      "ProfileMAE": 0.036357834345224105,
+      "arm": "H",
+      "evidence_block": "real",
+      "fallback_count": 25,
+      "graphs": 8
+    },
+    {
+      "MAE2": 0.018426220688523558,
+      "ProfileMAE": 0.0116093202985317,
+      "arm": "R",
+      "evidence_block": "real",
+      "fallback_count": 3,
+      "graphs": 8
+    },
+    {
+      "MAE2": 0.06907817664027327,
+      "ProfileMAE": 0.03066381950123525,
+      "arm": "S1",
+      "evidence_block": "real",
+      "fallback_count": 11,
+      "graphs": 8
+    },
+    {
+      "MAE2": 0.11816757332863627,
+      "ProfileMAE": 0.12216331354074943,
+      "arm": "B",
+      "evidence_block": "surrogate",
+      "fallback_count": 25,
+      "graphs": 8
+    },
+    {
+      "MAE2": 0.07584396732895266,
+      "ProfileMAE": 0.06619243330651328,
+      "arm": "H",
+      "evidence_block": "surrogate",
+      "fallback_count": 21,
+      "graphs": 8
+    },
+    {
+      "MAE2": 0.028923963292890743,
+      "ProfileMAE": 0.02650360732315897,
+      "arm": "R",
+      "evidence_block": "surrogate",
+      "fallback_count": 1,
+      "graphs": 8
+    },
+    {
+      "MAE2": 0.0815361560368068,
+      "ProfileMAE": 0.05986828130024762,
+      "arm": "S1",
+      "evidence_block": "surrogate",
+      "fallback_count": 14,
+      "graphs": 8
+    }
+  ]
+}

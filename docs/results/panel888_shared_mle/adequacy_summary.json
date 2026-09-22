@@ -1,0 +1,20 @@
+{
+  "b_like_observation": {
+    "MAE2": 0.11200263958506193,
+    "ProfileMAE": 0.09192157376114099,
+    "fallback_used": 62,
+    "n": 500
+  },
+  "full_data_representation": {
+    "MAE2": 0.007270163809026577,
+    "ProfileMAE": 0.006200690866896456,
+    "fallback_used": 5,
+    "n": 116
+  },
+  "h_like_extrapolation": {
+    "MAE2": 0.034485206495029126,
+    "ProfileMAE": 0.03795865824479337,
+    "fallback_used": 14,
+    "n": 116
+  }
+}
