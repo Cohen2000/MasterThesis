@@ -35,6 +35,30 @@ the 0.10 level's training pool is now included -- the old script looked for
 it under `prepared/pool`, which does not exist (it is `references/pool`, train
 partition), so the main level's pool was silently missing.
 
+## H history-fraction ablation (stress test; h=0.60 stays the main arm)
+
+`docs/results/panel888_h_ablation/` (H_ABLATION.md, _MAIN/_BUDGET/_BY_SOURCE/
+_VALIDITY/_FEASIBILITY.csv), rebuilt by `scripts/build_h_ablation_tables.py`.
+- h=0.40: `scripts/build_h_ablation.py --h 0.4` (job 7129121): H recalibrated
+  with `h_parameters` on the sealed graphs, same draw streams (CRN with main H;
+  the same script at h=0.60 reproduces all 482 sealed H test blocks byte for
+  byte), 414 test observations over the 7 levels, mixed-budget H ExtraTrees
+  retrained with the final-v9 protocol. Qwen H-only chain in workspace
+  `panel888_h_ablation_h040` (2484 requests): round1 7129139, round2 7129140,
+  round3 7129141, archive 7129142 -- running. When archived: collect with
+  `collect_qwen_answers.py --run $WS/panel888_h_ablation_h040/mainexp/archive`,
+  score with `build_qwen_main_quicklook.py` into
+  `results/panel888_h_ablation/h040/qwen_predictions.csv`, rerun the tables script.
+- h=0.50 not run: its cutoff lies inside window 3; the 0/1 Temporal_access
+  contract (and "accessible zeros indicate true inactivity") cannot express a
+  partially accessible window without a methodology change. Code supports
+  h in {0.40, 0.60, 0.80}.
+- shared_mle is not identified at h=0.40 (m=2: one free share, two
+  parameters); its h=0.40 numbers are optimizer artefacts. Model unchanged.
+- Fixed: `observation.parse` hardcoded history_fraction=0.60 for H, so any
+  other h failed validation; it now derives h from Temporal_access (no change
+  at 0.60).
+
 ## Cluster state
 
 - Offline study sealed (job 7126631, `OFFLINE_FREEZE_SEALED`, 1364 artifacts);

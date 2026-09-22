@@ -30,7 +30,7 @@ def main(responses, observations_dir, out):
         else: values, reason = parse_final(r.get('final_text', ''))
         e = errors(values, o['truth'])
         profile_ae = None if values is None else float(np.mean(np.abs(np.array(values)-np.array(o['truth']))))
-        rows.append({'graph_id': o['graph_id'], 'arm': o['arm'], 'stratum': o['stratum'], 'source_family': o['source_family'],
+        rows.append({'budget': o.get('budget'), 'graph_id': o['graph_id'], 'arm': o['arm'], 'stratum': o['stratum'], 'source_family': o['source_family'],
                     'config': config, 'valid': values is not None, 'validation_reason': reason,
                     'AE2': e['AE2'], 'ProfileAE': profile_ae, 'signed_rho2': e['signed_rho2']})
     write_csv(out, rows)

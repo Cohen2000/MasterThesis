@@ -175,7 +175,7 @@ def parse(text):
          'Temporal_access': list(map(int, fields['Temporal_access'].split(','))),
          'Events_per_window': [None if x == 'NA' else int(x) for x in fields['Events_per_window'].split(',')],
          'table': rows}
-    if arm == 'H': o['history_fraction'] = H_FRACTION
+    if arm == 'H': o['history_fraction'] = sum(o['Temporal_access'])/5   # released via Temporal_access; .6 in main
     validate(o)
     return o
 
