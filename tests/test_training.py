@@ -62,6 +62,16 @@ class FoldTests(unittest.TestCase):
         self.assertEqual(FOLDS, (*REAL_TEST, 'synthetic'))
         self.assertFalse(set(SURROGATES) & set(TRAIN))
 
+    def test_empty_draws_are_excluded_from_training(self):
+        # Only possible at low budget-sensitivity coverage: anchor_profile is undefined
+        # for an empty draw, and its features() are already all zero, so fit_folds must
+        # not choke on (or learn from) it.
+        real, synthetic = self.rows()
+        real[0]['empty'] = True
+        selected, _ = fold_rows(real, 'synthetic', synthetic)
+        self.assertNotIn(real[0], selected)
+        self.assertEqual(len(selected), len(real)+len(synthetic)-1)
+
     def test_block_graph_arm_and_observation_weights(self):
         real, synthetic = self.rows()
         selected, w = fold_rows(real, 'sp_hospital', synthetic)

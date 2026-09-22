@@ -24,7 +24,7 @@ from main_experiment.common import (BUDGET_GRID, H_FRACTION, REFERENCES, ROOT, S
                                     write_csv, write_json)
 from main_experiment.observation import access_for, parse
 from main_experiment.pool import pool_definition, regenerate
-from main_experiment.prepare import prepared_graph
+from main_experiment.prepare import build_graph
 from main_experiment.references import per_graph_mean, pool_rows
 from main_experiment.shared_mle import fit, fit_profile_from_counts
 
@@ -86,9 +86,12 @@ def main_and_budget():
 
 
 # ---------------------------------------------------------------- adequacy diagnostics
-def development_training_graphs():
-    """Real training sources plus the 100 synthetic development graphs -- never a held-out test source."""
-    out = [(f'train:{key}', prepared_graph(key)[0]) for key in TRAIN]
+def development_training_graphs(graph_cache=ROOT/'results/.shared_mle_graph_cache'):
+    """Real training sources (rebuilt directly from data/raw, not from any
+    prepared-study output -- this needs no cluster artifact at all) plus the
+    100 synthetic development graphs -- never a held-out test source.
+    """
+    out = [(f'train:{key}', build_graph(key, graph_cache, ROOT/'data/raw')) for key in TRAIN]
     for spec in pool_definition()['graphs']:
         if spec['partition'] == 'dev': out.append((f"dev:{spec['key']}", regenerate(spec)))
     return out

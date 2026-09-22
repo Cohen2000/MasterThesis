@@ -45,6 +45,10 @@ def fold_rows(rows, fold, pool_rows=None):
     selected = [r for r in rows if r['source_family'] in allowed]
     if {r['source_family'] for r in selected} != allowed: raise ValueError('missing training source')
     selected += list(pool_rows or [])
+    # An empty draw (D_obs=0, only possible at low budget-sensitivity coverage) has
+    # no released evidence at all: anchor_profile is undefined for it, and its
+    # features() are already all zero, so it teaches the forest nothing.
+    selected = [r for r in selected if not r.get('empty', False)]
     graphs_per_block = {}
     for r in selected:
         graphs_per_block.setdefault(r['block_group'], set()).add(r['source_family'])

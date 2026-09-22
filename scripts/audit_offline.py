@@ -27,7 +27,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'src'))
-from main_experiment.baselines import PRIMARY_REFERENCE, corrector, plugin
+from main_experiment.baselines import PRIMARY_REFERENCE, anchor_profile, corrector, plugin
 from main_experiment.common import (ARM_ID, ARMS, AUDIT, BUDGET_TOLERANCE, BUILD, CONFIGS, COVERAGE_FRACTION,
                                     DESIGN_VERSION, DIAGNOSTICS, LLM_REPEATS, MAIN_KEYS, MASTER_SEED, PREPARED,
                                     REAL_TEST, REFERENCES, ROOT, SEEDS, SURROGATES, SYNTH, TRAIN, digest, draws_for,
@@ -44,8 +44,11 @@ PREVIOUS = ROOT/'archive/pre_panel888_20260921'
 PREVIOUS_RUN = PREVIOUS/'results/main_experiment/cells10_final_20260920'
 PROMPT_FILES = ('system.txt', 'user_prefix.txt', 'rule_R.txt', 'rule_S1.txt', 'rule_S2.txt', 'rule_H.txt', 'rule_B.txt')
 # Templates byte-identical to the previous prompt freeze (current name: name there).
-UNCHANGED_SINCE_FREEZE = {'system.txt': 'system.txt', 'user_prefix.txt': 'user_prefix.txt', 'rule_R.txt': 'rule_R.txt',
-                          'rule_H.txt': 'rule_H_time_v3.txt', 'rule_B.txt': 'rule_B.txt'}
+# rule_R.txt and rule_H.txt are intentionally excluded: the v9 access contract hides
+# n_panel (and, for H, the numeric history fraction) that earlier freezes disclosed,
+# so their wording changed on purpose, not by drift.
+UNCHANGED_SINCE_FREEZE = {'system.txt': 'system.txt', 'user_prefix.txt': 'user_prefix.txt',
+                          'rule_B.txt': 'rule_B.txt'}
 WALK_PATHS = 1000
 
 
@@ -162,7 +165,7 @@ def audit_observations(graphs, budgets):
                 assert row['design_reference'] is None
             assert digest(row['block']) == row['block_sha256'] and serialize(parse(row['block'])) == row['block']
             assert messages(row['block']) == row['messages'] and digest(row['messages']) == row['prompt_sha256']
-            assert len(features(parse(row['block']))) == len(FEATURE_NAMES) == 192
+            assert len(features(parse(row['block']))) == len(FEATURE_NAMES) == 80
             assert row['truth'] == g.truth and row['design_version'] == DESIGN_VERSION
             counts[domain] += 1
             # Only S2 shows walker information (two per-pattern columns); nothing else anywhere.
@@ -209,7 +212,7 @@ def audit_models_and_references(truths):
             assert m['parameters']['random_state'] == FOREST_SEED == 1858608657
             assert set(m['real_sources']) == allowed and fold not in m['sources']
             assert not set(m['sources']) & (set(SURROGATES) | set(SYNTH))
-            assert all('p888-20260921' in oid for oid in m['observations'])
+            assert all('p888-access-v9-20260922' in oid for oid in m['observations'])
             assert all(truths.get(oid.split('__')[0]) is None or oid.split('__')[0] in allowed
                        for oid in m['observations'])
             if variant == 'pooled':
@@ -228,15 +231,19 @@ def audit_models_and_references(truths):
         assert entry['fold'] == fold and entry['block_sha256'] == row['block_sha256'] and entry['truth'] == row['truth']
         assert entry['primary_corrector'] == entry[PRIMARY_REFERENCE[row['arm']]]
         for variant in models:
-            expected = (models[variant][fold].predict([features(o)])[0] if o['D_obs']
+            # v9: ExtraTrees learns the residual from the same-information anchor
+            # (baselines.anchor_profile), not the absolute profile directly.
+            expected = (np.asarray(anchor_profile(o))+models[variant][fold].predict([features(o)])[0] if o['D_obs']
                         else read_json(REFERENCES/f'models_{variant}'/fold/'manifest.json')['median'])
             np.testing.assert_array_equal(entry['extratrees_'+variant]['prediction'], expected)
         if o['D_obs']:
             assert entry['plugin']['prediction'] == plugin(o)
             if row['arm'] != 'H': assert entry['corrector']['prediction'] == corrector(o)
-        for method in ('plugin', 'corrector', 'median', 'extratrees_pooled', 'extratrees_real_only'):
+        for method in ('plugin', 'corrector', 'median'):
             values = entry[method]['prediction']
             assert all(0 <= v <= 1 for v in values) and all(a >= b for a, b in zip(values, values[1:]))
+        # ExtraTrees predicts anchor + an unconstrained residual (baselines.all_references);
+        # unlike the other references it is not itself guaranteed to stay in [0,1] or monotone.
     return folds
 
 
@@ -277,15 +284,18 @@ def audit_prompt_templates():
                             'Temporal_access indicates temporal accessibility only',
                             '? = temporally inaccessible window',
                             'Dyads without any observed event are omitted, so the all-zero pattern is not listed'],
-        'rule_R.txt': ['Uniform node panel', 'Accessible zeros for listed dyads therefore indicate true inactive windows.'],
+        # rule_R.txt, rule_S1.txt, rule_H.txt: v9 access contract, hiding n_panel (R, H), the
+        # numeric history fraction (H) and L/degree/traversal information (S1) that earlier
+        # phrasings disclosed; the required phrases below match the current, shipped wording.
+        'rule_R.txt': ['Uniform node-panel sampling', 'Accessible zeros indicate true inactivity.'],
         'rule_S2.txt': ['Degree-biased random walk', 'initial vertex is drawn uniformly from V_full',
                         'the traversals of all rows sum to L',
                         'inverse_degree_weight is the sum over these transitions of 1/(d_u*d_v)'],
-        'rule_S1.txt': ['Degree-biased random walk', 'initial vertex is drawn uniformly from V_full',
-                       'with probability d_v / (sum of d_x over all neighbors x of u)',
-                       'Each observed dyad is listed once', 'traversal counts and vertex degrees are not reported',
-                       'Exactly L transitions are taken, with no burn-in, no restart, and no stopping'],
-        'rule_H.txt': ['common query is made at the full archive end (normalized time 1)', 't >= 1-History_fraction'],
+        'rule_S1.txt': ['Degree-biased random-walk sampling',
+                       'each transition chooses a distinct neighbor with probability proportional to',
+                       'each dyad is listed once',
+                       'Traversal counts, revisits, degrees, walk length, and full-graph sizes are not released'],
+        'rule_H.txt': ['History-limited node-panel sampling', 'Temporal_access is the sole indication of accessible windows'],
         'rule_B.txt': ['Bernoulli event sampling',
                        'An observed 0 in an accessible window can therefore be a false negative']}
     for f, phrases in required.items():
@@ -354,7 +364,7 @@ def main():
     for k in keys: audit_graph(graphs[k], read_json(PREPARED/'graphs'/k/'manifest.json'))
     audit_copenhagen()
     design = planned_sizes(budgets)
-    assert (design['main_observations'], design['training_observations'], design['planned_calls']) == (360, 400, 4320)
+    assert (design['main_observations'], design['training_observations'], design['planned_calls']) == (288, 320, 3456)
     result = {
         'design_version': DESIGN_VERSION, 'checksums': checksums, 'design': design,
         'surrogates': [audit_surrogate(graphs[p], graphs[p+'__pwt']) for p in REAL_TEST],
