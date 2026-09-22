@@ -90,7 +90,8 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(spec['training']['random_state'], seed('extratrees', 'all_folds') % 2**32)
         self.assertEqual(spec['arm_H']['history_fraction'], .6)
         self.assertFalse(spec['evaluation']['llm_imputation'])
-        self.assertEqual((ARM_ID['S1'], ARM_ID['S2']), ('S-dbrw-p888-20260921', 'S2-dbrw-p888-20260921'))
+        self.assertNotIn('S2', ARM_ID)                             # S2 is not an active arm of the v9 design
+        self.assertEqual(ARM_ID['S1'], 'S-dbrw-p888-access-v9-20260922')
 
 
 if __name__ == '__main__':

@@ -1,9 +1,8 @@
-"""Observation blocks, prompts and the 134 learned-reference features."""
+"""Observation blocks, prompts and the 80 learned-reference features."""
 import tempfile
 import unittest
 import numpy as np
 from helpers import complete6, tiny
-from main_experiment.baselines import h_extrapolator, plugin
 from main_experiment.common import ARMS, H_SENSITIVITY
 from main_experiment.observation import (BASE_FEATURE_NAMES, DERIVED_FEATURE_NAMES, FEATURE_NAMES, features, make,
                                          messages, parse, serialize, validate)
@@ -36,8 +35,8 @@ class SerializationTests(unittest.TestCase):
             self.assertEqual(len(o['table']), 2**n-1)
             self.assertEqual(o['Events_per_window'][:5-n], [None]*(5-n))
             block = serialize(o)
-            self.assertIn(f'n_panel_history={b["n_panel_history"]}', block)
-            with self.assertRaises(ValueError): parse(block.replace('History_fraction=', 'unexpected='))
+            self.assertNotIn('n_panel_history', block)          # n_panel is never released, not even for H
+            with self.assertRaises(ValueError): parse(block.replace('Temporal_access=', 'unexpected='))
 
     def test_inconsistent_observations_are_rejected(self):
         g = tiny(); b = analytic_parameters(g)
@@ -51,24 +50,29 @@ class SerializationTests(unittest.TestCase):
 
 class FeatureTests(unittest.TestCase):
     def test_feature_blocks(self):
-        self.assertEqual((len(BASE_FEATURE_NAMES), len(DERIVED_FEATURE_NAMES), len(FEATURE_NAMES)), (85, 107, 192))
-        self.assertEqual(BASE_FEATURE_NAMES[-5:], ['n_panel', 'L', 'n_panel_history', 'p', 'history_fraction'])
-        self.assertEqual([n for n in FEATURE_NAMES if 'traversal' in n or 'degree' in n],
-                         [f'share_{p:05b}_{x}' for x in ('traversals', 'inverse_degree_weight') for p in range(1, 32)])
+        # features-v9-access-contract-20260922: a flat released-evidence-only
+        # vector; BASE_FEATURE_NAMES/DERIVED_FEATURE_NAMES are compatibility
+        # aliases only (see observation.py), so both equal FEATURE_NAMES/[].
+        self.assertEqual((len(BASE_FEATURE_NAMES), len(DERIVED_FEATURE_NAMES), len(FEATURE_NAMES)), (80, 0, 80))
+        self.assertIs(BASE_FEATURE_NAMES, FEATURE_NAMES)
+        self.assertEqual(FEATURE_NAMES[-4:], ['log1p_N_obs', 'log1p_D_obs', 'log1p_M_obs', 'p'])
+        # S2 (walker traversal/degree information) is not an active arm.
+        self.assertEqual([n for n in FEATURE_NAMES if 'traversal' in n or 'degree' in n], [])
         banned = ('N_full', 'D_full', 'M_full', 'truth', 'coverage', 'source', 'family', 'alpha', 'chi', 'generator',
-                  'Walk', 'A_')
+                  'Walk', 'A_', 'n_panel', 'n_panel_history', 'history_fraction', ' L')
         for name in FEATURE_NAMES:
             for word in banned: self.assertNotIn(word, name)
 
     def test_derived_features_are_shares_and_reference_profiles(self):
+        from main_experiment.baselines import anchor_profile
+        from main_experiment.observation import ALL_PATTERNS
         g = complete6(); b = h_parameters(g, .1*g.cells, .6)
         o = make(g, 'H', b, draw(g, 'H', 1, 'sample', b)[0])
         v = dict(zip(FEATURE_NAMES, features(o)))
-        self.assertAlmostEqual(sum(v[f'share_{p:05b}_dyads'] for p in range(1, 32)), 1., places=12)
+        self.assertAlmostEqual(sum(v[f'share_{p}_dyads'] for p in ALL_PATTERNS), 1., places=12)
         self.assertAlmostEqual(sum(v[f'share_window_{i}'] for i in range(1, 6)), 1., places=12)
-        self.assertEqual([v[f'plugin_rho_{k}'] for k in range(2, 6)], plugin(o))
-        self.assertEqual([v[f'corrector_rho_{k}'] for k in range(2, 6)], h_extrapolator(o)['prediction'])
-        self.assertEqual(v['history_fraction'], .6)
+        self.assertEqual([v[f'anchor_rho_{k}'] for k in range(2, 6)], list(anchor_profile(o)))
+        self.assertEqual(v['events_per_dyad'], o['M_obs']/o['D_obs'])
 
     def test_empty_observation_has_zero_derived_features(self):
         o = {'arm': 'B', 'N_obs': 0, 'D_obs': 0, 'M_obs': 0, 'Temporal_access': [1]*5, 'Events_per_window': [0]*5,

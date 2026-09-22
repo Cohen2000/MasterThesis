@@ -21,16 +21,16 @@ class CorrectorTests(unittest.TestCase):
         c = np.zeros_like(g.counts); c[0, 0] = 1
         self.assertEqual(corrector(make(g, 'B', {'p': .2}, c)), [0.]*4)          # theta = 0
 
-    def test_s1_baseline_is_the_plugin_and_s2_baseline_is_the_design_estimate(self):
+    def test_s1_baseline_is_the_plugin_and_the_design_reference_is_the_inverse_traversal_weight_estimate(self):
+        # S2 (the walker-annotated view of the same walk) is not an active arm
+        # of the v9 design; design_reference itself remains the S1 oracle
+        # diagnostic and is checked directly against the traversal counts.
         from main_experiment.baselines import design_reference, plugin
         g = tiny(); b = analytic_parameters(g) | {'L': 51}
         with tempfile.TemporaryDirectory() as d:
             counts, traversals = draw(g, 'S1', 1, 'test', b, Walk(g, d))
-            np.testing.assert_array_equal(draw(g, 'S2', 1, 'test', b, Walk(g, d))[1], traversals)   # same walk
         s1 = make(g, 'S1', b, counts)
-        s2 = make(g, 'S2', b, counts, traversals)
         self.assertEqual(corrector(s1), plugin(s1))                # S1 shows no walker information
-        np.testing.assert_allclose(corrector(s2), design_reference(g, traversals), rtol=1e-10)
         degree = np.bincount(g.ends.ravel(), minlength=g.N)
         w = traversals/(degree[g.ends[:, 0]]*degree[g.ends[:, 1]])
         np.testing.assert_allclose(design_reference(g, traversals), [w[g.K >= k].sum()/w.sum() for k in range(2, 6)])

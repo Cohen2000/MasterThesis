@@ -74,6 +74,43 @@ consistent for the walk's component-mixture target, not finite-sample unbiased.
 Plug-in, arm baseline, training median and pooled / real-only ExtraTrees are
 reported for every arm.
 
+## Shared statistical working-model baseline (shared_mle)
+
+An additional common-model-family competitor (main_experiment.shared_mle),
+kept separate from the arm-specific correctors/oracle above and from plugin
+and ExtraTrees: one latent persistence model, q_e ~ Beta(alpha, beta) with
+X_e,w | q_e ~ Bernoulli(q_e) for w = 1..5, fit from the released observation
+alone and used to compute rho_r = P(K >= r | K >= 1) at W = 5 from the same
+fitted (alpha, beta) for every arm. Differences between arms enter only
+through which released information can be used to fit the model:
+
+- R, S1: zero-truncated Beta-Binomial likelihood over the complete 5-window
+  histories of the observed dyads. Informative degree-biased S1 walk
+  selection is intentionally left uncorrected -- this is a working-model
+  baseline, not a design-unbiased or oracle estimator.
+- H: zero-truncated Beta-Binomial likelihood over only the windows
+  Temporal_access marks accessible (m of them, never n_panel); the SAME
+  fitted (alpha, beta) is then plugged into the W = 5 model. This
+  extrapolation assumes exchangeability of windows conditional on q_e, which
+  the access mechanism does not itself imply; m = 5 makes the fit identical
+  to the R/S1 case (test-checked).
+- B: the Beta activity layer plus a ZTP(lambda) event-detection layer thinned
+  at the released retention probability p (main_experiment.mixtures.fit_events,
+  reused rather than duplicated -- see shared_mle.py for the exact algebraic
+  correspondence). Uses only the released pattern counts, event totals and p.
+
+Fallback (used only on a genuine optimizer failure or start-disagreement,
+never as a truth-informed repair): the homogeneous-binomial limit of the same
+family (one shared q via the existing homogeneous correctors), with B keeping
+its event-detection nuisance parameter. Every fallback is counted and reported.
+
+A fixed model-adequacy diagnostic (scripts/build_shared_mle.py) checks, on
+development/training material only (never the eight held-out test sources):
+(A) whether the two-parameter population model can represent the true
+full-data K-distribution even without missingness; (B) the H-like
+visible-window-to-W=5 extrapolation; (C) the B observation-model fit. The
+model form is fixed before and independent of these results.
+
 ## Draws, training and evaluation
 
 Three test sampler draws per stochastic cell; a saturated H panel has one

@@ -72,10 +72,15 @@ def domains_of(key):
 def record_environment(out):
     packages = sorted(f'{d.metadata["Name"]}=={d.version}' for d in importlib.metadata.distributions())
     (out/'environment.lock.txt').write_text('\n'.join(packages)+'\n')
-    git = lambda *a: subprocess.check_output(['git', *a], cwd=ROOT, text=True).strip()
+    def git(*a):
+        try:
+            return subprocess.check_output(['git', *a], cwd=ROOT, text=True, stderr=subprocess.DEVNULL).strip()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return None
+    commit = git('rev-parse', 'HEAD')
     write_json(out/'environment.json', {
         'python': platform.python_version(), 'platform': platform.platform(),
-        'git_commit_at_run': git('rev-parse', 'HEAD'), 'git_worktree_dirty_at_run': bool(git('status', '--porcelain')),
+        'git_commit_at_run': commit, 'git_worktree_dirty_at_run': bool(git('status', '--porcelain')) if commit else None,
         'lock_sha256': sha(out/'environment.lock.txt'), 'inference_performed': False,
         'compiler': subprocess.check_output(['g++', '--version'], text=True).splitlines()[0]})
 

@@ -3,7 +3,7 @@
 protocol: docs/PROTOCOL_PANEL888_20260921.md
 entry_point: scripts/run_offline.sh
 results: results/panel888
-  design_version: panel888-access-v9-20260922
+design_version: panel888-access-v9-20260922
 W: 5
 master_seed: 20260921
 target:
@@ -82,8 +82,8 @@ training:
     real: 0.5
     dar: 0.25
     ad: 0.25
-  features: 192
-  feature_version: features-v8-panel888-20260921
+  features: 80
+  feature_version: features-v9-access-contract-20260922
   estimators: 500
   n_jobs: 1
   random_state: 1858608657
