@@ -3,7 +3,7 @@
 protocol: docs/PROTOCOL_PANEL888_20260921.md
 entry_point: scripts/run_offline.sh
 results: results/panel888
-design_version: panel888-pwt-srw-20260921
+  design_version: panel888-access-v9-20260922
 W: 5
 master_seed: 20260921
 target:
@@ -111,7 +111,6 @@ llm_execution:
   qwen_new_generation_arms:
   - R
   - S1
-  - S2
   - H
   - B
   reusable_arms_only_after_identity_audit: []

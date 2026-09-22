@@ -11,7 +11,7 @@ import os
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-DESIGN_VERSION = 'panel888-pwt-srw-20260921'
+DESIGN_VERSION = 'panel888-access-v9-20260922'
 MASTER_SEED = 20260921
 
 # Output tree of the current study. Every stage writes into its own subfolder.
@@ -42,13 +42,10 @@ STRATA = ('real', 'surrogate', 'dar_a0', 'dar_a08', 'ad_memoryless', 'ad_memory'
 
 # ---------------------------------------------------------------- design
 W = 5
-ARMS = ('R', 'S1', 'S2', 'H', 'B')
+ARMS = ('R', 'S1', 'H', 'B')
 # Versioned identities; they key every random stream and every observation ID.
-# S1 and S2 are the same degree-biased walk shown with different information: S2
-# has its own observation IDs but reuses the S1 draw (stream, L and walk) exactly.
-ARM_ID = {'R': 'R-p888-20260921', 'S1': 'S-dbrw-p888-20260921', 'S2': 'S2-dbrw-p888-20260921',
-          'H': 'H-p888-20260921', 'B': 'B-p888-20260921'}
-WALK_ARMS = ('S1', 'S2')
+ARM_ID = {'R': 'R-p888-access-v9-20260922', 'S1': 'S-dbrw-p888-access-v9-20260922',
+          'H': 'H-p888-access-v9-20260922', 'B': 'B-p888-access-v9-20260922'}
 COVERAGE_FRACTION = 0.10     # T = 0.10 * sum_e K_e expected observed active dyad-windows
 BUDGET_TOLERANCE = 0.05      # relative tolerance of every arm's expectation around T
 H_FRACTION = 0.60            # primary elapsed-time history fraction of arm H

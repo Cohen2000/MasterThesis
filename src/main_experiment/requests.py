@@ -23,7 +23,7 @@ def payload(config,messages,request_seed):
     # Generic JSON only, matching the API configurations. No task-specific grammar.
     return {'model':QWEN,'messages':messages,'max_tokens':258048,
             'temperature':1. if thinking else .7,'top_p':.95 if thinking else .80,
-            'top_k':20,'min_p':0.,'presence_penalty':1.5,'repetition_penalty':1.,
+            'top_k':20,'min_p':0.,'presence_penalty':1.5 if thinking else 0.,'repetition_penalty':1.,
             'chat_template_kwargs':{'enable_thinking':thinking},'seed':request_seed,
             'structured_output':{'json_object':True,'reasoning_parser':'qwen3',
                                  'applies':'after reasoning end'},
@@ -115,7 +115,7 @@ EXECUTION_POLICY={
          'thinking':{'temperature':1.0,'top_p':.95,'top_k':20,'min_p':0.,
                      'presence_penalty':1.5,'repetition_penalty':1.0},
          'nonthinking':{'temperature':.7,'top_p':.80,'top_k':20,'min_p':0.,
-                        'presence_penalty':1.5,'repetition_penalty':1.0}},
+                        'presence_penalty':0.,'repetition_penalty':1.0}},
  'order':'real, surrogate, synthetic block; cycle graph x arm cells; sample index then repeat',
  'stop_configuration':['400','401','ignored_required_parameter','repeated_oom','confirmed_model_change'],
  'record_provider_metadata':['UTC','returned_model','system_fingerprint','usage','finish_reason','reasoning'],

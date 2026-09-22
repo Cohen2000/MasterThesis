@@ -15,6 +15,7 @@ import sklearn
 from sklearn.ensemble import ExtraTreesRegressor
 from .common import ARMS, REAL_TEST, TRAIN, digest, read_json, seed, sha, write_json
 from .observation import FEATURE_NAMES, FEATURE_VERSION, features, parse
+from .baselines import anchor_profile
 
 FOLDS = (*REAL_TEST, 'synthetic')
 # One versioned forest seed for every fold: seed('extratrees','all_folds') mod 2**32.
@@ -68,7 +69,10 @@ def fit_folds(rows, truth, out, pool_rows=None):
         real_sources = sorted(fold_sources(fold))
         median = np.median([truth[g] for g in real_sources], axis=0)
         X = np.array([features(parse(r['block'])) for r in selected])
-        y = np.array([truth[r['source_family']] for r in selected])
+        # Residual learning keeps the forest focused on cross-source deviations
+        # from the released-information anchor; budgets are not training features.
+        y = np.array([np.asarray(truth[r['source_family']]) - anchor_profile(parse(r['block']))
+                      for r in selected])
         model = ExtraTreesRegressor(**PARAMETERS).fit(X, y, sample_weight=weights)
         folder = out/fold; folder.mkdir(parents=True, exist_ok=True)
         with open(folder/'model.pkl', 'wb') as f: pickle.dump(model, f, protocol=5)

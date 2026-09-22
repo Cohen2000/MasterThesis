@@ -21,18 +21,19 @@ HEADER = 'pattern,dyads,events'
 S2_HEADER = HEADER+',traversals,inverse_degree_weight'
 ALL_PATTERNS = [f'{p:05b}' for p in range(1, 32)]
 
-FEATURE_VERSION = 'features-v8-panel888-20260921'
-BASE_FEATURE_NAMES = (['N_obs', 'D_obs', 'M_obs']+[f'window_{i}' for i in range(1, 6)]+
-                      [f'access_{i}' for i in range(1, 6)]+
-                      [f'{p}_{x}' for p in ALL_PATTERNS for x in ('dyads', 'events')]+
-                      [f'arm_{a}' for a in ARMS]+list(PARAMETERS)+['history_fraction'])
-DERIVED_FEATURE_NAMES = ([f'share_{p}_dyads' for p in ALL_PATTERNS]+[f'share_window_{i}' for i in range(1, 6)]+
-                         ['events_per_dyad']+[f'plugin_rho_{k}' for k in range(2, 6)]+
-                         [f'corrector_rho_{k}' for k in range(2, 6)]+
-                         [f'share_{p}_traversals' for p in ALL_PATTERNS]+
-                         [f'share_{p}_inverse_degree_weight' for p in ALL_PATTERNS])
-FEATURE_NAMES = BASE_FEATURE_NAMES+DERIVED_FEATURE_NAMES
-assert len(FEATURE_NAMES) == 192 and len(set(FEATURE_NAMES)) == 192
+FEATURE_VERSION = 'features-v9-access-contract-20260922'
+# Only released evidence enters ET; sampler calibration fields are intentionally absent.
+FEATURE_NAMES = ([f'arm_{a}' for a in ARMS] +
+                 [f'share_{p}_dyads' for p in ALL_PATTERNS] +
+                 [f'share_{p}_events' for p in ALL_PATTERNS] +
+                 [f'share_window_{i}' for i in range(1, 6)] +
+                 ['events_per_dyad'] + [f'anchor_rho_{k}' for k in range(2, 6)] +
+                 ['log1p_N_obs', 'log1p_D_obs', 'log1p_M_obs', 'p'])
+assert len(FEATURE_NAMES) == 80 and len(set(FEATURE_NAMES)) == 80
+# Compatibility names for lightweight downstream imports; these are not used as
+# model features and intentionally contain no hidden calibration fields.
+BASE_FEATURE_NAMES = FEATURE_NAMES
+DERIVED_FEATURE_NAMES = []
 
 
 def access_for(arm, h=H_FRACTION):
@@ -125,8 +126,9 @@ def validate(o):
     elif N < 2 or N > 2*D or D > N*(N-1)//2: raise ValueError('endpoint count')
     parameter = o['parameter']
     if arm in INTEGER_PARAMETER_ARMS:
-        if not _count(parameter): raise ValueError('integer parameter')
-        if arm in ('R', 'H') and N > parameter: raise ValueError('panel smaller than observed nodes')
+        if parameter is not None:
+            if not _count(parameter): raise ValueError('integer parameter')
+            if arm in ('R', 'H') and N > parameter: raise ValueError('panel smaller than observed nodes')
     elif not isinstance(parameter, (int, float)) or not 0 < parameter <= 1: raise ValueError('p')
 
 
@@ -138,11 +140,10 @@ def _format(x):
 def serialize(o):
     """Text block shown to the model."""
     validate(o)
-    lines = ['W=5', 'Temporal_access='+','.join(map(str, o['Temporal_access']))]
+    lines = ['W=5', 'Arm='+o['arm'], 'Temporal_access='+','.join(map(str, o['Temporal_access']))]
     lines += [f'{k}={o[k]}' for k in ('N_obs', 'D_obs', 'M_obs')]
-    lines += ['Events_per_window='+','.join(map(_format, o['Events_per_window'])),
-              PARAMETER_NAME[o['arm']]+'='+_format(o['parameter'])]
-    if o['arm'] == 'H': lines.append('History_fraction='+_format(o['history_fraction']))
+    lines += ['Events_per_window='+','.join(map(_format, o['Events_per_window']))]
+    if o['arm'] == 'B': lines.append('p='+_format(o['parameter']))
     lines.append(S2_HEADER if o['arm'] == 'S2' else HEADER)
     lines += [','.join(map(_format, row)) for row in o['table']]
     return '\n'.join(lines)
@@ -157,13 +158,10 @@ def parse(text):
     pairs = [line.split('=', 1) for line in lines[1:header]]
     fields = dict(pairs)
     if len(fields) != len(pairs): raise ValueError('duplicate field')
-    names = set(fields) & set(PARAMETERS)
-    if len(names) != 1: raise ValueError('parameter count')
-    name = names.pop()
-    arm = 'S2' if header_line == S2_HEADER else next(a for a, p in PARAMETER_NAME.items() if p == name)
-    if PARAMETER_NAME[arm] != name: raise ValueError('parameter does not match the table')
-    expected = {'Temporal_access', 'N_obs', 'D_obs', 'M_obs', 'Events_per_window', name}
-    if arm == 'H': expected.add('History_fraction')
+    arm = fields.get('Arm')
+    if arm not in ARMS or header_line == S2_HEADER: raise ValueError('inactive arm')
+    expected = {'Arm', 'Temporal_access', 'N_obs', 'D_obs', 'M_obs', 'Events_per_window'}
+    if arm == 'B': expected.add('p')
     if set(fields) != expected: raise ValueError('unexpected input fields')
     rows = []
     for line in lines[header+1:]:
@@ -172,49 +170,31 @@ def parse(text):
         if arm == 'S2': row += (float(cells[4]),)
         rows.append(row)
     o = {'arm': arm,
-         'parameter': int(fields[name]) if arm in INTEGER_PARAMETER_ARMS else float(fields[name]),
+         'parameter': float(fields['p']) if arm == 'B' else None,
          **{k: int(fields[k]) for k in ('N_obs', 'D_obs', 'M_obs')},
          'Temporal_access': list(map(int, fields['Temporal_access'].split(','))),
          'Events_per_window': [None if x == 'NA' else int(x) for x in fields['Events_per_window'].split(',')],
          'table': rows}
-    if arm == 'H': o['history_fraction'] = float(fields['History_fraction'])
+    if arm == 'H': o['history_fraction'] = H_FRACTION
     validate(o)
     return o
 
 
 def features(o):
-    """192 features, all computed from the observation block: raw observed counts
-    and design parameters, scale-free shares, the plug-in and arm-corrector profiles,
-    and (S2 only, zero otherwise) per-pattern traversal and weight shares."""
-    from .baselines import plugin, corrector
+    """Released-evidence features only; hidden calibration fields never enter ET."""
+    from .baselines import anchor_profile
     validate(o)
     table = {r[0].replace('?', '0'): r[1:] for r in o['table']}
-    walker = o['arm'] == 'S2' and o['D_obs'] > 0
-
     def cell(p): return table.get(p, (0, 0, 0, 0.))
-    f = [o[k] for k in ('N_obs', 'D_obs', 'M_obs')]
-    f += [x or 0 for x in o['Events_per_window']]+o['Temporal_access']
-    f += [x for p in ALL_PATTERNS for x in cell(p)[:2]]
-    f += [int(o['arm'] == a) for a in ARMS]
-    f += [o['parameter'] if PARAMETER_NAME[o['arm']] == name else 0 for name in PARAMETERS]
-    f += [o.get('history_fraction', 1.)]
-    if len(f) != len(BASE_FEATURE_NAMES): raise AssertionError('base feature count')
+    f = [int(o['arm'] == a) for a in ARMS]
     D = o['D_obs']; M = o['M_obs']
     f += [cell(p)[0]/D if D else 0. for p in ALL_PATTERNS]
+    f += [cell(p)[1]/M if M else 0. for p in ALL_PATTERNS]
     f += [(x or 0)/M if M else 0. for x in o['Events_per_window']]
     f += [M/D if D else 0.]
-    if D:
-        plug = plugin(o)
-        try: corrected = corrector(o)
-        except (ArithmeticError, FloatingPointError, OverflowError, ValueError): corrected = plug
-    else:
-        plug = corrected = [0.]*4
-    f += list(plug)+list(corrected)
-    if walker:
-        traversals = sum(r[3] for r in o['table']); weight = sum(r[4] for r in o['table'])
-        f += [cell(p)[2]/traversals for p in ALL_PATTERNS]+[cell(p)[3]/weight for p in ALL_PATTERNS]
-    else:
-        f += [0.]*(2*len(ALL_PATTERNS))
+    f += list(anchor_profile(o) if D else [0.]*4)
+    f += [np.log1p(x) for x in (o['N_obs'], D, M)]
+    f += [o['parameter'] if o['arm'] == 'B' else 0.]
     if len(f) != len(FEATURE_NAMES): raise AssertionError('feature count')
     return np.array(f, float)
 

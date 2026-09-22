@@ -12,14 +12,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from main_experiment.common import read_json, DESIGN_VERSION, digest, sha, write_json
 
+# presence_penalty is 1.5 for thinking (discourages loop-y reasoning) and 0 for
+# non-thinking: for a short numeric JSON answer, a presence penalty is a decoding
+# artifact with no loop to suppress, so it is disabled there.
 MODES = {
-    'thinking':    dict(temperature=1.0, top_p=0.95, enable_thinking=True,  config_id='qwen_thinking'),
-    'nonthinking': dict(temperature=0.7, top_p=0.80, enable_thinking=False, config_id='qwen_nonthinking'),
+    'thinking':    dict(temperature=1.0, top_p=0.95, presence_penalty=1.5, enable_thinking=True,  config_id='qwen_thinking'),
+    'nonthinking': dict(temperature=0.7, top_p=0.80, presence_penalty=0.0, enable_thinking=False, config_id='qwen_nonthinking'),
 }
 TOP_K = 20
-PRESENCE_PENALTY = 1.5
 GENERATION_CONFIG = {
-    'modes': MODES, 'top_k': TOP_K, 'presence_penalty': PRESENCE_PENALTY,
+    'modes': MODES, 'top_k': TOP_K,
     'min_p': 0.0, 'repetition_penalty': 1.0,
     'max_tokens': 258048, 'max_model_len': 262144, 'context_margin': 8,
     'seed_rule': 'request_seed % 2**31', 'skip_special_tokens': False,
@@ -216,7 +218,7 @@ def main():
             mt = min(g['max_tokens'], budget)
             so = StructuredOutputsParams(json_object=True)
             params = SamplingParams(temperature=cfg['temperature'], top_p=cfg['top_p'],
-                                    top_k=TOP_K, presence_penalty=PRESENCE_PENALTY,
+                                    top_k=TOP_K, presence_penalty=cfg['presence_penalty'],
                                     max_tokens=mt, seed=r['seed'] % (2**31),
                                     skip_special_tokens=False, structured_outputs=so)
             write_json(result_path(out,r).with_suffix('.attempt'),

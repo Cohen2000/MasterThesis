@@ -36,6 +36,16 @@ METHODS = ('plugin', 'corrector', 'median', 'extratrees_pooled', 'extratrees_rea
            'design_reference')
 
 
+def anchor_profile(o):
+    """Same-information residual-learning anchor for ExtraTrees."""
+    if o['arm'] in ('R', 'S1', 'H'):
+        return plugin(o)
+    try:
+        return mixture_reference(o, corrector(o))['prediction']
+    except (ArithmeticError, FloatingPointError, OverflowError, ValueError):
+        return corrector(o)
+
+
 def bisect(fn, target, lo, hi):
     for _ in range(200):
         mid = (lo+hi)/2
@@ -176,8 +186,10 @@ def all_references(o, models, median, design=None):
     out['median'] = {'prediction': list(median), 'status': 'ok'}
     from .observation import features
     x = features(o).reshape(1, -1)
+    anchor = anchor_profile(o)
     for name in ('pooled', 'real_only'):
-        out['extratrees_'+name] = {'prediction': list(map(float, models[name].predict(x)[0])), 'status': 'ok'}
+        residual = models[name].predict(x)[0]
+        out['extratrees_'+name] = {'prediction': list(map(float, np.asarray(anchor) + residual)), 'status': 'ok'}
     if o['arm'] == 'B':
         out['mixture'] = mixture_reference(o, out['corrector']['prediction'])
     if o['arm'] in ('S1', 'S2'):
