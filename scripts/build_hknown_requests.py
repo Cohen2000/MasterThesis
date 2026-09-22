@@ -23,7 +23,12 @@ def main(src,dst):
         r['production_dispatch_enabled']=True; r['requires_technical_release']=False
         records.append(r)
     for r in records:
-        write_json(dst/'observations/sample'/(r['observation_id']+'.json'),{'id':r['observation_id'],'arm':'H','graph_id':r['graph_id'],'sample_index':r['sample_index'],'block':next(m['content'].split('W=5',1)[1] for m in r['payload']['messages'] if 'W=5' in m['content'])})
+        src_obs=src/'observations/sample'/(r['observation_id']+'.json')
+        if src_obs.exists():
+            write_json(dst/'observations/sample'/src_obs.name,json.loads(src_obs.read_text()))
+        else:
+            write_json(dst/'observations/sample'/(r['observation_id']+'.json'),
+              {'id':r['observation_id'],'arm':'H','graph_id':r['graph_id'],'sample_index':r['sample_index']})
     (dst/'requests.jsonl').write_text(''.join(json.dumps(r,sort_keys=True)+'\n' for r in records))
     write_json(dst/'report.json',{'verified':True,'design_version':VERSION,'requests':len(records),'paired_source':str(src)})
     print(json.dumps({'requests':len(records),'version':VERSION}))
