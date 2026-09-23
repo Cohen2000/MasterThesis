@@ -167,6 +167,8 @@ def summary(rows, stratum):
             ae = mean_by_source(group, 'AE2')
             profile = mean_by_source(group, 'ProfileAE')
             signed = mean_by_source(group, 'signed_rho2')
+            if stratum == 'real' and len(ae) != 8:
+                raise ValueError(f'{arm}/{method}: equal-source result needs eight valid sources')
             mae = float(np.mean(list(ae.values()))) if ae else None
             row = {'stratum': stratum, 'arm': arm, 'method': method,
                    'sources': len({r['source'] for r in group}), 'sources_with_valid': len(ae),
@@ -256,8 +258,8 @@ def anchoring(rows):
                 out.append({'stratum': stratum, 'arm': arm, 'method': method,
                             'observations_separated': len({r['observation_id'] for r in group}),
                             'valid_answers': denom, 'validity': denom / len(group) if group else None,
-                            'near_plugin': (len(plugin_near)-len(both))/denom if denom else None,
-                            'near_reference': (len(ref_near)-len(both))/denom if denom else None,
+                            'near_plugin': len(plugin_near)/denom if denom else None,
+                            'near_reference': len(ref_near)/denom if denom else None,
                             'near_both': len(both)/denom if denom else None,
                             'neither': 1-(len(plugin_near)+len(ref_near)-len(both))/denom if denom else None})
     return out
@@ -331,8 +333,13 @@ def main():
     main_table = summary(rows, 'real')
     write_csv(a.out / 'MAIN_REAL.csv', main_table)
     write_csv(a.out / 'PER_SOURCE_REAL.csv', by_source(rows, 'real'))
+    write_csv(a.out / 'PER_SOURCE_SURROGATE.csv', by_source(rows, 'surrogate'))
+    write_csv(a.out / 'PER_SOURCE_SYNTHETIC.csv', by_source(rows, 'synthetic'))
     write_csv(a.out / 'SURROGATE.csv', summary(rows, 'surrogate'))
     write_csv(a.out / 'SYNTHETIC.csv', summary(rows, 'synthetic'))
+    conditions = ('dar_a0', 'dar_a08', 'ad_memoryless', 'ad_memory')
+    write_csv(a.out / 'SYNTHETIC_CONDITIONS.csv', [dict(condition=c, **r) for c in conditions
+        for r in summary([x for x in rows if x['source'].startswith(c + '_r')], 'synthetic')])
     infer = inference(rows)
     write_csv(a.out / 'SOURCE_INFERENCE.csv', infer)
     if a.answers: write_csv(a.out / 'ANCHORING.csv', anchoring(rows))
