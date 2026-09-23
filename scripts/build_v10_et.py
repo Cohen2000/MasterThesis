@@ -102,8 +102,9 @@ def select_one(index):
             if not len(train_ids) or not len(valid_ids): raise ValueError('incomplete nested real-source CV')
             x_train, truth, base = arrays(rows, X, train_ids, anchor)
             x_valid, _, valid_base = arrays(rows, X, valid_ids, anchor)
+            config = f'{anchor}:{leaf}:{int(maxfeat * 100)}'
             m = model(leaf, maxfeat, seed('v10_et_nested', arm, outer_fold, inner_source,
-                                          anchor, leaf, int(maxfeat * 100)) % 2**32, cpus)
+                                          config) % 2**32, cpus)
             m.fit(x_train, truth - base, sample_weight=block_weights(rows, train_ids))
             pred = valid_base + m.predict(x_valid)
             score, _ = graph_mae(rows, valid_ids, pred)
