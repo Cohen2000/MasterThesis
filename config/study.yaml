@@ -35,7 +35,7 @@ training:
   synthetic_pool_dev: 100
   et_variant: pooled_only
   et_features: 174
-  et_selection: synthetic_dev_only
+  et_selection: nested_leave_one_real_training_source_out
 references:
   R: plugin
   S: design
@@ -52,6 +52,10 @@ qwen:
   request_protocol: panel888-access-v9-20260922
   generation_arms: [R, S, S_obs, H, B]
   reusable_production_answers: 0
+api_main:
+  arms: [R, S, H, B]
+  deepseek: {model: deepseek-flash, reasoning: high, repeats: 1, budget_usd: 10}
+  openai: {model: gpt-6-sol, reasoning: high, repeats: 3, transport: batch_responses}
 panel:
   real: [sp_hospital, sp_highschool2013, copenhagen_bluetooth, sp_workplace, snap_email_eu, snap_collegemsg, snap_mathoverflow, nr_digg_reply]
   surrogates: one_parent_matched_Pwt_per_real

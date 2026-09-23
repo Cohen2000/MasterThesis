@@ -1,1 +1,0 @@
-Interrupted offline implementation attempt, before any surrogate or LLM generation. Fixed positional RNG wrapper call and training-only source stratum metadata; final run regenerated from scratch. No predictions reused.

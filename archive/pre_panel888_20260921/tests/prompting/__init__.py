@@ -1,1 +1,0 @@
-"""Current prompt contract tests."""

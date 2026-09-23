@@ -1,1 +1,1 @@
-"""Current scientific invariants; historical suites live in archive/."""
+"""Current scientific invariants and offline API preparation checks."""

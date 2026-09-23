@@ -1,8 +1,0 @@
-{
-  "duplicate_id_rejected": true,
-  "inference_calls": 0,
-  "missing_predictions_and_pending_states_checked": true,
-  "mock_as_real_rejected": true,
-  "mock_only": true,
-  "rows_checked": 3456
-}

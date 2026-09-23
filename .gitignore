@@ -13,6 +13,9 @@ __pycache__/
 !.env.example
 *.key
 *.pem
+*api_keys*.env
+*secret*.json
+*credentials*.json
 secrets/
 .claude/
 .codex/

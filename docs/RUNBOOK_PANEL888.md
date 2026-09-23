@@ -1,12 +1,34 @@
 # v10 runbook
 
-Workspace on uc3: `/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/`. Check `squeue -u $USER` before every submission and reconcile existing job IDs; never resubmit an active chain. The frozen production bundle is `panel888_access_v10_main/mainexp/`, committed at `8ee94c7`.
+On uc3, use the current checkout after `git pull --ff-only`. The sealed observation directory is `/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/panel888_access_v10_main/mainexp/archive/observations/sample`. Completed offline stages are `cluster/audit_v10_walk.sbatch`, `cluster/confirm_v10_walk.sbatch`, `cluster/v10_prepare.sbatch`, `cluster/v10_pool.sbatch`, `cluster/v10_et_cache.sbatch`, `cluster/v10_et_select.sbatch`, `cluster/v10_et_train.sbatch` and `cluster/v10_finalize.sbatch`; the Qwen reproduction chain is `cluster/make_v10_production_bundle.sh` and `cluster/submit_production.sh`. Frozen results need no rerun.
 
-1. Audit: `cluster/audit_v10_walk.sbatch` runs 1,000 walks per main graph. `cluster/confirm_v10_walk.sbatch` runs strength-start and uniform-start 4L confirmations. `scripts/report_v10_walk_gate.py` writes the generated [gate report](results/panel888_v10_walk_gate_20260923/WALK_GATE.md). Jobs 7143961 and 7143568 completed. The amended gate allows production with sp_hospital__pwt flagged.
-2. Offline: `cluster/v10_prepare.sbatch` builds graphs, calibrations, 360 main observations, training observations and request manifest (7143619). `cluster/v10_pool.sbatch` generates the 400/100 synthetic train/dev pool (7143620). The 2026-09-23 follow-up changed all-arm MLE fallback to use the lowest-objective converged start and rebuilt the ET anchor cache (7145128). The first nested selection array (7145129) failed on an oversized seed tuple before fitting; its dependent train and finalize jobs (7145133–7145134) were cancelled. Retry 7145209 selected the anchor and 1/5/20 leaf, 0.5/1.0 feature grid by leave-one-real-training-source-out within each of 45 arm/fold cells. Training 7145255 produced 45 forests and 360 unique test predictions; finalizer 7145256 regenerated every result table.
-3. Qwen: `cluster/make_v10_production_bundle.sh` freezes the source, requests and assets; `cluster/submit_production.sh` submits three dependent, wide GPU arrays and a dependent archive. Jobs 7143823–7143826 completed. The runner used the v9 request protocol and decoding. All 2,160 Qwen calls were generated because sealed v9 production payload hashes do not match. The offline follow-up reuses their answers without changing requests.
-4. Integrate: `cluster/v10_finalize.sbatch` verifies all raw answers against the request manifest, then runs `scripts/build_v10_results.py` to generate the real, source, surrogate, synthetic, inference, anchoring, repeat-range, ET-choice and S contrast tables. Job 7145256 completed with 3,744 prediction rows and 2 invalid Qwen answers; no LLM request or answer was changed. Archive job 7143826 completed. The sealed archive passed `scripts/verify_qwen_archive.py` (4,791 checksums and all 2,160 answers); its verification record is in the result snapshot.
+Set the paths below on uc3. `check` and `cost` are offline. `smoke`, `submit`, `status` and `collect` contact a provider only with `--execute`. Keys can be read from the environment or `~/.config/masterthesis/api_keys.env` (directory mode 700, file mode 600).
 
-The follow-up source is committed on `master` through `9c832c1`; the generated result snapshot is committed through `b76c876`.
+```bash
+WS=/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot
+cd "$WS/panel888_v10_main"
+source "$WS/venv_offline/bin/activate"
+OBS=$WS/panel888_access_v10_main/mainexp/archive/observations/sample
+python scripts/api_runner.py check --provider deepseek --observations "$OBS"
+python scripts/api_runner.py check --provider openai --observations "$OBS"
+python scripts/api_runner.py cost --provider deepseek --observations "$OBS"
+python scripts/api_runner.py cost --provider openai --observations "$OBS"
+```
 
-The coverage grid, mixed-budget ET and H ablations are secondary stages after the main table. The sealed v9 null, windows, history and mixture diagnostics are referenced in [v9 offline evidence](results/panel888_offline/FREEZE.json) and are not rerun for v10.
+Future one-request smoke commands, in fresh directories:
+
+```bash
+python scripts/api_runner.py smoke --provider deepseek --observations "$OBS" --budget-usd 10 --output "$WS/api_runs/deepseek_smoke" --execute
+python scripts/api_runner.py smoke --provider openai --observations "$OBS" --budget-usd X --output "$WS/api_runs/openai_smoke" --execute
+```
+
+After inspecting the smoke outputs, future production commands:
+
+```bash
+python scripts/api_runner.py submit --provider deepseek --observations "$OBS" --budget-usd 10 --output "$WS/api_runs/deepseek_main" --execute
+python scripts/api_runner.py submit --provider openai --observations "$OBS" --budget-usd X --output "$WS/api_runs/openai_main" --execute
+python scripts/api_runner.py status --provider openai --output "$WS/api_runs/openai_main" --execute
+python scripts/api_runner.py collect --provider openai --output "$WS/api_runs/openai_main" --execute
+```
+
+Replace `X` with an explicit USD budget at or above the printed conservative estimate. OpenAI production uploads one JSONL file and creates one 24-hour `/v1/responses` Batch. DeepSeek writes each result immediately and stops on provider error; reconcile partial output before starting a new run. No API run directory or Batch ID exists yet.

@@ -1,1 +1,0 @@
-You estimate properties of a partially observed temporal network. Use the supplied observation and sampling rule. Return your final answer as one JSON object with exactly the keys rho_2, rho_3, rho_4, rho_5 and numeric values. Do not include explanations, additional keys, or Markdown in the final answer.

@@ -1,1 +1,0 @@
-"""Persistence target invariants."""

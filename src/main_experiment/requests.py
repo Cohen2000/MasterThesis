@@ -1,8 +1,10 @@
 """Request manifest: one request per (observation, configuration, model repeat).
 
 All four configurations see identical observations, prompts and three repeats.
-Only the two Qwen configurations are enabled for dispatch; Sol and DeepSeek
-requests are prepared but require a separate technical release (execution.py).
+Only the two Qwen configurations are enabled for dispatch. The paid-provider
+entries are frozen historical placeholders in the original Qwen manifest;
+scripts/api_runner.py builds the current GPT-6 Sol and DeepSeek plans directly
+from the same sealed observations.
 """
 from .common import CONFIGS, LLM_REPEATS, DESIGN_VERSION, seed, digest
 
