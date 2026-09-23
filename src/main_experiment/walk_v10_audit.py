@@ -29,7 +29,7 @@ class Walk:
             subprocess.run(['g++', '-O3', '-std=c++17', '-shared', '-fPIC', str(source), '-o', str(tmp)], check=True)
             tmp.replace(library)
         self.kernel = ctypes.CDLL(str(library)).walks
-        self.kernel.argtypes = ([ctypes.c_int64, ctypes.c_int64]+[ctypes.c_void_p]*7+
+        self.kernel.argtypes = ([ctypes.c_int64, ctypes.c_int64]+[ctypes.c_void_p]*8+
                                 [ctypes.c_int64, ctypes.c_int64]+[ctypes.c_void_p]*4)
         self.kernel.restype = None
         self.g = g
@@ -57,18 +57,24 @@ class Walk:
         # Largest volume a walk from each start node can discover (its component's cells).
         self.component_volume = np.ascontiguousarray(totals[self.components])
 
-    def run(self, seeds, L, traversals=False):
+    def run(self, seeds, L, traversals=False, start_nodes=None):
         """Returns (cumulative discovered volume summed over paths by step,
         final volume per path, traversal counts per path and dyad or None,
         executed transitions per path)."""
         if not isinstance(L, int) or L < 0: raise ValueError('invalid L')
         seeds = np.asarray(seeds, dtype=np.uint64)
+        if start_nodes is not None:
+            start_nodes = np.ascontiguousarray(start_nodes, dtype=np.int64)
+            if start_nodes.shape != seeds.shape or np.any(start_nodes < 0) or np.any(start_nodes >= self.g.N):
+                raise ValueError('invalid start nodes')
         delta = np.zeros(L+1, dtype=np.int64)
         volumes = np.zeros(len(seeds), dtype=np.int64)
         counts = np.zeros((len(seeds), self.g.D), dtype=np.int64) if traversals else None
         executed = np.zeros(len(seeds), dtype=np.int64)
-        arrays = [self.ptr, self.neighbors, self.edges, self.cumulative, self.weight, self.component_volume, seeds]
-        self.kernel(self.g.N, self.g.D, *[a.ctypes.data for a in arrays], len(seeds), L,
+        arrays = [self.ptr, self.neighbors, self.edges, self.cumulative, self.weight,
+                  self.component_volume, seeds]
+        self.kernel(self.g.N, self.g.D, *[a.ctypes.data for a in arrays],
+                    start_nodes.ctypes.data if start_nodes is not None else None, len(seeds), L,
                     delta.ctypes.data, volumes.ctypes.data,
                     counts.ctypes.data if counts is not None else None, executed.ctypes.data)
         return np.cumsum(delta), volumes, counts, executed

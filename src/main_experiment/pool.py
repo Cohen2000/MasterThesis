@@ -189,7 +189,7 @@ def build_pool(out, specs, fraction=COVERAGE_FRACTION):
                              'arm': arm, 'sample_index': index, 'domain': domain, 'block': block,
                              'block_sha256': digest(block), 'empty': parse(block)['D_obs'] == 0,
                              'budget_matched': budget['budget_matched_by_arm'][arm],
-                             'design_reference': design_reference(g, traversals) if arm in ('S1', 'S2') else None})
+                             'design_reference': None})
         write_json(out/'observations'/f'{key}.json', {
             'key': key, 'family': spec['family'], 'partition': spec['partition'], 'stratum': spec['stratum'],
             'parameters': spec['parameters'], 'seed': spec['seed'], 'truth': list(g.truth),

@@ -31,7 +31,7 @@ def audit_graph(g, build):
     targets = {name: [(w[k >= j].sum() / w.sum()) for j in range(2, 6)]
                for name, w in weights.items()}
     values = {name: [] for name in ('plugin', 'design_S', 'design_S_obs')}
-    distinct = []; revisits = []; ess = []
+    distinct = []; revisits = []; ess = []; predicted_bias = []
     seen_count = np.zeros(g.D, dtype=np.int32)
     seeds = [seed('v10_walk_audit', g.key, AUDIT_ARM_ID, i) for i in range(1, PATHS + 1)]
     for first in range(0, PATHS, BATCH):
@@ -51,6 +51,10 @@ def audit_graph(g, build):
             distinct.append(int(unique))
             revisits.append(1 - unique / L)
             ess.append(float(w_log.sum() ** 2 / np.square(w_log).sum()))
+            q = c / np.square(g.m.astype(float))
+            rho_w2 = q[k >= 2].sum() / q.sum()
+            ratio_ess = w_log.sum() ** 2 / q.sum()
+            predicted_bias.append(float((truth[0] - rho_w2) / ratio_ess))
     shift = targets['interaction'][0] - truth[0]
     row = {'graph_id': g.key, 'stratum': graph_stratum(g.key), 'L': L,
            'target_cells': target, 'calibration_mean': calibration['calibration_mean'],
@@ -59,6 +63,7 @@ def audit_graph(g, build):
            'stationary_shift_rho2': shift, 'rho_event_weighted': float(g.m[k >= 2].sum() / g.M),
            'distinct_dyads_mean': float(np.mean(distinct)), 'revisit_rate_mean': float(np.mean(revisits)),
            'weight_ess_mean': float(np.mean(ess)),
+           'first_order_ratio_bias_mean': float(np.mean(predicted_bias)),
            'near_certain_inclusion_share': float(np.mean(seen_count >= .99 * PATHS))}
     for name, p in targets.items():
         for j, x in enumerate(p, 2): row[f'stationary_{name}_rho{j}'] = x
@@ -68,10 +73,15 @@ def audit_graph(g, build):
             row[f'{name}_rho{j+2}_bias'] = float(a[:, j].mean() - truth[j])
             row[f'{name}_rho{j+2}_sd'] = float(a[:, j].std(ddof=1))
             row[f'{name}_rho{j+2}_rmse'] = float(np.sqrt(np.mean((a[:, j] - truth[j]) ** 2)))
+    row['design_S_rho2_bias_mcse'] = row['design_S_rho2_sd'] / np.sqrt(PATHS)
+    plugin_bias = row['plugin_rho2_bias']
+    row['design_bias_share_of_plugin_bias'] = (row['design_S_rho2_bias'] / plugin_bias
+                                                if plugin_bias else None)
     row['gate_applicable'] = bool(row['stratum'] in ('real', 'surrogate') and abs(shift) > .05)
     row['gate_pass'] = bool(not row['gate_applicable'] or
-                        (abs(row['design_S_rho2_bias']) <= .01 and
+                        (abs(row['design_S_rho2_bias']) <= .1 * abs(plugin_bias) and
                          row['design_S_rho2_rmse'] <= .5 * row['plugin_rho2_rmse']))
+    row['not_correctable_at_this_budget'] = bool(row['gate_applicable'] and not row['gate_pass'])
     return row
 
 

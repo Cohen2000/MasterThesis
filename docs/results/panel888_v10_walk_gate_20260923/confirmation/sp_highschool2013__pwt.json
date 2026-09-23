@@ -1,0 +1,26 @@
+{
+  "calibrated_L": 746,
+  "conditions": [
+    {
+      "L": 746,
+      "design_S_rho2_bias": 0.00535506259860119,
+      "design_S_rho2_bias_mcse": 0.0026273076145660198,
+      "design_S_rho2_rmse": 0.08321369629868614,
+      "design_S_rho2_sd": 0.08308276175932398,
+      "mode": "strength_start",
+      "paths": 1000
+    },
+    {
+      "L": 2984,
+      "design_S_rho2_bias": 0.002549301453766639,
+      "design_S_rho2_bias_mcse": 0.0012838344466920175,
+      "design_S_rho2_rmse": 0.0406581061232402,
+      "design_S_rho2_sd": 0.04059840990128799,
+      "mode": "uniform_4L",
+      "paths": 1000
+    }
+  ],
+  "graph_id": "sp_highschool2013__pwt",
+  "uniform_L_bias": 0.010581487974263948,
+  "uniform_L_mcse": 0.0025601509494193025
+}

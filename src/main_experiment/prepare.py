@@ -54,7 +54,7 @@ def observation_row(g, arm, index, domain, budget, counts, traversals):
             'stratum': graph_stratum(g.key), 'parent_source': parent_source(g.key), 'arm': arm,
             'sample_index': index, 'domain': domain, 'empty': parsed['D_obs'] == 0,
             'block': block, 'block_sha256': digest(block), 'messages': prompt, 'prompt_sha256': digest(prompt),
-            'truth': g.truth, 'design_reference': design_reference(g, traversals) if arm == 'S1' else None,
+            'truth': g.truth, 'design_reference': None,
             'design_version': DESIGN_VERSION,
             'deterministic_draw': draws_for(arm, budget, domain) == 1,
             'budget_matched': budget['budget_matched_by_arm'][arm],

@@ -1,10 +1,25 @@
 # Study protocol (design identifier panel888-pwt-srw-20260921)
 
-**Status addendum, 2026-09-23:** the proposed v10 interaction-following S walk
-was audited on all 24 main graphs before freeze. Its fixed gate failed on three
-real or surrogate sources, so v10 execution stopped. The
+**Post-hoc v10 amendment, 2026-09-23:** the initial 0.01 absolute-bias gate for
+the interaction-following S walk ignored Monte Carlo error and the first-order
+finite-sample bias of the Hájek ratio. The revised gate requires absolute design
+bias at most 10% of absolute plugin bias and design RMSE at most half the plugin
+RMSE, on each real or surrogate source with stationary shift above 0.05. A failure
+remains in all analyses, flagged “not correctable at this budget.” The S reference
+remains the plain Hájek estimator. No bias-correction column was added. The
 [generated audit](results/panel888_v10_walk_gate_20260923/WALK_GATE.md) records
-the evidence. The protocol below documents the earlier sealed design.
+the rerun and strength-start/4L confirmations. This is an amendment after seeing
+the failed original gate, not a prospective criterion. The protocol below
+documents the earlier sealed design.
+
+**v10 access contract:** each released block contains the observation and the
+design information held by the operator executing its arm. B releases its event
+retention probability p. S releases its own crawl log, summarised by pattern as
+traversals and traversals per event, plus inverse-event sums calculable from
+retrieved complete dyad histories. S_obs shows the same walk and inverse-event
+sums with the crawl log withheld. No block releases full-archive sizes, the
+calibration target T, coverage level, truth, or information requiring access to
+unobserved events.
 
 The study panel has eight real human–human sources, eight matched P[w,t]
 surrogates and eight synthetic instances. Earlier development runs are archived

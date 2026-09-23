@@ -64,9 +64,10 @@ def visible_counts(o):
     arm that never releases some window (H) never contributes a count for it.
     """
     m = len(o['table'][0][0].replace('?', ''))
-    counts = [0]*(m+1)
+    counts = [0.]*(m+1)
     for row in o['table']:
-        counts[row[0].count('1')] += row[1]
+        weight = row[5] if o['arm'] == 'S' else row[3] if o['arm'] == 'S_obs' else row[1]
+        counts[row[0].count('1')] += weight
     return counts, m
 
 
@@ -98,7 +99,7 @@ def fit_zt_bb(counts, n):
     mean = sum(j*counts[j] for j in range(1, n+1))/D
     mu0 = baselines.activity(mean, n)
     mu0 = min(max(mu0, 1e-6), 1-1e-6)
-    starts = [_pack(mu0, k) for k in START_KAPPAS]
+    starts = [_pack(mu0, k) for k in (0.2, *START_KAPPAS, 2000., 20000.)]
     best, values, _ = _solve(zt_bb_nll(counts, n), starts, BOUNDS)
     if best is None:
         return None, None, 'not_converged', {'starts_disagree': False}, float('nan')
@@ -126,7 +127,7 @@ def fit_profile_from_counts(counts, n):
 
 
 def fit_rsh(o):
-    """R, S1, H: fit on the visible-window histogram, target always at W=5."""
+    """R, S, S_obs, H: fit the visible histogram, with S pseudo-weights."""
     counts, m = visible_counts(o)
     return fit_profile_from_counts(counts, m)
 
@@ -148,5 +149,5 @@ def fit_b(o):
 def fit(o):
     """Common entrypoint: dispatch on the observation's arm."""
     if o['arm'] == 'B': return fit_b(o)
-    if o['arm'] in ('R', 'S1', 'H'): return fit_rsh(o)
+    if o['arm'] in ('R', 'S', 'S_obs', 'H'): return fit_rsh(o)
     raise ValueError(f'unsupported arm {o["arm"]!r}')

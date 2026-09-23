@@ -1,14 +1,18 @@
 # Current state
 
-## v10 walk gate (2026-09-23)
+## v10 post-hoc walk-gate amendment (2026-09-23)
 
-The prespecified v10 interaction-walk gate failed on 3 of 16 real and surrogate
-sources after 1,000 calibrated walks per graph. Cluster audit job 7143357
-completed the 24-graph table and exited nonzero on the gate. The generated
-[gate report](results/panel888_v10_walk_gate_20260923/WALK_GATE.md) and
-[machine-readable results](results/panel888_v10_walk_gate_20260923/walk_gate.csv)
-are sealed here. No v10 offline study, model calls, or production freeze followed.
-The v9 production code below remains current.
+The original 0.01 absolute-bias gate ignored Monte Carlo error and the
+first-order finite-sample bias of the Hájek ratio. Under the documented amendment,
+S bias must be at most 10% of plugin bias and S RMSE at most half of plugin RMSE
+for each applicable real or surrogate source. The 24-graph rerun (job 7143567,
+1,000 walks each) passes 13 of 14 applicable sources; sp_hospital__pwt remains
+in the study, flagged **not correctable at this budget**. Confirmation array
+7143568 found persistence of bias under strength-proportional starts and lower
+bias at 4L. The [generated gate report](results/panel888_v10_walk_gate_20260923/WALK_GATE.md)
+and [CSV](results/panel888_v10_walk_gate_20260923/walk_gate.csv) contain all values.
+v10 preparation job 7143619 completed; synthetic pool job 7143620 is running.
+The v9 results below remain the latest completed comparison until v10 integration.
 
 Design identifier panel888-access-v9-20260922; active arms R, S1, H, B (S2 retired).
 

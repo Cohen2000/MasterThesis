@@ -1,0 +1,26 @@
+{
+  "calibrated_L": 116,
+  "conditions": [
+    {
+      "L": 116,
+      "design_S_rho2_bias": 0.034503781904723585,
+      "design_S_rho2_bias_mcse": 0.004664632819106591,
+      "design_S_rho2_rmse": 0.15141846486963847,
+      "design_S_rho2_sd": 0.14750864156749022,
+      "mode": "strength_start",
+      "paths": 1000
+    },
+    {
+      "L": 464,
+      "design_S_rho2_bias": 0.008581221523605742,
+      "design_S_rho2_bias_mcse": 0.002608018692859869,
+      "design_S_rho2_rmse": 0.08287699984701055,
+      "design_S_rho2_sd": 0.08247279249732302,
+      "mode": "uniform_4L",
+      "paths": 1000
+    }
+  ],
+  "graph_id": "sp_hospital__pwt",
+  "uniform_L_bias": 0.03004013515774384,
+  "uniform_L_mcse": 0.0047632250537291984
+}

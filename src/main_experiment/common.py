@@ -11,11 +11,11 @@ import os
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-DESIGN_VERSION = 'panel888-access-v9-20260922'
+DESIGN_VERSION = 'panel888-access-v10-20260923'
 MASTER_SEED = 20260921
 
 # Output tree of the current study. Every stage writes into its own subfolder.
-RESULTS = ROOT/'results/panel888'
+RESULTS = ROOT/'results/panel888_v10'
 PREPARED = RESULTS/'prepared'         # graphs, calibration, observations, requests
 REFERENCES = RESULTS/'references'     # training pool, ExtraTrees folds, baseline predictions
 DIAGNOSTICS = RESULTS/'diagnostics'   # offline sensitivity and diagnostic analyses
@@ -42,9 +42,11 @@ STRATA = ('real', 'surrogate', 'dar_a0', 'dar_a08', 'ad_memoryless', 'ad_memory'
 
 # ---------------------------------------------------------------- design
 W = 5
-ARMS = ('R', 'S1', 'H', 'B')
+ARMS = ('R', 'S', 'S_obs', 'H', 'B')
 # Versioned identities; they key every random stream and every observation ID.
-ARM_ID = {'R': 'R-p888-access-v9-20260922', 'S1': 'S-dbrw-p888-access-v9-20260922',
+ARM_ID = {'R': 'R-p888-access-v9-20260922',
+          'S': 'S-interaction-p888-access-v10-20260923',
+          'S_obs': 'S-obs-interaction-p888-access-v10-20260923',
           'H': 'H-p888-access-v9-20260922', 'B': 'B-p888-access-v9-20260922'}
 COVERAGE_FRACTION = 0.10     # T = 0.10 * sum_e K_e expected observed active dyad-windows
 BUDGET_TOLERANCE = 0.05      # relative tolerance of every arm's expectation around T

@@ -23,11 +23,12 @@ static uint64_t bounded(uint64_t &s,uint64_t n) {
 extern "C" void walks(int64_t N,int64_t D,const int64_t *ptr,
  const int64_t *neighbors,const int64_t *edges,const int64_t *cumulative,
  const int64_t *weight,const int64_t *component_volume,const uint64_t *seeds,
+ const int64_t *start_nodes,
  int64_t paths,int64_t L,int64_t *delta,int64_t *volumes,int64_t *traversals,
  int64_t *executed) {
     std::fill(delta,delta+L+1,0);
     for(int64_t p=0;p<paths;p++) {
-        uint64_t state=seeds[p]; int64_t node=bounded(state,N), volume=0;
+        uint64_t state=seeds[p]; int64_t node=start_nodes ? start_nodes[p] : bounded(state,N), volume=0;
         int64_t maximum=component_volume[node];
         std::vector<uint8_t> seen(D,0);
         if(traversals) std::fill(traversals+p*D,traversals+(p+1)*D,0);

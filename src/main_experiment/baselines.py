@@ -28,9 +28,9 @@ from . import mixtures
 from .observation import validate
 
 # The primary reference of each arm is its same-information baseline.
-PRIMARY_REFERENCE = {'R': 'corrector', 'S1': 'corrector', 'S2': 'corrector', 'H': 'corrector', 'B': 'mixture'}
-PRIMARY_REFERENCE_NAME = {'R': 'plugin_equivalent_corrector', 'S1': 'plugin_same_information',
-                          'S2': 'design_aware_inverse_traversal_weight',
+PRIMARY_REFERENCE = {'R': 'corrector', 'S': 'corrector', 'S_obs': 'corrector', 'H': 'corrector', 'B': 'mixture'}
+PRIMARY_REFERENCE_NAME = {'R': 'plugin_equivalent_corrector', 'S': 'design_from_crawl_log',
+                          'S_obs': 'design_from_inverse_events',
                           'H': 'homogeneous_zero_truncated_binomial', 'B': 'beta_ztp_mixture'}
 METHODS = ('plugin', 'corrector', 'median', 'extratrees_pooled', 'extratrees_real_only', 'mixture',
            'design_reference')
@@ -38,8 +38,12 @@ METHODS = ('plugin', 'corrector', 'median', 'extratrees_pooled', 'extratrees_rea
 
 def anchor_profile(o):
     """Same-information residual-learning anchor for ExtraTrees."""
-    if o['arm'] in ('R', 'S1', 'H'):
+    if o['arm'] == 'R':
         return plugin(o)
+    if o['arm'] in ('S', 'S_obs'): return design_estimate(o)
+    if o['arm'] == 'H':
+        from .shared_mle import fit
+        return fit(o).rho
     try:
         return mixture_reference(o, corrector(o))['prediction']
     except (ArithmeticError, FloatingPointError, OverflowError, ValueError):
@@ -115,8 +119,8 @@ def corrector(o):
     validate(o)
     D = o['D_obs']
     if D == 0: raise ValueError('empty sample requires fold median')
-    if o['arm'] in ('R', 'S1'): return plugin(o)
-    if o['arm'] == 'S2': return design_estimate(o)
+    if o['arm'] == 'R': return plugin(o)
+    if o['arm'] in ('S', 'S_obs'): return design_estimate(o)
     if o['arm'] == 'H': return h_extrapolator(o)['prediction']
     # B: observed-window activity theta = q * d, with d the probability that an
     # active window keeps at least one of its ZTP(lambda) events at retention p.
@@ -128,20 +132,22 @@ def corrector(o):
 
 
 def design_estimate(o):
-    """S2: inverse-traversal-weight estimate from the block's per-pattern weights."""
-    total = sum(row[4] for row in o['table'])
-    return [sum(row[4] for row in o['table'] if row[0].count('1') >= k)/total for k in range(2, 6)]
+    """S-arm ratio estimate from released per-pattern weights."""
+    if o['arm'] not in ('S', 'S_obs'): raise ValueError('S arm required')
+    col = 5 if o['arm'] == 'S' else 3
+    total = sum(row[col] for row in o['table'])
+    if total <= 0: raise ValueError('empty observation')
+    return [sum(row[col] for row in o['table'] if row[0].count('1') >= k)/total for k in range(2, 6)]
 
 
 def design_reference(g, traversals):
-    """S1/S2 oracle: inverse-traversal-weight estimate from the traversal counts r_e.
+    """Internal audit equivalent of the S block estimator.
 
     The stationary traversal probability of dyad (u, v) under the degree-biased walk
     is proportional to d_u d_v, so each traversal is weighted by 1/(d_u d_v):
     rho_k = sum_e r_e I(K_e>=k)/(d_u d_v) / sum_e r_e/(d_u d_v).
     """
-    degree = np.bincount(g.ends.ravel(), minlength=g.N).astype(float)
-    weight = traversals/(degree[g.ends[:, 0]]*degree[g.ends[:, 1]])
+    weight = traversals/g.m
     return [float(weight[g.K >= k].sum()/weight.sum()) for k in range(2, 6)]
 
 
@@ -192,6 +198,6 @@ def all_references(o, models, median, design=None):
         out['extratrees_'+name] = {'prediction': list(map(float, np.asarray(anchor) + residual)), 'status': 'ok'}
     if o['arm'] == 'B':
         out['mixture'] = mixture_reference(o, out['corrector']['prediction'])
-    if o['arm'] in ('S1', 'S2'):
+    if o['arm'] in ('S', 'S_obs'):
         out['design_reference'] = {'prediction': list(design), 'status': 'ok'}
     return out

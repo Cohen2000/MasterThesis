@@ -23,15 +23,10 @@ surrogate uses its parent's node permutation (R, H), walk stream (S1/S2) and
 per-record uniforms (B). Only the full-archive quantities above are used to
 set n, L and p; no realised sample is ever used.
 """
-import ctypes
 from decimal import Decimal
-from pathlib import Path
-import subprocess
 import numpy as np
-from scipy.sparse import coo_matrix
-from scipy.sparse.csgraph import connected_components
 from .common import (ARM_ID, BUDGET_TOLERANCE, COVERAGE_FRACTION, DESIGN_VERSION, H_FRACTION,
-                     parent_source, rng, sampler_id, seed, sha)
+                     parent_source, rng, sampler_id, seed)
 from .data import window_counts
 
 CALIBRATION_WALKS = 256
@@ -40,61 +35,7 @@ EXTENDED_VALIDATION_WALKS = 4096
 MAX_RELATIVE_MCSE = 0.01
 
 
-class Walk:
-    """Degree-biased random walk on the dyad support, implemented in walk_kernel.cpp.
-
-    A first traversal of dyad e adds K_e to the walk's discovered volume, the
-    quantity calibrated against T. Event multiplicities never affect transitions.
-    """
-
-    def __init__(self, g, build_dir):
-        build = Path(build_dir); build.mkdir(parents=True, exist_ok=True)
-        source = Path(__file__).with_name('walk_kernel.cpp')
-        library = build/f'walk_{sha(source)[:16]}.so'
-        if not library.exists():
-            tmp = library.with_suffix('.tmp.so')
-            subprocess.run(['g++', '-O3', '-std=c++17', '-shared', '-fPIC', str(source), '-o', str(tmp)], check=True)
-            tmp.replace(library)
-        self.kernel = ctypes.CDLL(str(library)).walks
-        self.kernel.argtypes = ([ctypes.c_int64, ctypes.c_int64]+[ctypes.c_void_p]*7+
-                                [ctypes.c_int64, ctypes.c_int64]+[ctypes.c_void_p]*4)
-        self.kernel.restype = None
-        self.g = g
-        # Adjacency in CSR form: for node x, neighbours[ptr[x]:ptr[x+1]] via dyads edges[...].
-        u, v = g.ends.T
-        nodes = np.r_[u, v]
-        order = np.argsort(nodes, kind='stable')
-        self.neighbors = np.ascontiguousarray(np.r_[v, u][order], dtype=np.int64)
-        self.edges = np.ascontiguousarray(np.tile(np.arange(g.D), 2)[order], dtype=np.int64)
-        self.degree = np.bincount(nodes, minlength=g.N).astype(np.int64)
-        self.ptr = np.r_[0, np.cumsum(self.degree)].astype(np.int64)
-        # Cumulative neighbour degrees within each vertex's adjacency range.
-        neighbour_degree = self.degree[self.neighbors]
-        start = np.repeat(self.ptr[:-1], self.degree)
-        total = np.cumsum(neighbour_degree)
-        self.cumulative = np.ascontiguousarray(total-np.r_[0, total][start], dtype=np.int64)
-        adjacency = coo_matrix((np.ones(len(nodes)), (nodes, np.r_[v, u])), shape=(g.N, g.N)).tocsr()
-        self.n_components, self.components = connected_components(adjacency, directed=False)
-        self.weight = np.ascontiguousarray(g.K, dtype=np.int64)
-        totals = np.bincount(self.components[u], weights=self.weight).astype(np.int64)
-        # Largest volume a walk from each start node can discover (its component's cells).
-        self.component_volume = np.ascontiguousarray(totals[self.components])
-
-    def run(self, seeds, L, traversals=False):
-        """Returns (cumulative discovered volume summed over paths by step,
-        final volume per path, traversal counts per path and dyad or None,
-        executed transitions per path)."""
-        if not isinstance(L, int) or L < 0: raise ValueError('invalid L')
-        seeds = np.asarray(seeds, dtype=np.uint64)
-        delta = np.zeros(L+1, dtype=np.int64)
-        volumes = np.zeros(len(seeds), dtype=np.int64)
-        counts = np.zeros((len(seeds), self.g.D), dtype=np.int64) if traversals else None
-        executed = np.zeros(len(seeds), dtype=np.int64)
-        arrays = [self.ptr, self.neighbors, self.edges, self.cumulative, self.weight, self.component_volume, seeds]
-        self.kernel(self.g.N, self.g.D, *[a.ctypes.data for a in arrays], len(seeds), L,
-                    delta.ctypes.data, volumes.ctypes.data,
-                    counts.ctypes.data if counts is not None else None, executed.ctypes.data)
-        return np.cumsum(delta), volumes, counts, executed
+from .walk_v10_audit import Walk
 
 
 # ---------------------------------------------------------------- analytic arms R, H, B
@@ -183,7 +124,7 @@ def walk_length(g, walk, T):
     target (or the cap C = min(100 D, 10^6)) is reached and then bisects.
     """
     C = min(100*g.D, 1_000_000)
-    seeds = [seed('walk_calibration_cells', g.key, ARM_ID['S1'], i) for i in range(1, CALIBRATION_WALKS+1)]
+    seeds = [seed('walk_calibration_cells', g.key, ARM_ID['S'], i) for i in range(1, CALIBRATION_WALKS+1)]
     target = CALIBRATION_WALKS*T
     bound = 1
     while True:
@@ -207,7 +148,7 @@ def walk_length(g, walk, T):
 def validate_walk_length(g, walk, L, T):
     """Mean discovered cells of independent validation walks at the fixed L (no adaptation)."""
     def volumes(first, last):
-        seeds = [seed('walk_validation_cells', g.key, ARM_ID['S1'], i) for i in range(first, last+1)]
+        seeds = [seed('walk_validation_cells', g.key, ARM_ID['S'], i) for i in range(first, last+1)]
         return walk.run(seeds, L)[1].tolist()
     values = volumes(1, VALIDATION_WALKS)
     mcse = float(np.std(values, ddof=1)/np.sqrt(len(values)))
@@ -237,7 +178,7 @@ def calibrate(g, build_dir, fraction=COVERAGE_FRACTION):
     if validation['validation_mcse']/T > MAX_RELATIVE_MCSE: walk_reasons.append('validation_mcse_above_1_percent')
     if ceiling < T: walk_reasons.append('component_structural_ceiling_below_target')
     by_arm = {'R': abs(budget['node_relative_budget_error']) <= BUDGET_TOLERANCE,
-              'S1': not walk_reasons, 'S2': not walk_reasons,
+              'S': not walk_reasons, 'S_obs': not walk_reasons,
               'H': budget['h_within_tolerance'],
               'B': abs(budget['bernoulli_relative_budget_error']) <= BUDGET_TOLERANCE}
     reasons = [f'S:{x}' for x in walk_reasons]
@@ -246,7 +187,7 @@ def calibrate(g, build_dir, fraction=COVERAGE_FRACTION):
     if not by_arm['B']: reasons.append('B:expected_volume_outside_5_percent')
     budget.update(calibration)
     budget.update({k: v for k, v in validation.items() if k != 'validation_volumes'})
-    budget.update({'walk_type': 'degree_biased_random_walk', 'walk_components': walk.n_components,
+    budget.update({'walk_type': 'interaction_following_random_walk', 'walk_components': walk.n_components,
                    'walk_expected_component_ceiling': ceiling, 'walk_structural_target_unreachable': ceiling < T,
                    'validation_relative_error': (validation['validation_mean']-T)/T,
                    'walk_budget_matched': not walk_reasons, 'walk_unmatched_reasons': walk_reasons,
@@ -283,14 +224,14 @@ def draw(g, arm, index, domain, budget, walk=None):
     """Observed events per dyad and window for one sampler draw.
 
     Returns (counts, traversals); traversals are the walk's per-dyad traversal
-    counts for S1/S2 and None otherwise.
+    counts for S/S_obs and None otherwise.
     """
     if index < 1: raise ValueError('sample indices start at 1')
-    stream_arm = 'S1' if arm == 'S2' else arm           # S2 is the S1 walk, shown with more information
+    stream_arm = 'S' if arm == 'S_obs' else arm
     stream = (domain, parent_source(g.key), draw_sampler_id(stream_arm, budget), index)
     if arm == 'R':
         return g.counts*node_panel_mask(g, rng(*stream), budget['n_panel'])[:, None], None
-    if arm in ('S1', 'S2'):
+    if arm in ('S', 'S_obs'):
         traversals = walk.run([seed(*stream)], int(budget['L']), True)[2][0]
         return g.counts*(traversals > 0)[:, None], traversals
     if arm == 'H':
