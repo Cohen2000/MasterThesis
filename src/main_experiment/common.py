@@ -1,9 +1,4 @@
-"""Design constants, deterministic seeds and small I/O helpers of the final study.
-
-The study has one panel (design panel888-pwt-srw-20260921): eight real sources,
-one matched P[w,t] temporal surrogate per real source, and eight synthetic
-instances. docs/PROTOCOL_PANEL888_20260921.md is the authoritative description.
-"""
+"""v10 panel, design constants, deterministic seeds and I/O helpers."""
 from pathlib import Path
 import hashlib
 import json
@@ -179,7 +174,7 @@ def write_csv(path, rows):
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name+'.tmp')
     with open(tmp, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=keys)
+        writer = csv.DictWriter(f, fieldnames=keys, lineterminator='\n')
         writer.writeheader()
         for row in rows:
             writer.writerow({k: json.dumps(v) if isinstance(v, (dict, list)) else v for k, v in row.items()})

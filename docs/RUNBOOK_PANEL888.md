@@ -1,92 +1,10 @@
-# Runbook
+# v10 runbook
 
-**v10 status (2026-09-23):** the [amended interaction-walk gate](results/panel888_v10_walk_gate_20260923/WALK_GATE.md)
-permits production, with sp_hospital__pwt flagged as not correctable at the 10%
-budget. Jobs 7143567 and 7143568 produced the audit and confirmation evidence;
-7143619 prepared v10 observations and 7143620 builds the synthetic pool.
-The sealed v9 production blocks differ from the v9 CPU preparation used by v10;
-the v10 [request freeze](results/panel888_v10_request_freeze/REQUEST_FREEZE.json)
-therefore requires generation of all 2,160 Qwen requests.
-The steps below describe the sealed v9 predecessor.
+Workspace on uc3: `/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/`. Check `squeue -u $USER` before every submission and reconcile existing job IDs; never resubmit an active chain. The frozen production bundle is `panel888_access_v10_main/mainexp/`, committed at `8ee94c7`.
 
-One offline entry point, one Qwen production path, one integration path.
-The scientific design is in [PROTOCOL_PANEL888_20260921.md](PROTOCOL_PANEL888_20260921.md).
+1. Audit: `cluster/audit_v10_walk.sbatch` runs 1,000 walks per main graph. `cluster/confirm_v10_walk.sbatch` runs strength-start and uniform-start 4L confirmations. `scripts/report_v10_walk_gate.py` writes the generated [gate report](results/panel888_v10_walk_gate_20260923/WALK_GATE.md). Jobs 7143961 and 7143568 completed. The amended gate allows production with sp_hospital__pwt flagged.
+2. Offline: `cluster/v10_prepare.sbatch` builds graphs, calibrations, 360 main observations, training observations and request manifest (7143619). `cluster/v10_pool.sbatch` generates the 400/100 synthetic train/dev pool (7143620). `cluster/v10_et_cache.sbatch`, `v10_et_select.sbatch`, `v10_et_train.sbatch` select on synthetic dev and fit 45 pooled arm/fold forests (7143701–7143703). `scripts/verify_v10_et.py` checked all 360 ET predictions from serialized blocks (7143977).
+3. Qwen: `cluster/make_v10_production_bundle.sh` freezes the source, requests and assets; `cluster/submit_production.sh` submits three dependent, wide GPU arrays and a dependent archive. The active IDs are 7143823–7143826. The runner uses the v9 request protocol and decoding. All 2,160 Qwen calls are generated because sealed v9 production payload hashes do not match. Monitor with `squeue` and `cluster/status.py`; do not touch running chains.
+4. Integrate: after 7143826, run `scripts/verify_qwen_archive.py` against the bundle archive and the prepared request manifest. Run `scripts/build_v10_results.py --prepared results/panel888_v10/prepared --et results/panel888_v10/et --gate docs/results/panel888_v10_walk_gate_20260923/walk_gate.csv --answers <bundle>/archive/answers --out docs/results/panel888_v10_main_20260923`. One script generates all real, source, surrogate, synthetic, inference, anchoring and S contrast tables. Its current offline run is job 7144027.
 
-## 1. Offline study (no model calls, about 25 minutes; on uc3: `cluster/offline_study.sbatch`)
-
-Requirements: the pinned `.venv`, raw sources in `data/raw/`, tokenizers in
-`data/tokenizers/` (`scripts/fetch_tokenizers.py`), and `g++` for the walk kernel.
-
-```
-bash scripts/run_offline.sh
-```
-
-Refuses to start if `results/panel888/` exists; every run recomputes from scratch.
-Steps and outputs (logs in `results/panel888/logs/`):
-
-| Step | Script | Output in `results/panel888/` |
-|---|---|---|
-| graphs, surrogates, budgets, observations, prompts, requests | `prepare_study.py` | `prepared/` |
-| synthetic training/development pool | `build_references.py pool` | `references/pool/` |
-| 9 LOSO folds x {pooled, real_only} ExtraTrees | `build_references.py train` | `references/models_*/` |
-| development check and main reference predictions | `build_references.py references` | `references/primary_baselines.json` |
-| oracle selection/history decomposition | `diagnose_decomposition.py` | `diagnostics/decomposition/` |
-| H at h = .40/.60/.80 | `diagnose_history.py` | `diagnostics/history/` |
-| S1/S2 walk construct validity, 1000 walks at L and 4L | `diagnose_walk.py` | `diagnostics/walk/` |
-| 99 offline P[w,t] null shuffles per parent | `diagnose_null_model.py` | `diagnostics/null_model/` |
-| W = 2..20, {4,5,8}, thresholds, census descriptors | `diagnose_windows.py` | `diagnostics/windows/` |
-| B mixture bound widening | `diagnose_mixture_bounds.py` | `diagnostics/mixture_bounds/` |
-| Sol/DeepSeek ledger (dispatch disabled) | `run_api.py prepare` | `api/` |
-| paired controls of the references | `evaluate_paired_controls.py` | `paired_control_references/` |
-| evaluator check with fake answers | `check_evaluation_mocks.py` | `audit/mock_evaluation/` |
-| independent audit | `audit_offline.py` | `audit/offline_audit.json` |
-| unit tests | `unittest discover -s tests` | `logs/tests.log` |
-| seal | `seal_offline.py` | `docs/results/panel888_offline/` |
-
-## 2. Freeze
-
-Commit the sources and `docs/results/panel888_offline/`, push to `origin/master`,
-and record the commit SHA. The working tree must be clean.
-
-## 3. Qwen production (cluster uc3; needs the open ssh ControlMaster)
-
-Before anything: `squeue -u $USER`, and check that `$WS/panel888_final_main` does not
-exist yet (or reconcile its `mainexp/production_jobs.txt`; never submit twice).
-
-```
-bash scripts/cluster_bundle.sh panel888_final_main          # verifies the seal against HEAD
-ssh uc3 'cd /pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/panel888_final_main/mainexp && \
-         bash submit_production.sh panel888_final_main 10 all <commit>'
-```
-
-Answers to requests whose request record is byte-identical to one of an earlier
-production workspace may be copied into `mainexp/answers/` before submission (with
-`answers/REUSED_ANSWERS.json` listing each file; `cluster/reuse_answers.py`); the runner then admits only the
-remaining requests and the archive verification checks every answer's ID, prompt,
-payload, seed and runner hash. Answers identical under this rule are listed in
-the archive's `answers/REUSED_ANSWERS.json`.
-
-`submit_production.sh` verifies the bundle checksums, the commit and the clean
-source status, takes a lock, refuses if a chain was ever submitted, and writes each
-job ID to `production_jobs.txt` immediately: three rounds of a sharded GPU array
-(later rounds only admit never-started requests; no answer is regenerated) and a
-CPU archive job. Monitor with `squeue` and `python status.py . answers`.
-
-## 4. Integration (local, after the archive job has finished)
-
-```
-bash scripts/integrate_qwen.sh <commit>
-```
-
-Downloads the archive, verifies checksums, request/observation identity, runner,
-engine and model identity (`verify_qwen_archive.py`), collects one answer per
-request (`collect_qwen_answers.py`), evaluates validity and conditional accuracy
-(`evaluate_responses.py`), the paired temporal control (`evaluate_paired_controls.py`),
-re-parses every answer independently (`audit_qwen.py`) and copies the compact
-evidence to `docs/results/panel888_qwen/` (`report_qwen.py`).
-
-## Sol and DeepSeek
-
-Their 864 requests each are prepared in `prepared/requests.jsonl` and a disabled
-ledger in `api/`. Dispatch requires an explicit technical release
-(`execution.validate_release`) and is not part of this run.
+The coverage grid, mixed-budget ET and H ablations are secondary stages after the main table. The sealed v9 null, windows, history and mixture diagnostics are referenced in [v9 offline evidence](results/panel888_offline/FREEZE.json) and are not rerun for v10.

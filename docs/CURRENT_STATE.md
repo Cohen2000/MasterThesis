@@ -1,100 +1,13 @@
-# Current state
+# Current state: v10
 
-## v10 post-hoc walk-gate amendment (2026-09-23)
+Design `panel888-access-v10-20260923`, source commit `8ee94c7` for the frozen Qwen bundle. The 10% main observations (7143619), 500-graph synthetic pool (7143620), ET selection and 45 pooled forests (7143701–7143703), ET reproducibility check (7143977), and offline result build (7144027) completed on uc3. The Qwen chain was submitted as round arrays 7143823, 7143824, 7143825 and archive 7143826. Integration waits for the archive. The [generated main tables](results/panel888_v10_main_20260923/MAIN_RESULTS.md) currently contain the offline methods; the same script will add Qwen from the verified archive.
 
-The original 0.01 absolute-bias gate ignored Monte Carlo error and the
-first-order finite-sample bias of the Hájek ratio. Under the documented amendment,
-S bias must be at most 10% of plugin bias and S RMSE at most half of plugin RMSE
-for each applicable real or surrogate source. The 24-graph rerun (job 7143567,
-1,000 walks each) passes 13 of 14 applicable sources; sp_hospital__pwt remains
-in the study, flagged **not correctable at this budget**. Confirmation array
-7143568 found persistence of bias under strength-proportional starts and lower
-bias at 4L. The [generated gate report](results/panel888_v10_walk_gate_20260923/WALK_GATE.md)
-and [CSV](results/panel888_v10_walk_gate_20260923/walk_gate.csv) contain all values.
-v10 preparation job 7143619 and synthetic pool job 7143620 completed.
-Request sealing job 7143754 found that none of the R/H/B requests match the
-sealed v9 Qwen production archive, although all 2,592 match the separate v9 CPU
-preparation. The R/H/B blocks differ from the production archive, so all 2,160
-v10 Qwen requests will be generated; no answer reuse is claimed.
-The v9 results below remain the latest completed comparison until v10 integration.
+## Post-hoc gate amendment, 2026-09-23
 
-Design identifier panel888-access-v9-20260922; active arms R, S1, H, B (S2 retired).
+The original absolute-bias threshold of 0.01 ignored Monte Carlo error and the first-order finite-sample bias of the Hajek ratio. The amended gate requires |design(S) bias| <= 0.1 |plugin bias| and design RMSE <= 0.5 plugin RMSE on each real or surrogate source whose interaction stationary shift exceeds 0.05. The S reference remains the plain ratio; no correction column was added. The 24-graph audit (7143961; 1,000 walks per graph) passes 13 of 14 applicable sources. sp_hospital__pwt remains in every result and is flagged "not correctable at this budget." The confirmation array (7143568) found that strength-proportional starts did not remove the bias, while 4L reduced it. [WALK_GATE](results/panel888_v10_walk_gate_20260923/WALK_GATE.md) contains the generated numbers.
 
-## Final v9 results: complete for all five main methods
+## Request identity and deviation
 
-`docs/results/panel888_analysis_snapshot/` (ANALYSIS_SNAPSHOT.md plus
-MAIN_METHOD_COMPARISON, MAIN_REAL_BY_SOURCE, BUDGET_METHOD_COMPARISON,
-SURROGATE_COMPARISON, SYNTHETIC_COMPARISON, MAIN_SECONDARY_REFERENCE,
-FIT_DIAGNOSTICS) covers Main (0.10) and the full coverage grid
-(0.025/0.05/0.10/0.20/0.30/0.40/0.50) x R/S1/H/B x real/surrogate/synthetic for
-plugin, shared_mle, mixed-budget extratrees, qwen_thinking, qwen_nonthinking.
-Regenerate with `scripts/build_analysis_snapshot.py` (reads the gitignored
-`results/` tree; the committed copies live in `docs/results/`).
+The R/H/B blocks in the separate v9 CPU preparation match v10 byte for byte, but the sealed v9 Qwen production archive has different block and payload hashes. The [request freeze](results/panel888_v10_request_freeze/REQUEST_FREEZE.json) records 0 reusable production requests, 2,592 R/H/B requests matching the CPU preparation, and 864 S/S_obs Qwen requests. Accordingly the frozen v9 decoding protocol is used to generate all 2,160 v10 Qwen calls. No answer reuse is claimed. ET anchor and regularization selection used only the synthetic development pool; real test sources and surrogates did not enter selection or training.
 
-- plugin: computed from each level's observations (no model).
-- shared_mle: `scripts/build_shared_mle.py`, run locally on the sealed
-  observations; `docs/results/panel888_shared_mle/` (1994 observations,
-  fallback 5.6-9.9 % per level; adequacy on dev/training only).
-- extratrees (mixed-budget): `scripts/build_mixed_budget_et.py`, job 7128339
-  (48 cores, ~25 min): 36 arm x fold forests (PARAMETERS unchanged, 58,211
-  training rows pooled over all seven levels, budget not a feature), scored in
-  the same run on all 1994 test observations; `docs/results/panel888_et_mixed/`
-  (evaluation.csv, report.json). The 20 GB of forests and their manifests stay
-  on the cluster: `$WS/panel888_access_v9_cpu/results/panel888_et_mixed/models/`.
-- Qwen thinking/non-thinking: final v9 archives of `panel888_access_v9_{main,
-  b025,...,b500}` collected with `collect_qwen_answers.py` (all expected answers
-  found, 0 missing), scored on formally valid answers only (validity >= 0.9976).
-
-Changes to the ET script, none methodological: features/anchors computed once
-per row instead of twice per fold (arm B alone would otherwise have needed
-~300k Beta-mixture fits, ~3.5 h); fits and scoring parallel; empty draws
-(D_obs=0, only at 2.5 % coverage) excluded, as in `training.fold_rows`; and
-the 0.10 level's training pool is now included -- the old script looked for
-it under `prepared/pool`, which does not exist (it is `references/pool`, train
-partition), so the main level's pool was silently missing.
-
-## H history-fraction ablation (stress test; h=0.60 stays the main arm)
-
-`docs/results/panel888_h_ablation/` (H_ABLATION.md, _MAIN/_BUDGET/_BY_SOURCE/
-_VALIDITY/_FEASIBILITY.csv), rebuilt by `scripts/build_h_ablation_tables.py`.
-- h=0.40: `scripts/build_h_ablation.py --h 0.4` (job 7129121): H recalibrated
-  with `h_parameters` on the sealed graphs, same draw streams (CRN with main H;
-  the same script at h=0.60 reproduces all 482 sealed H test blocks byte for
-  byte), 414 test observations over the 7 levels, mixed-budget H ExtraTrees
-  retrained with the final-v9 protocol. Qwen H-only chain in workspace
-  `panel888_h_ablation_h040` (2484 requests): round1 7129139, round2 7129140,
-  round3 7129141, archive 7129142 -- running. When archived: collect with
-  `collect_qwen_answers.py --run $WS/panel888_h_ablation_h040/mainexp/archive`,
-  score with `build_qwen_main_quicklook.py` into
-  `results/panel888_h_ablation/h040/qwen_predictions.csv`, rerun the tables script.
-- h=0.50 not run: its cutoff lies inside window 3; the 0/1 Temporal_access
-  contract (and "accessible zeros indicate true inactivity") cannot express a
-  partially accessible window without a methodology change. Code supports
-  h in {0.40, 0.60, 0.80}.
-- shared_mle is not identified at h=0.40 (m=2: one free share, two
-  parameters); its h=0.40 numbers are optimizer artefacts. Model unchanged.
-- Fixed: `observation.parse` hardcoded history_fraction=0.60 for H, so any
-  other h failed validation; it now derives h from Temporal_access (no change
-  at 0.60).
-
-## Cluster state
-
-- Offline study sealed (job 7126631, `OFFLINE_FREEZE_SEALED`, 1364 artifacts);
-  budget-sensitivity prepare 7126706 (1-5) + 7126781 (index 0) completed.
-- H-known ablation (fixed request builder, resubmitted this session): b050,
-  b200, b300, b500 archived with all answers; b025 and b400 have all answers,
-  archive jobs pending/running; main 421/432 answers, round 3 running. Not
-  integrated yet.
-- Dead jobs still listed in `squeue` (DependencyNeverSatisfied, harmless; the
-  user can `scancel` them): 7118941, 7118957, 7119026, 7119028, 7119235,
-  7119236, 7124537, 7124542, 7126149, 7126643, 7126713, 7126790, 7126792.
-- No Sol/DeepSeek jobs.
-
-## Open
-
-- Integrate H-known once its seven archives are complete.
-- Mechanism-aware secondary reference exists for Main only (budget levels
-  would need `main_references` output per level; not needed for the five-method
-  comparison).
-
-Sealed pre-v9 reference point: commit 9db974e, docs/results/panel888_offline.
+The v9 offline, Qwen, budget, and model evidence remains sealed under `docs/results/panel888_offline/`, `panel888_qwen/`, `panel888_budget_sensitivity/`, and `panel888_shared_mle/`. Its obsolete scripts and narrative reports are in `archive/pre_v10_20260923/`.

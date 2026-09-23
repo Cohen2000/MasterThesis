@@ -1,4 +1,4 @@
-"""Weighted-walk kernel and v9 budget calibration, frozen for the v10 gate audit."""
+"""Shared integer-weighted walk and v10 length calibration."""
 import ctypes
 from pathlib import Path
 import subprocess
@@ -14,7 +14,7 @@ EXTENDED_VALIDATION_WALKS = 4096
 MAX_RELATIVE_MCSE = .01
 
 class Walk:
-    """Integer-weighted walk on the dyad support, implemented in walk_kernel.cpp.
+    """Integer-weighted walk on the dyad support, implemented in walk_v10_kernel.cpp.
 
     A first traversal of dyad e adds K_e to the walk's discovered volume, the
     quantity calibrated against T. Production audit weights equal event counts.

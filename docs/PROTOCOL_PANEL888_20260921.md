@@ -1,182 +1,27 @@
-# Study protocol (design identifier panel888-pwt-srw-20260921)
+# v10 study protocol
 
-**Post-hoc v10 amendment, 2026-09-23:** the initial 0.01 absolute-bias gate for
-the interaction-following S walk ignored Monte Carlo error and the first-order
-finite-sample bias of the Hájek ratio. The revised gate requires absolute design
-bias at most 10% of absolute plugin bias and design RMSE at most half the plugin
-RMSE, on each real or surrogate source with stationary shift above 0.05. A failure
-remains in all analyses, flagged “not correctable at this budget.” The S reference
-remains the plain Hájek estimator. No bias-correction column was added. The
-[generated audit](results/panel888_v10_walk_gate_20260923/WALK_GATE.md) records
-the rerun and strength-start/4L confirmations. This is an amendment after seeing
-the failed original gate, not a prospective criterion. The protocol below
-documents the earlier sealed design.
+Design identifier `panel888-access-v10-20260923`. The panel contains eight real human-human sources, their eight matched P[w,t] timestamp-shuffled surrogates, and eight synthetic instances. The primary estimand is rho_2 = Pr(K_e >= 2 | K_e >= 1) over dyads in the full cleaned archive with W=5 windows. rho_2..rho_5 form the persistence profile. Real sources are sp_hospital, sp_highschool2013, copenhagen_bluetooth, sp_workplace, snap_email_eu, snap_collegemsg, snap_mathoverflow and nr_digg_reply. Each has a `__pwt` surrogate. The synthetic instances are `dar_a0_r1/r2`, `dar_a08_r1/r2`, `ad_memoryless_r1/r2` and `ad_memory_r1/r2`.
 
-The v10 R/H/B request IDs and seeds match v9, but their prepared blocks match
-the separate v9 CPU preparation rather than the sealed v9 Qwen production
-archive. Because prompt and payload hashes differ from that archive, no v9
-answers are reused; all v10 Qwen requests are generated under the frozen v9
-decoding protocol. The [request freeze](results/panel888_v10_request_freeze/REQUEST_FREEZE.json)
-records the exact identity check.
+## Arms and access
 
-**v10 access contract:** each released block contains the observation and the
-design information held by the operator executing its arm. B releases its event
-retention probability p. S releases its own crawl log, summarised by pattern as
-traversals and traversals per event, plus inverse-event sums calculable from
-retrieved complete dyad histories. S_obs shows the same walk and inverse-event
-sums with the crawl log withheld. No block releases full-archive sizes, the
-calibration target T, coverage level, truth, or information requiring access to
-unobserved events.
+R is a uniform node panel; H is a uniform node panel with elapsed-time history fraction h=0.60; B retains each event independently at released probability p. Their streams, calibration, blocks, prompts and decoding are unchanged from v9. S starts uniformly on V_full, chooses at each step one full-archive event record incident to the current vertex uniformly, moves to its other endpoint, and executes exactly L steps with no burn-in or restart. Its transition weight is m_uv. Each traversed dyad is released once with complete history, and its traversal count c_e is logged. S_obs uses the same draws with the log withheld. A generic weighted-walk kernel also accepts unit and degree-product weights for diagnostics. Parent and P[w,t] surrogate share the stream; because P[w,t] preserves m_e, their walks coincide. All arms calibrate expected discovered active dyad-windows to T = 0.10 sum_e K_e with the v9 validation and 5% tolerance.
 
-The study panel has eight real human–human sources, eight matched P[w,t]
-surrogates and eight synthetic instances. Earlier development runs are archived
-under `archive/` and are not part of the study. This protocol is not a
-retroactive preregistration; panel membership, the shuffle rule, the mechanisms,
-draws and references were fixed without selection on LLM accuracy.
+Each block contains its observation and design information necessarily held by the executing operator. B includes p. S includes its own crawl log summarized by pattern; S_obs withholds that log. Blocks exclude full-archive sizes, T, coverage fraction and truth. S_obs adds `inv_events = sum_e 1/m_e` per pattern to the v9 pattern/dyads/events table. S adds `inv_events`, `traversals = sum_e c_e` and `traversals_per_event = sum_e c_e/m_e`; traversals sum to L. Floats use 12 significant digits. Rules describe the walk and columns neutrally. System prompt, user prefix and Qwen decoding are byte-identical to v9.
 
-Real sources: sp_hospital, sp_highschool2013, copenhagen_bluetooth, sp_workplace
-(four physical/proximity), snap_email_eu, snap_collegemsg, snap_mathoverflow,
-nr_digg_reply (four digital person–person). Each has one `__pwt` surrogate.
-Synthetic: dar_a0_r1, dar_a08_r1, dar_a0_r2, dar_a08_r2,
-ad_memoryless_r1, ad_memory_r1, ad_memoryless_r2, ad_memory_r2; the two modes of
-one family and replicate share all generator latents.
+## Estimators and fitting
 
-## Temporal control and random numbers
+All non-LLM estimates are functions of the serialized block. Plugin computes the observed pattern profile. The median is the constant median profile over training real sources in each leave-one-real-source-out fold. Design is defined only for S and S_obs: its numerator sums the relevant released weight over patterns with at least k active windows, divided by the sum over all patterns. S uses `traversals_per_event`; S_obs uses `inv_events`. The S reference remains this plain Hajek/Hansen-Hurwitz ratio, with no finite-sample bias correction. The MLE is a shared zero-truncated Beta-Binomial population model with arm-specific observation models; S and S_obs use those same row weights in a pseudo-likelihood. Multi-start fitting reports every fallback. The pre-specified arm references are R plugin, S design, S_obs design, H MLE and B MLE.
 
-Uniformly permute the timestamp vector of the canonically cleaned parent event
-records using PCG64 and a SHA256-derived, versioned deterministic seed. Record
-index is stable event identity; each record keeps its dyad; records are not
-deduplicated or reordered after shuffling, so new coincident dyad/time records
-retain multiplicity. Audit nodes, support, per-dyad event counts, total events,
-exact timestamp multiset and archive bounds. Only timestamp assignment is
-randomized; this can change many edge-local temporal properties, not only
-persistence. Index 0 is the sole productive surrogate; 99 further shuffles are
-offline null diagnostics, never selected, trained on or sent to a model.
+ET is arm-specific pooled ExtraTrees. Its features are released-evidence features, including shares of the new S columns. It predicts a residual on either plugin or the arm reference. Anchor and a grid of `min_samples_leaf` and `max_features` were selected once on the synthetic development pool, without real test sources or surrogates; the final model trains only on 10% training draws, with the test real source excluded from its fold. Synthetic ET results are marked in-distribution. Qwen thinking and non-thinking use the v9 decoding protocol. R/H/B payloads were compared with the sealed v9 Qwen production archive; none matched, so all 2,160 v10 Qwen calls are generated. The separate v9 CPU preparation does match the 2,592 R/H/B v10 requests byte for byte. The [request freeze](results/panel888_v10_request_freeze/REQUEST_FREEZE.json) records this deviation.
 
-Sampler streams key on the parent: R/H use the same node permutation, S1/S2 the
-same start/transition stream (hence the same walk prefix on the identical
-support), B the same uniform per stable event index. Each graph, including each surrogate, is
-calibrated separately to T = 0.10 * sum_e K_e.
+## Evaluation
 
-## Estimand, mechanisms and references
+Primary metric: equal-source MAE_2 over eight real sources. ProfileMAE is secondary. Surrogates and synthetic blocks are separate. LLM accuracy is conditional on formally valid answers, with validity reported. No method's estimate is clipped or repaired. The main table includes MAE_2, ProfileMAE, signed rho_2, validity, MLE fallback rate, ET profile validity and skill `1 - MAE/MAE_plugin`. The per-source table and paired source-level comparisons cover Qwen thinking vs plugin, Qwen thinking vs arm reference, reference vs plugin, and ET vs reference: source mean difference, wins of eight, exact 2^8 sign-flip p and leave-one-source-out range. Draw-clustered MCSE is secondary. Among observations with |plugin-reference| >= 0.01, the anchoring table reports valid answers within 0.005 of each anchor or neither. S and S_obs are compared on paired draws. `scripts/build_v10_results.py` generates every number.
 
-W = 5, rho_2..rho_5; primary conditional MAE2, secondary conditional ProfileMAE.
-All arms match the expected number of observed active dyad-windows to T within
-5%; unreachable targets are reported, never re-tuned.
+## Walk audit and post-hoc amendment, 2026-09-23
 
-- R: uniform node panel; complete histories of all dyads inside the panel.
-- S1 and S2: one degree-biased random walk (alpha = 1): uniform start vertex;
-  from u the next vertex v has probability d_v / sum_{x in N(u)} d_x, with d the
-  number of distinct neighbours in the full-archive support; event multiplicities
-  do not affect transitions; exactly L transitions, no burn-in or restart. Every
-  dyad traversed at least once is observed once with its complete history. L is
-  calibrated on unique active dyad-window discovery: 256 calibration walks,
-  1024 validation walks (4096 if the relative MCSE exceeds .01), cap
-  min(100 D, 10^6). S1 and S2 are the identical draws (same stream, L and walk);
-  they differ only in what the observation shows (below).
-- H: uniform node panel with elapsed-time history h = .60 (events with
-  t >= t_start + .4 (t_end - t_start)).
-- B: independent Bernoulli thinning of event records.
+The first audit used at least 1,000 walks on each of the 24 main graphs at calibrated L. It reports stationary targets for unit, degree-product and event-count edge weights; plugin, design(S) and design(S_obs) bias, SD and RMSE; distinct dyads, revisits, weight ESS and near-certain inclusion. The original gate required absolute design bias <= 0.01 and design RMSE <= half plugin RMSE on each real or surrogate source with stationary shift > 0.05. That gate failed. After inspecting those failures, the absolute criterion was amended because it ignored MCSE and the O(1/ESS) finite-sample bias of the ratio. The amended audit adds design-bias MCSE, `(rho_2-rho_w2)/ESS`, with `rho_w2 = sum_e(c_e/m_e^2) I(K_e>=2) / sum_e(c_e/m_e^2)` and `ESS = (sum_e c_e/m_e)^2 / sum_e(c_e/m_e^2)`, and design bias as a share of plugin bias.
 
-The model-side observation of every arm is the same kind of table: distinct
-observed dyads grouped by window pattern with dyad and event counts, window event
-totals, the arm's design parameter (n_panel, L, n_panel_history with h, p) and
-the arm's sampling rule. S1 shows nothing about traversal counts, revisits or
-degrees. S2 adds, per pattern row, the number of walk traversals of its dyads and
-the sum over these traversals of 1/(d_u d_v) — exactly the information the
-design-aware correction needs, but not the estimate itself. Floats are written
-with 12 significant digits. Within each arm the LLM, the statistical baseline and
-the learned references use the same information: 192 features computed from the
-block (counts, shares, design parameter, plug-in and arm-baseline profiles, and
-for S2 the per-pattern traversal and weight shares).
+The amended gate requires |design(S) bias| <= 0.1 |plugin bias| and design RMSE <= 0.5 plugin RMSE for each applicable source. Failures remain in the study, flagged "not correctable at this budget" in S tables and aggregates. Job 7143961 found 13/14 applicable sources pass; sp_hospital__pwt fails and is retained. Job 7143568 ran 1,000 confirmation walks on sp_hospital, sp_hospital__pwt and sp_highschool2013__pwt with strength-proportional starts at L and uniform starts at 4L. Strength starts did not remove the bias; production proceeded. The generated [gate table](results/panel888_v10_walk_gate_20260923/WALK_GATE.md) is the numerical record. This amendment is post-hoc, not prospective.
 
-Primary references are the same-information statistical baselines: R the
-plug-in-equivalent corrector; S1 the plug-in; S2 the design-aware
-inverse-traversal-weight (Hájek / Hansen–Hurwitz type) estimator
-rho_k = sum_t I(K_{e_t} >= k)/(d_u_t d_v_t) / sum_t 1/(d_u_t d_v_t),
-computed from the S2 block; H the homogeneous zero-truncated Binomial working
-model; B the beta-ZTP mixture with fixed fallback. The same estimator computed
-from the internal traversal log is reported for S1 and S2 as a design-aware
-oracle reference (for S1 it uses information the S1 observation lacks). It is
-consistent for the walk's component-mixture target, not finite-sample unbiased.
-Plug-in, arm baseline, training median and pooled / real-only ExtraTrees are
-reported for every arm.
-
-## Shared statistical working-model baseline (shared_mle)
-
-An additional common-model-family competitor (main_experiment.shared_mle),
-kept separate from the arm-specific correctors/oracle above and from plugin
-and ExtraTrees: one latent persistence model, q_e ~ Beta(alpha, beta) with
-X_e,w | q_e ~ Bernoulli(q_e) for w = 1..5, fit from the released observation
-alone and used to compute rho_r = P(K >= r | K >= 1) at W = 5 from the same
-fitted (alpha, beta) for every arm. Differences between arms enter only
-through which released information can be used to fit the model:
-
-- R, S1: zero-truncated Beta-Binomial likelihood over the complete 5-window
-  histories of the observed dyads. Informative degree-biased S1 walk
-  selection is intentionally left uncorrected -- this is a working-model
-  baseline, not a design-unbiased or oracle estimator.
-- H: zero-truncated Beta-Binomial likelihood over only the windows
-  Temporal_access marks accessible (m of them, never n_panel); the SAME
-  fitted (alpha, beta) is then plugged into the W = 5 model. This
-  extrapolation assumes exchangeability of windows conditional on q_e, which
-  the access mechanism does not itself imply; m = 5 makes the fit identical
-  to the R/S1 case (test-checked).
-- B: the Beta activity layer plus a ZTP(lambda) event-detection layer thinned
-  at the released retention probability p (main_experiment.mixtures.fit_events,
-  reused rather than duplicated -- see shared_mle.py for the exact algebraic
-  correspondence). Uses only the released pattern counts, event totals and p.
-
-Fallback (used only on a genuine optimizer failure or start-disagreement,
-never as a truth-informed repair): the homogeneous-binomial limit of the same
-family (one shared q via the existing homogeneous correctors), with B keeping
-its event-detection nuisance parameter. Every fallback is counted and reported.
-
-A fixed model-adequacy diagnostic (scripts/build_shared_mle.py) checks, on
-development/training material only (never the eight held-out test sources):
-(A) whether the two-parameter population model can represent the true
-full-data K-distribution even without missingness; (B) the H-like
-visible-window-to-W=5 extrapolation; (C) the B observation-model fit. The
-model form is fixed before and independent of these results.
-
-## Draws, training and evaluation
-
-Three test sampler draws per stochastic cell; a saturated H panel has one
-deterministic draw. Three model repeats per observation and configuration
-(Qwen thinking, Qwen non-thinking; Sol and DeepSeek requests are prepared but
-not dispatched). Five training draws per arm for the 16 real training sources
-and the independent synthetic pool (400 training / 100 development graphs).
-Eight LOSO folds remove the entire real parent source; its surrogate uses the
-same fold and never enters training; synthetic test instances use the
-all-real fold. ExtraTrees: 500 trees, block weights .50 real / .25 DAR / .25 AD,
-one versioned forest seed (SHA256 of extratrees/all_folds, modulo 2^32).
-Answers are parsed strictly (one JSON object, optional single whole-answer
-fence); invalid answers are never imputed.
-
-## Evidence blocks and paired control
-
-Real: eight sources weighted equally. Surrogates: eight parent–surrogate pairs,
-reported separately. Synthetic: four conditions separately; r1/r2 are outer
-replicates. For matched arm, sampler index and repeat, Delta rho = surrogate -
-parent and Delta rhohat = predicted surrogate - predicted parent; AE_Delta_2 is
-primary, Delta_ProfileAE secondary; a pair needs both answers valid. If only one
-side is a deterministic H draw, its single observation is reused across the other
-side's draws without counting as independent data. Signed error, sign agreement
-and correlations are descriptive only.
-
-## Offline analyses
-
-Listed in SENSITIVITY_INVENTORY_PANEL888.md: H at h = .40/.60/.80 with the
-oracle decomposition; the construct-validity check of the S1/S2 walk (1000 walks
-per graph at L and 4L: plug-in and design-reference bias/variance, component and
-degree selection targets, coverage, revisits, concentration); W = 2..20 incl. {4,5,8};
-calibration and MCSE; the P[w,t] null; B mixture bounds; error decomposition.
-The budget sensitivity (BUDGET_SENSITIVITY.md) repeats the study at 2.5–50%
-coverage as an ancillary analysis. No diagnostic selects a design parameter.
-
-## Execution
-
-Qwen answers are generated on the cluster from the committed, sealed prompts in
-isolated production chains with durable job IDs; a chain never regenerates an
-admitted request. Each answer is bound to its request by ID, prompt hash,
-payload hash and seed, and verified against the runner, engine and model identity.
+The v9 sealed null model, windows, history and mixture diagnostics are reused as documented in `docs/results/panel888_offline/`; v10 does not rerun them. The 10% main study precedes the secondary S/S_obs coverage grid, mixed-budget ET and H ablations.

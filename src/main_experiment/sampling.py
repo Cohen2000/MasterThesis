@@ -1,4 +1,4 @@
-"""The four observation mechanisms and their budget calibration.
+"""The five v10 observation arms and their budget calibration.
 
 Every arm is matched on the expected number of observed active dyad-windows,
 T = 0.10 * sum_e K_e, computed per graph (surrogates separately from parents):
@@ -6,12 +6,12 @@ T = 0.10 * sum_e K_e, computed per graph (surrogates separately from parents):
   R  uniform node panel of size n; every dyad with both endpoints in the panel is
      observed with its complete history. n minimises |pi(n) sum_e K_e - T| with
      pi(n) = n(n-1)/(N(N-1)).
-  S1/S2  one degree-biased random walk: uniform start vertex, next vertex v with
-     probability d_v / sum_{x in N(u)} d_x (d = distinct neighbours in the
-     full-archive support), exactly L transitions, no burn-in or restart; every
-     traversed dyad is observed once with its complete history. L is calibrated
-     on 256 walks and validated on 1024 (4096 if the relative MCSE exceeds 1%).
-     S1 and S2 share the draw; they differ only in what the observation shows.
+  S/S_obs  one interaction-following walk: a uniform start vertex, then an
+     incident event record chosen uniformly at each step. Each dyad has
+     transition weight m_e; exactly L steps, with no burn-in or restart.
+     Every traversed dyad is retrieved with its complete history. The arms
+     share draws; S releases the crawler log and S_obs withholds it.
+     L is calibrated on 256 walks and validated on 1024 (4096 if needed).
   H  uniform node panel, but only events with t >= t_start + (1-h)(t_end-t_start)
      are retrievable (h = 0.60). n minimises |pi(n) sum_e J_e - T|, where J_e is
      the number of windows with a retrievable event.
@@ -19,23 +19,18 @@ T = 0.10 * sum_e K_e, computed per graph (surrogates separately from parents):
      that sum over active cells of 1-(1-p)^(events in cell) equals T.
 
 Common random numbers: the sampler stream is keyed by the parent source, so a
-surrogate uses its parent's node permutation (R, H), walk stream (S1/S2) and
+surrogate uses its parent's node permutation (R, H), walk stream (S/S_obs) and
 per-record uniforms (B). Only the full-archive quantities above are used to
 set n, L and p; no realised sample is ever used.
 """
 from decimal import Decimal
 import numpy as np
-from .common import (ARM_ID, BUDGET_TOLERANCE, COVERAGE_FRACTION, DESIGN_VERSION, H_FRACTION,
+from .common import (BUDGET_TOLERANCE, COVERAGE_FRACTION, DESIGN_VERSION, H_FRACTION,
                      parent_source, rng, sampler_id, seed)
 from .data import window_counts
 
-CALIBRATION_WALKS = 256
-VALIDATION_WALKS = 1024
-EXTENDED_VALIDATION_WALKS = 4096
-MAX_RELATIVE_MCSE = 0.01
-
-
-from .walk_v10_audit import Walk
+from .walk_v10_audit import (Walk, walk_length, validate_walk_length,
+                             MAX_RELATIVE_MCSE)
 
 
 # ---------------------------------------------------------------- analytic arms R, H, B
@@ -114,49 +109,6 @@ def analytic_parameters(g, fraction=COVERAGE_FRACTION):
             **h_parameters(g, T),
             'p': p, 'bernoulli_expected_cells': expected_b, 'bernoulli_relative_budget_error': float((expected_b-T)/T),
             'bernoulli_expected_events': p*g.M, 'bernoulli_dyad_share': float(np.mean(-np.expm1(g.m*np.log1p(-p))))}
-
-
-# ---------------------------------------------------------------- arm S calibration
-def walk_length(g, walk, T):
-    """Smallest-error L such that 256 common-seed walks discover 256*T cells in total.
-
-    The summed discovery curve is monotone in L, so the search doubles L until the
-    target (or the cap C = min(100 D, 10^6)) is reached and then bisects.
-    """
-    C = min(100*g.D, 1_000_000)
-    seeds = [seed('walk_calibration_cells', g.key, ARM_ID['S'], i) for i in range(1, CALIBRATION_WALKS+1)]
-    target = CALIBRATION_WALKS*T
-    bound = 1
-    while True:
-        total = walk.run(seeds, bound)[0]
-        if total[-1] >= target or bound == C: break
-        bound = min(2*bound, C)
-    reached = bool(total[-1] >= target)
-    if not reached:
-        L = C
-    else:
-        lo, hi = 0, bound
-        while hi-lo > 1:
-            mid = (lo+hi)//2
-            if total[mid] >= target: hi = mid
-            else: lo = mid
-        L = min((lo, hi), key=lambda l: (abs(int(total[l])-target), l))
-    return {'L': L, 'C': C, 'calibration_paths': CALIBRATION_WALKS,
-            'calibration_mean': float(total[L]/CALIBRATION_WALKS), 'search_limit_reached_without_budget': not reached}
-
-
-def validate_walk_length(g, walk, L, T):
-    """Mean discovered cells of independent validation walks at the fixed L (no adaptation)."""
-    def volumes(first, last):
-        seeds = [seed('walk_validation_cells', g.key, ARM_ID['S'], i) for i in range(first, last+1)]
-        return walk.run(seeds, L)[1].tolist()
-    values = volumes(1, VALIDATION_WALKS)
-    mcse = float(np.std(values, ddof=1)/np.sqrt(len(values)))
-    if mcse/T > MAX_RELATIVE_MCSE:
-        values += volumes(VALIDATION_WALKS+1, EXTENDED_VALIDATION_WALKS)
-        mcse = float(np.std(values, ddof=1)/np.sqrt(len(values)))
-    return {'validation_n': len(values), 'validation_mean': float(np.mean(values)), 'validation_mcse': mcse,
-            'validation_volumes': values}
 
 
 def calibrate(g, build_dir, fraction=COVERAGE_FRACTION):

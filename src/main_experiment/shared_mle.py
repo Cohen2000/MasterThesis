@@ -11,18 +11,16 @@ so K_e = sum_w X_e,w is Beta-Binomial(5, alpha, beta), and the target is
 
 Differences between arms enter only through which released information can be
 used to fit (alpha, beta) (and, for B, the extra event-detection nuisance
-parameter lambda). This is a common-model-family competitor, not a
-design-unbiased corrector or an oracle: informative S1 walk selection is
-intentionally left uncorrected, and H's extrapolation from the visible windows
-to W=5 relies on an exchangeability assumption that is not implied by the
-access mechanism.
+parameter lambda). S and S_obs use the released design weights in a
+pseudo-likelihood. H's extrapolation from visible windows to W=5 assumes
+exchangeability across windows.
 
-  R, S1   both observe complete 5-window histories of every observed dyad;
-          fit is the zero-truncated Beta-Binomial likelihood over J=1..5.
+  R, S, S_obs observe complete 5-window histories; the S arms use weighted
+          zero-truncated Beta-Binomial pseudo-likelihoods over J=1..5.
   H       observes only the windows Temporal_access marks accessible (m of
           them); fit is the zero-truncated Beta-Binomial likelihood over
           J=1..m, and the SAME (alpha, beta) is then plugged into the W=5
-          model. m=5 makes this identical to the R/S1 fit (test-checked).
+          model. m=5 makes this identical to the R fit.
   B       reuses mixtures.fit_events, which already implements exactly the
           Beta-activity / ZTP(lambda) event-detection / Binomial(p) thinning
           model of this module's docstring (cell_probs(a,b,d,n) with

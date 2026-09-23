@@ -1,0 +1,147 @@
+# Descriptive record of the final design. The executable constants live in
+# src/main_experiment/common.py; tests/test_data.py checks that both agree.
+protocol: docs/PROTOCOL_PANEL888_20260921.md
+entry_point: scripts/run_offline.sh
+results: results/panel888
+design_version: panel888-access-v9-20260922
+W: 5
+master_seed: 20260921
+target:
+  components:
+  - rho_2
+  - rho_3
+  - rho_4
+  - rho_5
+  primary_error: conditional_MAE2_valid_answers_only
+  secondary_error: conditional_ProfileMAE_valid_answers_only
+sampling:
+  R: uniform_fixed_node_panel_full_history
+  S1: degree_biased_random_walk_full_history
+  S2: same_draw_as_S1_plus_walker_information
+  H: uniform_node_panel_time_suffix
+  B: independent_bernoulli_events
+arms_S:
+  walk: degree_biased_random_walk_alpha_1
+  transition: P(u->v) = d_v / sum_{x in N(u)} d_x, d = distinct neighbours in the full-archive support
+  start: uniform_V_full
+  stopping: fixed_L_no_restart_no_burnin
+  history: complete_history_of_each_traversed_dyad_listed_once
+  S1_model_input: deduplicated_pattern_table_and_L
+  S2_model_input: S1_table_plus_per_pattern_traversals_and_inverse_degree_weight
+  S2_draw: identical_to_S1 (same stream, L and walk)
+  S1_baseline: plugin (same information)
+  S2_baseline: design_aware_inverse_traversal_weight_from_the_block
+  oracle_reference: inverse_traversal_weight_on_the_internal_traversal_log (S1 and S2)
+  reference_formula: sum_t I(K_e_t>=k)/(d_u d_v) / sum_t 1/(d_u d_v)
+  reference_scope: consistent_for_component_mixture_target_not_finite_sample_unbiased
+float_format_in_prompts: 12_significant_digits
+arm_H:
+  history_fraction: 0.6
+  sensitivity:
+  - 0.4
+  - 0.6
+  - 0.8
+  query: full_archive_end
+  cutoff: t_start + (1-h)*(t_end-t_start), inclusive
+  parameter: n_panel_history
+  panel_rule: integer n minimizing abs(pi(n)*sum(J_e)-T), ties smaller n
+  fixed_reference: homogeneous_zero_truncated_binomial
+  interpretation: working_model_not_unbiased
+  oracle_diagnostics:
+  - node_selection
+  - dyad_disappearance
+  - within_dyad_history
+  - net_history
+budget:
+  name: expected_observed_active_dyad_windows
+  fraction: 0.1
+  tolerance: 0.05
+  per_arm:
+    R: pi(n)*sum(K_e)
+    S1/S2: calibrated_fixed_L_unique_cell_discovery
+    H: pi(n)*sum(J_e)
+    B: event_thinning_cell_expectation
+  calibration_walks: 256
+  validation_walks: 1024
+  extended_validation_walks: 4096
+  max_relative_mcse: 0.01
+  walk_cap: min(100*D_full,1000000)
+  report_unmatched_and_component_unreachable: true
+replication:
+  sampler_draws_per_arm: 3
+  saturated_H_draws: 1
+  llm_repeats: 3
+  training_sampler_draws_per_arm: 5
+training:
+  sources: 16
+  real_test: leave_one_source_out
+  synthetic_pool:
+    train_graphs: 400
+    development_graphs: 100
+  block_weights:
+    real: 0.5
+    dar: 0.25
+    ad: 0.25
+  features: 80
+  feature_version: features-v9-access-contract-20260922
+  estimators: 500
+  n_jobs: 1
+  random_state: 1858608657
+  random_state_rule: seed('extratrees','all_folds') modulo 2**32
+evaluation:
+  parser_main: strict_JSON_with_optional_single_whole_answer_fence
+  generation_answer_constraint: generic_JSON_object_after_reasoning
+  llm_imputation: false
+  trailing_JSON_extraction: false
+  weighting: equal_sources_then_equal_valid_answers_within_source
+  uncertainty: hierarchical_MCSE_conditional_on_fixed_panel
+  primary_references:
+    R: plugin_equivalent_corrector
+    S1: plugin
+    S2: design_aware_inverse_traversal_weight
+    H: homogeneous_zero_truncated_binomial
+    B: beta_ztp_mixture
+  secondary:
+  - plugin
+  - training_median
+  - extratrees_pooled
+  - extratrees_real_only
+  - per_source
+llm_execution:
+  qwen_new_generation_arms:
+  - R
+  - S1
+  - H
+  - B
+  reusable_arms_only_after_identity_audit: []
+  sol: disabled
+  deepseek: disabled
+panel:
+  real:
+  - sp_hospital
+  - sp_highschool2013
+  - copenhagen_bluetooth
+  - sp_workplace
+  - snap_email_eu
+  - snap_collegemsg
+  - snap_mathoverflow
+  - nr_digg_reply
+  surrogates: one deterministic P[w,t] per real source; suffix __pwt
+  synthetic:
+  - dar_a0_r1
+  - dar_a08_r1
+  - dar_a0_r2
+  - dar_a08_r2
+  - ad_memoryless_r1
+  - ad_memory_r1
+  - ad_memoryless_r2
+  - ad_memory_r2
+surrogates:
+  production_index: 0
+  offline_null_shuffles: 99
+  representation: labeled canonical event records; retain coincident dyad/timestamp
+    multiplicities
+  training: never; parent-excluded LOSO
+  budget: separately T=0.10*sum(K_e)
+  primary_paired_error: AE_Delta_2
+  secondary_paired_error: Delta_ProfileAE

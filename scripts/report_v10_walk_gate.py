@@ -15,7 +15,7 @@ fmt = lambda x: f'{float(x):+.4f}'
 lines = [
     '# Amended v10 interaction-walk gate',
     '',
-    'Cluster job 7143567; 1,000 independent walks per graph at the calibrated 10% length.',
+    'Cluster job 7143961; 1,000 independent walks per graph at the calibrated 10% length.',
     'Post-hoc amendment: the original absolute-bias threshold ignored Monte Carlo error and the',
     'first-order bias of a finite-sample Hájek ratio. The walk and plain S estimator were unchanged.',
     '',
@@ -24,13 +24,14 @@ lines = [
     'at most half the plugin RMSE. Failures remain in the study and are flagged as',
     '**not correctable at this budget**.',
     '',
-    '| Source | Shift | Plugin bias | S bias ± MCSE | Predicted first-order bias | S / plugin bias | S / plugin RMSE | Gate |',
-    '|---|---:|---:|---:|---:|---:|---:|---|',
+    '| Source | Shift | Ratio ESS | Plugin bias | S bias ± MCSE | Predicted first-order bias | S / plugin bias | S / plugin RMSE | Gate |',
+    '|---|---:|---:|---:|---:|---:|---:|---:|---|',
 ]
 for r in applicable:
     rmse_ratio = float(r['design_S_rho2_rmse']) / float(r['plugin_rho2_rmse'])
     share = float(r['design_bias_share_of_plugin_bias'])
     lines.append(f"| {r['graph_id']} | {fmt(r['stationary_shift_rho2'])} | "
+                 f"{float(r['ratio_ess_mean']):.1f} | "
                  f"{fmt(r['plugin_rho2_bias'])} | {fmt(r['design_S_rho2_bias'])} ± "
                  f"{float(r['design_S_rho2_bias_mcse']):.4f} | "
                  f"{fmt(r['first_order_ratio_bias_mean'])} | {share:.3f} | {rmse_ratio:.3f} | "

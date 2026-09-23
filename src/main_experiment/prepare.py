@@ -2,7 +2,7 @@
 
 Strictly offline. For each of the 16 real training sources, the eight synthetic
 main instances and the eight surrogates, this stage builds the canonical graph,
-calibrates the four arms to T, draws the observations (test draws for the 24
+calibrates the five arms to T, draws the observations (test draws for the 24
 main graphs, training draws for the 16 real sources), renders the prompts,
 checks their token sizes and writes the request manifest of all four model
 configurations. Nothing is sent to any model.
@@ -16,7 +16,6 @@ from .common import (ARMS, CONFIGS, DESIGN_VERSION, LLM_REPEATS, MAIN_KEYS, MAST
                      ROOT, SEEDS, SURROGATE_PARENT, SURROGATES, SYNTH, TRAIN, code_hashes, digest, draws_for,
                      fresh_directory, graph_stratum, observation_id, parent_source, planned_sizes, read_json,
                      sha, write_csv, write_json)
-from .baselines import design_reference
 from .data import load_graph, prepare_real, save_graph
 from .observation import FEATURE_VERSION, features, make, messages, parse, serialize
 from .requests import EXECUTION_POLICY, planned
@@ -43,8 +42,7 @@ def build_graph(key, out, raw_dir):
 
 
 def observation_row(g, arm, index, domain, budget, counts, traversals):
-    """One stored observation. Only `block`/`messages` are model input; `truth` and the
-    S design_reference (from the traversal log) are internal and never shown."""
+    """One stored observation. Only `block` and `messages` are model inputs."""
     obs = make(g, arm, budget, counts, traversals)
     block = serialize(obs)
     parsed = parse(block)
@@ -54,7 +52,7 @@ def observation_row(g, arm, index, domain, budget, counts, traversals):
             'stratum': graph_stratum(g.key), 'parent_source': parent_source(g.key), 'arm': arm,
             'sample_index': index, 'domain': domain, 'empty': parsed['D_obs'] == 0,
             'block': block, 'block_sha256': digest(block), 'messages': prompt, 'prompt_sha256': digest(prompt),
-            'truth': g.truth, 'design_reference': None,
+            'truth': g.truth,
             'design_version': DESIGN_VERSION,
             'deterministic_draw': draws_for(arm, budget, domain) == 1,
             'budget_matched': budget['budget_matched_by_arm'][arm],

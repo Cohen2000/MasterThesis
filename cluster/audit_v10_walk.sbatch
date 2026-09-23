@@ -12,4 +12,4 @@ source "$WS/venv_offline/bin/activate"
 python scripts/audit_v10_walk.py \
   --graphs "$WS/panel888_access_v9_cpu/results/panel888/prepared/graphs" \
   --build "$WS/panel888_v10_walk_audit/build_amended" \
-  --output "$WS/panel888_v10_walk_audit/results_amended"
+  --output "$WS/panel888_v10_walk_audit/results_amended_v2"

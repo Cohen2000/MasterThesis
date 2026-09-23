@@ -1,13 +1,7 @@
-"""Observations: the observed-only summary of one sampler draw, its text block,
-its prompt messages, and the features of the learned reference.
+"""Serialized observation blocks, prompts and released-evidence ET features.
 
-Every arm yields the same kind of table: distinct observed dyads grouped by
-their window pattern (1 = at least one observed event in the window, 0 = none,
-? = window not retrievable) with dyad and event counts, plus the arm's design
-parameter and, for H, the history fraction. Dyads without an observed event are
-absent. S2 additionally reports, per pattern row, the walk's traversals of those
-dyads and the inverse-degree-product weight of these traversals; S1 shows the
-same walk without any walker information.
+Rows group observed dyads by window pattern. S adds crawl traversals and
+inverse-event sums; S_obs contains the inverse-event sums without the crawl log.
 """
 import numpy as np
 from .common import ARMS, ROOT, H_FRACTION, H_SENSITIVITY

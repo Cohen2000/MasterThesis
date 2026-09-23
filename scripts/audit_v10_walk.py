@@ -31,7 +31,7 @@ def audit_graph(g, build):
     targets = {name: [(w[k >= j].sum() / w.sum()) for j in range(2, 6)]
                for name, w in weights.items()}
     values = {name: [] for name in ('plugin', 'design_S', 'design_S_obs')}
-    distinct = []; revisits = []; ess = []; predicted_bias = []
+    distinct = []; revisits = []; ess = []; ratio_ess_values = []; predicted_bias = []
     seen_count = np.zeros(g.D, dtype=np.int32)
     seeds = [seed('v10_walk_audit', g.key, AUDIT_ARM_ID, i) for i in range(1, PATHS + 1)]
     for first in range(0, PATHS, BATCH):
@@ -54,6 +54,7 @@ def audit_graph(g, build):
             q = c / np.square(g.m.astype(float))
             rho_w2 = q[k >= 2].sum() / q.sum()
             ratio_ess = w_log.sum() ** 2 / q.sum()
+            ratio_ess_values.append(float(ratio_ess))
             predicted_bias.append(float((truth[0] - rho_w2) / ratio_ess))
     shift = targets['interaction'][0] - truth[0]
     row = {'graph_id': g.key, 'stratum': graph_stratum(g.key), 'L': L,
@@ -63,6 +64,7 @@ def audit_graph(g, build):
            'stationary_shift_rho2': shift, 'rho_event_weighted': float(g.m[k >= 2].sum() / g.M),
            'distinct_dyads_mean': float(np.mean(distinct)), 'revisit_rate_mean': float(np.mean(revisits)),
            'weight_ess_mean': float(np.mean(ess)),
+           'ratio_ess_mean': float(np.mean(ratio_ess_values)),
            'first_order_ratio_bias_mean': float(np.mean(predicted_bias)),
            'near_certain_inclusion_share': float(np.mean(seen_count >= .99 * PATHS))}
     for name, p in targets.items():

@@ -1,39 +1,7 @@
-"""Non-LLM references for the persistence profile.
-
-  plugin     profile of the observed dyads' observed patterns.
-  corrector  the same-information statistical baseline, computed from the
-             observation alone:
-               R, S1  plugin (complete histories of the observed dyads),
-               S2     design-aware inverse-traversal-weight estimate from the
-                      block's per-pattern weights,
-               H  homogeneous zero-truncated Binomial on the retrievable windows,
-               B  homogeneous hurdle corrector for event thinning.
-  design_reference  S1 and S2: the inverse-traversal-weight (Hajek /
-             Hansen-Hurwitz type) estimator on the full traversal sequence,
-             sum_t I(K_{e_t}>=k)/(d_u d_v) / sum_t 1/(d_u d_v), computed from the
-             internal traversal log. For S1 it is a design-aware oracle reference
-             (the S1 observation lacks this information); for S2 it equals the
-             corrector up to the 12-digit rounding of the block. Consistent for
-             the walk's component-mixture target, not finite-sample unbiased.
-  mixture    arm B only: Beta-mixed activity with a ZTP event layer (mixtures.py);
-             falls back to the B corrector when the fit is unreliable.
-  median     median training-source profile of the fold.
-  extratrees_pooled / extratrees_real_only   learned references (training.py).
-
-The primary reference of each arm is PRIMARY_REFERENCE[arm].
-"""
+"""Block-only plug-in, design and working-model estimates for v10."""
 import math
-import numpy as np
 from . import mixtures
 from .observation import validate
-
-# The primary reference of each arm is its same-information baseline.
-PRIMARY_REFERENCE = {'R': 'corrector', 'S': 'corrector', 'S_obs': 'corrector', 'H': 'corrector', 'B': 'mixture'}
-PRIMARY_REFERENCE_NAME = {'R': 'plugin_equivalent_corrector', 'S': 'design_from_crawl_log',
-                          'S_obs': 'design_from_inverse_events',
-                          'H': 'homogeneous_zero_truncated_binomial', 'B': 'beta_ztp_mixture'}
-METHODS = ('plugin', 'corrector', 'median', 'extratrees_pooled', 'extratrees_real_only', 'mixture',
-           'design_reference')
 
 
 def anchor_profile(o):
@@ -140,17 +108,6 @@ def design_estimate(o):
     return [sum(row[col] for row in o['table'] if row[0].count('1') >= k)/total for k in range(2, 6)]
 
 
-def design_reference(g, traversals):
-    """Internal audit equivalent of the S block estimator.
-
-    The stationary traversal probability of dyad (u, v) under the degree-biased walk
-    is proportional to d_u d_v, so each traversal is weighted by 1/(d_u d_v):
-    rho_k = sum_e r_e I(K_e>=k)/(d_u d_v) / sum_e r_e/(d_u d_v).
-    """
-    weight = traversals/g.m
-    return [float(weight[g.K >= k].sum()/weight.sum()) for k in range(2, 6)]
-
-
 def mixture_start(o):
     """Homogeneous activity and event rate, used as starting values of the B mixture fit."""
     mu = activity(active_windows(o)/o['D_obs'], 5)
@@ -170,34 +127,3 @@ def mixture_reference(o, corrector_prediction):
             'seconds': fit.seconds, 'kappa': fit.kappa, 'mu': fit.mu, 'lam': fit.lam,
             'lam_event_only': fit.lam_event_only, 'flat_per_decade': fit.flat_per_decade,
             'nll_spread': fit.nll_spread}
-
-
-def all_references(o, models, median, design=None):
-    """Every reference prediction for one observation.
-
-    models = {'pooled': fitted forest, 'real_only': fitted forest} of the
-    observation's fold; median = that fold's median training profile; design =
-    the stored design_reference of an S1/S2 observation. An empty observation has no
-    observed dyad, so every reference is the fold median.
-    """
-    if o['D_obs'] == 0:
-        return {m: {'prediction': list(median), 'status': 'empty_sample'} for m in METHODS}
-    out = {'plugin': {'prediction': plugin(o), 'status': 'ok'}}
-    if o['arm'] == 'H':
-        out['corrector'] = h_extrapolator(o)
-    else:
-        try: out['corrector'] = {'prediction': corrector(o), 'status': 'ok'}
-        except (ArithmeticError, FloatingPointError, OverflowError, ValueError) as e:
-            out['corrector'] = {'prediction': plugin(o), 'status': f'fallback:{type(e).__name__}'}
-    out['median'] = {'prediction': list(median), 'status': 'ok'}
-    from .observation import features
-    x = features(o).reshape(1, -1)
-    anchor = anchor_profile(o)
-    for name in ('pooled', 'real_only'):
-        residual = models[name].predict(x)[0]
-        out['extratrees_'+name] = {'prediction': list(map(float, np.asarray(anchor) + residual)), 'status': 'ok'}
-    if o['arm'] == 'B':
-        out['mixture'] = mixture_reference(o, out['corrector']['prediction'])
-    if o['arm'] in ('S', 'S_obs'):
-        out['design_reference'] = {'prediction': list(design), 'status': 'ok'}
-    return out
