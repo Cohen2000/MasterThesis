@@ -1,7 +1,0 @@
-# Current state: v11
-
-`panel888-access-v11-20260923` is the final released-design-metadata contract. The sampler draws are unchanged. R/H use the completed panel-release observations, 864 Qwen answers and panel-aware ExtraTrees fits; S/S_obs/B use the sealed v10 evidence. All 2,160 Qwen main answers are complete. [Final tables](results/panel888_v11_main_20260923/MAIN_RESULTS.md), [API freeze/provenance](results/panel888_v11_main_20260923/API_FREEZE.json), and the [hidden-panel-size sensitivity](results/panel888_v10_RH_panel_release/REPORT.md) record the composition. Old hidden-n v10 results remain sealed historical evidence, not the main contract.
-
-The primary endpoint is equal-source real MAE_2; ProfileMAE and separate surrogate/synthetic strata are secondary. ExtraTrees retains nested real-source CV; R/H add only `log1p_n_panel`, while S/S_obs/B retain their existing feature set. MLE, plugin and median are unchanged. The [walk gate](results/panel888_v10_walk_gate_20260923/WALK_GATE.md) retains the flagged `sp_hospital__pwt` source.
-
-No paid API run has begun. The initial laptop stage targets one repeat (288 requests each) for DeepSeek Flash and GPT-6 Sol, with up to three repeats conditional on observed cost and explicit later execution. Qwen retains three repeats. The Workplace calendar-cycle/empty-window issue is an existing limitation; its graph and surrogate are unchanged. Provider-exposed reasoning is retained, but cross-provider accuracy comparisons use final `rho_2..rho_5` answers only.

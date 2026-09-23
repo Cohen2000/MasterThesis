@@ -13,9 +13,9 @@ from unittest.mock import patch
 
 from main_experiment.common import MAIN_KEYS, digest
 from main_experiment.evaluation import parse_final
-from scripts.api_runner import (API_MAIN_ARMS, GENERATION_CAP, collect_openai,
+from scripts.api_runner import (API_MAIN_ARMS, GENERATION_CAP, ProviderRejected, collect_openai,
                                 deepseek_progress, deepseek_window, estimate,
-                                execute_deepseek, execute_openai, guard, main,
+                                execute_deepseek, execute_openai, execute_openai_technical, guard, main,
                                 manifest, observations, openai_progress, openai_record, payload, provider_id,
                                 pilot_manifest, require_deepseek_offpeak,
                                 smoke_observation)
@@ -66,7 +66,7 @@ class APIPreparation(unittest.TestCase):
         self.assertEqual(payload('openai', manifest(rows, 'openai')[0])['max_output_tokens'], GENERATION_CAP)
         self.assertEqual(payload('deepseek', manifest(rows, 'deepseek')[0])['reasoning_effort'], 'high')
         self.assertEqual(payload('deepseek', manifest(rows, 'deepseek')[0])['model'], 'deepseek-flash')
-        self.assertEqual(payload('deepseek', manifest(rows, 'deepseek')[0])['max_tokens'], GENERATION_CAP)
+        self.assertEqual(payload('deepseek', manifest(rows, 'deepseek')[0])['max_tokens'], 393216)
         for provider in ('deepseek', 'openai'):
             self.assertEqual([len(manifest(rows, provider, repeats=n)) for n in (1, 2, 3)],
                              [288, 576, 864])
@@ -78,11 +78,14 @@ class APIPreparation(unittest.TestCase):
         def window(day, hour, minute=0):
             return deepseek_window(datetime(2026, 9, day, hour, minute, tzinfo=timezone.utc))
         # 2026-09-28 is Monday; 2026-09-26 is Saturday.
-        for hour, expected in ((0, True), (2, False), (5, True), (8, False), (12, True)):
-            self.assertEqual(window(28, hour, 30 if hour == 0 else 0)[0], expected)
+        # Launches stop 60 minutes before each peak (billing time is undocumented).
+        for hour, minute, expected in ((0, 30, False), (2, 0, False), (4, 30, True), (5, 0, False),
+                                       (8, 0, False), (12, 0, True)):
+            self.assertEqual(window(28, hour, minute)[0], expected)
         self.assertTrue(window(26, 8)[0])
-        self.assertTrue(window(28, 0, 49)[0])
-        self.assertFalse(window(28, 0, 50)[0])
+        self.assertTrue(window(27, 23, 59)[0])
+        self.assertFalse(window(28, 0, 0)[0])
+        self.assertFalse(window(28, 0, 1)[0])
         self.assertFalse(window(28, 0, 55)[0])
         with self.assertRaisesRegex(ValueError, 'peak-price window'):
             require_deepseek_offpeak(datetime(2026, 9, 28, 2, tzinfo=timezone.utc))
@@ -379,12 +382,14 @@ class APIPreparation(unittest.TestCase):
                               'usage': {'prompt_tokens': 100, 'completion_tokens': GENERATION_CAP}}
                              for i in range(8)]
             (deep / 'responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in deep_records))
+            output = StringIO()
             with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
                  patch('scripts.api_runner.require_deepseek_offpeak'), \
                  patch('scripts.api_runner.request', side_effect=AssertionError('provider called')), \
-                 redirect_stdout(StringIO()):
-                with self.assertRaisesRegex(ValueError, 'projected total'):
-                    execute_deepseek(manifest(samples, 'deepseek'), deep, 8)
+                 redirect_stdout(output):
+                # Pilot spend ~USD 0.61; one more 384k worst case (~USD 0.24) does not fit USD 0.7.
+                execute_deepseek(manifest(samples, 'deepseek'), deep, 8, budget=0.7)
+            self.assertIn('budget reached', output.getvalue())
             gpt = root / 'gpt'
             gpt.mkdir()
             gpt_records = [{'id': 'smoke', 'kind': 'smoke',
@@ -397,6 +402,167 @@ class APIPreparation(unittest.TestCase):
                  patch('scripts.api_runner.request', side_effect=AssertionError('provider called')):
                 with self.assertRaisesRegex(ValueError, 'conservative projected total'):
                     execute_openai(manifest(samples, 'openai'), gpt, 96)
+
+
+    def test_unbilled_rejection_allows_one_relaunch(self):
+        smoke = {'id': 'training__deepseek__smoke', 'prompt_sha256': 'training',
+                 'messages': [{'role': 'user', 'content': 'small'}], 'kind': 'smoke'}
+        answer = {'model': 'deepseek-flash', 'usage': {'prompt_tokens': 12, 'completion_tokens': 4},
+                  'choices': [{'message': {'content': '{"rho_2":0.8,"rho_3":0.6,"rho_4":0.4,"rho_5":0.2}'},
+                               'finish_reason': 'stop'}]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.require_deepseek_offpeak'), \
+                 patch('scripts.api_runner.request', side_effect=ProviderRejected(400, 'bad parameter')), \
+                 redirect_stdout(StringIO()):
+                with self.assertRaises(RuntimeError):
+                    execute_deepseek([], path, 1, smoke)
+            self.assertEqual(deepseek_progress([], path)[0], {})
+            with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.require_deepseek_offpeak'), \
+                 patch('scripts.api_runner.request', return_value=answer), \
+                 redirect_stdout(StringIO()):
+                execute_deepseek([], path, 1, smoke)
+            self.assertEqual(set(deepseek_progress([], path)[0]), {smoke['id']})
+            # A launch without rejection or answer stays uncertain.
+            with (path / 'attempts.jsonl').open('a') as handle:
+                handle.write('{"id":"other"}\n')
+            with self.assertRaisesRegex(ValueError, 'uncertain'):
+                deepseek_progress([], path)
+
+    def test_openai_technical_background_is_resumed_not_relaunched(self):
+        smoke = {'id': 'training__openai__smoke', 'prompt_sha256': 'training', 'arm': 'R',
+                 'messages': [{'role': 'user', 'content': 'small'}], 'kind': 'smoke'}
+        done = {'id': 'resp_1', 'model': 'gpt-6-sol', 'status': 'completed',
+                'usage': {'input_tokens': 12, 'output_tokens': 100},
+                'output': [{'type': 'reasoning', 'summary': [], 'content': None},
+                           {'type': 'message', 'content': [{'type': 'output_text',
+                            'text': '{"rho_2":0.8,"rho_3":0.6,"rho_4":0.4,"rho_5":0.2}'}]}]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            calls = []
+            def crash_while_polling(url, key, body=None, method='GET'):
+                calls.append((url, method, json.loads(body) if body else None))
+                if method == 'POST':
+                    return {'id': 'resp_1', 'status': 'queued'}
+                raise ConnectionError('laptop offline')
+            with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.request', side_effect=crash_while_polling), \
+                 redirect_stdout(StringIO()):
+                with self.assertRaises(ConnectionError):
+                    execute_openai_technical([smoke], path)
+            self.assertTrue(calls[0][2]['background'])
+            self.assertEqual(openai_progress([], path, technical_only=True)[2], {smoke['id']: 'resp_1'})
+            with self.assertRaisesRegex(ValueError, 'still open'):
+                openai_progress([], path)
+            calls.clear()
+            def poll(url, key, body=None, method='GET'):
+                calls.append((url, method))
+                return done
+            with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.request', side_effect=poll), \
+                 redirect_stdout(StringIO()):
+                execute_openai_technical([smoke], path)
+            self.assertEqual(calls, [('https://api.openai.com/v1/responses/resp_1', 'GET')])
+            technical = openai_progress([], path)[0]
+            self.assertEqual(technical[0]['prediction'], [0.8, 0.6, 0.4, 0.2])
+            self.assertEqual(technical[0]['response_id'], 'resp_1')
+
+    def test_unbilled_batch_failures_stay_pending(self):
+        messages = [{'role': 'user', 'content': 'small'}]
+        rows = [{'id': f'main-{i}__openai__r1', 'prompt_sha256': digest(messages), 'messages': messages}
+                for i in range(2)]
+        technical = [{'id': 'smoke', 'kind': 'smoke', 'usage': {'input_tokens': 12, 'output_tokens': 8}}]
+        technical += [{'id': f'pilot-{i}', 'kind': 'pilot', 'arm': API_MAIN_ARMS[i % 4],
+                       'usage': {'input_tokens': 12, 'output_tokens': 100}} for i in range(8)]
+        result = {'model': 'gpt-6-sol', 'status': 'completed',
+                  'usage': {'input_tokens': 12, 'output_tokens': 100},
+                  'output': [{'type': 'message', 'content': [{'type': 'output_text',
+                             'text': '{"rho_2":0.8,"rho_3":0.6,"rho_4":0.4,"rho_5":0.2}'}]}]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            (path / 'technical_responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in technical))
+            provider = lambda url, *_args: {'id': 'file-1'} if url.endswith('/files') else {'id': 'batch-1'}
+            with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.request', side_effect=provider), redirect_stdout(StringIO()):
+                execute_openai(rows, path, 2)
+            first = [json.loads(line)['custom_id'] for line in (path / 'chunk_001.input.jsonl').read_text().splitlines()]
+            output = json.dumps({'custom_id': first[0], 'response': {'status_code': 200, 'body': result}}) + '\n'
+            errors = json.dumps({'custom_id': first[1], 'response': None,
+                                 'error': {'code': 'batch_expired', 'message': 'expired'}}) + '\n'
+            files = {'output-1': output.encode(), 'error-1': errors.encode()}
+            with patch('scripts.api_runner.download_openai_file', side_effect=lambda file_id, key: files[file_id]), \
+                 redirect_stdout(StringIO()):
+                collect_openai(path, {'id': 'batch-1', 'status': 'expired', 'output_file_id': 'output-1',
+                                      'error_file_id': 'error-1'}, 'fake')
+            technical_records, collected = openai_progress(rows, path)
+            self.assertEqual([r['id'] for r in collected], [rows[0]['id']])
+            with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.request', side_effect=provider), redirect_stdout(StringIO()):
+                execute_openai(rows, path, 2)
+            second = [json.loads(line)['custom_id'] for line in (path / 'chunk_002.input.jsonl').read_text().splitlines()]
+            self.assertEqual(second, [first[1]])
+
+
+    def test_rolling_pool_never_exceeds_budget_with_open_requests(self):
+        rows = [{'id': f'main-{i}', 'prompt_sha256': f'p{i}', 'sample_index': i % 3 + 1,
+                 'messages': [{'role': 'user', 'content': 'small'}]} for i in range(6)]
+        records = [{'id': 'training__deepseek__smoke', 'kind': 'smoke',
+                    'usage': {'prompt_tokens': 10, 'completion_tokens': 10}}]
+        records += [{'id': f'pilot-{i}__deepseek__pilot', 'kind': 'pilot', 'arm': API_MAIN_ARMS[i % 4],
+                     'usage': {'prompt_tokens': 10, 'completion_tokens': 10}} for i in range(8)]
+        answer = {'model': 'deepseek-flash', 'usage': {'prompt_tokens': 12, 'completion_tokens': 1000},
+                  'choices': [{'message': {'content': '{"rho_2":0.8,"rho_3":0.6,"rho_4":0.4,"rho_5":0.2}'},
+                               'finish_reason': 'stop'}]}
+        state = {'open': 0, 'peak': 0}
+        guard_lock = __import__('threading').Lock()
+        def provider(*_args, **_kwargs):
+            with guard_lock:
+                state['open'] += 1
+                state['peak'] = max(state['peak'], state['open'])
+            __import__('time').sleep(.05)
+            with guard_lock:
+                state['open'] -= 1
+            return answer
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            (path / 'responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in records))
+            (path / 'attempts.jsonl').write_text(''.join(json.dumps({'id': r['id']}) + '\n' for r in records))
+            with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.require_deepseek_offpeak'), \
+                 patch('scripts.api_runner.request', side_effect=provider), \
+                 redirect_stdout(StringIO()):
+                # Room for two 384k worst cases (~USD 0.236 each), not three.
+                execute_deepseek(rows, path, 16, budget=0.5)
+            self.assertEqual(state['peak'], 2)
+            done = [json.loads(line)['id'] for line in (path / 'responses.jsonl').read_text().splitlines()]
+            self.assertEqual(set(done[9:]), {r['id'] for r in rows})
+
+
+    def test_tool_variant_payload_record_and_shared_budget(self):
+        from scripts.api_runner import CONTAINER_USD, actual_usd, shared_spend
+        row = {'id': 'x__openai_tools__r1', 'messages': [{'role': 'user', 'content': 'small'}], 'tools': True}
+        body = payload('openai', row)
+        self.assertEqual(body['tools'], [{'type': 'code_interpreter', 'container': {'type': 'auto'}}])
+        self.assertNotIn('tools', payload('openai', {**row, 'tools': False}))
+        response = {'model': 'gpt-6-sol', 'status': 'completed',
+                    'usage': {'input_tokens': 1000, 'output_tokens': 100},
+                    'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': 'Let me compute.'}]},
+                               {'type': 'code_interpreter_call', 'container_id': 'cntr_1', 'code': 'print(1)'},
+                               {'type': 'message', 'content': [{'type': 'output_text',
+                                'text': '{"rho_2":0.8,"rho_3":0.6,"rho_4":0.4,"rho_5":0.2}'}]}]}
+        record = openai_record(response, row['id'])
+        self.assertEqual(record['prediction'], [0.8, 0.6, 0.4, 0.2])
+        self.assertEqual((record['tool_calls'], record['containers']), (1, ['cntr_1']))
+        self.assertAlmostEqual(actual_usd(record, 'openai'), (1000 * 1.25 + 100 * 5) / 1e6 + CONTAINER_USD)
+        with tempfile.TemporaryDirectory() as directory:
+            other = Path(directory)
+            (other / 'responses.jsonl').write_text(json.dumps({**record, 'id': 'other'}) + '\n')
+            self.assertAlmostEqual(shared_spend([other]), actual_usd(record, 'openai'))
+            (other / 'chunk_001.batch.json').write_text('{}')
+            with self.assertRaisesRegex(ValueError, 'uncollected'):
+                shared_spend([other])
 
 
 if __name__ == '__main__':

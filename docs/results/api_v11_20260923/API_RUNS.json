@@ -1,0 +1,192 @@
+{
+  "deepseek_flash": {
+    "main": {
+      "answers_using_tools": 0,
+      "generation_limit_hits": 0,
+      "output_tokens": {
+        "max": 112720,
+        "mean": 38203.725694444445,
+        "median": 38254.5,
+        "p95": 74925.8
+      },
+      "reasoning_tokens_mean": 38161.15972222222,
+      "recorded_spend_usd": 6.6482,
+      "responses": 288,
+      "returned_models": {
+        "deepseek-flash": 288
+      },
+      "tool_calls_mean": 0.0,
+      "validity_reasons": {
+        "valid": 288
+      }
+    },
+    "pilot": {
+      "answers_using_tools": 0,
+      "generation_limit_hits": 0,
+      "output_tokens": {
+        "max": 67655,
+        "mean": 36113.333333333336,
+        "median": 38136.0,
+        "p95": 60772.29999999999
+      },
+      "reasoning_tokens_mean": 36074.416666666664,
+      "recorded_spend_usd": 0.2619,
+      "responses": 12,
+      "returned_models": {
+        "deepseek-flash": 12
+      },
+      "tool_calls_mean": 0.0,
+      "validity_reasons": {
+        "valid": 12
+      }
+    },
+    "smoke": {
+      "answers_using_tools": 0,
+      "generation_limit_hits": 0,
+      "output_tokens": {
+        "max": 12214,
+        "mean": 12214.0,
+        "median": 12214.0,
+        "p95": 12214.0
+      },
+      "reasoning_tokens_mean": 12168.0,
+      "recorded_spend_usd": 0.0075,
+      "responses": 1,
+      "returned_models": {
+        "deepseek-flash": 1
+      },
+      "tool_calls_mean": 0.0,
+      "validity_reasons": {
+        "valid": 1
+      }
+    },
+    "total_recorded_spend_usd": 6.9177
+  },
+  "gpt_6_sol": {
+    "main": {
+      "answers_using_tools": 0,
+      "generation_limit_hits": 0,
+      "output_tokens": {
+        "max": 18475,
+        "mean": 4310.508101851852,
+        "median": 3442.0,
+        "p95": 11620.499999999996
+      },
+      "reasoning_tokens_mean": 4266.899305555556,
+      "recorded_spend_usd": 19.7178,
+      "responses": 864,
+      "returned_models": {
+        "gpt-6-sol": 864
+      },
+      "tool_calls_mean": 0.0,
+      "validity_reasons": {
+        "valid": 864
+      }
+    },
+    "pilot": {
+      "answers_using_tools": 0,
+      "generation_limit_hits": 0,
+      "output_tokens": {
+        "max": 15062,
+        "mean": 4141.583333333333,
+        "median": 1973.5,
+        "p95": 13287.149999999998
+      },
+      "reasoning_tokens_mean": 4099.083333333333,
+      "recorded_spend_usd": 0.5272,
+      "responses": 12,
+      "returned_models": {
+        "gpt-6-sol": 12
+      },
+      "tool_calls_mean": 0.0,
+      "validity_reasons": {
+        "valid": 12
+      }
+    },
+    "smoke": {
+      "answers_using_tools": 0,
+      "generation_limit_hits": 0,
+      "output_tokens": {
+        "max": 626,
+        "mean": 626.0,
+        "median": 626.0,
+        "p95": 626.0
+      },
+      "reasoning_tokens_mean": 580.0,
+      "recorded_spend_usd": 0.0086,
+      "responses": 1,
+      "returned_models": {
+        "gpt-6-sol": 1
+      },
+      "tool_calls_mean": 0.0,
+      "validity_reasons": {
+        "valid": 1
+      }
+    },
+    "total_recorded_spend_usd": 20.2535
+  },
+  "gpt_6_sol_tools": {
+    "main": {
+      "answers_using_tools": 802,
+      "generation_limit_hits": 0,
+      "output_tokens": {
+        "max": 13763,
+        "mean": 3595.016203703704,
+        "median": 2665.5,
+        "p95": 9757.949999999997
+      },
+      "reasoning_tokens_mean": 3555.421296296296,
+      "recorded_spend_usd": 70.1718,
+      "responses": 864,
+      "returned_models": {
+        "gpt-6-sol": 864
+      },
+      "tool_calls_mean": 3.574074074074074,
+      "validity_reasons": {
+        "valid": 864
+      }
+    },
+    "pilot": {
+      "answers_using_tools": 10,
+      "generation_limit_hits": 0,
+      "output_tokens": {
+        "max": 10783,
+        "mean": 3453.8333333333335,
+        "median": 2478.0,
+        "p95": 8899.799999999997
+      },
+      "reasoning_tokens_mean": 3415.6666666666665,
+      "recorded_spend_usd": 1.1884,
+      "responses": 12,
+      "returned_models": {
+        "gpt-6-sol": 12
+      },
+      "tool_calls_mean": 3.0833333333333335,
+      "validity_reasons": {
+        "valid": 12
+      }
+    },
+    "smoke": {
+      "answers_using_tools": 1,
+      "generation_limit_hits": 0,
+      "output_tokens": {
+        "max": 400,
+        "mean": 400.0,
+        "median": 400.0,
+        "p95": 400.0
+      },
+      "reasoning_tokens_mean": 356.0,
+      "recorded_spend_usd": 0.0705,
+      "responses": 1,
+      "returned_models": {
+        "gpt-6-sol": 1
+      },
+      "tool_calls_mean": 1.0,
+      "validity_reasons": {
+        "valid": 1
+      }
+    },
+    "total_recorded_spend_usd": 71.4307,
+    "unbilled_batch_failures": 1
+  }
+}
