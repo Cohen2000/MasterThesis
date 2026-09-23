@@ -11,11 +11,13 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from main_experiment.common import MAIN_KEYS
+from main_experiment.common import MAIN_KEYS, digest
 from main_experiment.evaluation import parse_final
-from scripts.api_runner import (API_MAIN_ARMS, deepseek_progress, deepseek_window,
-                                execute_deepseek, guard, main, manifest, observations,
-                                openai_record, payload, require_deepseek_offpeak,
+from scripts.api_runner import (API_MAIN_ARMS, GENERATION_CAP, collect_openai,
+                                deepseek_progress, deepseek_window, estimate,
+                                execute_deepseek, execute_openai, guard, main,
+                                manifest, observations, openai_record, payload,
+                                pilot_manifest, require_deepseek_offpeak,
                                 smoke_observation)
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,8 +58,13 @@ class APIPreparation(unittest.TestCase):
         self.assertEqual(payload('openai', manifest(rows, 'openai')[0])['reasoning']['effort'], 'high')
         self.assertEqual(payload('openai', manifest(rows, 'openai')[0])['reasoning']['summary'], 'auto')
         self.assertEqual(payload('openai', manifest(rows, 'openai')[0])['model'], 'gpt-6-sol')
+        self.assertEqual(payload('openai', manifest(rows, 'openai')[0])['max_output_tokens'], GENERATION_CAP)
         self.assertEqual(payload('deepseek', manifest(rows, 'deepseek')[0])['reasoning_effort'], 'high')
         self.assertEqual(payload('deepseek', manifest(rows, 'deepseek')[0])['model'], 'deepseek-flash')
+        self.assertEqual(payload('deepseek', manifest(rows, 'deepseek')[0])['max_tokens'], GENERATION_CAP)
+        plan = estimate(manifest(rows, 'deepseek'), 'deepseek')
+        self.assertIsNone(plan['conservative_projected_total_usd'])
+        self.assertGreater(plan['theoretical_full_main_worst_case_usd'], 10)
 
     def test_utc_offpeak_windows_and_buffer(self):
         def window(day, hour, minute=0):
@@ -101,6 +108,9 @@ class APIPreparation(unittest.TestCase):
                 for x in ('one', 'two')]
         smoke = {'id': 'training__deepseek__smoke', 'prompt_sha256': 'training',
                  'messages': [{'role': 'user', 'content': 'small'}], 'kind': 'smoke'}
+        pilots = [{'id': f'pilot-{arm}-{i}__deepseek__pilot', 'prompt_sha256': f'{arm}-{i}',
+                   'messages': [{'role': 'user', 'content': 'small'}], 'kind': 'pilot', 'arm': arm}
+                  for arm in API_MAIN_ARMS for i in (1, 2)]
         answer = {'model': 'deepseek-flash', 'usage': {'prompt_tokens': 12, 'completion_tokens': 4},
                   'choices': [{'message': {'content': '{"rho_2":0.8,"rho_3":0.6,"rho_4":0.4,"rho_5":0.2}',
                                            'reasoning_content': 'Provider raw reasoning.'},
@@ -114,15 +124,72 @@ class APIPreparation(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'completed training smoke'):
                     execute_deepseek(rows, path, 2)
                 execute_deepseek(rows, path, 1, smoke)
+                execute_deepseek(rows, path, 2, pilot=pilots)
                 execute_deepseek(rows, path, 2)
                 execute_deepseek(rows, path, 2)
-            self.assertEqual(provider.call_count, 3)
+            self.assertEqual(provider.call_count, 11)
             records = [json.loads(line) for line in (path / 'responses.jsonl').read_text().splitlines()]
-            self.assertEqual({r['id'] for r in records}, {'one', 'two', smoke['id']})
+            self.assertEqual({r['id'] for r in records}, {'one', 'two', smoke['id']} | {r['id'] for r in pilots})
             self.assertTrue(all(r['reasoning_content'] == 'Provider raw reasoning.' for r in records))
             self.assertTrue(all(r['raw_response'] == answer for r in records))
-            self.assertEqual(len((path / 'attempts.jsonl').read_text().splitlines()), 3)
+            self.assertEqual(len((path / 'attempts.jsonl').read_text().splitlines()), 11)
             self.assertGreater(deepseek_progress(rows, path)[1], 0)  # includes smoke usage
+
+    def test_deepseek_length_is_flagged_without_parsing(self):
+        smoke = {'id': 'training__deepseek__smoke', 'prompt_sha256': 'training',
+                 'messages': [{'role': 'user', 'content': 'small'}], 'kind': 'smoke'}
+        answer = {'model': 'deepseek-flash', 'usage': {'prompt_tokens': 12, 'completion_tokens': 128000},
+                  'choices': [{'message': {'content': '{"rho_2":0.8,"rho_3":0.6,"rho_4":0.4,"rho_5":0.2}'},
+                               'finish_reason': 'length'}]}
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.require_deepseek_offpeak'), \
+                 patch('scripts.api_runner.request', return_value=answer), \
+                 redirect_stdout(StringIO()):
+                execute_deepseek([], Path(directory), 1, smoke)
+            record = json.loads((Path(directory) / 'responses.jsonl').read_text())
+            self.assertTrue(record['limit_hit'])
+            self.assertIsNone(record['prediction'])
+            self.assertEqual(record['final_text'], answer['choices'][0]['message']['content'])
+
+    def test_gpt_batch_chunks_wait_for_collection(self):
+        messages = [{'role': 'user', 'content': 'small'}]
+        rows = [{'id': f'main-{i}', 'prompt_sha256': digest(messages), 'messages': messages}
+                for i in range(3)]
+        technical = [{'id': 'smoke', 'kind': 'smoke', 'usage': {'input_tokens': 12, 'output_tokens': 8}}]
+        technical += [{'id': f'pilot-{i}', 'kind': 'pilot', 'arm': API_MAIN_ARMS[i % 4],
+                       'usage': {'input_tokens': 12, 'output_tokens': 100}, 'reasoning_tokens': 40}
+                      for i in range(8)]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            (path / 'technical_responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in technical))
+            def provider(url, *_args):
+                return {'id': 'file-1'} if url.endswith('/files') else {'id': 'batch-1'}
+            with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.request', side_effect=provider) as network, \
+                 redirect_stdout(StringIO()):
+                execute_openai(rows, path, 2)
+                with self.assertRaisesRegex(ValueError, 'collect the previous'):
+                    execute_openai(rows, path, 2)
+            self.assertEqual(network.call_count, 2)  # one upload, one Batch creation
+            first = [json.loads(line) for line in (path / 'chunk_001.input.jsonl').read_text().splitlines()]
+            self.assertEqual([r['custom_id'] for r in first], ['main-0', 'main-1'])
+            result = {'model': 'gpt-6-sol', 'status': 'completed',
+                      'usage': {'input_tokens': 12, 'output_tokens': 100},
+                      'output': [{'type': 'message', 'content': [{'type': 'output_text',
+                                 'text': '{"rho_2":0.8,"rho_3":0.6,"rho_4":0.4,"rho_5":0.2}'}]}]}
+            raw = ''.join(json.dumps({'custom_id': r['custom_id'], 'response': {'body': result}}) + '\n'
+                          for r in first).encode()
+            with patch('scripts.api_runner.download_openai_file', return_value=raw), redirect_stdout(StringIO()):
+                collect_openai(path, {'id': 'batch-1', 'status': 'completed', 'output_file_id': 'output-1'}, 'fake')
+                collect_openai(path, {'id': 'batch-1', 'status': 'completed', 'output_file_id': 'output-1'}, 'fake')
+            self.assertEqual(len((path / 'responses.jsonl').read_text().splitlines()), 2)
+            with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.request', side_effect=provider), \
+                 redirect_stdout(StringIO()):
+                execute_openai(rows, path, 2)
+            second = [json.loads(line) for line in (path / 'chunk_002.input.jsonl').read_text().splitlines()]
+            self.assertEqual([r['custom_id'] for r in second], ['main-2'])
 
     def test_smoke_is_training_only(self):
         path = os.environ.get('V10_SMOKE_OBSERVATION')
@@ -169,14 +236,72 @@ class APIPreparation(unittest.TestCase):
         self.assertEqual(record['raw_response'], body)
         without_summary = {**body, 'output': body['output'][1:]}
         self.assertEqual(openai_record(without_summary, 'request')['reasoning_summary'], [])
+        limited = {**body, 'status': 'incomplete',
+                   'incomplete_details': {'reason': 'max_output_tokens'}}
+        flagged = openai_record(limited, 'request')
+        self.assertTrue(flagged['limit_hit'])
+        self.assertIsNone(flagged['prediction'])
+        self.assertEqual(flagged['final_text'], record['final_text'])
 
     def test_actual_frozen_prompts_when_available(self):
         path = os.environ.get('V10_OBSERVATIONS')
         if not path:
             self.skipTest('set V10_OBSERVATIONS to the sealed sample directory')
         rows = observations(Path(path))
-        self.assertEqual(len(manifest(rows, 'deepseek')), 288)
-        self.assertEqual(len(manifest(rows, 'openai')), 864)
+        for provider, count, budget in (('deepseek', 288, 10), ('openai', 864, 200)):
+            planned = manifest(rows, provider)
+            self.assertEqual(len(planned), count)
+            def records(output):
+                usage = {'prompt_tokens': 100, 'completion_tokens': output} if provider == 'deepseek' else {
+                    'input_tokens': 100, 'output_tokens': output}
+                return [{'id': f'pilot-{i}', 'kind': 'pilot', 'arm': API_MAIN_ARMS[i % 4],
+                         'usage': usage, 'reasoning_tokens': output // 2} for i in range(8)]
+            plan = estimate(planned, provider, records(10_000))
+            self.assertEqual(plan['pilot_usage']['generated_tokens']['n'], 8)
+            self.assertEqual(plan['pilot_usage']['reasoning_tokens']['n'], 8)
+            self.assertEqual(plan['pilot_usage']['conservative_tokens_per_request'], 12_500)
+            self.assertLess(plan['conservative_projected_total_usd'], budget)
+            self.assertGreater(estimate(planned, provider, records(GENERATION_CAP))['conservative_projected_total_usd'], budget)
+        pilot_path = os.environ.get('V10_PILOT_OBSERVATIONS')
+        if pilot_path:
+            pilot = pilot_manifest(Path(pilot_path), 'deepseek')
+            self.assertEqual(len(pilot), 12)
+            self.assertEqual({r['arm'] for r in pilot}, set(API_MAIN_ARMS))
+
+    def test_high_pilot_usage_blocks_full_production(self):
+        path = os.environ.get('V10_OBSERVATIONS')
+        if not path:
+            self.skipTest('set V10_OBSERVATIONS to the sealed sample directory')
+        samples = observations(Path(path))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            deep = root / 'deep'
+            deep.mkdir()
+            deep_records = [{'id': 'training__deepseek__smoke', 'kind': 'smoke',
+                             'usage': {'prompt_tokens': 100, 'completion_tokens': 10}}]
+            deep_records += [{'id': f'pilot-{i}__deepseek__pilot', 'kind': 'pilot',
+                              'arm': API_MAIN_ARMS[i % 4],
+                              'usage': {'prompt_tokens': 100, 'completion_tokens': GENERATION_CAP}}
+                             for i in range(8)]
+            (deep / 'responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in deep_records))
+            with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.require_deepseek_offpeak'), \
+                 patch('scripts.api_runner.request', side_effect=AssertionError('provider called')), \
+                 redirect_stdout(StringIO()):
+                with self.assertRaisesRegex(ValueError, 'projected total'):
+                    execute_deepseek(manifest(samples, 'deepseek'), deep, 8)
+            gpt = root / 'gpt'
+            gpt.mkdir()
+            gpt_records = [{'id': 'smoke', 'kind': 'smoke',
+                            'usage': {'input_tokens': 100, 'output_tokens': 10}}]
+            gpt_records += [{'id': f'pilot-{i}', 'kind': 'pilot', 'arm': API_MAIN_ARMS[i % 4],
+                             'usage': {'input_tokens': 100, 'output_tokens': GENERATION_CAP}}
+                            for i in range(8)]
+            (gpt / 'technical_responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in gpt_records))
+            with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.request', side_effect=AssertionError('provider called')):
+                with self.assertRaisesRegex(ValueError, 'conservative projected total'):
+                    execute_openai(manifest(samples, 'openai'), gpt, 96)
 
 
 if __name__ == '__main__':

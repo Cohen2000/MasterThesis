@@ -1,14 +1,13 @@
 # v10 runbook
 
-The sealed Qwen and offline results need no rerun. GPT and DeepSeek run from the **laptop**. The 360 sealed main observations were copied once from the uc3 Qwen archive into the untracked local data directory below; the training smoke observation is from the v10 offline preparation. uc3 is only their source, not an API execution host.
-
-## Local setup and offline checks
+GPT and DeepSeek run from the laptop. The sealed 360 main observations were copied from uc3 once; the technical inputs below are frozen v10 training observations. No API run has begun.
 
 ```bash
 cd /home/albert/Dokumente/MasterArbeit
 source .venv/bin/activate
 OBS=$HOME/.local/share/masterthesis/v10_observations
 SMOKE_OBS=$HOME/.local/share/masterthesis/v10_smoke_observation.json
+PILOT=$HOME/.local/share/masterthesis/v10_token_pilot
 DS_RUN=$HOME/.local/share/masterthesis/api_runs/deepseek_v10
 GPT_RUN=$HOME/.local/share/masterthesis/api_runs/openai_v10
 python scripts/api_runner.py check --provider deepseek --observations "$OBS"
@@ -17,28 +16,32 @@ python scripts/api_runner.py cost --provider deepseek --observations "$OBS"
 python scripts/api_runner.py cost --provider openai --observations "$OBS"
 ```
 
-The local runner reads `~/.config/masterthesis/api_keys.env` (directory mode 700, file mode 600). `check`, `cost`, `prepare` and commands without `--execute` make no provider request. DeepSeek's report shows the official off-peak estimate ($0.15/1M input, $0.60/1M output at the token allowances) and the stricter $1/$3 planning ceiling with a 25% margin. Its UTC guard blocks weekday 01:00–04:00 and 06:00–10:00 UTC, with a 10-minute pre-peak buffer.
+The local runner reads `~/.config/masterthesis/api_keys.env` (directory mode 700, file mode 600). All provider requests require `--execute` and an explicit budget. The 128,000-token generation cap is technical headroom, not expected usage. Before the pilot, `cost` reports the theoretical worst case separately and leaves the production projection unset.
 
-## Future technical smokes
+## Later technical smoke and token pilot
 
-Use only the training observation. Smoke checks auth, payload, format, parser, usage and returned model; do not select models from answer quality. The DeepSeek smoke and production commands share `DS_RUN` so its spend counts toward the same $10 budget.
+Run each provider's one-request smoke first, then its 12-observation arm-stratified token pilot. Both use only training observations. Inspect auth, payload, returned model, parser, usage and length flags. The GPT smoke verifies `reasoning.summary=auto`; an absent summary is allowed. Do not score accuracy or alter prompts and reasoning effort from answers. DeepSeek requests run only in UTC off-peak windows, with a 10-minute pre-peak buffer.
 
 ```bash
 python scripts/api_runner.py smoke --provider deepseek --observations "$OBS" --smoke-observation "$SMOKE_OBS" --budget-usd 10 --output "$DS_RUN" --execute
-python scripts/api_runner.py smoke --provider openai --observations "$OBS" --smoke-observation "$SMOKE_OBS" --budget-usd 200 --output "$HOME/.local/share/masterthesis/api_runs/openai_smoke" --execute
+python scripts/api_runner.py pilot --provider deepseek --observations "$OBS" --pilot-observations "$PILOT" --budget-usd 10 --max-concurrency 8 --output "$DS_RUN" --execute
+python scripts/api_runner.py smoke --provider openai --observations "$OBS" --smoke-observation "$SMOKE_OBS" --budget-usd 200 --output "$GPT_RUN" --execute
+python scripts/api_runner.py pilot --provider openai --observations "$OBS" --pilot-observations "$PILOT" --budget-usd 200 --output "$GPT_RUN" --execute
+python scripts/api_runner.py cost --provider deepseek --observations "$OBS" --output "$DS_RUN"
+python scripts/api_runner.py cost --provider openai --observations "$OBS" --output "$GPT_RUN"
 ```
 
-GPT smoke is one synchronous `/v1/responses` request. Verify that `reasoning.summary=auto` is accepted and retain any provider summary, final output and reasoning-token usage separately. OpenAI does not expose raw chain-of-thought; an absent summary is not treated as hidden reasoning. DeepSeek retains raw `reasoning_content`. GPT production remains Batch. No smoke has been run.
+`cost` then reports pilot count, mean, median, p90, p95 and maximum generated tokens, reasoning tokens when exposed, and full-run projections. The conservative output projection uses `max(observed maximum, 1.25 × p95)`. Pilot spending counts within each provider's total budget.
 
-## Future production and Batch collection
+## Later production
 
-Inspect smoke outputs first. DeepSeek can resume with the same command and output directory; completed IDs are skipped. An attempted request without a durable response is flagged for reconciliation before retry. No new DeepSeek request starts during peak or the pre-peak buffer.
+Inspect the pilot cost reports before execution. DeepSeek uses resumable waves of at most eight requests. Before each wave it rechecks UTC off-peak time, actual spend, remaining projected cost and the 128k worst case for requests in flight. An ambiguous launched request is never retried automatically.
 
 ```bash
 python scripts/api_runner.py submit --provider deepseek --observations "$OBS" --budget-usd 10 --max-concurrency 8 --output "$DS_RUN" --execute
-python scripts/api_runner.py submit --provider openai --observations "$OBS" --budget-usd 200 --output "$GPT_RUN" --execute
+python scripts/api_runner.py submit --provider openai --observations "$OBS" --budget-usd 200 --batch-size 96 --output "$GPT_RUN" --execute
 python scripts/api_runner.py status --provider openai --output "$GPT_RUN" --execute
 python scripts/api_runner.py collect --provider openai --output "$GPT_RUN" --execute
 ```
 
-OpenAI submission uploads one JSONL file and creates one 24-hour `/v1/responses` Batch. No API run directory or Batch ID exists yet.
+Repeat the GPT `submit`, `status`, `collect` sequence for each subsequent chunk. The runner refuses a new chunk until the previous one is collected and its actual usage is included in the $200 guard. Production remains OpenAI Batch `/v1/responses`. Length-limited outputs and all provider-exposed reasoning are saved unchanged and flagged; no response is repaired.

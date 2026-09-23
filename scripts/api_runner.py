@@ -12,6 +12,7 @@ import json
 import math
 import os
 from pathlib import Path
+import statistics
 import sys
 from threading import Lock
 import urllib.request
@@ -25,13 +26,14 @@ from main_experiment.observation import messages  # noqa: E402
 API_MAIN_ARMS = ('R', 'S', 'H', 'B')
 MODELS = {'deepseek': 'deepseek-flash', 'openai': 'gpt-6-sol'}
 REPEATS = {'deepseek': 1, 'openai': 3}
-OUTPUT_TOKENS = 8192
+GENERATION_CAP = 128000
 MARGIN = 1.25
-# USD per million tokens: conservative DeepSeek safety ceilings and GPT Batch.
-RATES = {'deepseek': (1.0, 3.0), 'openai': (1.0, 5.0)}  # OpenAI Batch rates
-DEEPSEEK_OFFPEAK_RATES = (0.15, 0.60)
+# USD per million tokens: DeepSeek off-peak and GPT Batch.
+RATES = {'deepseek': (0.15, 0.60), 'openai': (1.0, 5.0)}
+OPENAI_STANDARD_RATES = (2.0, 10.0)
 DEEPSEEK_PEAK_BUFFER_MINUTES = 10
 DEEPSEEK_DEFAULT_CONCURRENCY = 8
+BATCH_SIZE_DEFAULT = 96
 DEEPSEEK_BUDGET_USD = 10
 OPENAI_BUDGET_USD = 200
 EXPECTED = {'deepseek': 288, 'openai': 864}
@@ -77,21 +79,36 @@ def observations(directory):
     return rows
 
 
-def smoke_observation(path, provider):
+def technical_observation(path, provider, kind):
     row = json.loads(path.read_text())
     if row.get('domain') not in ('training', 'pool_train', 'pool_dev'):
-        raise ValueError('smoke requires a training/dev/pool observation')
+        raise ValueError(f'{kind} requires a training/dev/pool observation')
     if row.get('graph_id') in MAIN_KEYS or row.get('empty'):
-        raise ValueError('smoke cannot use a main graph or empty observation')
+        raise ValueError(f'{kind} cannot use a main graph or empty observation')
     if row.get('arm') not in API_MAIN_ARMS:
-        raise ValueError('smoke arm must be R/S/H/B')
+        raise ValueError(f'{kind} arm must be R/S/H/B')
     if row.get('block_sha256') != digest(row['block']) or row.get('prompt_sha256') != digest(row['messages']):
-        raise ValueError('smoke block or prompt hash mismatch')
+        raise ValueError(f'{kind} block or prompt hash mismatch')
     if row['messages'] != messages(row['block']):
-        raise ValueError('smoke canonical prompt mismatch')
-    return {'id': row['id'] + '__' + provider + '__smoke',
+        raise ValueError(f'{kind} canonical prompt mismatch')
+    return {'id': row['id'] + '__' + provider + '__' + kind,
             'prompt_sha256': row['prompt_sha256'], 'messages': row['messages'],
-            'kind': 'smoke'}
+            'graph_id': row['graph_id'], 'arm': row['arm'], 'kind': kind}
+
+
+def smoke_observation(path, provider):
+    return technical_observation(path, provider, 'smoke')
+
+
+def pilot_manifest(directory, provider):
+    rows = [technical_observation(path, provider, 'pilot') for path in sorted(directory.glob('*.json'))]
+    if not 8 <= len(rows) <= 12 or len({r['id'] for r in rows}) != len(rows):
+        raise ValueError('pilot needs 8-12 distinct training/dev/pool observations')
+    if any(sum(r['arm'] == arm for r in rows) < 2 for arm in API_MAIN_ARMS):
+        raise ValueError('pilot needs at least two observations per R/S/H/B arm')
+    if len({r['graph_id'] for r in rows}) < 2:
+        raise ValueError('pilot needs at least two training/dev/pool graphs')
+    return rows
 
 
 def manifest(rows, provider):
@@ -115,10 +132,10 @@ def payload(provider, row):
         return {'model': MODELS[provider], 'input': row['messages'],
                 'reasoning': {'effort': 'high', 'summary': 'auto'},
                 'text': {'format': {'type': 'json_object'}},
-                'max_output_tokens': OUTPUT_TOKENS}
+                'max_output_tokens': GENERATION_CAP}
     return {'model': MODELS[provider], 'messages': row['messages'],
             'thinking': {'type': 'enabled'}, 'reasoning_effort': 'high',
-            'response_format': {'type': 'json_object'}, 'max_tokens': OUTPUT_TOKENS,
+            'response_format': {'type': 'json_object'}, 'max_tokens': GENERATION_CAP,
             'stream': False}
 
 
@@ -127,38 +144,84 @@ def batch_line(row):
             'body': payload('openai', row)}
 
 
-def estimate(rows, provider):
-    # Two characters/token is above the checked DeepSeek text-token count for
-    # every frozen prompt; 256 tokens cover provider message framing. Full
-    # output allowance includes reasoning tokens.
-    input_tokens = sum(math.ceil(sum(len(m['content']) for m in r['messages']) / 2) + 256 for r in rows)
-    output_tokens = len(rows) * OUTPUT_TOKENS
-    input_rate, output_rate = RATES[provider]
-    base = (input_tokens * input_rate + output_tokens * output_rate) / 1_000_000
-    result = {'input_tokens': input_tokens, 'output_tokens': output_tokens,
-              'estimated_usd': round(base * MARGIN, 4), 'safety_margin': MARGIN}
-    if provider == 'deepseek':
-        result['offpeak_at_token_allowance_usd'] = round(
-            (input_tokens * DEEPSEEK_OFFPEAK_RATES[0]
-             + output_tokens * DEEPSEEK_OFFPEAK_RATES[1]) / 1_000_000, 4)
+def input_allowance(row):
+    # Conservative proxy checked against frozen local tokenizer counts.
+    return math.ceil(sum(len(m['content']) for m in row['messages']) / 2) + 256
+
+
+def usage_tokens(record, provider):
+    usage = record.get('usage') or {}
+    names = ('prompt_tokens', 'completion_tokens') if provider == 'deepseek' else ('input_tokens', 'output_tokens')
+    counts = tuple(usage.get(name) for name in names)
+    if not all(type(x) is int and x >= 0 for x in counts):
+        raise ValueError(f"{record.get('id')}: completed {provider} usage is missing or invalid")
+    return counts
+
+
+def actual_usd(record, provider):
+    input_count, output_count = usage_tokens(record, provider)
+    rates = OPENAI_STANDARD_RATES if provider == 'openai' and record.get('kind') in ('smoke', 'pilot') else RATES[provider]
+    return (input_count * rates[0] + output_count * rates[1]) / 1_000_000
+
+
+def percentile(values, fraction):
+    values = sorted(values)
+    position = (len(values) - 1) * fraction
+    left = math.floor(position)
+    return values[left] + (values[math.ceil(position)] - values[left]) * (position - left)
+
+
+def token_stats(records, provider):
+    measured = [r for r in records if r.get('kind') in ('pilot', 'main')]
+    output = [usage_tokens(r, provider)[1] for r in measured]
+    if not output:
+        return None
+    reasoning = [r['reasoning_tokens'] for r in measured
+                 if type(r.get('reasoning_tokens')) is int and r['reasoning_tokens'] >= 0]
+    def describe(values):
+        return {'n': len(values), 'mean': round(statistics.mean(values), 1),
+                'median': round(statistics.median(values), 1),
+                'p90': round(percentile(values, .90), 1),
+                'p95': round(percentile(values, .95), 1), 'maximum': max(values)}
+    stats = {'generated_tokens': describe(output),
+             'reasoning_tokens': describe(reasoning) if reasoning else None}
+    stats['conservative_tokens_per_request'] = math.ceil(max(max(output), 1.25 * percentile(output, .95)))
+    return stats
+
+
+def estimate(rows, provider, records=()):
+    """Pilot-based run projection; generation cap appears only in worst-case figures."""
+    records = list(records)
+    completed = {r['id'] for r in records if r.get('kind') == 'main'}
+    remaining = [r for r in rows if r['id'] not in completed]
+    input_tokens = sum(map(input_allowance, remaining))
+    actual = sum(actual_usd(r, provider) for r in records)
+    rates = RATES[provider]
+    theoretical = (sum(map(input_allowance, rows)) * rates[0]
+                   + len(rows) * GENERATION_CAP * rates[1]) / 1_000_000
+    pilot_stats = token_stats([r for r in records if r.get('kind') == 'pilot'], provider)
+    stats = token_stats(records, provider)
+    result = {'generation_cap_per_request': GENERATION_CAP,
+              'remaining_requests': len(remaining), 'remaining_input_token_allowance': input_tokens,
+              'completed_actual_spend_usd': round(actual, 4), 'safety_margin': MARGIN,
+              'theoretical_full_main_worst_case_usd': round(theoretical, 4),
+              'pilot_usage': pilot_stats, 'observed_usage': stats,
+              'projected_total_usd': None,
+              'conservative_projected_total_usd': None}
+    if stats:
+        mean = stats['generated_tokens']['mean']
+        conservative = stats['conservative_tokens_per_request']
+        remaining_input_cost = input_tokens * rates[0]
+        result['projected_total_usd'] = round(actual + (remaining_input_cost + len(remaining) * mean * rates[1]) / 1_000_000, 4)
+        result['conservative_projected_total_usd'] = round(
+            actual + MARGIN * (remaining_input_cost + len(remaining) * conservative * rates[1]) / 1_000_000, 4)
     return result
 
 
-def reserve_usd(row):
-    """Conservative DeepSeek charge for one unsent request, including margin."""
-    chars = sum(len(m['content']) for m in row['messages'])
-    return MARGIN * ((math.ceil(chars / 2) + 256) * RATES['deepseek'][0]
-                     + OUTPUT_TOKENS * RATES['deepseek'][1]) / 1_000_000
-
-
-def actual_usd(record):
-    """Charge completed token usage at conservative cache-miss ceilings."""
-    usage = record.get('usage') or {}
-    prompt, completion = usage.get('prompt_tokens'), usage.get('completion_tokens')
-    if not all(type(x) is int and x >= 0 for x in (prompt, completion)):
-        raise ValueError(f"{record.get('id')}: completed DeepSeek usage is missing or invalid")
-    return MARGIN * (prompt * RATES['deepseek'][0]
-                     + completion * RATES['deepseek'][1]) / 1_000_000
+def in_flight_worst_usd(rows, provider, standard=False):
+    rates = OPENAI_STANDARD_RATES if standard else RATES[provider]
+    return MARGIN * (sum(map(input_allowance, rows)) * rates[0]
+                     + len(rows) * GENERATION_CAP * rates[1]) / 1_000_000
 
 
 def next_deepseek_peak(now):
@@ -208,25 +271,22 @@ def guard(rows, provider, budget, execute):
     expected = EXPECTED[provider]
     if len(rows) != expected:
         raise ValueError(f'incomplete manifest: {len(rows)} of {expected}')
-    cost = estimate(rows, provider)
     if budget is None or budget <= 0:
         raise ValueError('explicit positive --budget-usd required')
     if provider == 'deepseek' and budget != DEEPSEEK_BUDGET_USD:
         raise ValueError('DeepSeek production budget is fixed at USD 10')
     if provider == 'openai' and budget > OPENAI_BUDGET_USD:
         raise ValueError('GPT experiment budget cannot exceed the approved USD 200 cap')
-    if cost['estimated_usd'] > budget:
-        raise ValueError(f"projected USD {cost['estimated_usd']} exceeds budget USD {budget}")
     if execute:
         load_keys()
         key = 'DEEPSEEK_API_KEY' if provider == 'deepseek' else 'OPENAI_API_KEY'
         if not os.environ.get(key):
             raise ValueError(f'{key} absent')
-    return cost
+    return estimate(rows, provider)
 
 
-def summary(rows, provider, budget=None):
-    cost = estimate(rows, provider)
+def summary(rows, provider, budget=None, records=()):
+    cost = estimate(rows, provider, records)
     report = {'provider': provider, 'model': MODELS[provider], 'reasoning': 'high',
               'reasoning_exposure': REASONING_EXPOSURE[provider],
               'requests': len(rows), 'arms': API_MAIN_ARMS,
@@ -261,7 +321,7 @@ def reasoning_tokens(usage):
     return details.get('reasoning_tokens', usage.get('reasoning_tokens'))
 
 
-def openai_record(body, rid, prompt_sha256=None):
+def openai_record(body, rid, prompt_sha256=None, kind='main', arm=None):
     """Keep the provider summary as returned; hidden reasoning is unavailable."""
     output = body.get('output') or []
     content = [part.get('text', '') for item in output for part in item.get('content', [])
@@ -269,12 +329,14 @@ def openai_record(body, rid, prompt_sha256=None):
     summaries = [part for item in output if item.get('type') == 'reasoning'
                  for part in (item.get('summary') or [])]
     final = ''.join(content)
-    values, validity = parse_final(final)
-    return {'id': rid, 'prompt_sha256': prompt_sha256,
+    limit_hit = (body.get('status') == 'incomplete'
+                 and (body.get('incomplete_details') or {}).get('reason') == 'max_output_tokens')
+    values, validity = (None, 'max_output_tokens') if limit_hit else parse_final(final)
+    return {'id': rid, 'kind': kind, 'arm': arm, 'prompt_sha256': prompt_sha256,
             'returned_model': body.get('model'), 'usage': body.get('usage'),
             'reasoning_tokens': reasoning_tokens(body.get('usage')),
             'reasoning_exposure': REASONING_EXPOSURE['openai'],
-            'reasoning_summary': summaries, 'final_text': final,
+            'reasoning_summary': summaries, 'final_text': final, 'limit_hit': limit_hit,
             'validity': validity, 'prediction': values, 'raw_response': body}
 
 
@@ -282,7 +344,7 @@ def read_jsonl(path):
     return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
 
-def deepseek_progress(rows, run_dir, smoke=None):
+def deepseek_progress(rows, run_dir, extra=()):
     """Read durable completions; never retry a launched request with no answer."""
     planned = {r['id']: r for r in rows}
     completed = {}
@@ -293,9 +355,10 @@ def deepseek_progress(rows, run_dir, smoke=None):
         if rid in planned:
             if record.get('prompt_sha256') != planned[rid]['prompt_sha256']:
                 raise ValueError(f'completed prompt mismatch: {rid}')
-        elif not (rid.endswith('__deepseek__smoke') and record.get('kind') == 'smoke'):
+        elif not (record.get('kind') in ('smoke', 'pilot') and
+                  rid.endswith('__deepseek__' + record['kind'])):
             raise ValueError(f'unexpected completed DeepSeek ID: {rid}')
-        actual_usd(record)  # Incomplete usage cannot silently lower the budget.
+        actual_usd(record, 'deepseek')  # Missing usage cannot silently lower the budget.
         completed[rid] = record
     attempts = [r['id'] for r in read_jsonl(run_dir / 'attempts.jsonl')]
     if len(attempts) != len(set(attempts)):
@@ -303,28 +366,31 @@ def deepseek_progress(rows, run_dir, smoke=None):
     uncertain = set(attempts) - set(completed)
     if uncertain:
         raise ValueError(f'{len(uncertain)} launched DeepSeek request(s) have uncertain outcomes; reconcile before resuming')
-    if smoke and smoke['id'] in completed and completed[smoke['id']]['prompt_sha256'] != smoke['prompt_sha256']:
-        raise ValueError('completed smoke prompt mismatch')
-    spent = sum(actual_usd(r) for r in completed.values())
+    for row in extra:
+        if row['id'] in completed and completed[row['id']]['prompt_sha256'] != row['prompt_sha256']:
+            raise ValueError('completed technical prompt mismatch')
+    spent = sum(actual_usd(r, 'deepseek') for r in completed.values())
     remaining_main = [r for r in rows if r['id'] not in completed]
-    remaining_smoke = [smoke] if smoke and smoke['id'] not in completed else []
-    reserve = sum(reserve_usd(r) for r in remaining_main + remaining_smoke)
-    if spent + reserve > DEEPSEEK_BUDGET_USD:
-        raise ValueError(f'DeepSeek USD 10 guard: completed conservative spend {spent:.4f} + remaining reserve {reserve:.4f} exceeds budget')
-    return completed, spent, remaining_main, remaining_smoke
+    remaining_extra = [r for r in extra if r['id'] not in completed]
+    return completed, spent, remaining_main, remaining_extra
 
 
-def execute_deepseek(rows, run_dir, max_concurrency, smoke=None):
+def execute_deepseek(rows, run_dir, max_concurrency, smoke=None, pilot=None):
     key = os.environ['DEEPSEEK_API_KEY']
     run_dir.mkdir(parents=True, exist_ok=True)
     if (run_dir / 'batch.json').exists():
         raise ValueError('DeepSeek output directory contains an OpenAI Batch')
     lock = Lock()
-    completed, spent, remaining_main, remaining_smoke = deepseek_progress(rows, run_dir, smoke)
+    extra = [smoke] if smoke else pilot or []
+    completed, spent, remaining_main, remaining_extra = deepseek_progress(rows, run_dir, extra)
     if smoke is None and not any(record.get('kind') == 'smoke' for record in completed.values()):
         raise ValueError('DeepSeek production requires a completed training smoke in the same output directory')
-    pending = remaining_smoke if smoke else remaining_main
-    print(f'DeepSeek completed: {len(completed)}; conservative charged spend: USD {spent:.4f}; remaining in this command: {len(pending)}')
+    if smoke is None and pilot is None:
+        pilot_records = [r for r in completed.values() if r.get('kind') == 'pilot']
+        if len(pilot_records) < 8 or {r.get('arm') for r in pilot_records} != set(API_MAIN_ARMS):
+            raise ValueError('DeepSeek production requires a completed stratified token pilot')
+    pending = remaining_extra if extra else remaining_main
+    print(f'DeepSeek completed: {len(completed)}; actual off-peak spend: USD {spent:.4f}; remaining in this command: {len(pending)}')
     if not pending:
         return
     with (run_dir / 'responses.jsonl').open('a') as answers, (run_dir / 'attempts.jsonl').open('a') as attempts:
@@ -338,13 +404,16 @@ def execute_deepseek(rows, run_dir, max_concurrency, smoke=None):
                              json_body(payload('deepseek', row)), 'POST')
             choice = answer['choices'][0]
             final = choice['message'].get('content') or ''
-            values, validity = parse_final(final)
+            limit_hit = choice.get('finish_reason') == 'length'
+            values, validity = (None, 'max_tokens') if limit_hit else parse_final(final)
             return {'id': row['id'], 'kind': row.get('kind', 'main'),
+                    'arm': row.get('arm'), 'graph_id': row.get('graph_id'),
                     'prompt_sha256': row['prompt_sha256'],
                     'returned_model': answer.get('model'), 'usage': answer.get('usage'),
                     'reasoning_tokens': reasoning_tokens(answer.get('usage')),
                     'reasoning_exposure': REASONING_EXPOSURE['deepseek'],
-                    'finish_reason': choice.get('finish_reason'), 'final_text': final,
+                    'finish_reason': choice.get('finish_reason'), 'limit_hit': limit_hit,
+                    'final_text': final,
                     'reasoning_content': choice['message'].get('reasoning_content'),
                     'validity': validity, 'prediction': values, 'raw_response': answer}
 
@@ -353,10 +422,16 @@ def execute_deepseek(rows, run_dir, max_concurrency, smoke=None):
                 require_deepseek_offpeak(datetime.now(timezone.utc), announce=True)
             except ValueError as error:
                 raise SystemExit(f'{error} Completed responses are durable; rerun the same command during the next off-peak window.') from None
-            _, spent, remaining_main, remaining_smoke = deepseek_progress(rows, run_dir, smoke)
+            _, spent, remaining_main, remaining_extra = deepseek_progress(rows, run_dir, extra)
             wave = [r for r in pending[start:start + max_concurrency] if r['id'] not in completed]
             if not wave:
                 continue
+            if smoke is None and pilot is None:
+                projected = estimate(rows, 'deepseek', completed.values())['conservative_projected_total_usd']
+                if projected is None or projected > DEEPSEEK_BUDGET_USD:
+                    raise ValueError(f'DeepSeek projected total USD {projected} exceeds USD 10 budget')
+            if spent + in_flight_worst_usd(wave, 'deepseek') > DEEPSEEK_BUDGET_USD:
+                raise ValueError('DeepSeek actual spend plus 128k worst case for the next wave exceeds USD 10')
             errors = []
             with ThreadPoolExecutor(max_workers=max_concurrency) as pool:
                 futures = [pool.submit(send, row) for row in wave]
@@ -375,45 +450,166 @@ def execute_deepseek(rows, run_dir, max_concurrency, smoke=None):
     print(f'DeepSeek command complete: {len(completed)} recorded responses; {main_remaining} main requests remain.')
 
 
-def execute_openai(rows, run_dir):
-    key = os.environ['OPENAI_API_KEY']
-    batch = ''.join(json.dumps(batch_line(r), ensure_ascii=False, separators=(',', ':')) + '\n' for r in rows).encode()
+def openai_progress(rows, run_dir):
+    planned = {r['id']: r for r in rows}
+    technical = read_jsonl(run_dir / 'technical_responses.jsonl')
+    main_records = read_jsonl(run_dir / 'responses.jsonl')
+    all_records = technical + main_records
+    ids = [r['id'] for r in all_records]
+    if len(ids) != len(set(ids)):
+        raise ValueError('duplicate completed OpenAI IDs')
+    for record in main_records:
+        if record['id'] not in planned or record.get('prompt_sha256') != planned[record['id']]['prompt_sha256']:
+            raise ValueError('unexpected OpenAI Batch ID or prompt hash')
+    for record in all_records:
+        actual_usd(record, 'openai')
+    attempts = [r['id'] for r in read_jsonl(run_dir / 'technical_attempts.jsonl')]
+    if len(attempts) != len(set(attempts)) or set(attempts) - set(ids):
+        raise ValueError('OpenAI technical request has an uncertain outcome; reconcile before resuming')
+    return technical, main_records
+
+
+def execute_openai_technical(rows, run_dir):
+    """Synchronous DEV/POOL smoke or token pilot, saved one response at a time."""
+    run_dir.mkdir(parents=True, exist_ok=True)
+    technical, main_records = openai_progress([], run_dir)
+    if main_records or list(run_dir.glob('chunk_*.batch.json')):
+        raise ValueError('technical pilot must precede Batch production')
+    if rows[0]['kind'] == 'pilot' and not any(r.get('kind') == 'smoke' for r in technical):
+        raise ValueError('run the one-request technical smoke before the token pilot')
+    completed = {r['id'] for r in technical}
+    with (run_dir / 'technical_responses.jsonl').open('a') as answers, (run_dir / 'technical_attempts.jsonl').open('a') as attempts:
+        for row in rows:
+            if row['id'] in completed:
+                continue
+            spent = sum(actual_usd(r, 'openai') for r in technical)
+            if spent + in_flight_worst_usd([row], 'openai', standard=True) > OPENAI_BUDGET_USD:
+                raise ValueError('GPT actual spend plus 128k technical request worst case exceeds USD 200')
+            attempts.write(json.dumps({'id': row['id']}) + '\n')
+            attempts.flush(); os.fsync(attempts.fileno())
+            body = request('https://api.openai.com/v1/responses', os.environ['OPENAI_API_KEY'],
+                           json_body(payload('openai', row)), 'POST')
+            record = openai_record(body, row['id'], row['prompt_sha256'], row['kind'], row['arm'])
+            answers.write(json.dumps(record, ensure_ascii=False) + '\n')
+            answers.flush(); os.fsync(answers.fileno())
+            technical.append(record)
+
+
+def chunk_numbers(run_dir):
+    return sorted(int(p.name[6:9]) for p in run_dir.glob('chunk_[0-9][0-9][0-9].batch.json'))
+
+
+def execute_openai(rows, run_dir, batch_size):
+    """Submit only the next Batch chunk after collecting every previous chunk."""
+    run_dir.mkdir(parents=True, exist_ok=True)
+    technical, main_records = openai_progress(rows, run_dir)
+    pilots = [r for r in technical if r.get('kind') == 'pilot']
+    if len(pilots) < 8 or {r.get('arm') for r in pilots} != set(API_MAIN_ARMS):
+        raise ValueError('GPT Batch requires a completed stratified token pilot')
+    numbers = chunk_numbers(run_dir)
+    if numbers != list(range(1, len(numbers) + 1)):
+        raise ValueError('Batch chunk numbering is incomplete')
+    if numbers and not (run_dir / f'chunk_{numbers[-1]:03d}.collected.json').exists():
+        raise ValueError('collect the previous Batch chunk before submitting another')
+    next_number = len(numbers) + 1
+    prefix = run_dir / f'chunk_{next_number:03d}'
+    if any(prefix.with_suffix(suffix).exists() for suffix in ('.input.jsonl', '.upload.json', '.batch.json')):
+        raise ValueError('unreconciled Batch upload or creation attempt')
+    completed = {r['id'] for r in main_records}
+    pending = [r for r in rows if r['id'] not in completed]
+    if not pending:
+        print('All 864 GPT requests are collected.')
+        return
+    projection = estimate(rows, 'openai', technical + main_records)
+    if projection['conservative_projected_total_usd'] is None or projection['conservative_projected_total_usd'] > OPENAI_BUDGET_USD:
+        raise ValueError(f"GPT conservative projected total USD {projection['conservative_projected_total_usd']} exceeds USD 200")
+    chunk = pending[:batch_size]
+    spent = sum(actual_usd(r, 'openai') for r in technical + main_records)
+    if spent + in_flight_worst_usd(chunk, 'openai') > OPENAI_BUDGET_USD:
+        raise ValueError('GPT actual spend plus 128k worst case for next Batch chunk exceeds USD 200')
+    print(f"GPT next chunk: {len(chunk)} requests; conservative complete-run projection USD {projection['conservative_projected_total_usd']}")
+    batch = ''.join(json.dumps(batch_line(r), ensure_ascii=False, separators=(',', ':')) + '\n' for r in chunk).encode()
     boundary = 'masterthesis' + hashlib.sha256(batch).hexdigest()[:24]
     body = (f'--{boundary}\r\nContent-Disposition: form-data; name="purpose"\r\n\r\nbatch\r\n'
             f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="batch.jsonl"\r\n'
             f'Content-Type: application/jsonl\r\n\r\n').encode() + batch + f'\r\n--{boundary}--\r\n'.encode()
-    run_dir.mkdir(parents=True, exist_ok=False)
-    (run_dir / 'batch.jsonl').write_bytes(batch)
+    prefix.with_suffix('.input.jsonl').write_bytes(batch)
+    key = os.environ['OPENAI_API_KEY']
     uploaded = request('https://api.openai.com/v1/files', key, body, 'POST',
                        f'multipart/form-data; boundary={boundary}')
-    atomic_json(run_dir / 'upload.json', uploaded)
+    atomic_json(prefix.with_suffix('.upload.json'), uploaded)
     created = request('https://api.openai.com/v1/batches', key,
                       json_body({'input_file_id': uploaded['id'], 'endpoint': '/v1/responses',
                                  'completion_window': '24h'}), 'POST')
-    atomic_json(run_dir / 'batch.json', created)
+    atomic_json(prefix.with_suffix('.batch.json'), created)
 
 
-def execute_openai_smoke(row, run_dir):
-    """One synchronous technical check; production remains Batch."""
-    run_dir.mkdir(parents=True, exist_ok=False)
-    answer = request('https://api.openai.com/v1/responses', os.environ['OPENAI_API_KEY'],
-                     json_body(payload('openai', row)), 'POST')
-    atomic_json(run_dir / 'smoke.json', openai_record(answer, row['id'], row['prompt_sha256']))
+def latest_chunk(run_dir):
+    numbers = chunk_numbers(run_dir)
+    if not numbers:
+        raise ValueError('no submitted GPT Batch chunk')
+    number = numbers[-1]
+    prefix = run_dir / f'chunk_{number:03d}'
+    return prefix, json.loads(prefix.with_suffix('.batch.json').read_text())
+
+
+def download_openai_file(file_id, key):
+    req = urllib.request.Request('https://api.openai.com/v1/files/' + file_id + '/content',
+                                 headers={'Authorization': 'Bearer ' + key})
+    with urllib.request.urlopen(req, timeout=120) as response:
+        return response.read()
+
+
+def collect_openai(run_dir, state, key):
+    prefix, _ = latest_chunk(run_dir)
+    marker = prefix.with_suffix('.collected.json')
+    if marker.exists():
+        print('Latest Batch chunk is already collected.')
+        return
+    if state.get('status') not in ('completed', 'expired', 'cancelled', 'failed'):
+        raise ValueError('Batch chunk is not terminal yet')
+    raw_lines = []
+    for field, suffix in (('output_file_id', '.output.jsonl'), ('error_file_id', '.errors.jsonl')):
+        file_id = state.get(field)
+        if file_id:
+            path = prefix.with_suffix(suffix)
+            if not path.exists():
+                path.write_bytes(download_openai_file(file_id, key))
+            raw_lines.extend(json.loads(line) for line in path.read_text().splitlines())
+    submitted_rows = read_jsonl(prefix.with_suffix('.input.jsonl'))
+    submitted = {item['custom_id']: digest(item['body']['input']) for item in submitted_rows}
+    ids = [line['custom_id'] for line in raw_lines]
+    if len(submitted) != len(submitted_rows) or len(ids) != len(set(ids)) or set(ids) != set(submitted):
+        raise ValueError('Batch chunk outputs/errors incomplete or duplicate; reconcile before next submission')
+    prior = {r['id'] for r in read_jsonl(run_dir / 'responses.jsonl')}
+    with (run_dir / 'responses.jsonl').open('a') as out:
+        for line in raw_lines:
+            if line['custom_id'] in prior:
+                continue
+            body = (line.get('response') or {}).get('body') or {}
+            record = openai_record(body, line['custom_id'], submitted[line['custom_id']])
+            record['error'] = line.get('error')
+            record['raw_batch_response'] = line
+            out.write(json.dumps(record, ensure_ascii=False) + '\n')
+            out.flush(); os.fsync(out.fileno())
+    atomic_json(marker, {'batch_id': state['id'], 'requests': len(submitted)})
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('command', choices=('check', 'cost', 'prepare', 'smoke', 'submit', 'status', 'collect'))
+    ap.add_argument('command', choices=('check', 'cost', 'prepare', 'smoke', 'pilot', 'submit', 'status', 'collect'))
     ap.add_argument('--provider', choices=tuple(MODELS), required=True)
     ap.add_argument('--observations', type=Path)
     ap.add_argument('--smoke-observation', type=Path, help='one frozen training/dev/pool JSON file')
+    ap.add_argument('--pilot-observations', type=Path, help='8-12 frozen training/dev/pool JSON files')
     ap.add_argument('--budget-usd', type=float)
     ap.add_argument('--max-concurrency', type=int, default=DEEPSEEK_DEFAULT_CONCURRENCY)
+    ap.add_argument('--batch-size', type=int, default=BATCH_SIZE_DEFAULT)
     ap.add_argument('--output', type=Path, help='prepared JSONL path, or run directory')
     ap.add_argument('--execute', action='store_true', help='explicitly allow provider network requests')
     a = ap.parse_args()
     if a.command in ('status', 'collect'):
-        if not a.output or not (a.output / 'batch.json').exists() or a.provider != 'openai':
+        if not a.output or a.provider != 'openai':
             ap.error('status/collect require an existing OpenAI Batch run directory')
         if not a.execute:
             print('dry run: no provider request; add --execute to contact OpenAI')
@@ -422,43 +618,37 @@ def main():
         key = os.environ.get('OPENAI_API_KEY')
         if not key:
             ap.error('OPENAI_API_KEY absent')
-        batch = json.loads((a.output / 'batch.json').read_text())
+        _, batch = latest_chunk(a.output)
         state = request('https://api.openai.com/v1/batches/' + batch['id'], key)
         print(json.dumps({'id': state['id'], 'status': state['status'], 'request_counts': state.get('request_counts')}, indent=2))
         if a.command == 'collect':
-            file_id = state.get('output_file_id')
-            if not file_id:
-                raise ValueError('batch has no output file yet')
-            req = urllib.request.Request('https://api.openai.com/v1/files/' + file_id + '/content',
-                                         headers={'Authorization': 'Bearer ' + key})
-            with urllib.request.urlopen(req, timeout=120) as response:
-                raw = response.read()
-            (a.output / 'batch_output.jsonl').write_bytes(raw)
-            lines = [json.loads(line) for line in raw.splitlines()]
-            submitted_rows = [json.loads(line) for line in (a.output / 'batch.jsonl').read_text().splitlines()]
-            submitted = {item['custom_id']: digest(item['body']['input']) for item in submitted_rows}
-            if len(submitted) != len(submitted_rows) or len(lines) != len(submitted) or {line['custom_id'] for line in lines} != set(submitted):
-                raise ValueError('Batch result IDs incomplete or duplicated')
-            parsed = []
-            for line in lines:
-                body = (line.get('response') or {}).get('body') or {}
-                record = openai_record(body, line['custom_id'], submitted[line['custom_id']])
-                record['error'] = line.get('error')
-                record['raw_batch_response'] = line
-                parsed.append(record)
-            (a.output / 'responses.jsonl').write_text(''.join(json.dumps(x) + '\n' for x in parsed))
+            collect_openai(a.output, state, key)
         return
     if not a.observations:
         ap.error('--observations is required')
     if not 1 <= a.max_concurrency <= 16:
         ap.error('--max-concurrency must be between 1 and 16')
+    if not 1 <= a.batch_size <= 96:
+        ap.error('--batch-size must be between 1 and 96')
     rows = manifest(observations(a.observations), a.provider)
     smoke = None
     if a.command == 'smoke':
         if not a.smoke_observation:
             ap.error('--smoke-observation is required for smoke')
         smoke = smoke_observation(a.smoke_observation, a.provider)
-    summary(rows, a.provider, a.budget_usd)
+    pilot = None
+    if a.command == 'pilot':
+        if not a.pilot_observations:
+            ap.error('--pilot-observations is required for pilot')
+        pilot = pilot_manifest(a.pilot_observations, a.provider)
+    records = []
+    if a.output and a.output.is_dir():
+        if a.provider == 'deepseek':
+            records = list(deepseek_progress(rows, a.output)[0].values())
+        else:
+            technical, completed = openai_progress(rows, a.output)
+            records = technical + completed
+    summary(rows, a.provider, a.budget_usd, records)
     if a.command == 'check':
         print('frozen observations and prompts: valid')
     elif a.command == 'cost':
@@ -466,23 +656,24 @@ def main():
     elif a.command == 'prepare':
         if not a.output:
             ap.error('--output is required')
+        selected = rows[:a.batch_size] if a.provider == 'openai' else rows
         lines = (batch_line(r) if a.provider == 'openai' else
                  {'id': r['id'], 'prompt_sha256': r['prompt_sha256'], 'payload': payload(a.provider, r)}
-                 for r in rows)
+                 for r in selected)
         a.output.write_text(''.join(json.dumps(line, ensure_ascii=False) + '\n' for line in lines))
     else:
         if not a.output:
             ap.error('--output run directory is required')
         guard(rows, a.provider, a.budget_usd, a.execute)
         if not a.execute:
-            print('dry run: budget and manifest valid; no provider request')
+            print('dry run: manifest and budget cap valid; production needs completed token pilot; no provider request')
             return
         if a.provider == 'deepseek':
-            execute_deepseek(rows, a.output, 1 if smoke else a.max_concurrency, smoke)
-        elif smoke:
-            execute_openai_smoke(smoke, a.output)
+            execute_deepseek(rows, a.output, 1 if smoke else a.max_concurrency, smoke, pilot)
+        elif smoke or pilot:
+            execute_openai_technical([smoke] if smoke else pilot, a.output)
         else:
-            execute_openai(rows, a.output)
+            execute_openai(rows, a.output, a.batch_size)
 
 
 if __name__ == '__main__':
