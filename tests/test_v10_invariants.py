@@ -76,6 +76,22 @@ class V10Invariants(unittest.TestCase):
         np.testing.assert_allclose(forest.predict(features(o)[None])[0],
                                    forest.predict(features(p)[None])[0])
 
+    def test_panel_release_only_adds_panel_size_and_one_et_feature(self):
+        g = toy()
+        for arm in ('R', 'H'):
+            budget = {'n_panel': g.N, 'n_panel_history': g.N, 'history_fraction': .6}
+            counts = g.counts.copy()
+            if arm == 'H': counts[:, :2] = 0
+            hidden = serialize(make(g, arm, budget, counts))
+            old = parse(hidden)
+            released = serialize({**old, 'n_panel': g.N})
+            self.assertEqual(released.replace(f'n_panel={g.N}\n', ''), hidden)
+            self.assertEqual(parse(released)['n_panel'], g.N)
+            self.assertEqual(messages(hidden)[0], messages(released)[0])
+            self.assertNotEqual(messages(hidden)[1], messages(released)[1])
+            np.testing.assert_array_equal(features(old), features(parse(released))[:-1])
+            self.assertAlmostEqual(features(parse(released))[-1], np.log1p(g.N))
+
     def test_rhb_matches_v9_cpu_preparation_fixture(self):
         raw = Path(__file__).resolve().parents[1] / 'data/raw'
         if not raw.exists(): self.skipTest('raw source archive unavailable')

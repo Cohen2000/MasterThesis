@@ -1,0 +1,1 @@
+Uniform node-panel sampling is used. Only dyads whose endpoints are in the released panel are observed; complete histories of those dyads are retrieved. The sampled panel size n_panel is released. Full vertex count and panel sampling fraction are unknown. Accessible zeros indicate true inactivity.

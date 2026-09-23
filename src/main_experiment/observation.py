@@ -11,6 +11,7 @@ PARAMETERS = ('n_panel', 'L', 'n_panel_history', 'p')          # one feature slo
 INTEGER_PARAMETER_ARMS = ('R', 'S', 'S_obs', 'H')
 PROMPTS = ROOT/'config/main_experiment'
 RULE_FILES = {'R': 'rule_R.txt', 'S': 'rule_S.txt', 'S_obs': 'rule_S_obs.txt', 'H': 'rule_H.txt', 'B': 'rule_B.txt'}
+PANEL_RULE_FILES = {'R': 'rule_R_panel.txt', 'H': 'rule_H_panel.txt'}
 HEADER = 'pattern,dyads,events'
 S_OBS_HEADER = HEADER+',inv_events'
 S_HEADER = S_OBS_HEADER+',traversals,traversals_per_event'
@@ -92,6 +93,9 @@ def validate(o):
     """Internal consistency of an observation (raises ValueError)."""
     arm = o['arm']
     if arm not in ARMS: raise ValueError('arm')
+    if 'n_panel' in o and (arm not in ('R', 'H') or not _count(o['n_panel']) or
+                          o['n_panel'] < max(1, o['N_obs'])):
+        raise ValueError('released n_panel')
     if arm == 'H' and 'history_fraction' not in o: raise ValueError('missing history fraction')
     h = o.get('history_fraction', H_FRACTION)
     for k in ('N_obs', 'D_obs', 'M_obs'):
@@ -151,6 +155,7 @@ def serialize(o):
     lines += [f'{k}={o[k]}' for k in ('N_obs', 'D_obs', 'M_obs')]
     lines += ['Events_per_window='+','.join(map(_format, o['Events_per_window']))]
     if o['arm'] == 'B': lines.append('p='+_format(o['parameter']))
+    if 'n_panel' in o: lines.append('n_panel='+str(o['n_panel']))
     lines.append(S_HEADER if o['arm'] == 'S' else S_OBS_HEADER if o['arm'] == 'S_obs' else HEADER)
     lines += [','.join(map(_format, row)) for row in o['table']]
     return '\n'.join(lines)
@@ -170,6 +175,7 @@ def parse(text):
         raise ValueError('arm/header mismatch')
     expected = {'Arm', 'Temporal_access', 'N_obs', 'D_obs', 'M_obs', 'Events_per_window'}
     if arm == 'B': expected.add('p')
+    if arm in ('R', 'H') and 'n_panel' in fields: expected.add('n_panel')
     if set(fields) != expected: raise ValueError('unexpected input fields')
     rows = []
     for line in lines[header+1:]:
@@ -186,6 +192,7 @@ def parse(text):
          'Events_per_window': [None if x == 'NA' else int(x) for x in fields['Events_per_window'].split(',')],
          'table': rows}
     if arm == 'H': o['history_fraction'] = sum(o['Temporal_access'])/5   # released via Temporal_access; .6 in main
+    if 'n_panel' in fields: o['n_panel'] = int(fields['n_panel'])
     if arm == 'S': o['parameter'] = sum(row[4] for row in rows)
     validate(o)
     return o
@@ -209,7 +216,8 @@ def features(o):
     for index in (3, 4, 5):
         total = sum(r[index] for r in o['table']) if o['arm'] in ('S', 'S_obs') and (index == 3 or o['arm'] == 'S') else 0.
         f += [(cell(p)[index-1]/total if total and len(cell(p)) >= index else 0.) for p in ALL_PATTERNS]
-    if len(f) != len(FEATURE_NAMES): raise AssertionError('feature count')
+    if 'n_panel' in o: f.append(np.log1p(o['n_panel']))
+    if len(f) != len(FEATURE_NAMES) + ('n_panel' in o): raise AssertionError('feature count')
     return np.array(f, float)
 
 
@@ -218,7 +226,8 @@ def messages(block):
     o = parse(block)
     system = (PROMPTS/'system.txt').read_text().rstrip('\n')
     parts = [(PROMPTS/'user_prefix.txt').read_text().rstrip('\n'),
-             'Sampling rule: '+(PROMPTS/RULE_FILES[o['arm']]).read_text().rstrip('\n')]
+             'Sampling rule: '+(PROMPTS/(PANEL_RULE_FILES[o['arm']] if 'n_panel' in o else
+                                        RULE_FILES[o['arm']])).read_text().rstrip('\n')]
     parts.append(block)
     parts.append('Return the four full-archive estimates in the specified JSON format.')
     return [{'role': 'system', 'content': system}, {'role': 'user', 'content': '\n'.join(parts)}]
