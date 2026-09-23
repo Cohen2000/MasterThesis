@@ -54,6 +54,8 @@ class Result:
     fallback_used: bool = False
     objective: float = float('nan')
     flags: dict = field(default_factory=dict)
+    old_rule_rho: list = field(default_factory=list)
+    old_rule_fallback_used: bool = False
 
 
 def visible_counts(o):
@@ -109,19 +111,21 @@ def fit_zt_bb(counts, n):
 
 def fit_profile_from_counts(counts, n):
     """Fit + W=5 target profile from a visible-window histogram, with the
-    homogeneous-binomial fallback on a genuine optimizer failure or a
-    starts-disagreement. Shared by fit_rsh and the offline adequacy diagnostics
-    so both apply exactly the same fallback rule.
+    homogeneous-binomial fallback only when no optimizer start converges.
     """
     a, b, status, flags, objective = fit_zt_bb(counts, n)
-    if a is None or is_unreliable(status, flags):
-        D = sum(counts[1:])
-        mean = sum(j*counts[j] for j in range(1, n+1))/D
-        q = baselines.activity(mean, n)
+    D = sum(counts[1:])
+    mean = sum(j*counts[j] for j in range(1, n+1))/D
+    q = baselines.activity(mean, n)
+    old_fallback = a is None or is_unreliable(status, flags)
+    old_rho = baselines.profile(q) if old_fallback else predict_profile(a, b)
+    if a is None:
         return Result(baselines.profile(q), float('nan'), float('nan'), fit_status=status or 'not_converged',
-                      fallback_used=True, objective=float('nan'), flags=flags or {})
+                      fallback_used=True, objective=float('nan'), flags=flags or {},
+                      old_rule_rho=old_rho, old_rule_fallback_used=True)
     return Result(predict_profile(a, b), a, b, fit_status=status, fallback_used=False,
-                  objective=objective, flags=flags)
+                  objective=objective, flags=flags, old_rule_rho=old_rho,
+                  old_rule_fallback_used=old_fallback)
 
 
 def fit_rsh(o):
@@ -137,11 +141,15 @@ def fit_b(o):
     if o['D_obs'] == 0: raise ValueError('empty sample requires fold median')
     mu0, lam0 = baselines.mixture_start(o)
     fit = mixtures.fit_events(o, mu0, lam0)
-    if is_unreliable(fit.status, fit.flags):
+    old_fallback = is_unreliable(fit.status, fit.flags)
+    old_rho = baselines.corrector(o) if old_fallback else fit.prediction
+    if fit.status == 'not_converged':
         return Result(baselines.corrector(o), float('nan'), float('nan'), lam=float('nan'),
-                      fit_status=fit.status, fallback_used=True, objective=float('nan'), flags=dict(fit.flags))
+                      fit_status=fit.status, fallback_used=True, objective=float('nan'), flags=dict(fit.flags),
+                      old_rule_rho=old_rho, old_rule_fallback_used=True)
     return Result(fit.prediction, fit.a, fit.b, lam=fit.lam, fit_status=fit.status,
-                  fallback_used=False, objective=fit.nll, flags=dict(fit.flags))
+                  fallback_used=False, objective=fit.nll, flags=dict(fit.flags),
+                  old_rule_rho=old_rho, old_rule_fallback_used=old_fallback)
 
 
 def fit(o):

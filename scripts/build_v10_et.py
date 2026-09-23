@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Arm-specific pooled ExtraTrees at the 10% budget, with synthetic-dev selection."""
+"""Arm-specific pooled ExtraTrees at 10%, with nested real-source selection."""
 import argparse
 import json
 import os
@@ -17,7 +17,7 @@ from main_experiment.observation import FEATURE_NAMES, features, parse
 OUT = RESULTS / 'et'
 FOLDS = (*REAL_TEST, 'synthetic')
 GRID = [(anchor, leaf, maxfeat) for anchor in ('plugin', 'reference')
-        for leaf in (1, 3) for maxfeat in (.5, 1.)]
+        for leaf in (1, 5, 20) for maxfeat in (.5, 1.)]
 REF_START = FEATURE_NAMES.index('anchor_rho_2')
 
 
@@ -84,33 +84,41 @@ def graph_mae(rows, ids, pred):
     return float(errors[:, 0].mean()), float(errors.mean())
 
 
-def select():
+def select_one(index):
     rows, X = load()
-    selected = {}
-    for arm in ARMS:
-        train_ids = indices(rows, arm, 'pool_train')
-        dev_ids = indices(rows, arm, 'pool_dev')
-        if not len(train_ids) or not len(dev_ids): raise ValueError('missing synthetic pool')
-        candidates = []
-        for anchor, leaf, maxfeat in GRID:
+    arm = ARMS[index // len(FOLDS)]
+    outer_fold = FOLDS[index % len(FOLDS)]
+    inner_sources = [s for s in TRAIN if s != outer_fold]
+    pool_ids = indices(rows, arm, 'pool_train')
+    real_ids = indices(rows, arm, 'real_train')
+    candidates = []
+    cpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 4))
+    for anchor, leaf, maxfeat in GRID:
+        source_scores = []
+        for inner_source in inner_sources:
+            train_ids = np.concatenate([pool_ids, np.array([
+                i for i in real_ids if rows[i]['source'] not in (outer_fold, inner_source)], dtype=int)])
+            valid_ids = np.array([i for i in real_ids if rows[i]['source'] == inner_source], dtype=int)
+            if not len(train_ids) or not len(valid_ids): raise ValueError('incomplete nested real-source CV')
             x_train, truth, base = arrays(rows, X, train_ids, anchor)
-            x_dev, _, dev_base = arrays(rows, X, dev_ids, anchor)
-            m = model(leaf, maxfeat, seed('v10_et_select', arm, anchor,
-                                          leaf, int(maxfeat * 100)) % 2**32, 4)
-            m.fit(x_train, truth - base)
-            pred = dev_base + m.predict(x_dev)
-            mae2, profile_mae = graph_mae(rows, dev_ids, pred)
-            candidates.append({'anchor': anchor, 'min_samples_leaf': leaf,
-                               'max_features': maxfeat, 'dev_MAE2': mae2,
-                               'dev_ProfileMAE': profile_mae})
-            print(arm, anchor, leaf, maxfeat, mae2, flush=True)
-        best = min(candidates, key=lambda r: (r['dev_MAE2'], r['dev_ProfileMAE'],
-                                              r['anchor'], r['min_samples_leaf'], r['max_features']))
-        selected[arm] = {'selected': best, 'candidates': candidates,
-                         'selection_pool': 'synthetic development only',
-                         'train_graphs': len({rows[i]['source'] for i in train_ids}),
-                         'dev_graphs': len({rows[i]['source'] for i in dev_ids})}
-    write_json(OUT / 'choices.json', selected)
+            x_valid, _, valid_base = arrays(rows, X, valid_ids, anchor)
+            m = model(leaf, maxfeat, seed('v10_et_nested', arm, outer_fold, inner_source,
+                                          anchor, leaf, int(maxfeat * 100)) % 2**32, cpus)
+            m.fit(x_train, truth - base, sample_weight=block_weights(rows, train_ids))
+            pred = valid_base + m.predict(x_valid)
+            score, _ = graph_mae(rows, valid_ids, pred)
+            source_scores.append(score)
+        candidates.append({'anchor': anchor, 'min_samples_leaf': leaf,
+                           'max_features': maxfeat, 'mean_inner_source_MAE2': float(np.mean(source_scores)),
+                           'inner_source_scores': dict(zip(inner_sources, source_scores))})
+        print('ET_CV', arm, outer_fold, anchor, leaf, maxfeat, np.mean(source_scores), flush=True)
+    best = min(candidates, key=lambda r: (r['mean_inner_source_MAE2'], r['anchor'],
+                                          r['min_samples_leaf'], r['max_features']))
+    result = {'arm': arm, 'outer_fold': outer_fold, 'selected': best, 'candidates': candidates,
+              'selection': 'leave-one-real-training-source-out; pooled composition and block weights'}
+    folder = OUT / 'choices' / arm
+    folder.mkdir(parents=True, exist_ok=True)
+    write_json(folder / f'{outer_fold}.json', result)
 
 
 def block_weights(rows, ids):
@@ -133,7 +141,7 @@ def train_one(index):
     rows, X = load()
     arm = ARMS[index // len(FOLDS)]
     fold = FOLDS[index % len(FOLDS)]
-    choice = read_json(OUT / 'choices.json')[arm]['selected']
+    choice = read_json(OUT / 'choices' / arm / f'{fold}.json')['selected']
     anchor = choice['anchor']
     train_ids = np.array([i for i, r in enumerate(rows)
                           if r['arm'] == arm and (r['domain'] == 'pool_train' or
@@ -165,7 +173,9 @@ def main():
     ap.add_argument('--index', type=int)
     a = ap.parse_args()
     if a.stage == 'cache': cache()
-    elif a.stage == 'select': select()
+    elif a.stage == 'select':
+        if a.index is None or not 0 <= a.index < len(ARMS) * len(FOLDS): raise ValueError('index')
+        select_one(a.index)
     else:
         if a.index is None or not 0 <= a.index < len(ARMS) * len(FOLDS): raise ValueError('index')
         train_one(a.index)

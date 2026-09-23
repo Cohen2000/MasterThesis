@@ -56,6 +56,20 @@ def et_predictions(folder):
     return out
 
 
+def et_choices(folder):
+    rows = []
+    for path in sorted((folder / 'choices').glob('*/*.json')):
+        d = read_json(path)
+        selected = d['selected']
+        rows.append({'arm': d['arm'], 'outer_fold': d['outer_fold'],
+                     'anchor': selected['anchor'],
+                     'min_samples_leaf': selected['min_samples_leaf'],
+                     'max_features': selected['max_features'],
+                     'inner_MAE_2': selected['mean_inner_source_MAE2']})
+    if len(rows) != len(ARMS) * 9: raise ValueError('incomplete ET nested-CV choices')
+    return rows
+
+
 def gate_flags(path):
     with path.open() as f:
         rows = list(csv.DictReader(f))
@@ -78,6 +92,11 @@ def offline_rows(prepared, et_dir, gate):
         fit = mle_fit(o)
         pred['mle'] = fit.rho
         ref = pred[REF_METHOD[r['arm']]]
+        mle_old_errors = errors(fit.old_rule_rho, r['truth'])
+        inv_hajek = None
+        if r['arm'] in ('S', 'S_obs'):
+            inv_hajek = [sum(row[3] for row in o['table'] if row[0].count('1') >= k) /
+                         sum(row[3] for row in o['table']) for k in range(2, 6)]
         for method, p in pred.items():
             record = {'id': oid, 'observation_id': oid, 'source': r['graph_id'],
                       'stratum': r['stratum'], 'arm': r['arm'], 'sample_index': r['sample_index'],
@@ -86,6 +105,11 @@ def offline_rows(prepared, et_dir, gate):
                       'profile_valid': profile_valid(p),
                       'fallback': bool(fit.fallback_used) if method == 'mle' else False,
                       'fit_status': fit.fit_status if method == 'mle' else '',
+                      'mle_flags': fit.flags if method == 'mle' else {},
+                      'mle_old_rule_AE2': mle_old_errors['AE2'] if method == 'mle' else None,
+                      'mle_old_rule_ProfileAE': mle_old_errors['ProfileAE'] if method == 'mle' else None,
+                      'mle_old_rule_fallback': fit.old_rule_fallback_used if method == 'mle' else False,
+                      'inv_events_hajek_rho2': inv_hajek[0] if inv_hajek else None,
                       'reference_method': REF_METHOD[r['arm']], 'reference_rho2': ref[0],
                       'plugin_rho2': pred['plugin'][0],
                       'not_correctable_at_this_budget': gate.get(r['graph_id'], False)
@@ -126,6 +150,7 @@ def qwen_rows(answers, prepared, observations, lookup):
                      'reference_method': offline['reference_method'],
                      'reference_rho2': offline['reference_rho2'],
                      'plugin_rho2': offline['plugin_rho2'],
+                     'inv_events_hajek_rho2': offline['inv_events_hajek_rho2'],
                      'not_correctable_at_this_budget': offline['not_correctable_at_this_budget'],
                      **errors(values, obs['truth'])})
     return rows
@@ -176,6 +201,10 @@ def summary(rows, stratum):
                    'signed_rho_2': float(np.mean(list(signed.values()))) if signed else None,
                    'validity': float(np.mean([r['valid'] for r in group])),
                    'fallback_rate': float(np.mean([r['fallback'] for r in group])) if method == 'mle' else None,
+                   'old_rule_MAE_2': (float(np.mean(list(mean_by_source(group, 'mle_old_rule_AE2').values())))
+                                      if method == 'mle' else None),
+                   'old_rule_fallback_rate': (float(np.mean([r['mle_old_rule_fallback'] for r in group]))
+                                              if method == 'mle' else None),
                    'ET_profile_validity': float(np.mean([r['profile_valid'] for r in group])) if method == 'et' else None,
                    'draw_clustered_MCSE_2': draw_mcse(group, 'AE2') if mae is not None else None,
                    'skill_vs_plugin': 1 - mae / plugin_mae if mae is not None and plugin_mae > 0 else None,
@@ -236,8 +265,11 @@ def inference(rows):
     out = []
     for arm in ARMS:
         ref = REF_METHOD[arm]
-        for first, second in (('qwen_thinking', 'plugin'), ('qwen_thinking', ref),
-                              (ref, 'plugin'), ('et', ref)):
+        comparisons = [('qwen_thinking', 'plugin'), ('qwen_thinking', ref),
+                       (ref, 'plugin'), ('et', ref)]
+        if ref == 'plugin':
+            comparisons = [('qwen_thinking', 'plugin'), ('et', ref)]
+        for first, second in comparisons:
             out.append({'arm': arm, 'comparison': f'{first} vs {second}',
                         **paired(rows, arm, first, second)})
     return out
@@ -253,16 +285,37 @@ def anchoring(rows):
                 valid = [r for r in group if r['valid']]
                 plugin_near = [r for r in valid if abs(r['prediction'][0] - r['plugin_rho2']) <= .005]
                 ref_near = [r for r in valid if abs(r['prediction'][0] - r['reference_rho2']) <= .005]
+                inv_near = [r for r in valid if r['inv_events_hajek_rho2'] is not None and
+                            abs(r['prediction'][0] - r['inv_events_hajek_rho2']) <= .005]
                 both = {r['id'] for r in plugin_near} & {r['id'] for r in ref_near}
+                union = ({r['id'] for r in plugin_near} | {r['id'] for r in ref_near} |
+                         {r['id'] for r in inv_near})
                 denom = len(valid)
                 out.append({'stratum': stratum, 'arm': arm, 'method': method,
                             'observations_separated': len({r['observation_id'] for r in group}),
                             'valid_answers': denom, 'validity': denom / len(group) if group else None,
                             'near_plugin': len(plugin_near)/denom if denom else None,
                             'near_reference': len(ref_near)/denom if denom else None,
+                            'near_inv_events_hajek': len(inv_near)/denom if denom else None,
                             'near_both': len(both)/denom if denom else None,
-                            'neither': 1-(len(plugin_near)+len(ref_near)-len(both))/denom if denom else None})
+                            'neither': (denom-len(union))/denom if denom else None})
     return out
+
+
+def qwen_repeat_ranges(rows):
+    grouped = defaultdict(list)
+    for r in rows:
+        if r['method'] in QWEN and r['valid'] and r['prediction'] is not None:
+            grouped[(r['stratum'], r['arm'], r['method'], r['observation_id'])].append(r['prediction'])
+    by_group = defaultdict(list)
+    for (stratum, arm, method, oid), profiles in grouped.items():
+        if len(profiles) != 3: continue
+        ranges = np.ptp(np.asarray(profiles, float), axis=0)
+        by_group[(stratum, arm, method)].append(ranges)
+    return [{'stratum': stratum, 'arm': arm, 'method': method,
+             'complete_observations': len(v),
+             **{f'median_range_rho{k}': float(np.median(np.asarray(v)[:, k-2])) for k in range(2, 6)}}
+            for (stratum, arm, method), v in sorted(by_group.items())]
 
 
 def s_contrast(rows):
@@ -293,16 +346,17 @@ def markdown(main, infer, out, qwen_complete):
     lines = ['# v10 main results', '',
              'Primary metric: equal-source MAE_2 across eight real sources. ProfileMAE is secondary.',
              'LLM accuracy uses valid final answers only; no estimate is clipped or repaired.',
-             'ET selection used only the synthetic development pool; synthetic ET evaluation is in-distribution.',
+             'ET hyperparameters were selected by nested leave-one-real-training-source-out CV.',
              'sp_hospital__pwt remains flagged as not correctable at the 10% S budget.',
              '', f'Qwen complete: {qwen_complete}.', '',
-             '| Arm | Method | MAE_2 | ProfileMAE | Signed rho_2 | Validity | Fallback | ET profile validity | Skill vs plugin | S flag |',
-             '|---|---|---:|---:|---:|---:|---:|---:|---:|---|']
+             '| Arm | Method | MAE_2 | ProfileMAE | Signed rho_2 | Validity | Fallback | Old-rule MLE MAE_2 | Old-rule fallback | ET profile validity | Skill vs plugin | S flag |',
+             '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|']
     form = lambda x: '' if x is None else f'{x:.4f}'
     for r in main:
         lines.append('| ' + ' | '.join([r['arm'], r['method'], form(r['MAE_2']), form(r['ProfileMAE']),
                                     form(r['signed_rho_2']), form(r['validity']),
-                                    form(r['fallback_rate']), form(r['ET_profile_validity']),
+                                    form(r['fallback_rate']), form(r['old_rule_MAE_2']),
+                                    form(r['old_rule_fallback_rate']), form(r['ET_profile_validity']),
                                     form(r['skill_vs_plugin']), r['not_correctable_at_this_budget_sources']]) + ' |')
     if infer:
         lines += ['', '## Source-level paired inference', '',
@@ -335,6 +389,7 @@ def main():
     write_csv(a.out / 'PER_SOURCE_REAL.csv', by_source(rows, 'real'))
     write_csv(a.out / 'PER_SOURCE_SURROGATE.csv', by_source(rows, 'surrogate'))
     write_csv(a.out / 'PER_SOURCE_SYNTHETIC.csv', by_source(rows, 'synthetic'))
+    write_csv(a.out / 'ET_CHOICES.csv', et_choices(a.et))
     write_csv(a.out / 'SURROGATE.csv', summary(rows, 'surrogate'))
     write_csv(a.out / 'SYNTHETIC.csv', summary(rows, 'synthetic'))
     conditions = ('dar_a0', 'dar_a08', 'ad_memoryless', 'ad_memory')
@@ -344,13 +399,14 @@ def main():
     write_csv(a.out / 'SOURCE_INFERENCE.csv', infer)
     if a.answers: write_csv(a.out / 'ANCHORING.csv', anchoring(rows))
     write_csv(a.out / 'S_VS_S_OBS.csv', s_contrast(rows))
+    if a.answers: write_csv(a.out / 'QWEN_REPEAT_RANGE.csv', qwen_repeat_ranges(rows))
     markdown(main_table, infer, a.out, bool(a.answers))
     write_json(a.out / 'REPORT.json', {'observations': len(observations),
                                       'offline_prediction_rows': len(offline),
                                       'qwen_prediction_rows': len(rows)-len(offline),
                                       'qwen_complete': bool(a.answers),
                                       'gate_failures_retained': sorted(k for k, v in gate.items() if v),
-                                      'ET_selection': 'synthetic_dev',
+                                      'ET_selection': 'nested_leave_one_real_training_source_out',
                                       'primary_metric': 'equal_source_MAE_2'})
     print('V10_RESULTS', len(rows), 'Qwen', bool(a.answers), flush=True)
 

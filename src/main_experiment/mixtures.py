@@ -100,12 +100,8 @@ FLAT_DECADE_TOL=0.5                 # profile nll rise per decade of kappa below
 START_KAPPAS=(2.,20.,200.)
 PENALTY=1e18                        # objective value returned on the invalid region
 CLAMP_TOL=1e-9                      # a larger clamp is an error, not a repair
-# Pre-registered before the main evaluation: an observation whose fit did not
-# converge, or whose starts disagree, does not use the mixture prediction at all;
-# it falls back to the existing homogeneous corrector and is counted. Boundary and
-# weak-identifiability cases keep their fit, because there the fitted value is the
-# answer the model actually implies. The condition is evaluated by is_unreliable()
-# on the independent flags, never on the summary label.
+# Diagnostic flags remain independent of the optimizer decision. is_unreliable()
+# below is retained only to calculate the superseded fallback in secondary output.
 UNRELIABLE_STATUSES=('not_converged','starts_disagree')
 COMB=[[math.comb(n,k) for k in range(n+1)] for n in range(6)]
 
@@ -235,11 +231,12 @@ def diagnose(z,bounds,spread,flat):
 
 
 def is_unreliable(status,flags):
-    """The pre-registered fallback condition, evaluated on the flags.
+    """Whether the superseded fallback rule would have rejected this fit.
 
     Reading it off the summary label would reinstate exactly the masking bug:
     a disagreeing fit that also sits on a bound is labelled boundary_* but is
-    still unreliable.
+    still flagged by the old rule. Current fits fall back only if no start
+    converges.
     """
     return status=='not_converged' or bool(flags.get('starts_disagree'))
 

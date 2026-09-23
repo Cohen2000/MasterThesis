@@ -120,10 +120,11 @@ def mixture_start(o):
 def mixture_reference(o, corrector_prediction):
     fit = mixtures.fit_events(o, *mixture_start(o))
     prediction = list(fit.prediction); fallback = ''
-    if mixtures.is_unreliable(fit.status, fit.flags):
-        # Fixed rule: an unreliable fit contributes no mixture prediction.
+    old_fallback = mixtures.is_unreliable(fit.status, fit.flags)
+    if fit.status == 'not_converged':
         prediction = list(corrector_prediction); fallback = 'homogeneous_corrector'
-    return {'prediction': prediction, 'status': fit.status, 'fallback': fallback, 'flags': dict(fit.flags),
+    return {'prediction': prediction, 'status': fit.status, 'fallback': fallback,
+            'old_rule_fallback': bool(old_fallback), 'flags': dict(fit.flags),
             'seconds': fit.seconds, 'kappa': fit.kappa, 'mu': fit.mu, 'lam': fit.lam,
             'lam_event_only': fit.lam_event_only, 'flat_per_decade': fit.flat_per_decade,
             'nll_spread': fit.nll_spread}

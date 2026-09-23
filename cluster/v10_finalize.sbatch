@@ -22,5 +22,5 @@ python scripts/verify_v10_answers.py \
 python scripts/build_v10_results.py \
   --prepared "$PROJECT/results/panel888_v10/prepared" \
   --et "$PROJECT/results/panel888_v10/et" \
-  --gate "$PROJECT/docs/results/panel888_v10_walk_gate_20260923/walk_gate.csv" \
+  --gate "$WS/panel888_v10_walk_audit/results_amended/walk_gate.csv" \
   --answers "$WS/panel888_access_v10_main/mainexp/answers" --out "$OUT"
