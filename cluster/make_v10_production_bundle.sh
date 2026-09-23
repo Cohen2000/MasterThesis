@@ -11,7 +11,8 @@ python3 - "$SRC/results/panel888_v10/REQUEST_FREEZE.json" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1]))
 assert x['verified'] and x['observations']==360 and x['requests']==4320
-assert x['rhb_byte_identical_requests']==2592 and x['new_qwen_requests']==864
+assert x['rhb_requests']==2592 and x['new_s_qwen_requests']==864
+assert x['qwen_requests_to_generate']==2160
 PY
 mkdir -p "$EXP/src" "$EXP/config" "$EXP/docs/results" "$EXP/mainexp/run/observations" "$EXP/mainexp/logs"
 cp -a "$SRC/src/main_experiment" "$EXP/src/"

@@ -12,6 +12,13 @@ the rerun and strength-start/4L confirmations. This is an amendment after seeing
 the failed original gate, not a prospective criterion. The protocol below
 documents the earlier sealed design.
 
+The v10 R/H/B request IDs and seeds match v9, but their prepared blocks match
+the separate v9 CPU preparation rather than the sealed v9 Qwen production
+archive. Because prompt and payload hashes differ from that archive, no v9
+answers are reused; all v10 Qwen requests are generated under the frozen v9
+decoding protocol. The [request freeze](results/panel888_v10_request_freeze/REQUEST_FREEZE.json)
+records the exact identity check.
+
 **v10 access contract:** each released block contains the observation and the
 design information held by the operator executing its arm. B releases its event
 retention probability p. S releases its own crawl log, summarised by pattern as

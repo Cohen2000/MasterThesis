@@ -11,7 +11,11 @@ in the study, flagged **not correctable at this budget**. Confirmation array
 7143568 found persistence of bias under strength-proportional starts and lower
 bias at 4L. The [generated gate report](results/panel888_v10_walk_gate_20260923/WALK_GATE.md)
 and [CSV](results/panel888_v10_walk_gate_20260923/walk_gate.csv) contain all values.
-v10 preparation job 7143619 completed; synthetic pool job 7143620 is running.
+v10 preparation job 7143619 and synthetic pool job 7143620 completed.
+Request sealing job 7143754 found that none of the R/H/B requests match the
+sealed v9 Qwen production archive, although all 2,592 match the separate v9 CPU
+preparation. The R/H/B blocks differ from the production archive, so all 2,160
+v10 Qwen requests will be generated; no answer reuse is claimed.
 The v9 results below remain the latest completed comparison until v10 integration.
 
 Design identifier panel888-access-v9-20260922; active arms R, S1, H, B (S2 retired).

@@ -4,6 +4,9 @@
 permits production, with sp_hospital__pwt flagged as not correctable at the 10%
 budget. Jobs 7143567 and 7143568 produced the audit and confirmation evidence;
 7143619 prepared v10 observations and 7143620 builds the synthetic pool.
+The sealed v9 production blocks differ from the v9 CPU preparation used by v10;
+the v10 [request freeze](results/panel888_v10_request_freeze/REQUEST_FREEZE.json)
+therefore requires generation of all 2,160 Qwen requests.
 The steps below describe the sealed v9 predecessor.
 
 One offline entry point, one Qwen production path, one integration path.

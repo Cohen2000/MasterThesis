@@ -1,6 +1,6 @@
 {
   "design_version": "panel888-access-v10-20260923",
-  "new_qwen_requests": 864,
+  "new_s_qwen_requests": 864,
   "observation_file_sha256": {
     "ad_memory_r1__B-p888-access-v9-20260922__s1.json": "7992672d9aae1cb1c261b641cf832ae247b0d4aeba74688953199b37d94e0a8d",
     "ad_memory_r1__B-p888-access-v9-20260922__s2.json": "9402470d2793a82ef4ca8ff5a373e90914ec37edace43ddb047a6d364e6d1ad0",
@@ -366,6 +366,7 @@
   "observations": 360,
   "prepared_inputs_sha256": "9e9bcfa3cdbeffe1f4d08d60c2a5d263bcb537cbe81cb3533e83ec0f7f4a7ee4",
   "prepared_report_sha256": "ca8f764771eb77a4b46daa5b2a70aabaa7cd80734d710ea5577a9019b152b2f9",
+  "qwen_requests_to_generate": 2160,
   "requests": 4320,
   "requests_by_arm": {
     "B": 864,
@@ -375,6 +376,9 @@
     "S_obs": 864
   },
   "requests_sha256": "4a6283e3e24b87a465348f548d70f3f00016d6c7a8ab868cfa186d31da67f3c6",
-  "rhb_byte_identical_requests": 2592,
+  "rhb_identical_to_v9_cpu_preparation": 2592,
+  "rhb_identical_to_v9_production": 0,
+  "rhb_qwen_reusable_from_v9_production": 0,
+  "rhb_requests": 2592,
   "verified": true
 }

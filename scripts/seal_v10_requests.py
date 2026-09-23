@@ -13,7 +13,8 @@ from main_experiment.requests import validate_request
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--prepared', type=Path, required=True)
-    p.add_argument('--old', type=Path, required=True)
+    p.add_argument('--old', type=Path, required=True, help='sealed v9 Qwen production run')
+    p.add_argument('--old-cpu', type=Path, required=True, help='v9 CPU preparation')
     p.add_argument('--output', type=Path, required=True)
     a = p.parse_args()
     prepared = a.prepared
@@ -34,21 +35,29 @@ def main():
         assert r['observation_id'] in obs
         assert r['prompt_sha256'] == obs[r['observation_id']]['prompt_sha256']
     old = {r['id']: r for r in read_jsonl(a.old / 'requests.jsonl')}
+    old_cpu = {r['id']: r for r in read_jsonl(a.old_cpu / 'requests.jsonl')}
     identity = ('id', 'config_id', 'repeat_index', 'prompt_sha256', 'payload_sha256', 'seed')
     rhb = [r for r in requests if r['arm'] in ('R', 'H', 'B')]
     assert len(rhb) == 2592
-    assert all(r['id'] in old and all(r[k] == old[r['id']][k] for k in identity) for r in rhb)
+    main_matches = sum(r['id'] in old and all(r[k] == old[r['id']][k] for k in identity) for r in rhb)
+    cpu_matches = sum(r['id'] in old_cpu and all(r[k] == old_cpu[r['id']][k] for k in identity) for r in rhb)
+    qwen_matches = sum(r['config_id'].startswith('qwen') and r['id'] in old and
+                       all(r[k] == old[r['id']][k] for k in identity) for r in rhb)
     new_qwen = [r for r in requests if r['arm'] in ('S', 'S_obs') and r['config_id'].startswith('qwen')]
     assert len(new_qwen) == 864
     out = {'design_version': report['design_version'], 'verified': True,
            'observations': len(obs), 'requests': len(requests),
            'requests_by_arm': dict(Counter(r['arm'] for r in requests)),
-           'rhb_byte_identical_requests': len(rhb), 'new_qwen_requests': len(new_qwen),
+           'rhb_requests': len(rhb), 'rhb_identical_to_v9_production': main_matches,
+           'rhb_identical_to_v9_cpu_preparation': cpu_matches,
+           'rhb_qwen_reusable_from_v9_production': qwen_matches,
+           'qwen_requests_to_generate': sum(r['config_id'].startswith('qwen') for r in requests) - qwen_matches,
+           'new_s_qwen_requests': len(new_qwen),
            'prepared_report_sha256': sha(prepared / 'report.json'),
            'prepared_inputs_sha256': sha(prepared / 'inputs.json'),
            'requests_sha256': sha(prepared / 'requests.jsonl'),
            'observation_file_sha256': {p.name: sha(p) for p in sorted((prepared / 'observations/sample').glob('*.json'))}}
     write_json(a.output, out)
-    print('V10_REQUESTS_SEALED', len(obs), len(requests), len(new_qwen))
+    print('V10_REQUESTS_SEALED', len(obs), len(requests), 'v9 production reuse', main_matches)
 
 if __name__ == '__main__': main()
