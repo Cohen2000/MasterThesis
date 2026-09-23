@@ -1,352 +1,362 @@
-{
-  "B": {
-    "candidates": [
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.042363144283941806,
-        "dev_ProfileMAE": 0.04052382889296743,
-        "max_features": 0.5,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.04195369707205234,
-        "dev_ProfileMAE": 0.039891321563866725,
-        "max_features": 1.0,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.0426161202170229,
-        "dev_ProfileMAE": 0.040957705977965574,
-        "max_features": 0.5,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.04236580125861718,
-        "dev_ProfileMAE": 0.040417826810917594,
-        "max_features": 1.0,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.04639775842140913,
-        "dev_ProfileMAE": 0.0446166645407653,
-        "max_features": 0.5,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.044977439229367235,
-        "dev_ProfileMAE": 0.04354667156044996,
-        "max_features": 1.0,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.04609170350110918,
-        "dev_ProfileMAE": 0.04471713090890571,
-        "max_features": 0.5,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.044982742595104985,
-        "dev_ProfileMAE": 0.04359347359881079,
-        "max_features": 1.0,
-        "min_samples_leaf": 3
-      }
-    ],
-    "dev_graphs": 100,
-    "selected": {
-      "anchor": "plugin",
-      "dev_MAE2": 0.04195369707205234,
-      "dev_ProfileMAE": 0.039891321563866725,
-      "max_features": 1.0,
-      "min_samples_leaf": 1
-    },
-    "selection_pool": "synthetic development only",
-    "train_graphs": 400
+[
+  {
+    "anchor": "reference",
+    "arm": "B",
+    "inner_MAE_2": 0.06938005854492046,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "copenhagen_bluetooth"
   },
-  "H": {
-    "candidates": [
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.02430573761432034,
-        "dev_ProfileMAE": 0.018737466634455784,
-        "max_features": 0.5,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.02447698466458574,
-        "dev_ProfileMAE": 0.01882093708916193,
-        "max_features": 1.0,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.02436185518732246,
-        "dev_ProfileMAE": 0.01860309186715268,
-        "max_features": 0.5,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.02431072525585416,
-        "dev_ProfileMAE": 0.018665971254030456,
-        "max_features": 1.0,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.02564085786624142,
-        "dev_ProfileMAE": 0.019257149620100285,
-        "max_features": 0.5,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.025325063646119625,
-        "dev_ProfileMAE": 0.019060167277609574,
-        "max_features": 1.0,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.026033003473938027,
-        "dev_ProfileMAE": 0.019433481504453735,
-        "max_features": 0.5,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.025334406218411293,
-        "dev_ProfileMAE": 0.019125844086976075,
-        "max_features": 1.0,
-        "min_samples_leaf": 3
-      }
-    ],
-    "dev_graphs": 100,
-    "selected": {
-      "anchor": "plugin",
-      "dev_MAE2": 0.02430573761432034,
-      "dev_ProfileMAE": 0.018737466634455784,
-      "max_features": 0.5,
-      "min_samples_leaf": 1
-    },
-    "selection_pool": "synthetic development only",
-    "train_graphs": 400
+  {
+    "anchor": "reference",
+    "arm": "B",
+    "inner_MAE_2": 0.06975200793876463,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "nr_digg_reply"
   },
-  "R": {
-    "candidates": [
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.023132463248605198,
-        "dev_ProfileMAE": 0.017964459667649268,
-        "max_features": 0.5,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.02304505053360649,
-        "dev_ProfileMAE": 0.017950048118123448,
-        "max_features": 1.0,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.02316864178545012,
-        "dev_ProfileMAE": 0.018067151643112858,
-        "max_features": 0.5,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.023383575243205314,
-        "dev_ProfileMAE": 0.018247589208191143,
-        "max_features": 1.0,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.023144183301033117,
-        "dev_ProfileMAE": 0.01798195911535449,
-        "max_features": 0.5,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.023032997399906507,
-        "dev_ProfileMAE": 0.018042036843269948,
-        "max_features": 1.0,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.0231600561301516,
-        "dev_ProfileMAE": 0.01802064284954872,
-        "max_features": 0.5,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.0234373259325685,
-        "dev_ProfileMAE": 0.01818580195404945,
-        "max_features": 1.0,
-        "min_samples_leaf": 3
-      }
-    ],
-    "dev_graphs": 100,
-    "selected": {
-      "anchor": "reference",
-      "dev_MAE2": 0.023032997399906507,
-      "dev_ProfileMAE": 0.018042036843269948,
-      "max_features": 1.0,
-      "min_samples_leaf": 1
-    },
-    "selection_pool": "synthetic development only",
-    "train_graphs": 400
+  {
+    "anchor": "reference",
+    "arm": "B",
+    "inner_MAE_2": 0.06855800407417019,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_collegemsg"
   },
-  "S": {
-    "candidates": [
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.024163200006690637,
-        "dev_ProfileMAE": 0.021031717086489134,
-        "max_features": 0.5,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.023593643428668095,
-        "dev_ProfileMAE": 0.020900608581041116,
-        "max_features": 1.0,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.024694804560216995,
-        "dev_ProfileMAE": 0.021316639085111482,
-        "max_features": 0.5,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.023935516263202658,
-        "dev_ProfileMAE": 0.021215534006938305,
-        "max_features": 1.0,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.029565993625296695,
-        "dev_ProfileMAE": 0.023997844139747454,
-        "max_features": 0.5,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.02824001792098864,
-        "dev_ProfileMAE": 0.023682881853497605,
-        "max_features": 1.0,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.030196212967794317,
-        "dev_ProfileMAE": 0.02414362167651537,
-        "max_features": 0.5,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.029095641258814194,
-        "dev_ProfileMAE": 0.0240111743541512,
-        "max_features": 1.0,
-        "min_samples_leaf": 3
-      }
-    ],
-    "dev_graphs": 100,
-    "selected": {
-      "anchor": "plugin",
-      "dev_MAE2": 0.023593643428668095,
-      "dev_ProfileMAE": 0.020900608581041116,
-      "max_features": 1.0,
-      "min_samples_leaf": 1
-    },
-    "selection_pool": "synthetic development only",
-    "train_graphs": 400
+  {
+    "anchor": "reference",
+    "arm": "B",
+    "inner_MAE_2": 0.06686450642829128,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_email_eu"
   },
-  "S_obs": {
-    "candidates": [
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.024188146053489935,
-        "dev_ProfileMAE": 0.021084852414141583,
-        "max_features": 0.5,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.023393904225195133,
-        "dev_ProfileMAE": 0.02073669321427233,
-        "max_features": 1.0,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.02419711242411162,
-        "dev_ProfileMAE": 0.021108147503095677,
-        "max_features": 0.5,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "plugin",
-        "dev_MAE2": 0.02402323681813842,
-        "dev_ProfileMAE": 0.02094241714712183,
-        "max_features": 1.0,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.025541845746398176,
-        "dev_ProfileMAE": 0.021518834953097272,
-        "max_features": 0.5,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.024152930109846298,
-        "dev_ProfileMAE": 0.021242529458251457,
-        "max_features": 1.0,
-        "min_samples_leaf": 1
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.026544610632946032,
-        "dev_ProfileMAE": 0.02179193462042657,
-        "max_features": 0.5,
-        "min_samples_leaf": 3
-      },
-      {
-        "anchor": "reference",
-        "dev_MAE2": 0.02471885190161808,
-        "dev_ProfileMAE": 0.021180530331953214,
-        "max_features": 1.0,
-        "min_samples_leaf": 3
-      }
-    ],
-    "dev_graphs": 100,
-    "selected": {
-      "anchor": "plugin",
-      "dev_MAE2": 0.023393904225195133,
-      "dev_ProfileMAE": 0.02073669321427233,
-      "max_features": 1.0,
-      "min_samples_leaf": 1
-    },
-    "selection_pool": "synthetic development only",
-    "train_graphs": 400
+  {
+    "anchor": "reference",
+    "arm": "B",
+    "inner_MAE_2": 0.06243007153902013,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_mathoverflow"
+  },
+  {
+    "anchor": "reference",
+    "arm": "B",
+    "inner_MAE_2": 0.06177303272342063,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_highschool2013"
+  },
+  {
+    "anchor": "reference",
+    "arm": "B",
+    "inner_MAE_2": 0.06268274815086029,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_hospital"
+  },
+  {
+    "anchor": "reference",
+    "arm": "B",
+    "inner_MAE_2": 0.06930900497640353,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_workplace"
+  },
+  {
+    "anchor": "reference",
+    "arm": "B",
+    "inner_MAE_2": 0.06698351881062845,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "synthetic"
+  },
+  {
+    "anchor": "plugin",
+    "arm": "H",
+    "inner_MAE_2": 0.04124619570128047,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "copenhagen_bluetooth"
+  },
+  {
+    "anchor": "plugin",
+    "arm": "H",
+    "inner_MAE_2": 0.04168133723403529,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "nr_digg_reply"
+  },
+  {
+    "anchor": "plugin",
+    "arm": "H",
+    "inner_MAE_2": 0.04012076785812436,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_collegemsg"
+  },
+  {
+    "anchor": "plugin",
+    "arm": "H",
+    "inner_MAE_2": 0.038221627095296334,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_email_eu"
+  },
+  {
+    "anchor": "plugin",
+    "arm": "H",
+    "inner_MAE_2": 0.04224224962187469,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_mathoverflow"
+  },
+  {
+    "anchor": "plugin",
+    "arm": "H",
+    "inner_MAE_2": 0.04083940038621233,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_highschool2013"
+  },
+  {
+    "anchor": "plugin",
+    "arm": "H",
+    "inner_MAE_2": 0.038323222626039294,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_hospital"
+  },
+  {
+    "anchor": "plugin",
+    "arm": "H",
+    "inner_MAE_2": 0.041222150222509586,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_workplace"
+  },
+  {
+    "anchor": "plugin",
+    "arm": "H",
+    "inner_MAE_2": 0.03995442502590358,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "synthetic"
+  },
+  {
+    "anchor": "plugin",
+    "arm": "R",
+    "inner_MAE_2": 0.017247275297249284,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "copenhagen_bluetooth"
+  },
+  {
+    "anchor": "plugin",
+    "arm": "R",
+    "inner_MAE_2": 0.01735118433061776,
+    "max_features": 0.5,
+    "min_samples_leaf": 5,
+    "outer_fold": "nr_digg_reply"
+  },
+  {
+    "anchor": "reference",
+    "arm": "R",
+    "inner_MAE_2": 0.01815154927203115,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_collegemsg"
+  },
+  {
+    "anchor": "reference",
+    "arm": "R",
+    "inner_MAE_2": 0.01769744614622316,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_email_eu"
+  },
+  {
+    "anchor": "reference",
+    "arm": "R",
+    "inner_MAE_2": 0.017950697337872905,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_mathoverflow"
+  },
+  {
+    "anchor": "reference",
+    "arm": "R",
+    "inner_MAE_2": 0.01665891031518221,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_highschool2013"
+  },
+  {
+    "anchor": "reference",
+    "arm": "R",
+    "inner_MAE_2": 0.016565817747217187,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_hospital"
+  },
+  {
+    "anchor": "reference",
+    "arm": "R",
+    "inner_MAE_2": 0.016239525720094784,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_workplace"
+  },
+  {
+    "anchor": "reference",
+    "arm": "R",
+    "inner_MAE_2": 0.016991157936223064,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "synthetic"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S",
+    "inner_MAE_2": 0.03570077409139657,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "copenhagen_bluetooth"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S",
+    "inner_MAE_2": 0.03607722556396652,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "nr_digg_reply"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S",
+    "inner_MAE_2": 0.03755815916042396,
+    "max_features": 0.5,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_collegemsg"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S",
+    "inner_MAE_2": 0.03551347370712202,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_email_eu"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S",
+    "inner_MAE_2": 0.03672096254163152,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_mathoverflow"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S",
+    "inner_MAE_2": 0.031474422568044724,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_highschool2013"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S",
+    "inner_MAE_2": 0.03005361738156417,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_hospital"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S",
+    "inner_MAE_2": 0.0341130260474377,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_workplace"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S",
+    "inner_MAE_2": 0.03448260687829374,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "synthetic"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S_obs",
+    "inner_MAE_2": 0.03973875591392916,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "copenhagen_bluetooth"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S_obs",
+    "inner_MAE_2": 0.04231714017409552,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "nr_digg_reply"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S_obs",
+    "inner_MAE_2": 0.04184497869812255,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_collegemsg"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S_obs",
+    "inner_MAE_2": 0.03841440656500376,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_email_eu"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S_obs",
+    "inner_MAE_2": 0.0414231401352589,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "snap_mathoverflow"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S_obs",
+    "inner_MAE_2": 0.036938747163622825,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_highschool2013"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S_obs",
+    "inner_MAE_2": 0.03329106611044226,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_hospital"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S_obs",
+    "inner_MAE_2": 0.040722534642425895,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "sp_workplace"
+  },
+  {
+    "anchor": "reference",
+    "arm": "S_obs",
+    "inner_MAE_2": 0.03978617887277862,
+    "max_features": 1.0,
+    "min_samples_leaf": 20,
+    "outer_fold": "synthetic"
   }
-}
+]

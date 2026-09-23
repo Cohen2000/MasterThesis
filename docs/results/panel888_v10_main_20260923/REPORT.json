@@ -1,5 +1,5 @@
 {
-  "ET_selection": "synthetic_dev",
+  "ET_selection": "nested_leave_one_real_training_source_out",
   "gate_failures_retained": [
     "sp_hospital__pwt"
   ],
