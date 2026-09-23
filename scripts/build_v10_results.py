@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate every v10 main table from prepared blocks, ET folds and Qwen answers."""
+"""Generate v10 results or compose v11 from verified completed predictions."""
 import argparse
 import csv
 import itertools
@@ -347,8 +347,8 @@ def s_contrast(rows):
     return out
 
 
-def markdown(main, infer, out, qwen_complete):
-    lines = ['# v10 main results', '',
+def markdown(main, infer, out, qwen_complete, design='v10'):
+    lines = [f'# {design} main results', '',
              'Primary metric: equal-source MAE_2 across eight real sources. ProfileMAE is secondary.',
              'LLM accuracy uses valid final answers only; no estimate is clipped or repaired.',
              'ET hyperparameters were selected by nested leave-one-real-training-source-out CV.',
@@ -356,7 +356,11 @@ def markdown(main, infer, out, qwen_complete):
              '', f'Qwen complete: {qwen_complete}.', '',
              '| Arm | Method | MAE_2 | ProfileMAE | Signed rho_2 | Validity | Fallback | Old-rule MLE MAE_2 | Old-rule ProfileMAE | Old-rule signed rho_2 | Old-rule fallback | ET profile validity | Skill vs plugin | S flag |',
              '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|']
-    form = lambda x: '' if x is None else f'{x:.4f}'
+    if design == 'v11':
+        lines[7:7] = ['R/H use completed released-panel Qwen answers and panel-aware ET; S/S_obs/B',
+                      'use unchanged sealed v10 evidence. Hidden-panel R/H is sensitivity only.',
+                      'Workplace retains the original empty-calendar-window limitation.', '']
+    form = lambda x: '' if x is None or x == '' else f'{float(x):.4f}'
     for r in main:
         lines.append('| ' + ' | '.join([r['arm'], r['method'], form(r['MAE_2']), form(r['ProfileMAE']),
                                     form(r['signed_rho_2']), form(r['validity']),
@@ -377,6 +381,123 @@ def markdown(main, infer, out, qwen_complete):
     (out / 'MAIN_RESULTS.md').write_text('\n'.join(lines) + '\n')
 
 
+def _sealed_prediction_rows(path):
+    with path.open() as stream:
+        rows = list(csv.DictReader(stream))
+    numeric = ('reference_rho2', 'plugin_rho2', 'inv_events_hajek_rho2',
+               'mle_old_rule_AE2', 'mle_old_rule_ProfileAE', 'mle_old_rule_signed_rho2',
+               'AE2', 'ProfileAE', 'signed_rho2')
+    for row in rows:
+        row['prediction'] = json.loads(row['prediction']) if row['prediction'] else None
+        for key in numeric:
+            row[key] = float(row[key]) if row[key] else None
+        for key in ('valid', 'profile_valid', 'fallback', 'mle_old_rule_fallback',
+                    'not_correctable_at_this_budget'):
+            row[key] = (row[key] == 'True') if row[key] else None
+        row['sample_index'] = int(row['sample_index'])
+        row['repeat_index'] = int(row['repeat_index']) if row['repeat_index'] else None
+    return rows
+
+
+def composite_v11(old_results, released, out):
+    """Substitute completed R/H answers and ET fits; rerun only table arithmetic."""
+    old = _sealed_prediction_rows(old_results / 'PREDICTIONS.csv')
+    old_by_slot = {(r['observation_id'], r['method'], r['repeat_index']): r for r in old}
+    if len(old) != len(old_by_slot):
+        raise ValueError('duplicate sealed prediction slot')
+    observations = {r['id']: r for p in (released / 'observations/sample').glob('*.json')
+                    for r in [read_json(p)]}
+    offline = {(r['id'], r['method']): r for r in read_json(released / 'offline.json')}
+    et = et_predictions(released / 'et')
+    requests = {r['id']: r for r in read_jsonl(released / 'requests.jsonl')}
+    answers = {}
+    for path in (released / 'answers').glob('*_r*/*.json'):
+        answer = read_json(path)
+        if answer['id'] in answers or answer['id'] not in requests:
+            raise ValueError('duplicate or unexpected released Qwen answer')
+        req = requests[answer['id']]
+        if any(answer.get(k) != req[k] for k in ('seed', 'prompt_sha256', 'payload_sha256')):
+            raise ValueError('released Qwen answer identity mismatch')
+        answers[answer['id']] = answer
+    if len(observations) != 144 or len(et) != 144 or len(requests) != 864 or set(answers) != set(requests):
+        raise ValueError('released R/H evidence incomplete')
+    rows = [r for r in old if r['arm'] not in ('R', 'H')]
+    for obs in observations.values():
+        hidden = obs['paired_hidden_id']
+        if obs['arm'] not in ('R', 'H') or 'n_panel' not in parse(obs['block']):
+            raise ValueError('released panel observation invalid')
+        for method in ('plugin', 'median', 'mle', 'et'):
+            original = old_by_slot[hidden, method, None]
+            prediction = et[obs['id']] if method == 'et' else offline[obs['id'], method]['prediction']
+            record = {**original, 'id': obs['id'], 'observation_id': obs['id'],
+                      'prediction': prediction, 'valid': all(math.isfinite(float(x)) for x in prediction),
+                      'profile_valid': profile_valid(prediction), **errors(prediction, obs['truth'])}
+            if method in ('plugin', 'median', 'mle') and prediction != original['prediction']:
+                raise ValueError(f'{method} changed despite identical observed table')
+            rows.append(record)
+    for rid, req in requests.items():
+        obs = observations[req['observation_id']]
+        original = old_by_slot[obs['paired_hidden_id'], req['config_id'], req['repeat_index']]
+        answer = answers[rid]
+        prediction, reason = parse_final(answer.get('final_text', ''))
+        if answer.get('status') != 'completed' or answer.get('technical_error'):
+            prediction, reason = None, answer.get('end_state', 'technical_error')
+        rows.append({**original, 'id': rid, 'observation_id': obs['id'],
+                     'prediction': prediction, 'valid': prediction is not None,
+                     'profile_valid': prediction is not None, 'validation_reason': reason,
+                     **errors(prediction, obs['truth'])})
+    if len(rows) != len(old) or len({(r['id'], r['method']) for r in rows}) != len(rows):
+        raise ValueError('v11 composite prediction count or identity mismatch')
+    out.mkdir(parents=True, exist_ok=True)
+    write_csv(out / 'PREDICTIONS.csv', rows)
+    def unchanged_arms(filename, current):
+        with (old_results / filename).open() as stream:
+            sealed = list(csv.DictReader(stream))
+        # S/S_obs/B have identical prediction rows; carry their published
+        # decimal representations through without platform-level rounding drift.
+        key = lambda r: (r.get('stratum'), r.get('condition'), r['arm'], r.get('method'))
+        lookup = {key(r): r for r in sealed}
+        if len(lookup) != len(sealed): raise ValueError('duplicate sealed summary row')
+        if any(key(x) not in lookup for x in current if x['arm'] in ('S', 'S_obs', 'B')):
+            raise ValueError('unchanged arm missing from sealed summary')
+        return [lookup[key(x)] if x['arm'] in ('S', 'S_obs', 'B') else x for x in current]
+    main_table = unchanged_arms('MAIN_REAL.csv', summary(rows, 'real'))
+    write_csv(out / 'SUMMARY.csv', main_table +
+              unchanged_arms('SURROGATE.csv', summary(rows, 'surrogate')) +
+              unchanged_arms('SYNTHETIC.csv', summary(rows, 'synthetic')))
+    write_csv(out / 'PER_SOURCE.csv', [r for stratum in ('real', 'surrogate', 'synthetic')
+                                      for r in by_source(rows, stratum)])
+    conditions = ('dar_a0', 'dar_a08', 'ad_memoryless', 'ad_memory')
+    write_csv(out / 'SYNTHETIC_CONDITIONS.csv', unchanged_arms('SYNTHETIC_CONDITIONS.csv',
+        [dict(condition=c, **r) for c in conditions
+         for r in summary([x for x in rows if x['source'].startswith(c + '_r')], 'synthetic')]))
+    old_choices = list(csv.DictReader((old_results / 'ET_CHOICES.csv').open()))
+    new_choices = list(csv.DictReader((released / 'ET_CHOICES.csv').open()))
+    choices = [r for r in old_choices if r['arm'] not in ('R', 'H')] + new_choices
+    if len(choices) != 45: raise ValueError('v11 ET choices incomplete')
+    write_csv(out / 'ET_CHOICES.csv', choices)
+    write_csv(out / 'SOURCE_INFERENCE.csv', inference(rows))
+    write_csv(out / 'ANCHORING.csv', anchoring(rows))
+    write_csv(out / 'QWEN_REPEAT_RANGE.csv', qwen_repeat_ranges(rows))
+    # S/S_obs is byte-identical to the sealed v10 table; refer to it there.
+    markdown(main_table, inference(rows), out, True, design='v11')
+    qwen = [r for r in rows if r['method'] in QWEN]
+    write_json(out / 'REPORT.json', {'design_version': 'panel888-access-v11-20260923',
+              'observations': 360, 'qwen_answers': len(qwen),
+              'qwen_valid': sum(r['valid'] for r in qwen),
+              'qwen_invalid': sum(not r['valid'] for r in qwen),
+              'qwen_by_arm_mode': {f'{arm}/{mode}': {'answers': sum(r['arm'] == arm and r['method'] == mode for r in qwen),
+                                                    'valid': sum(r['arm'] == arm and r['method'] == mode and r['valid'] for r in qwen)}
+                                   for arm in ARMS for mode in QWEN},
+              'qwen_source_by_arm': {'R': 'released_RH_archive', 'H': 'released_RH_archive',
+                                     'S': 'v10_archive', 'S_obs': 'v10_archive', 'B': 'v10_archive'},
+              'ET_released_panel_arms': ['R', 'H'],
+              'ET_RH_source': 'completed panel-release nested ET fits; docs/results/panel888_v10_RH_panel_release/ET_CHOICES.csv',
+              'ET_S_S_obs_B_source': 'sealed v10 main predictions and choices',
+              'model_or_sampling_recomputed': False})
+    print('V11_RESULTS', len(rows), 'Qwen', 2160)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--prepared', type=Path, default=PREPARED)
@@ -384,7 +505,14 @@ def main():
     ap.add_argument('--gate', type=Path, required=True)
     ap.add_argument('--answers', type=Path)
     ap.add_argument('--out', type=Path, required=True)
+    ap.add_argument('--v11-released', type=Path,
+                    help='compose v11 from sealed v10 predictions and completed released R/H results')
+    ap.add_argument('--v10-results', type=Path,
+                    default=Path(__file__).resolve().parents[1] / 'docs/results/panel888_v10_main_20260923')
     a = ap.parse_args()
+    if a.v11_released:
+        composite_v11(a.v10_results, a.v11_released, a.out)
+        return
     gate = gate_flags(a.gate)
     offline, lookup, observations = offline_rows(a.prepared, a.et, gate)
     rows = offline + (qwen_rows(a.answers, a.prepared, observations, lookup) if a.answers else [])

@@ -25,6 +25,8 @@ ARMS = ('R', 'H')
 DEFAULT_INPUT = Path.home() / '.local/share/masterthesis/rh_panel_sensitivity/inputs'
 DEFAULT_OLD = Path.home() / '.local/share/masterthesis/v10_observations'
 DEFAULT_OUT = Path.home() / '.local/share/masterthesis/rh_panel_sensitivity/run'
+DEFAULT_API = Path.home() / '.local/share/masterthesis/v11_api_observations'
+DEFAULT_TECHNICAL = Path.home() / '.local/share/masterthesis/v11_token_pilot'
 
 
 def released_id(old_id):
@@ -111,6 +113,57 @@ def prepare(old_dir, input_dir, out):
                                          x['block_sha256'] for x in old_rows if x['id'] == r['paired_hidden_id'])
                                          for r in rows}})
     print('PAIRED', len(rows), 'QWEN', len(requests))
+
+
+def freeze_api(old_dir, released_dir, destination):
+    """Copy only the completed, released v11 evidence to a local API freeze."""
+    old = [read_json(p) for p in old_dir.glob('*.json')]
+    released = [read_json(p) for p in released_dir.glob('*.json')]
+    selected = [r for r in old if r['arm'] in ('S', 'B')] + released
+    cells = {(r['graph_id'], r['arm'], r['sample_index']) for r in selected}
+    expected = {(g, arm, i) for g in MAIN_KEYS for arm in ('R', 'S', 'H', 'B') for i in (1, 2, 3)}
+    if len(selected) != 288 or len(cells) != 288 or cells != expected:
+        raise ValueError('v11 API observation grid incomplete')
+    if destination.exists() and any(destination.iterdir()):
+        raise ValueError('v11 API freeze already exists; do not overwrite frozen inputs')
+    destination.mkdir(parents=True, exist_ok=True)
+    hashes = {}
+    for row in selected:
+        arm = row['arm']
+        if row['block_sha256'] != digest(row['block']) or row['prompt_sha256'] != digest(row['messages']):
+            raise ValueError('source observation hash mismatch')
+        if row['messages'] != messages(row['block']):
+            raise ValueError('source prompt mismatch')
+        parsed = parse(row['block'])
+        if (arm in ('R', 'H')) != ('n_panel' in parsed):
+            raise ValueError('R/H panel release missing or unexpected')
+        if arm == 'S' and 'traversals' not in row['block'] or arm == 'B' and '\np=' not in row['block']:
+            raise ValueError('S/B design evidence missing')
+        frozen = {key: row[key] for key in ('id', 'graph_id', 'stratum', 'arm', 'sample_index',
+                                           'block', 'block_sha256', 'messages', 'prompt_sha256')}
+        write_json(destination / (row['id'] + '.json'), frozen)
+        hashes[row['id']] = {'block_sha256': row['block_sha256'],
+                             'prompt_sha256': row['prompt_sha256']}
+    print('V11_API_FREEZE', len(hashes), 'R/S/H/B', *(sum(r['arm'] == a for r in selected)
+                                                        for a in ('R', 'S', 'H', 'B')))
+    return hashes
+
+
+def freeze_technical(source, input_dir, destination):
+    """Apply the same R/H release to completed training pilot draws."""
+    budget = budgets(input_dir)
+    rows = [read_json(p) for p in source.glob('*.json')]
+    if len(rows) != 12 or destination.exists() and any(destination.iterdir()):
+        raise ValueError('expected 12 technical draws and an empty destination')
+    destination.mkdir(parents=True, exist_ok=True)
+    for row in rows:
+        if row['domain'] not in ('training', 'pool_train', 'pool_dev'):
+            raise ValueError('technical draw is not training/dev/pool')
+        changed = release(row, budget[row['graph_id']][row['arm']]) if row['arm'] in ARMS else row
+        frozen = {key: changed[key] for key in ('id', 'domain', 'empty', 'graph_id', 'arm',
+                                               'block', 'block_sha256', 'messages', 'prompt_sha256')}
+        write_json(destination / (changed['id'] + '.json'), frozen)
+    print('V11_TECHNICAL_FREEZE', len(rows))
 
 
 def et_cache(input_dir, out):
@@ -357,10 +410,15 @@ def comparison(out):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('stage', choices=('prepare', 'et-cache', 'et-select', 'et-train',
-                                      'offline', 'side-channel', 'comparison'))
+                                      'offline', 'side-channel', 'comparison', 'freeze-api',
+                                      'freeze-technical'))
     ap.add_argument('--old', type=Path, default=DEFAULT_OLD)
     ap.add_argument('--inputs', type=Path, default=DEFAULT_INPUT)
     ap.add_argument('--out', type=Path, default=DEFAULT_OUT)
+    ap.add_argument('--api-out', type=Path, default=DEFAULT_API)
+    ap.add_argument('--technical-old', type=Path,
+                    default=Path.home() / '.local/share/masterthesis/v10_token_pilot')
+    ap.add_argument('--technical-out', type=Path, default=DEFAULT_TECHNICAL)
     ap.add_argument('--index', type=int)
     a = ap.parse_args()
     if a.stage == 'prepare': prepare(a.old, a.inputs, a.out)
@@ -368,6 +426,9 @@ def main():
     elif a.stage == 'offline': offline(a.inputs, a.out)
     elif a.stage == 'side-channel': side_channel(a.inputs, a.out)
     elif a.stage == 'comparison': comparison(a.out)
+    elif a.stage == 'freeze-api': freeze_api(a.old, a.out / 'observations/sample', a.api_out)
+    elif a.stage == 'freeze-technical': freeze_technical(a.technical_old, a.inputs,
+                                                         a.technical_out)
     else:
         if a.index is None or not 0 <= a.index < 2 * len(et.FOLDS):
             raise ValueError('ET index must be 0..17')

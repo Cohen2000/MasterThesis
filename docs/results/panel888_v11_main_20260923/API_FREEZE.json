@@ -1,0 +1,28 @@
+{
+  "design_version": "panel888-access-v11-20260923",
+  "observation_count": 288,
+  "arms": {"R": 72, "S": 72, "H": 72, "B": 72},
+  "observation_hash_manifest_sha256": "82809f030e16c92307940a3a4af90139c093ad158e6f391ef12fa5b3ef22124b",
+  "local_copy": "~/.local/share/masterthesis/v11_api_observations",
+  "observation_sources": {
+    "R": "completed released-panel R/H sensitivity; exact v10 draw",
+    "H": "completed released-panel R/H sensitivity; exact v10 draw",
+    "S": "sealed v10 main observation; unchanged",
+    "B": "sealed v10 main observation; unchanged"
+  },
+  "qwen_archive_by_arm": {
+    "R": "released_RH",
+    "H": "released_RH",
+    "S": "v10_main",
+    "S_obs": "v10_main; Qwen-only ablation",
+    "B": "v10_main"
+  },
+  "qwen_archive_checksums_sha256": {
+    "released_RH": "ac0c377983d2f82dcc51fbe4e1949351c908391a71bba19dfaf73624b2af384d",
+    "v10_main": "ba37593d83538a29b95ff010b7efa5aa31fb90502301af753b8e5647009762fd"
+  },
+  "qwen_archive_locations": {
+    "released_RH": "/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/panel888_v10_RH_panel_release/mainexp/archive",
+    "v10_main": "/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/panel888_access_v10_main/mainexp/archive"
+  }
+}

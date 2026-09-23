@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Offline planning and explicit execution for the frozen v10 API comparison.
+"""Offline planning and explicit execution for the frozen v11 API comparison.
 
 No command contacts a provider unless --execute is supplied. Production reads
-the local copy of the 360 sealed observation JSON files.
+the local copy of the 288 sealed observation JSON files.
 """
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -21,11 +21,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 from main_experiment.common import MAIN_KEYS, digest  # noqa: E402
 from main_experiment.evaluation import parse_final  # noqa: E402
-from main_experiment.observation import messages  # noqa: E402
+from main_experiment.observation import messages, parse  # noqa: E402
 
 API_MAIN_ARMS = ('R', 'S', 'H', 'B')
 MODELS = {'deepseek': 'deepseek-flash', 'openai': 'gpt-6-sol'}
-REPEATS = {'deepseek': 1, 'openai': 3}
+INITIAL_REPEATS = 1
+MAX_REPEATS = 3
 GENERATION_CAP = 128000
 MARGIN = 1.25
 # USD per million tokens: DeepSeek off-peak and GPT Batch.
@@ -36,7 +37,7 @@ DEEPSEEK_DEFAULT_CONCURRENCY = 8
 BATCH_SIZE_DEFAULT = 96
 DEEPSEEK_BUDGET_USD = 10
 OPENAI_BUDGET_USD = 200
-EXPECTED = {'deepseek': 288, 'openai': 864}
+OBSERVATION_COUNT = 288
 REASONING_EXPOSURE = {'deepseek': 'raw_provider_reasoning',
                       'openai': 'provider_reasoning_summary',
                       'qwen': 'generated_reasoning_block'}
@@ -61,10 +62,13 @@ def load_keys():
 
 def observations(directory):
     rows = [json.loads(p.read_text()) for p in sorted(directory.glob('*.json'))]
-    if len(rows) != 360 or len({r['id'] for r in rows}) != 360:
-        raise ValueError('frozen observation set must contain 360 distinct rows')
+    if len(rows) != OBSERVATION_COUNT or len({r['id'] for r in rows}) != OBSERVATION_COUNT:
+        raise ValueError('v11 API observation set must contain 288 distinct rows')
     for row in rows:
-        if row['graph_id'] not in MAIN_KEYS or row['arm'] not in (*API_MAIN_ARMS, 'S_obs'):
+        if set(row) != {'id', 'graph_id', 'stratum', 'arm', 'sample_index',
+                        'block', 'block_sha256', 'messages', 'prompt_sha256'}:
+            raise ValueError('API observation contains hidden or unexpected metadata')
+        if row['graph_id'] not in MAIN_KEYS or row['arm'] not in API_MAIN_ARMS:
             raise ValueError('unexpected graph or arm')
         if row['block_sha256'] != digest(row['block']):
             raise ValueError('observation block hash mismatch')
@@ -72,10 +76,22 @@ def observations(directory):
             raise ValueError('frozen prompt hash mismatch')
         if row['messages'] != messages(row['block']):
             raise ValueError('canonical prompt content mismatch')
+        block = parse(row['block'])
+        if (row['arm'] in ('R', 'H')) != ('n_panel' in block):
+            raise ValueError('R/H released n_panel missing or unexpected')
+        if row['arm'] == 'S' and 'traversals' not in row['block']:
+            raise ValueError('S crawl information missing')
+        if row['arm'] == 'B' and '\np=' not in row['block']:
+            raise ValueError('B sampling probability missing')
     cells = {(r['graph_id'], r['arm'], r['sample_index']) for r in rows}
-    expected = {(g, arm, i) for g in MAIN_KEYS for arm in (*API_MAIN_ARMS, 'S_obs') for i in (1, 2, 3)}
+    expected = {(g, arm, i) for g in MAIN_KEYS for arm in API_MAIN_ARMS for i in (1, 2, 3)}
     if cells != expected:
         raise ValueError('incomplete main observation grid')
+    freeze = json.loads((ROOT / 'docs/results/panel888_v11_main_20260923/API_FREEZE.json').read_text())
+    frozen = [(r['id'], r['block_sha256'], r['prompt_sha256']) for r in sorted(rows, key=lambda r: r['id'])]
+    fingerprint = hashlib.sha256(json.dumps(frozen, separators=(',', ':')).encode()).hexdigest()
+    if fingerprint != freeze['observation_hash_manifest_sha256']:
+        raise ValueError('local v11 API freeze differs from committed hashes')
     return rows
 
 
@@ -111,18 +127,27 @@ def pilot_manifest(directory, provider):
     return rows
 
 
-def manifest(rows, provider):
+def provider_id(internal_id):
+    return 'req_' + hashlib.sha256(internal_id.encode()).hexdigest()[:32]
+
+
+def manifest(rows, provider, repeats=INITIAL_REPEATS):
+    if not 1 <= repeats <= MAX_REPEATS:
+        raise ValueError('repeats must be 1..3')
     result = []
     for row in sorted(rows, key=lambda r: (r['stratum'], r['graph_id'], r['arm'], r['sample_index'])):
         if row['arm'] not in API_MAIN_ARMS:
             continue
-        for repeat in range(1, REPEATS[provider] + 1):
+        for repeat in range(1, repeats + 1):
             rid = f"{row['id']}__{provider}__r{repeat}"
-            result.append({'id': rid, 'observation_id': row['id'], 'graph_id': row['graph_id'],
+            result.append({'id': rid, 'provider_id': provider_id(rid),
+                           'observation_id': row['id'], 'graph_id': row['graph_id'],
                            'stratum': row['stratum'], 'arm': row['arm'],
                            'sample_index': row['sample_index'], 'repeat_index': repeat,
                            'prompt_sha256': row['prompt_sha256'], 'messages': row['messages']})
-    if len(result) != EXPECTED[provider] or len({r['id'] for r in result}) != len(result):
+    expected = OBSERVATION_COUNT * repeats
+    if len(result) != expected or len({r['id'] for r in result}) != expected or \
+            len({r['provider_id'] for r in result}) != expected:
         raise ValueError('incomplete or duplicate request manifest')
     return result
 
@@ -140,7 +165,7 @@ def payload(provider, row):
 
 
 def batch_line(row):
-    return {'custom_id': row['id'], 'method': 'POST', 'url': '/v1/responses',
+    return {'custom_id': row.get('provider_id', provider_id(row['id'])), 'method': 'POST', 'url': '/v1/responses',
             'body': payload('openai', row)}
 
 
@@ -265,10 +290,10 @@ def require_deepseek_offpeak(now, announce=False):
         raise ValueError('DeepSeek execution paused: within the 10-minute pre-peak buffer. Resume in the next off-peak window.')
 
 
-def guard(rows, provider, budget, execute):
+def guard(rows, provider, budget, execute, repeats=INITIAL_REPEATS):
     if len({r['id'] for r in rows}) != len(rows):
         raise ValueError('duplicate request IDs')
-    expected = EXPECTED[provider]
+    expected = OBSERVATION_COUNT * repeats
     if len(rows) != expected:
         raise ValueError(f'incomplete manifest: {len(rows)} of {expected}')
     if budget is None or budget <= 0:
@@ -285,13 +310,13 @@ def guard(rows, provider, budget, execute):
     return estimate(rows, provider)
 
 
-def summary(rows, provider, budget=None, records=()):
+def summary(rows, provider, budget=None, records=(), repeats=INITIAL_REPEATS):
     cost = estimate(rows, provider, records)
     report = {'provider': provider, 'model': MODELS[provider], 'reasoning': 'high',
               'reasoning_exposure': REASONING_EXPOSURE[provider],
               'requests': len(rows), 'arms': API_MAIN_ARMS,
               'graph_strata': {'real': 8, 'surrogate': 8, 'synthetic': 8},
-              'sampler_draws': 3, 'model_repeats': REPEATS[provider], **cost,
+              'sampler_draws': 3, 'model_repeats': repeats, **cost,
               'budget_usd': budget}
     print(json.dumps(report, indent=2))
 
@@ -321,7 +346,7 @@ def reasoning_tokens(usage):
     return details.get('reasoning_tokens', usage.get('reasoning_tokens'))
 
 
-def openai_record(body, rid, prompt_sha256=None, kind='main', arm=None):
+def openai_record(body, rid, prompt_sha256=None, kind='main', arm=None, repeat_index=None):
     """Keep the provider summary as returned; hidden reasoning is unavailable."""
     output = body.get('output') or []
     content = [part.get('text', '') for item in output for part in item.get('content', [])
@@ -333,6 +358,8 @@ def openai_record(body, rid, prompt_sha256=None, kind='main', arm=None):
                  and (body.get('incomplete_details') or {}).get('reason') == 'max_output_tokens')
     values, validity = (None, 'max_output_tokens') if limit_hit else parse_final(final)
     return {'id': rid, 'kind': kind, 'arm': arm, 'prompt_sha256': prompt_sha256,
+            'provider': 'openai', 'requested_model': MODELS['openai'],
+            'received_utc': datetime.now(timezone.utc).isoformat(), 'repeat_index': repeat_index,
             'returned_model': body.get('model'), 'usage': body.get('usage'),
             'reasoning_tokens': reasoning_tokens(body.get('usage')),
             'reasoning_exposure': REASONING_EXPOSURE['openai'],
@@ -409,6 +436,9 @@ def execute_deepseek(rows, run_dir, max_concurrency, smoke=None, pilot=None):
             return {'id': row['id'], 'kind': row.get('kind', 'main'),
                     'arm': row.get('arm'), 'graph_id': row.get('graph_id'),
                     'prompt_sha256': row['prompt_sha256'],
+                    'provider': 'deepseek', 'requested_model': MODELS['deepseek'],
+                    'received_utc': datetime.now(timezone.utc).isoformat(),
+                    'repeat_index': row.get('repeat_index'),
                     'returned_model': answer.get('model'), 'usage': answer.get('usage'),
                     'reasoning_tokens': reasoning_tokens(answer.get('usage')),
                     'reasoning_exposure': REASONING_EXPOSURE['deepseek'],
@@ -469,7 +499,7 @@ def openai_progress(rows, run_dir):
     return technical, main_records
 
 
-def execute_openai_technical(rows, run_dir):
+def execute_openai_technical(rows, run_dir, budget=OPENAI_BUDGET_USD):
     """Synchronous DEV/POOL smoke or token pilot, saved one response at a time."""
     run_dir.mkdir(parents=True, exist_ok=True)
     technical, main_records = openai_progress([], run_dir)
@@ -483,8 +513,8 @@ def execute_openai_technical(rows, run_dir):
             if row['id'] in completed:
                 continue
             spent = sum(actual_usd(r, 'openai') for r in technical)
-            if spent + in_flight_worst_usd([row], 'openai', standard=True) > OPENAI_BUDGET_USD:
-                raise ValueError('GPT actual spend plus 128k technical request worst case exceeds USD 200')
+            if spent + in_flight_worst_usd([row], 'openai', standard=True) > budget:
+                raise ValueError('GPT actual spend plus 128k technical request worst case exceeds user budget')
             attempts.write(json.dumps({'id': row['id']}) + '\n')
             attempts.flush(); os.fsync(attempts.fileno())
             body = request('https://api.openai.com/v1/responses', os.environ['OPENAI_API_KEY'],
@@ -499,7 +529,7 @@ def chunk_numbers(run_dir):
     return sorted(int(p.name[6:9]) for p in run_dir.glob('chunk_[0-9][0-9][0-9].batch.json'))
 
 
-def execute_openai(rows, run_dir, batch_size):
+def execute_openai(rows, run_dir, batch_size, budget=OPENAI_BUDGET_USD):
     """Submit only the next Batch chunk after collecting every previous chunk."""
     run_dir.mkdir(parents=True, exist_ok=True)
     technical, main_records = openai_progress(rows, run_dir)
@@ -518,15 +548,18 @@ def execute_openai(rows, run_dir, batch_size):
     completed = {r['id'] for r in main_records}
     pending = [r for r in rows if r['id'] not in completed]
     if not pending:
-        print('All 864 GPT requests are collected.')
+        print(f'All {len(rows)} target GPT requests are collected.')
         return
     projection = estimate(rows, 'openai', technical + main_records)
-    if projection['conservative_projected_total_usd'] is None or projection['conservative_projected_total_usd'] > OPENAI_BUDGET_USD:
-        raise ValueError(f"GPT conservative projected total USD {projection['conservative_projected_total_usd']} exceeds USD 200")
+    if projection['conservative_projected_total_usd'] is None or projection['conservative_projected_total_usd'] > budget:
+        raise ValueError(f"GPT conservative projected total USD {projection['conservative_projected_total_usd']} exceeds user budget USD {budget}")
     chunk = pending[:batch_size]
+    mapping = {r.get('provider_id', provider_id(r['id'])): r['id'] for r in chunk}
+    if len(mapping) != len(chunk):
+        raise ValueError('opaque provider ID collision')
     spent = sum(actual_usd(r, 'openai') for r in technical + main_records)
-    if spent + in_flight_worst_usd(chunk, 'openai') > OPENAI_BUDGET_USD:
-        raise ValueError('GPT actual spend plus 128k worst case for next Batch chunk exceeds USD 200')
+    if spent + in_flight_worst_usd(chunk, 'openai') > budget:
+        raise ValueError('GPT actual spend plus 128k worst case for next Batch chunk exceeds user budget')
     print(f"GPT next chunk: {len(chunk)} requests; conservative complete-run projection USD {projection['conservative_projected_total_usd']}")
     batch = ''.join(json.dumps(batch_line(r), ensure_ascii=False, separators=(',', ':')) + '\n' for r in chunk).encode()
     boundary = 'masterthesis' + hashlib.sha256(batch).hexdigest()[:24]
@@ -534,6 +567,7 @@ def execute_openai(rows, run_dir, batch_size):
             f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="batch.jsonl"\r\n'
             f'Content-Type: application/jsonl\r\n\r\n').encode() + batch + f'\r\n--{boundary}--\r\n'.encode()
     prefix.with_suffix('.input.jsonl').write_bytes(batch)
+    atomic_json(prefix.with_suffix('.mapping.json'), mapping)
     key = os.environ['OPENAI_API_KEY']
     uploaded = request('https://api.openai.com/v1/files', key, body, 'POST',
                        f'multipart/form-data; boundary={boundary}')
@@ -577,17 +611,23 @@ def collect_openai(run_dir, state, key):
                 path.write_bytes(download_openai_file(file_id, key))
             raw_lines.extend(json.loads(line) for line in path.read_text().splitlines())
     submitted_rows = read_jsonl(prefix.with_suffix('.input.jsonl'))
+    mapping = json.loads(prefix.with_suffix('.mapping.json').read_text())
     submitted = {item['custom_id']: digest(item['body']['input']) for item in submitted_rows}
     ids = [line['custom_id'] for line in raw_lines]
-    if len(submitted) != len(submitted_rows) or len(ids) != len(set(ids)) or set(ids) != set(submitted):
+    if len(submitted) != len(submitted_rows) or set(mapping) != set(submitted) or \
+            len(set(mapping.values())) != len(mapping) or len(ids) != len(set(ids)) or set(ids) != set(submitted):
         raise ValueError('Batch chunk outputs/errors incomplete or duplicate; reconcile before next submission')
     prior = {r['id'] for r in read_jsonl(run_dir / 'responses.jsonl')}
+    if {mapping[line['custom_id']] for line in raw_lines} & prior:
+        raise ValueError('duplicate previously collected OpenAI request ID')
     with (run_dir / 'responses.jsonl').open('a') as out:
         for line in raw_lines:
-            if line['custom_id'] in prior:
-                continue
+            internal_id = mapping[line['custom_id']]
             body = (line.get('response') or {}).get('body') or {}
-            record = openai_record(body, line['custom_id'], submitted[line['custom_id']])
+            repeat_index = int(internal_id.rsplit('__r', 1)[1])
+            record = openai_record(body, internal_id, submitted[line['custom_id']],
+                                   repeat_index=repeat_index)
+            record['provider_id'] = line['custom_id']
             record['error'] = line.get('error')
             record['raw_batch_response'] = line
             out.write(json.dumps(record, ensure_ascii=False) + '\n')
@@ -605,6 +645,8 @@ def main():
     ap.add_argument('--budget-usd', type=float)
     ap.add_argument('--max-concurrency', type=int, default=DEEPSEEK_DEFAULT_CONCURRENCY)
     ap.add_argument('--batch-size', type=int, default=BATCH_SIZE_DEFAULT)
+    ap.add_argument('--repeats', type=int, default=INITIAL_REPEATS,
+                    help='target total model repeats, 1..3; completed IDs are skipped')
     ap.add_argument('--output', type=Path, help='prepared JSONL path, or run directory')
     ap.add_argument('--execute', action='store_true', help='explicitly allow provider network requests')
     a = ap.parse_args()
@@ -630,7 +672,7 @@ def main():
         ap.error('--max-concurrency must be between 1 and 16')
     if not 1 <= a.batch_size <= 96:
         ap.error('--batch-size must be between 1 and 96')
-    rows = manifest(observations(a.observations), a.provider)
+    rows = manifest(observations(a.observations), a.provider, a.repeats)
     smoke = None
     if a.command == 'smoke':
         if not a.smoke_observation:
@@ -648,7 +690,7 @@ def main():
         else:
             technical, completed = openai_progress(rows, a.output)
             records = technical + completed
-    summary(rows, a.provider, a.budget_usd, records)
+    summary(rows, a.provider, a.budget_usd, records, a.repeats)
     if a.command == 'check':
         print('frozen observations and prompts: valid')
     elif a.command == 'cost':
@@ -661,19 +703,22 @@ def main():
                  {'id': r['id'], 'prompt_sha256': r['prompt_sha256'], 'payload': payload(a.provider, r)}
                  for r in selected)
         a.output.write_text(''.join(json.dumps(line, ensure_ascii=False) + '\n' for line in lines))
+        if a.provider == 'openai':
+            atomic_json(a.output.with_suffix(a.output.suffix + '.mapping.json'),
+                        {r['provider_id']: r['id'] for r in selected})
     else:
         if not a.output:
             ap.error('--output run directory is required')
-        guard(rows, a.provider, a.budget_usd, a.execute)
+        guard(rows, a.provider, a.budget_usd, a.execute, a.repeats)
         if not a.execute:
             print('dry run: manifest and budget cap valid; production needs completed token pilot; no provider request')
             return
         if a.provider == 'deepseek':
             execute_deepseek(rows, a.output, 1 if smoke else a.max_concurrency, smoke, pilot)
         elif smoke or pilot:
-            execute_openai_technical([smoke] if smoke else pilot, a.output)
+            execute_openai_technical([smoke] if smoke else pilot, a.output, a.budget_usd)
         else:
-            execute_openai(rows, a.output, a.batch_size)
+            execute_openai(rows, a.output, a.batch_size, a.budget_usd)
 
 
 if __name__ == '__main__':

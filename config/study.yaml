@@ -1,6 +1,6 @@
 protocol: docs/PROTOCOL_PANEL888_20260921.md
-design_version: panel888-access-v10-20260923
-results: results/panel888_v10
+design_version: panel888-access-v11-20260923
+results: docs/results/panel888_v11_main_20260923
 W: 5
 master_seed: 20260921
 arms:
@@ -26,7 +26,7 @@ budget:
 replication:
   sampler_draws_per_arm: 3
   saturated_H_draws: 1
-  llm_repeats: 3
+  qwen_repeats: 3
   training_sampler_draws_per_arm: 5
 training:
   real_sources: 16
@@ -34,7 +34,7 @@ training:
   synthetic_pool_train: 400
   synthetic_pool_dev: 100
   et_variant: pooled_only
-  et_features: 174
+  et_features: {R: 175, H: 175, S: 174, S_obs: 174, B: 174}
   et_selection: nested_leave_one_real_training_source_out
 references:
   R: plugin
@@ -49,13 +49,13 @@ evaluation:
   no_clipping_or_repair: true
   source_level_exact_signflip: true
 qwen:
-  request_protocol: panel888-access-v9-20260922
   generation_arms: [R, S, S_obs, H, B]
-  reusable_production_answers: 0
+  R_H_source: completed_panel_release_archive
+  S_S_obs_B_source: sealed_v10_archive
 api_main:
   arms: [R, S, H, B]
-  deepseek: {model: deepseek-flash, reasoning: high, repeats: 1, budget_usd: 10}
-  openai: {model: gpt-6-sol, reasoning: high, repeats: 3, transport: batch_responses, budget_usd: 200}
+  deepseek: {model: deepseek-flash, reasoning: high, initial_repeats: 1, maximum_repeats: 3, budget_usd: 10, off_peak_only: true}
+  openai: {model: gpt-6-sol, reasoning: high, initial_repeats: 1, maximum_repeats: 3, transport: batch_responses, budget_usd: 200}
 reasoning_exposure:
   deepseek: raw_provider_reasoning
   openai: provider_reasoning_summary

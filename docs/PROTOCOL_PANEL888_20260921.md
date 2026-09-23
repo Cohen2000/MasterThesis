@@ -1,21 +1,22 @@
-# v10 scientific protocol
+# v11 scientific protocol
 
-Design `panel888-access-v10-20260923` estimates full-archive persistence `rho_k = Pr(K_e >= k | K_e >= 1)` for `k=2..5` across `W=5` windows. The primary target is `rho_2`. The panel contains eight real sources, their eight matched P[w,t] timestamp-shuffled surrogates, and eight synthetic instances. The primary evaluation is equal-source MAE_2 over the real sources; ProfileMAE is secondary. Surrogates and synthetic instances remain separate strata.
+Design `panel888-access-v11-20260923` estimates full-archive persistence `rho_k = Pr(K_e >= k | K_e >= 1)` for `k=2..5` across `W=5` windows. `rho_2` is primary. The panel contains eight real sources, eight matched P[w,t] surrogates and eight synthetic instances. Primary evaluation is equal-source real MAE_2; ProfileMAE and the two other strata are secondary. The 10% expected-discovered-active-dyad-window calibration and all three sampler draws per arm remain those of v10.
 
-## Observation mechanisms
+## Final access contract
 
-R samples a uniform node panel with complete history. H uses a uniform node panel with the last 60% of elapsed time. B independently retains events at released probability `p`. S starts uniformly on the full vertex set and takes exactly `L` interaction-following steps without burn-in or restart. Each step chooses uniformly from full-archive event records incident to the current vertex. S releases each traversed dyad once with complete history and a crawl log of traversal counts. S_obs uses the same S draws but withholds the log; it is a completed Qwen information ablation and is excluded from the new cross-provider API main comparison. Parent and P[w,t] surrogate share sampler streams. All arms calibrate expected discovered active dyad-windows to 10% of the full total, with 5% validation tolerance.
+Each mechanism releases its sampling-control information to the estimator/model:
 
-Blocks contain only released observations and operator-known design information. S_obs adds pattern-level `inv_events`; S also adds `traversals` and `traversals_per_event`. S traversals sum to `L`. Blocks exclude full-archive sizes, calibration target, coverage fraction and truth. Floats use 12 significant digits. The system prompt, user prefix, arm rules and frozen observation blocks are unchanged across providers. The API main arms are R, S, H and B on all 24 graphs, with three sampler draws each. DeepSeek has one model repeat; GPT has three; completed Qwen keeps three.
+| Arm | Released design information |
+|---|---|
+| R | Actual sampled `n_panel`; complete histories of retrieved panel dyads. |
+| H | Actual sampled `n_panel` and `Temporal_access`; only accessible history. The main access pattern is h=.60, without an extra numeric h field. |
+| S | Crawl log and traversal counts; `L` is reconstructible. Complete histories of traversed dyads. |
+| B | Bernoulli event-retention probability `p`. |
 
-## Estimation and evaluation
+`S_obs` uses the same S draws without the crawl log. It remains a Qwen-only information ablation and is excluded from paid API main comparisons. Full-archive population totals N/D/M, full-archive coverage, the calibration target, sampling fractions requiring hidden full N, target truth and other unreleased full-archive statistics are not released to the estimator/model. The R/H prompt phrase “full vertex count ... unknown” means unknown **to the model under this access contract**; it is not a claim about an operator's knowledge. The completed R/H prompt text is unchanged.
 
-All non-LLM estimates use the serialized block. Plugin estimates the observed pattern profile. The median is trained on real sources within each leave-one-real-source-out fold. Design is defined for S and S_obs as the pattern ratio weighted by `traversals_per_event` and `inv_events`, respectively. S uses the plain Hájek/Hansen-Hurwitz ratio, without finite-sample bias correction. Shared zero-truncated Beta-Binomial MLE uses arm-specific observation models and the lowest-objective valid converged start; it falls back to the homogeneous model only if no start converges. References are R plugin, S/S_obs design and H/B MLE.
+The v11 Qwen main result composes released R/H with unchanged v10 S/S_obs/B. Plugin, median and MLE definitions remain unchanged. R/H ExtraTrees adds only `log1p_n_panel` and uses the completed nested leave-one-real-training-source-out selection; S/S_obs/B ExtraTrees remains unchanged. No sampler, Qwen inference, MLE fit or ET model was rerun to compose v11.
 
-Arm-specific pooled ExtraTrees predicts a residual on plugin or reference from released-evidence features. In each outer fold, anchor and `min_samples_leaf` {1, 5, 20} × `max_features` {0.5, 1.0} are selected by leave-one-real-training-source-out CV among the remaining real sources, using the final pooled composition and block weights. Final training uses only 10% training draws and excludes the test real source. Synthetic ET results are marked in-distribution.
+An LLM answer is valid only if its final text is one JSON object containing exactly finite, non-increasing `rho_2..rho_5` in [0,1]. No clipping or repair is allowed. Accuracy is conditional on validity. Qwen has three model repeats. Paid providers initially have one repeat each; repeat-based uncertainty is not comparable until further repeats are completed. Provider reasoning objects differ: Qwen generated reasoning blocks, DeepSeek raw provider reasoning, and OpenAI provider reasoning summaries. Only final answers enter cross-provider strategy/accuracy comparisons.
 
-An LLM answer is valid only if its final text is one JSON object with exactly `rho_2..rho_5`, finite numeric values in [0,1], non-increasing; one whole-answer code fence may be removed. No estimate is clipped, repaired or imputed. Accuracy is conditional on valid answers and validity is reported. Source-level paired comparisons use exact sign-flip inference and leave-one-source-out ranges; draw-clustered MCSE is secondary. The [sealed tables](results/panel888_v10_main_20260923/MAIN_RESULTS.md) give the numerical record.
-
-## Walk gate
-
-The 24-graph audit used 1,000 walks per graph. Its post-hoc amended gate applies where the interaction stationary shift exceeds 0.05 and requires |S design bias| ≤ 0.1 |plugin bias| and S design RMSE ≤ 0.5 plugin RMSE. Failures remain in all results, flagged “not correctable at this budget.” The [sealed gate](results/panel888_v10_walk_gate_20260923/WALK_GATE.md) records 13 of 14 applicable sources passing, with `sp_hospital__pwt` retained as the failure. Sealed v9 null, window, history and mixture diagnostics are in `docs/results/panel888_offline/`.
+The [sealed walk gate](results/panel888_v10_walk_gate_20260923/WALK_GATE.md) remains applicable. Workplace retains its current windows and surrogate; the empty-window/calendar-cycle issue is a limitation rather than a new experiment.

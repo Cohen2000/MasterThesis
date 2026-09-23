@@ -1,0 +1,63 @@
+{
+  "ET_RH_source": "completed panel-release nested ET fits; docs/results/panel888_v10_RH_panel_release/ET_CHOICES.csv",
+  "ET_S_S_obs_B_source": "sealed v10 main predictions and choices",
+  "ET_released_panel_arms": [
+    "R",
+    "H"
+  ],
+  "design_version": "panel888-access-v11-20260923",
+  "model_or_sampling_recomputed": false,
+  "observations": 360,
+  "qwen_answers": 2160,
+  "qwen_by_arm_mode": {
+    "B/qwen_nonthinking": {
+      "answers": 216,
+      "valid": 216
+    },
+    "B/qwen_thinking": {
+      "answers": 216,
+      "valid": 216
+    },
+    "H/qwen_nonthinking": {
+      "answers": 216,
+      "valid": 216
+    },
+    "H/qwen_thinking": {
+      "answers": 216,
+      "valid": 216
+    },
+    "R/qwen_nonthinking": {
+      "answers": 216,
+      "valid": 216
+    },
+    "R/qwen_thinking": {
+      "answers": 216,
+      "valid": 216
+    },
+    "S/qwen_nonthinking": {
+      "answers": 216,
+      "valid": 216
+    },
+    "S/qwen_thinking": {
+      "answers": 216,
+      "valid": 215
+    },
+    "S_obs/qwen_nonthinking": {
+      "answers": 216,
+      "valid": 216
+    },
+    "S_obs/qwen_thinking": {
+      "answers": 216,
+      "valid": 216
+    }
+  },
+  "qwen_invalid": 1,
+  "qwen_source_by_arm": {
+    "B": "v10_archive",
+    "H": "released_RH_archive",
+    "R": "released_RH_archive",
+    "S": "v10_archive",
+    "S_obs": "v10_archive"
+  },
+  "qwen_valid": 2159
+}
