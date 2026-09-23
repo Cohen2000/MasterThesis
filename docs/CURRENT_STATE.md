@@ -1,5 +1,15 @@
 # Current state
 
+## v10 walk gate (2026-09-23)
+
+The prespecified v10 interaction-walk gate failed on 3 of 16 real and surrogate
+sources after 1,000 calibrated walks per graph. Cluster audit job 7143357
+completed the 24-graph table and exited nonzero on the gate. The generated
+[gate report](results/panel888_v10_walk_gate_20260923/WALK_GATE.md) and
+[machine-readable results](results/panel888_v10_walk_gate_20260923/walk_gate.csv)
+are sealed here. No v10 offline study, model calls, or production freeze followed.
+The v9 production code below remains current.
+
 Design identifier panel888-access-v9-20260922; active arms R, S1, H, B (S2 retired).
 
 ## Final v9 results: complete for all five main methods

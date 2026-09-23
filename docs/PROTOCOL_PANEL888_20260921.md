@@ -1,5 +1,11 @@
 # Study protocol (design identifier panel888-pwt-srw-20260921)
 
+**Status addendum, 2026-09-23:** the proposed v10 interaction-following S walk
+was audited on all 24 main graphs before freeze. Its fixed gate failed on three
+real or surrogate sources, so v10 execution stopped. The
+[generated audit](results/panel888_v10_walk_gate_20260923/WALK_GATE.md) records
+the evidence. The protocol below documents the earlier sealed design.
+
 The study panel has eight real human–human sources, eight matched P[w,t]
 surrogates and eight synthetic instances. Earlier development runs are archived
 under `archive/` and are not part of the study. This protocol is not a

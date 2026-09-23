@@ -1,5 +1,10 @@
 # Runbook
 
+**v10 gate status (2026-09-23):** interaction-walk audit job 7143357 failed the
+prespecified gate; see [generated results](results/panel888_v10_walk_gate_20260923/WALK_GATE.md).
+Do not run a v10 production chain from this snapshot. The steps below describe
+the existing v9 pipeline.
+
 One offline entry point, one Qwen production path, one integration path.
 The scientific design is in [PROTOCOL_PANEL888_20260921.md](PROTOCOL_PANEL888_20260921.md).
 

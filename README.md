@@ -1,5 +1,11 @@
 # Temporal persistence from sampled interaction data
 
+**Current status (2026-09-23):** the proposed v10 interaction-walk design failed
+its prespecified offline gate on three real or surrogate sources. The v10
+offline study and Qwen runs were stopped. See the [generated gate table](docs/results/panel888_v10_walk_gate_20260923/WALK_GATE.md)
+and [current state](docs/CURRENT_STATE.md). The pipeline below remains the
+sealed v9 study until a new design is approved.
+
 Can a language model estimate how persistent the dyads of a temporal network are
 from a small sampled observation of it? The study (design identifier
 `panel888-pwt-srw-20260921`) uses:
