@@ -105,7 +105,7 @@ def offline_rows(prepared, et_dir, gate):
                       'profile_valid': profile_valid(p),
                       'fallback': bool(fit.fallback_used) if method == 'mle' else False,
                       'fit_status': fit.fit_status if method == 'mle' else '',
-                      'mle_flags': fit.flags if method == 'mle' else {},
+                      'mle_flags': json.dumps(fit.flags, sort_keys=True) if method == 'mle' else '{}',
                       'mle_old_rule_AE2': mle_old_errors['AE2'] if method == 'mle' else None,
                       'mle_old_rule_ProfileAE': mle_old_errors['ProfileAE'] if method == 'mle' else None,
                       'mle_old_rule_signed_rho2': mle_old_errors['signed_rho2'] if method == 'mle' else None,
