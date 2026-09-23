@@ -35,7 +35,6 @@ CLAUDE.local.md
 
 # Generated experiment artifacts
 /results/**
-!/results/README.md
 /figures/generated/
 
 # Prevent accidental addition of untracked bulk artifacts inside archives
