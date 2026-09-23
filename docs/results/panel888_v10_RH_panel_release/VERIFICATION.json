@@ -1,0 +1,40 @@
+{
+  "archive": {
+    "checksums_sha256": "ac0c377983d2f82dcc51fbe4e1949351c908391a71bba19dfaf73624b2af384d",
+    "cluster_path": "/pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot/panel888_v10_RH_panel_release/mainexp/archive",
+    "job_id": 7148189,
+    "readback_mismatches": 0,
+    "rendered_prompts": 288
+  },
+  "complete": 864,
+  "duplicates": 0,
+  "frozen_tracked_manifest_sha256": "6bf11b0540cdaf26f02ea648d8c086a31a73204b4a051b299af9ee17e550e5f0",
+  "hash_mismatch": 0,
+  "missing": 0,
+  "modes": {
+    "qwen_nonthinking": {
+      "complete": 432,
+      "duplicates": 0,
+      "hash_mismatch": 0,
+      "invalid": 0,
+      "missing": 0,
+      "requested": 432
+    },
+    "qwen_thinking": {
+      "complete": 432,
+      "duplicates": 0,
+      "hash_mismatch": 0,
+      "invalid": 0,
+      "missing": 0,
+      "requested": 432
+    }
+  },
+  "observations": 144,
+  "present": 864,
+  "qwen_job_ids": {
+    "recovery": 7148187,
+    "redundant_round_canceled": 7148188,
+    "round_1": 7148186
+  },
+  "requests": 864
+}
