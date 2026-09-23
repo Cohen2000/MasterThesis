@@ -108,6 +108,7 @@ def offline_rows(prepared, et_dir, gate):
                       'mle_flags': fit.flags if method == 'mle' else {},
                       'mle_old_rule_AE2': mle_old_errors['AE2'] if method == 'mle' else None,
                       'mle_old_rule_ProfileAE': mle_old_errors['ProfileAE'] if method == 'mle' else None,
+                      'mle_old_rule_signed_rho2': mle_old_errors['signed_rho2'] if method == 'mle' else None,
                       'mle_old_rule_fallback': fit.old_rule_fallback_used if method == 'mle' else False,
                       'inv_events_hajek_rho2': inv_hajek[0] if inv_hajek else None,
                       'reference_method': REF_METHOD[r['arm']], 'reference_rho2': ref[0],
@@ -203,6 +204,10 @@ def summary(rows, stratum):
                    'fallback_rate': float(np.mean([r['fallback'] for r in group])) if method == 'mle' else None,
                    'old_rule_MAE_2': (float(np.mean(list(mean_by_source(group, 'mle_old_rule_AE2').values())))
                                       if method == 'mle' else None),
+                   'old_rule_ProfileMAE': (float(np.mean(list(mean_by_source(group, 'mle_old_rule_ProfileAE').values())))
+                                           if method == 'mle' else None),
+                   'old_rule_signed_rho_2': (float(np.mean(list(mean_by_source(group, 'mle_old_rule_signed_rho2').values())))
+                                             if method == 'mle' else None),
                    'old_rule_fallback_rate': (float(np.mean([r['mle_old_rule_fallback'] for r in group]))
                                               if method == 'mle' else None),
                    'ET_profile_validity': float(np.mean([r['profile_valid'] for r in group])) if method == 'et' else None,
@@ -349,13 +354,14 @@ def markdown(main, infer, out, qwen_complete):
              'ET hyperparameters were selected by nested leave-one-real-training-source-out CV.',
              'sp_hospital__pwt remains flagged as not correctable at the 10% S budget.',
              '', f'Qwen complete: {qwen_complete}.', '',
-             '| Arm | Method | MAE_2 | ProfileMAE | Signed rho_2 | Validity | Fallback | Old-rule MLE MAE_2 | Old-rule fallback | ET profile validity | Skill vs plugin | S flag |',
-             '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|']
+             '| Arm | Method | MAE_2 | ProfileMAE | Signed rho_2 | Validity | Fallback | Old-rule MLE MAE_2 | Old-rule ProfileMAE | Old-rule signed rho_2 | Old-rule fallback | ET profile validity | Skill vs plugin | S flag |',
+             '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|']
     form = lambda x: '' if x is None else f'{x:.4f}'
     for r in main:
         lines.append('| ' + ' | '.join([r['arm'], r['method'], form(r['MAE_2']), form(r['ProfileMAE']),
                                     form(r['signed_rho_2']), form(r['validity']),
                                     form(r['fallback_rate']), form(r['old_rule_MAE_2']),
+                                    form(r['old_rule_ProfileMAE']), form(r['old_rule_signed_rho_2']),
                                     form(r['old_rule_fallback_rate']), form(r['ET_profile_validity']),
                                     form(r['skill_vs_plugin']), r['not_correctable_at_this_budget_sources']]) + ' |')
     if infer:
