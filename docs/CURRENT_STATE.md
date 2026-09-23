@@ -1,6 +1,6 @@
 # Current state: v10
 
-Design `panel888-access-v10-20260923`, source commit `8ee94c7` for the frozen Qwen bundle. The 10% main observations (7143619), 500-graph synthetic pool (7143620), ET selection and 45 pooled forests (7143701–7143703), ET reproducibility check (7143977), and offline result build (7144027) completed on uc3. The Qwen chain was submitted as round arrays 7143823, 7143824, 7143825 and archive 7143826. Integration waits for the archive. The [generated main tables](results/panel888_v10_main_20260923/MAIN_RESULTS.md) currently contain the offline methods; the same script will add Qwen from the verified archive.
+Design `panel888-access-v10-20260923`, frozen Qwen bundle commit `8ee94c7`. Main observations (7143619), 500-graph synthetic pool (7143620), ET selection and 45 pooled forests (7143701–7143703), ET block reproducibility (7143977), and offline build (7144027) completed. The Qwen arrays were 7143823–7143825. Status verification found all 2,160 requested answers completed, 2 invalid final answers, no missing/duplicate requests, and zero prompt/payload hash mismatches. Archive job 7143826 is building the sealed evidence. Result job 7144739 independently verified every raw answer against its request and generated all tables; the first finalizer attempt (7144448) used the archived script version and failed before the archive existed. The [main results](results/panel888_v10_main_20260923/MAIN_RESULTS.md) are integrated; archive checksum verification remains pending.
 
 ## Post-hoc gate amendment, 2026-09-23
 

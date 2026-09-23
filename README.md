@@ -1,6 +1,6 @@
 # Temporal persistence from sampled interaction data
 
-The v10 study (`panel888-access-v10-20260923`) estimates the five-window persistence profile rho_2..rho_5 from partial temporal-network observations. It compares Qwen thinking and non-thinking, plug-in, a leave-one-source-out training median, arm-specific design or model estimates, and pooled ExtraTrees. The primary outcome is equal-source MAE_2 over eight real sources.
+The v10 study (`panel888-access-v10-20260923`) estimates the five-window persistence profile rho_2..rho_5 from partial temporal-network observations. Its main results are integrated for all methods, including 2,160 Qwen responses. The primary outcome is equal-source MAE_2 over eight real sources. The Qwen archive is still being checksum-sealed on uc3.
 
 The panel has eight real networks, eight matched timestamp-shuffled P[w,t] surrogates, and eight synthetic instances. Its five arms are R (node panel), S (interaction-following walk with crawl log), S_obs (the same walk without the log), H (partial history), and B (event thinning). All arms calibrate to 10% of full active dyad-windows. S and S_obs use the same draws.
 

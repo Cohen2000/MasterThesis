@@ -13,14 +13,14 @@ module load devel/python/3.12.3-gnu-14.2
 source "$WS/venv_offline/bin/activate"
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
 cd "$PROJECT"
-python scripts/verify_qwen_archive.py --archive "$ARCHIVE" --commit 8ee94c7 \
-  --run "$PROJECT/results/panel888_v10/prepared"
 OUT="$PROJECT/docs/results/panel888_v10_main_20260923"
 mkdir -p "$OUT"
-cp "$ARCHIVE/../qwen_archive_verification.json" "$OUT/QWEN_ARCHIVE_VERIFICATION.json"
+python scripts/verify_v10_answers.py \
+  --prepared "$PROJECT/results/panel888_v10/prepared" \
+  --answers "$ARCHIVE/../answers" \
+  --output "$OUT/QWEN_ANSWER_VERIFICATION.json"
 python scripts/build_v10_results.py \
   --prepared "$PROJECT/results/panel888_v10/prepared" \
   --et "$PROJECT/results/panel888_v10/et" \
   --gate "$PROJECT/docs/results/panel888_v10_walk_gate_20260923/walk_gate.csv" \
-  --answers "$ARCHIVE/answers" --out "$OUT"
-cp "$ARCHIVE/../qwen_archive_verification.json" "$OUT/QWEN_ARCHIVE_VERIFICATION.json"
+  --answers "$WS/panel888_access_v10_main/mainexp/answers" --out "$OUT"

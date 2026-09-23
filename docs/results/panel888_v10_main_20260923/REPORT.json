@@ -6,6 +6,6 @@
   "observations": 360,
   "offline_prediction_rows": 1584,
   "primary_metric": "equal_source_MAE_2",
-  "qwen_complete": false,
-  "qwen_prediction_rows": 0
+  "qwen_complete": true,
+  "qwen_prediction_rows": 2160
 }
