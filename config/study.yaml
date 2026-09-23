@@ -55,7 +55,11 @@ qwen:
 api_main:
   arms: [R, S, H, B]
   deepseek: {model: deepseek-flash, reasoning: high, repeats: 1, budget_usd: 10}
-  openai: {model: gpt-6-sol, reasoning: high, repeats: 3, transport: batch_responses}
+  openai: {model: gpt-6-sol, reasoning: high, repeats: 3, transport: batch_responses, budget_usd: 200}
+reasoning_exposure:
+  deepseek: raw_provider_reasoning
+  openai: provider_reasoning_summary
+  qwen: generated_reasoning_block
 panel:
   real: [sp_hospital, sp_highschool2013, copenhagen_bluetooth, sp_workplace, snap_email_eu, snap_collegemsg, snap_mathoverflow, nr_digg_reply]
   surrogates: one_parent_matched_Pwt_per_real
