@@ -1,0 +1,77 @@
+# v11 extension: ET replicates and four additional real test sources.
+# Additive only: nothing here changes a v11 observation, prompt, estimator, seed or result.
+version: v11-ext-20260928
+results: docs/results/v11_ext_20260928
+
+# ET replicates. Replicate 0 is the v11 production fit; 1..N redraw the real
+# training observations and the pool-graph observations, reseed the forests and
+# rerun the nested selection. Reduced to 5 when the dry run estimates > 12 h wall time.
+et_replicates: 10
+et_replicates_fallback: 5
+wall_limit_hours: 12
+
+# New random-stream domains. Each is suffixed with _r<k>; none exists in v10/v11
+# (v10/v11 use sample, training, pool_train, pool_dev, v10_et_nested, v10_et_final, llm).
+stream_domains:
+  training: training_r{k}
+  pool_train: pool_train_r{k}
+  et_nested: v10_et_nested_r{k}
+  et_final: v10_et_final_r{k}
+
+# Only pool_train observations enter ET training (v10 build_v10_et.py); pool_dev is not redrawn.
+pool_partition: train
+pool_chunk: 20
+
+# Window-share check: a window below min_share is trimmed only when the deficit is
+# caused by isolated end-of-range timestamp outliers (at most max_trim_share of records at
+# either end, separated from the remaining records by a gap longer than one window of the
+# trimmed range). Otherwise the source is flagged and kept unchanged.
+windows:
+  min_share: 0.01
+  max_trim_share: 0.001
+
+new_sources:
+  reality_mining:
+    label: "Reality Mining Bluetooth (netzschleuder)"
+    url: https://networks.skewed.de/net/reality_mining/files/reality_mining.csv.zip
+    file: reality_mining.csv.zip
+    sha256: 62f3871000573ae0899479fbf3a558ccc66aae20bd48e36f0791e1c81a0581cb
+    member: edges.csv
+    columns: {u: 0, v: 1, weight: 2, t: 3}
+    proximity: true       # Bluetooth scans; identical (u, v, t) records dedupe as for copenhagen_bluetooth
+    timestamp_unit: seconds (Unix)
+    fold: synthetic       # trained on all 16 real training sources
+  lkml_reply:
+    label: "Linux kernel mailing list replies (netzschleuder)"
+    url: https://networks.skewed.de/net/lkml_reply/files/lkml_reply.csv.zip
+    file: lkml_reply.csv.zip
+    sha256: af63ed1de6a9900ee3c93405fe54e7511c9251e7ae83a24352cad1fe287c7b30
+    member: edges.csv
+    columns: {u: 0, v: 1, weight: 2, t: 3}
+    proximity: false      # message records; identical records are kept as events (as snap/nr sources)
+    timestamp_unit: seconds (Unix)
+    fold: synthetic
+  sp_malawi:
+    label: "Village in rural Malawi (SocioPatterns)"
+    url: https://www.sociopatterns.org/assets/data/tnet_malawi_pilot.csv.gz
+    file: tnet_malawi_pilot.csv.gz
+    sha256: ea2d54884d9b1c19cfbff50955a004b0652b09a6c3002b362c343926f2ec23c2
+    header: ",contact_time,day,id1,id2"
+    columns: {u: 3, v: 4, t: 1}
+    proximity: true
+    timestamp_unit: seconds (20 s resolution; one row per 20 s contact record)
+    fold: synthetic
+  nr_radoslaw_email:
+    label: "ia-radoslaw-email (NetRepo)"
+    reuse_v10_graph: true # already parsed and calibrated as a v10 training source
+    fold: nr_radoslaw_email
+
+cluster:
+  workspace: /pfs/work9/workspace/scratch/tu_zxokn55-llm_pilot
+  v10: panel888_v10_main/results/panel888_v10
+  rh: panel888_v10_RH_panel_release
+  ext: v11_ext
+  python_module: devel/python/3.12.3-gnu-14.2
+  venv: venv_offline
+  qwen_shards: 4
+  qwen_max_num_seqs: 16
