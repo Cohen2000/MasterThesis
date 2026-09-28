@@ -205,7 +205,7 @@ def submit(replicates, tasks, allow_queued=False):
         for t in group: job_of[t.name] = job
         jobs.append({'array': f'{stage}_{k}', 'job': job, 'tasks': len(group), 'after': upstream})
         print('SUBMITTED', stage, k, job, len(group), flush=True)
-        if stage in bundles():
+        if stage in bundles() and f'qwen:{stage}' not in job_of:
             q = qwen_state(bundles()[stage])
             if not (q['installed'] and q['answers'] >= q['requests']):
                 job_of[f'qwen:{stage}'] = submit_qwen(job, logs, jobs, stage, bundles()[stage])
