@@ -193,12 +193,19 @@ def status():
 
 
 def run_planned(plan_file, index):
-    from . import core, et, qwen, replicates, report, sources
     spec = read_json(plan_file)
     name, key = spec['tasks'][index]
-    tasks = build(spec['replicates'])
-    task = tasks[name]
+    task = build(spec['replicates'])[name]
     if task.key != key: raise RuntimeError(f'{name}: code, config or inputs changed since submission')
+    execute(task)
+
+
+def run_named(name, replicates=None):
+    execute(build(replicates or CFG['et_replicates'])[name])
+
+
+def execute(task):
+    from . import core, et, qwen, replicates, report, sources
     fn = {'source': sources.source_stage, 'testset': replicates.testset, 'draw_real': replicates.draw_real,
           'draw_pool': replicates.draw_pool, 'select': et.select, 'train': et.train,
           'qwen_bundle': qwen.bundle, 'report': report.report}[task.stage]

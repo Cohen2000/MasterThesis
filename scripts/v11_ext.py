@@ -5,6 +5,7 @@
   python scripts/v11_ext.py --status        completed tasks, Qwen answers and queued jobs
   python scripts/v11_ext.py --submit        submit every missing task as chained SLURM arrays
   python scripts/v11_ext.py task --plan F --index I     (inside an array job)
+  python scripts/v11_ext.py task --name NAME            (one task in-process, e.g. a smoke test)
 """
 import argparse
 import sys
@@ -22,9 +23,11 @@ def main():
     ap.add_argument('--replicates', type=int)
     ap.add_argument('--plan', type=Path)
     ap.add_argument('--index', type=int)
+    ap.add_argument('--name')
     a = ap.parse_args()
     if a.command == 'task':
-        dag.run_planned(a.plan, a.index)
+        if a.name: dag.run_named(a.name, a.replicates)
+        else: dag.run_planned(a.plan, a.index)
         return
     replicates, tasks, est = dag.plan(a.replicates)
     print(dag.describe(tasks, est, replicates))

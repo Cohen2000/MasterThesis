@@ -6,6 +6,7 @@ input manifests and the keys of all upstream tasks. A directory with DONE.json i
 complete and is never recomputed; a changed input yields a new key and directory.
 """
 from dataclasses import dataclass, field
+from functools import lru_cache
 import json
 import os
 from pathlib import Path
@@ -58,6 +59,7 @@ STAGE_CODE = {
 CONFIG_KEYS = ('version', 'stream_domains', 'pool_partition', 'pool_chunk', 'windows', 'new_sources')
 
 
+@lru_cache(maxsize=None)
 def code_hash(stage):
     src = ROOT/'src'
     files = sorted((src/'main_experiment').glob('*.py')) + sorted((src/'main_experiment').glob('*.cpp'))
@@ -67,6 +69,7 @@ def code_hash(stage):
                    (f.resolve() for f in files)})
 
 
+@lru_cache(maxsize=None)
 def frozen_inputs():
     """Identity of the sealed v10/v11 artifacts every stage reads (not their full bytes)."""
     return {'v10_checksums': sha(V10/'prepared/checksums.json'),
