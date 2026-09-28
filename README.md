@@ -19,20 +19,21 @@ Full method: [protocol](docs/PROTOCOL_PANEL888_20260921.md).
 
 ## Results
 
-MAE_2 over the 12 real sources (lower is better); ExtraTrees also as mean ± SD over 11 training replicates.
+MAE_2 over the 12 real sources (lower is better). The reference estimator of each design is in bold; ExtraTrees is the production fit (11-fit mean ± SD in [variability](docs/results/final_20260928/VARIABILITY.md)).
 
-| Design | Plugin | Median | MLE | ExtraTrees | ExtraTrees (11 fits) | Qwen 3.6 (thinking) |
-|---|---:|---:|---:|---:|---:|---:|
-| R | **0.027** (ref.) | 0.232 | 0.037 | 0.028 | 0.027 ± 0.001 | 0.027 |
-| S | 0.301 | 0.232 | **0.069** (ref.) | 0.050 | 0.055 ± 0.003 | 0.181 |
-| H | 0.064 | 0.232 | **0.071** (ref.) | 0.039 | 0.042 ± 0.002 | 0.160 |
-| B | 0.164 | 0.232 | **0.076** (ref.) | 0.079 | 0.080 ± 0.001 | 0.220 |
+| Design | Plugin | Median | MLE | ExtraTrees | Qwen 3.6 (thinking) | DeepSeek Flash | GPT-6 Sol | GPT-6 Sol + Python |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| R | **0.027** | 0.232 | 0.037 | 0.028 | 0.027 | 0.027 | 0.027 | 0.027 |
+| S | 0.301 | 0.232 | **0.069** | 0.050 | 0.181 | 0.087 | 0.084 | 0.081 |
+| H | 0.064 | 0.232 | **0.071** | 0.039 | 0.160 | 0.118 | 0.054 | 0.061 |
+| B | 0.164 | 0.232 | **0.076** | 0.079 | 0.220 | 0.195 | 0.108 | 0.151 |
 
-Paid API answers (DeepSeek Flash, GPT-6 Sol, GPT-6 Sol + Python) exist for the 8 v11 real sources; the runs for the four added sources and their surrogates are in progress, so their rows are marked pending and not ranked. Earlier results (8 real sources, S_obs ablation, design estimator) remain under `docs/results/` as history.
+Model repeats: Qwen 3, DeepSeek 1, GPT-6 Sol 3, GPT-6 Sol + Python 3. Recorded API spend (upper bounds, all runs): DeepSeek USD 9.44, GPT-6 Sol USD 28.13, GPT-6 Sol + Python USD 95.76. Earlier results (8 real sources, S_obs ablation, design estimator) remain under `docs/results/` as history.
 
 **Where the details are:**
 - [Main results](docs/results/final_20260928/MAIN_RESULTS.md): all blocks, paired original–surrogate comparisons, per-source tables
-- [Run report](docs/results/final_20260928/REPORT.md): what ran, checks, diagnostics, API extension status
+- [Run report](docs/results/final_20260928/REPORT.md): what ran, checks, diagnostics, API extension
+- [API results](docs/results/final_20260928/api/API_RESULTS.md): all API models per block, paired tests, spend
 - [Variability](docs/results/final_20260928/VARIABILITY.md), [history truncation](docs/results/final_20260928/HISTORY.md), [walk diagnostics](docs/results/final_20260928/WALK.md)
 - Historical: [v11 main results](docs/results/panel888_v11_main_20260923/MAIN_RESULTS.md), [v11 API results](docs/results/api_v11_20260923/API_RESULTS.md), [hidden panel size](docs/results/panel888_v10_RH_panel_release/REPORT.md), [walk gate](docs/results/panel888_v10_walk_gate_20260923/WALK_GATE.md)
 

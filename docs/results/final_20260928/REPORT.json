@@ -58,7 +58,7 @@
   "qwen_added_valid": 574,
   "r_h_b_replicate0_equals_v11": true,
   "replicates": 10,
-  "rows": 9696,
+  "rows": 10368,
   "train_sur_models": {
     "pickled v11 production model": 3,
     "refit with stored choice and seed": 85

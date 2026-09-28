@@ -43,10 +43,20 @@ Tables: [MAIN_RESULTS.md](MAIN_RESULTS.md), [VARIABILITY.md](VARIABILITY.md), [H
 
 ## Remaining issues
 
-- **API rows are pending** for the four added real sources and their surrogates (96 observations); the API rows in the tables currently cover the v11 graphs only. No ranking is formed from different source sets.
 - The walk-gate failures above apply to the S arm of the listed graphs, whose S results stay in the tables. As in v11, the flags are reported and nothing is excluded.
 
-## API extension (started 2026-09-28 on request)
+## API extension (run 2026-09-28 on request)
+
+- **Completed** 07:11–10:40 UTC.
+  - DeepSeek: 96 answers, 95 valid (1 answer without a valid JSON object).
+  - GPT-6 Sol: 288 answers, all valid.
+  - GPT-6 Sol + Python: 288 answers, all valid.
+  - No generation-limit hit.
+- **Recorded spend of the new answers** (upper bounds): DeepSeek USD 2.25, GPT-6 Sol USD 7.34, GPT-6 Sol + Python USD 23.07, together USD 32.66.
+- **Recorded totals of all runs:** DeepSeek USD 9.44, GPT USD 123.9 of the USD 200 cap.
+- **Joint evaluation:** v11 and extension runs over 12 real sources, 12 surrogates and 8 synthetic graphs, in [api/API_RESULTS.md](api/API_RESULTS.md). The main tables now include the API methods for every block.
+
+### Setup and commands
 
 - **Frozen set:** 96 observations (4 added originals + 4 surrogates × R/S/H/B × 3 draws), hash manifest `API_FREEZE_EXT.json`. The original observations are the unchanged test draws.
 - **Answers:** DeepSeek 96 (one each), GPT-6 Sol 288 and GPT-6 Sol + Python 288 (three repeats each, Batch), 672 in total. The configurations are those of v11.

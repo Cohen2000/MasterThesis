@@ -3,9 +3,8 @@
 Arms R, S, H and B; estimators plugin, median, MLE and ExtraTrees (ET, production fit), plus Qwen and
 the paid APIs. Reference (ref.): plugin for R, MLE for S, H and B. Equal-source MAE_2 over valid
 answers is primary, ProfileMAE secondary; nothing is clipped or repaired. The twelve real sources are
-the main analysis and are weighted equally. API answers exist only for the eight v11 graphs of each
-block; those rows are **pending** until the API extension has run, and no ranking is formed from
-different source sets. S_obs is a historical ablation and is not reported here.
+the main analysis and are weighted equally. A method missing any source of a block is marked
+**pending** and not ranked. S_obs is a historical ablation and is not reported here.
 
 ## Real sources (main analysis, 12 sources)
 
@@ -17,36 +16,36 @@ different source sets. S_obs is a historical ablation and is not reported here.
 | R | et | 0.0282 | 0.0230 | -0.0085 | 1.000 | 12/12 |
 | R | qwen_thinking | 0.0269 | 0.0234 | -0.0095 | 1.000 | 12/12 |
 | R | qwen_nonthinking | 0.4114 | 0.3280 | 0.4086 | 1.000 | 12/12 |
-| R | deepseek_flash |  |  |  | 1.000 | pending (8/12) |
-| R | gpt_6_sol |  |  |  | 1.000 | pending (8/12) |
-| R | gpt_6_sol_tools |  |  |  | 1.000 | pending (8/12) |
+| R | deepseek_flash | 0.0267 | 0.0220 | -0.0087 | 1.000 | 12/12 |
+| R | gpt_6_sol | 0.0267 | 0.0220 | -0.0087 | 1.000 | 12/12 |
+| R | gpt_6_sol_tools | 0.0273 | 0.0221 | -0.0081 | 1.000 | 12/12 |
 | S | plugin | 0.3006 | 0.2522 | 0.2836 | 1.000 | 12/12 |
 | S | median | 0.2321 | 0.1287 | 0.0006 | 1.000 | 12/12 |
 | S | mle (ref.) | 0.0685 | 0.0415 | 0.0433 | 1.000 | 12/12 |
 | S | et | 0.0504 | 0.0334 | 0.0233 | 1.000 | 12/12 |
 | S | qwen_thinking | 0.1814 | 0.1489 | 0.1416 | 1.000 | 12/12 |
 | S | qwen_nonthinking | 0.4752 | 0.4210 | 0.4587 | 0.981 | 12/12 |
-| S | deepseek_flash |  |  |  | 1.000 | pending (8/12) |
-| S | gpt_6_sol |  |  |  | 1.000 | pending (8/12) |
-| S | gpt_6_sol_tools |  |  |  | 1.000 | pending (8/12) |
+| S | deepseek_flash | 0.0873 | 0.0508 | 0.0341 | 0.972 | 12/12 |
+| S | gpt_6_sol | 0.0841 | 0.0402 | 0.0406 | 1.000 | 12/12 |
+| S | gpt_6_sol_tools | 0.0813 | 0.0404 | 0.0380 | 1.000 | 12/12 |
 | H | plugin | 0.0639 | 0.0720 | -0.0533 | 1.000 | 12/12 |
 | H | median | 0.2321 | 0.1287 | 0.0006 | 1.000 | 12/12 |
 | H | mle (ref.) | 0.0706 | 0.0444 | 0.0676 | 1.000 | 12/12 |
 | H | et | 0.0390 | 0.0316 | 0.0146 | 1.000 | 12/12 |
 | H | qwen_thinking | 0.1598 | 0.1021 | 0.0568 | 1.000 | 12/12 |
 | H | qwen_nonthinking | 0.2516 | 0.1654 | 0.0577 | 1.000 | 12/12 |
-| H | deepseek_flash |  |  |  | 1.000 | pending (8/12) |
-| H | gpt_6_sol |  |  |  | 1.000 | pending (8/12) |
-| H | gpt_6_sol_tools |  |  |  | 1.000 | pending (8/12) |
+| H | deepseek_flash | 0.1184 | 0.0654 | 0.0772 | 1.000 | 12/12 |
+| H | gpt_6_sol | 0.0537 | 0.0328 | 0.0305 | 1.000 | 12/12 |
+| H | gpt_6_sol_tools | 0.0615 | 0.0384 | 0.0405 | 1.000 | 12/12 |
 | B | plugin | 0.1643 | 0.1049 | -0.1643 | 1.000 | 12/12 |
 | B | median | 0.2321 | 0.1287 | 0.0006 | 1.000 | 12/12 |
 | B | mle (ref.) | 0.0757 | 0.0493 | -0.0085 | 1.000 | 12/12 |
 | B | et | 0.0789 | 0.0457 | 0.0230 | 1.000 | 12/12 |
 | B | qwen_thinking | 0.2196 | 0.1429 | -0.0152 | 1.000 | 12/12 |
 | B | qwen_nonthinking | 0.5267 | 0.4988 | 0.5156 | 1.000 | 12/12 |
-| B | deepseek_flash |  |  |  | 1.000 | pending (8/12) |
-| B | gpt_6_sol |  |  |  | 1.000 | pending (8/12) |
-| B | gpt_6_sol_tools |  |  |  | 1.000 | pending (8/12) |
+| B | deepseek_flash | 0.1949 | 0.1183 | 0.0344 | 1.000 | 12/12 |
+| B | gpt_6_sol | 0.1077 | 0.0777 | 0.0050 | 1.000 | 12/12 |
+| B | gpt_6_sol_tools | 0.1512 | 0.1102 | 0.0645 | 1.000 | 12/12 |
 
 ## Surrogates (12, separate block)
 
@@ -58,36 +57,36 @@ different source sets. S_obs is a historical ablation and is not reported here.
 | R | et | 0.0171 | 0.0214 | -0.0063 | 1.000 | 12/12 |
 | R | qwen_thinking | 0.0172 | 0.0233 | 0.0008 | 1.000 | 12/12 |
 | R | qwen_nonthinking | 0.2604 | 0.2506 | 0.1723 | 1.000 | 12/12 |
-| R | deepseek_flash |  |  |  | 1.000 | pending (8/12) |
-| R | gpt_6_sol |  |  |  | 1.000 | pending (8/12) |
-| R | gpt_6_sol_tools |  |  |  | 1.000 | pending (8/12) |
+| R | deepseek_flash | 0.0160 | 0.0211 | 0.0008 | 1.000 | 12/12 |
+| R | gpt_6_sol | 0.0160 | 0.0211 | 0.0008 | 1.000 | 12/12 |
+| R | gpt_6_sol_tools | 0.0160 | 0.0211 | 0.0008 | 1.000 | 12/12 |
 | S | plugin | 0.2456 | 0.3152 | 0.1945 | 1.000 | 12/12 |
 | S | median | 0.3453 | 0.2994 | -0.2655 | 1.000 | 12/12 |
 | S | mle (ref.) | 0.0861 | 0.0902 | 0.0283 | 1.000 | 12/12 |
 | S | et | 0.0618 | 0.0631 | -0.0546 | 1.000 | 12/12 |
 | S | qwen_thinking | 0.1742 | 0.2004 | 0.1077 | 0.991 | 12/12 |
 | S | qwen_nonthinking | 0.4426 | 0.4427 | 0.0768 | 1.000 | 12/12 |
-| S | deepseek_flash |  |  |  | 1.000 | pending (8/12) |
-| S | gpt_6_sol |  |  |  | 1.000 | pending (8/12) |
-| S | gpt_6_sol_tools |  |  |  | 1.000 | pending (8/12) |
+| S | deepseek_flash | 0.1251 | 0.1013 | -0.0031 | 1.000 | 12/12 |
+| S | gpt_6_sol | 0.0923 | 0.0745 | 0.0084 | 1.000 | 12/12 |
+| S | gpt_6_sol_tools | 0.0878 | 0.0701 | 0.0005 | 1.000 | 12/12 |
 | H | plugin | 0.0945 | 0.2008 | -0.0934 | 1.000 | 12/12 |
 | H | median | 0.3453 | 0.2994 | -0.2655 | 1.000 | 12/12 |
 | H | mle (ref.) | 0.0491 | 0.0471 | 0.0150 | 1.000 | 12/12 |
 | H | et | 0.0435 | 0.0597 | -0.0389 | 1.000 | 12/12 |
 | H | qwen_thinking | 0.1382 | 0.1880 | -0.0150 | 1.000 | 12/12 |
 | H | qwen_nonthinking | 0.3627 | 0.3015 | -0.2744 | 1.000 | 12/12 |
-| H | deepseek_flash |  |  |  | 1.000 | pending (8/12) |
-| H | gpt_6_sol |  |  |  | 1.000 | pending (8/12) |
-| H | gpt_6_sol_tools |  |  |  | 1.000 | pending (8/12) |
+| H | deepseek_flash | 0.1049 | 0.0786 | 0.0285 | 1.000 | 12/12 |
+| H | gpt_6_sol | 0.0575 | 0.0428 | -0.0113 | 1.000 | 12/12 |
+| H | gpt_6_sol_tools | 0.0504 | 0.0430 | -0.0104 | 1.000 | 12/12 |
 | B | plugin | 0.3251 | 0.2827 | -0.3251 | 1.000 | 12/12 |
 | B | median | 0.3453 | 0.2994 | -0.2655 | 1.000 | 12/12 |
 | B | mle (ref.) | 0.1321 | 0.1516 | -0.1063 | 1.000 | 12/12 |
 | B | et | 0.1186 | 0.1317 | -0.0764 | 1.000 | 12/12 |
 | B | qwen_thinking | 0.3353 | 0.2975 | -0.1974 | 1.000 | 12/12 |
 | B | qwen_nonthinking | 0.2669 | 0.2887 | 0.2388 | 1.000 | 12/12 |
-| B | deepseek_flash |  |  |  | 1.000 | pending (8/12) |
-| B | gpt_6_sol |  |  |  | 1.000 | pending (8/12) |
-| B | gpt_6_sol_tools |  |  |  | 1.000 | pending (8/12) |
+| B | deepseek_flash | 0.2663 | 0.2437 | -0.1314 | 1.000 | 12/12 |
+| B | gpt_6_sol | 0.1329 | 0.1221 | -0.0181 | 1.000 | 12/12 |
+| B | gpt_6_sol_tools | 0.1279 | 0.1211 | 0.0108 | 1.000 | 12/12 |
 
 ## Synthetic graphs (8, separate block)
 
