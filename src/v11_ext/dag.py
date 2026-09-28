@@ -147,6 +147,13 @@ def submit(replicates, tasks, allow_queued=False):
     job_of = {}          # task name -> job id of the array that produces it
     jobs = []
     venv = CFG['cluster']['venv']
+    # Qwen whose bundle already exists starts now, before any array that must wait for it.
+    if 'v11x_qwen_r2' in live:
+        job_of['qwen'] = live['v11x_qwen_r2']
+    elif tasks['qwen_bundle'].done:
+        q = qwen_state()
+        if q['answers'] < q['requests']:
+            job_of['qwen'] = submit_qwen(None, logs, jobs)
     for (stage, k), group in arrays(tasks):
         if f'v11x_{stage}_{k}' in live:
             for t in group: job_of[t.name] = live[f'v11x_{stage}_{k}']
@@ -170,12 +177,6 @@ def submit(replicates, tasks, allow_queued=False):
         print('SUBMITTED', stage, k, job, len(group), flush=True)
         if stage == 'qwen_bundle':
             job_of['qwen'] = submit_qwen(job, logs, jobs)
-    if 'qwen' not in job_of and 'v11x_qwen_r2' in live:
-        job_of['qwen'] = live['v11x_qwen_r2']
-    if 'qwen' not in job_of:
-        q = qwen_state()
-        if q['installed'] and q['answers'] < q['requests']:
-            job_of['qwen'] = submit_qwen(None, logs, jobs)
     write_json(folder/'jobs.json', jobs)
     return jobs
 
