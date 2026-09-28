@@ -207,7 +207,7 @@ def walkdiag(task, out, inputs):
     cells_node = g.K
     np.add.at(community_cells, community[g.ends[:, 0]], cells_node)
     comp_cells = np.bincount(walk.components[g.ends[:, 0]], weights=g.K)
-    mle_values, cover_comp, cover_comm, comm_touched = [], [], [], []
+    mle_values, cover_comp, cover_comm, comm_touched, mle_failures = [], [], [], [], 0
     seeds = [seed('v10_walk_audit', g.key, AUDIT_ARM_ID, i) for i in range(1, audit.PATHS+1)]
     for first in range(0, audit.PATHS, audit.BATCH):
         _, _, counts, _ = walk.run(seeds[first:first+audit.BATCH], L, True)
@@ -215,7 +215,10 @@ def walkdiag(task, out, inputs):
             seen = c > 0
             # The S block exactly as released (rounded weights), then the production MLE.
             block = serialize(make(g, 'S', {'L': L}, g.counts*seen[:, None], c))
-            mle_values.append(mle_fit(parse(block)).rho)
+            try:
+                mle_values.append(mle_fit(parse(block)).rho)
+            except ValueError:   # e.g. only K=5 dyads discovered: reported as a failure, not repaired
+                mle_failures += 1
             start = walk.components[g.ends[seen, 0][0]]
             cover_comp.append(float(g.K[seen].sum()/comp_cells[start]))
             touched = np.unique(community[np.r_[g.ends[seen, 0], g.ends[seen, 1]]])
@@ -226,6 +229,7 @@ def walkdiag(task, out, inputs):
         row[f'mle_S_rho{j+2}_bias'] = float(a[:, j].mean()-truth[j])
         row[f'mle_S_rho{j+2}_sd'] = float(a[:, j].std(ddof=1))
         row[f'mle_S_rho{j+2}_rmse'] = float(np.sqrt(np.mean((a[:, j]-truth[j])**2)))
+    row['mle_S_failures'] = mle_failures        # bias/SD/RMSE above use the other walks
     largest = comp_cells.max()/comp_cells.sum()
     row.update(components=int(walk.n_components), largest_component_cell_share=float(largest),
                communities=len(communities), community_modularity=float(nx.community.modularity(G, communities)),

@@ -286,7 +286,7 @@ def history_summary(path):
 
 
 WALK_COLUMNS = ('graph_id', 'L', 'stationary_shift_rho2', 'plugin_rho2_bias', 'plugin_rho2_sd', 'design_S_rho2_bias',
-                'design_S_rho2_sd', 'mle_S_rho2_bias', 'mle_S_rho2_sd', 'gate_applicable', 'gate_pass',
+                'design_S_rho2_sd', 'mle_S_rho2_bias', 'mle_S_rho2_sd', 'mle_S_failures', 'gate_applicable', 'gate_pass',
                 'weight_ess_mean', 'ratio_ess_mean', 'revisit_rate_mean', 'distinct_dyads_mean', 'components',
                 'largest_component_cell_share', 'walk_cell_share_of_start_component', 'communities',
                 'communities_touched_share', 'walk_cell_share_of_touched_communities')
@@ -381,13 +381,14 @@ def walk_markdown(walks):
              'reported separately for plugin, the design ratio (gate criterion only) and the MLE (S reference).',
              'ESS: weight ESS of the traversal weights and ratio ESS. Coverage: discovered cells per cell of the',
              'start component, and per cell of the Louvain communities touched (a dyad counts for the community',
-             'of its first endpoint). The 24 v11 graphs: `docs/results/panel888_v10_walk_gate_20260923`.', '']
+             'of its first endpoint). MLE failures: walks whose histogram the production MLE rejects (e.g. only',
+             'dyads active in all five windows discovered); MLE bias and SD use the remaining walks. The 24 v11 graphs: `docs/results/panel888_v10_walk_gate_20260923`.', '']
     lines += md_table(['Graph', 'L', 'Shift', 'Plugin bias', 'Plugin SD', 'Design bias', 'Design SD', 'MLE bias',
-                       'MLE SD', 'Gate appl.', 'Gate pass', 'Weight ESS', 'Ratio ESS', 'Revisit rate', 'Distinct dyads',
+                       'MLE SD', 'MLE failures', 'Gate appl.', 'Gate pass', 'Weight ESS', 'Ratio ESS', 'Revisit rate', 'Distinct dyads',
                        'Components', 'Largest comp.', 'Comp. coverage', 'Communities', 'Comm. touched', 'Comm. coverage'],
                       [[w['graph_id'], w['L'], fmt(w['stationary_shift_rho2']), fmt(w['plugin_rho2_bias']),
                         fmt(w['plugin_rho2_sd']), fmt(w['design_S_rho2_bias']), fmt(w['design_S_rho2_sd']),
-                        fmt(w['mle_S_rho2_bias']), fmt(w['mle_S_rho2_sd']), w['gate_applicable'], w['gate_pass'],
+                        fmt(w['mle_S_rho2_bias']), fmt(w['mle_S_rho2_sd']), f"{w['mle_S_failures']}/1000", w['gate_applicable'], w['gate_pass'],
                         fmt(w['weight_ess_mean'], 1), fmt(w['ratio_ess_mean'], 1), fmt(w['revisit_rate_mean'], 3),
                         fmt(w['distinct_dyads_mean'], 1), w['components'], fmt(w['largest_component_cell_share'], 3),
                         fmt(w['walk_cell_share_of_start_component'], 3), w['communities'],
