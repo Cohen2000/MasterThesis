@@ -4,8 +4,8 @@ import unittest
 import numpy as np
 from helpers import complete6, tiny
 from main_experiment.common import ARMS, H_SENSITIVITY
-from main_experiment.observation import (BASE_FEATURE_NAMES, DERIVED_FEATURE_NAMES, FEATURE_NAMES, features, make,
-                                         messages, parse, serialize, validate)
+from main_experiment.observation import (BASE_FEATURE_NAMES, FEATURE_NAMES, features, make, messages,
+                                         parse, serialize, validate)
 from main_experiment.sampling import Walk, analytic_parameters, draw, h_parameters
 
 

@@ -1,14 +1,13 @@
 """Plug-in and arm-specific corrector references, and the oracle decomposition."""
 import math
-import tempfile
 import unittest
 import numpy as np
 from scipy.optimize import minimize, minimize_scalar
 from scipy.stats import binom
-from helpers import complete6, graph, tiny
+from helpers import complete6, graph
 from main_experiment.baselines import activity, corrector, h_extrapolator, profile
 from main_experiment.observation import make
-from main_experiment.sampling import Walk, analytic_parameters, draw, h_parameters
+from main_experiment.sampling import h_parameters
 
 
 class CorrectorTests(unittest.TestCase):

@@ -1,11 +1,8 @@
 """Canonical graphs, synthetic generators, P[w,t] surrogates and the study config."""
 import unittest
 import numpy as np
-import yaml
 from helpers import graph, tiny
-from main_experiment.common import (ARM_ID, DESIGN_VERSION, MAIN_KEYS, REAL_TEST, ROOT, SURROGATES, SYNTH, TRAIN,
-                                    fold_for, parent_source, seed)
-from main_experiment.observation import FEATURE_NAMES, FEATURE_VERSION
+from main_experiment.common import (SURROGATES, fold_for, parent_source)
 from main_experiment.surrogates import audit, collisions, shuffle
 from main_experiment.synthetic import generate_pair
 

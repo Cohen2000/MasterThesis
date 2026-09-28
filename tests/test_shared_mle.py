@@ -5,11 +5,11 @@ import tempfile
 import unittest
 from unittest import mock
 import numpy as np
-from helpers import complete6, graph, tiny
+from helpers import graph, tiny
 from main_experiment import baselines, shared_mle
 from main_experiment.mixtures import cell_probs
 from main_experiment.observation import make
-from main_experiment.sampling import Walk, analytic_parameters, draw, h_parameters
+from main_experiment.sampling import Walk, analytic_parameters, draw
 
 
 def rsh_observation(arm='R', seed_offset=0, n=30):

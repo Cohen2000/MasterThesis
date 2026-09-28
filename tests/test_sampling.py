@@ -1,16 +1,11 @@
 """Budgets and draws of the four arms, the walk kernel and common random numbers."""
 import itertools
 import math
-import tempfile
 import unittest
-from dataclasses import replace
 import numpy as np
-from helpers import complete6, graph, ring, tiny
-from main_experiment.common import (ARMS, COVERAGE_FRACTION, H_SENSITIVITY, MAIN_KEYS, TRAIN, draws_for, planned_sizes,
-                                    seed)
-from main_experiment.sampling import (Walk, analytic_parameters, calibrate, draw, h_parameters, history_counts,
-                                      history_panel_mask, history_start)
-from main_experiment.surrogates import shuffle
+from helpers import complete6, ring, tiny
+from main_experiment.common import (COVERAGE_FRACTION, H_SENSITIVITY, draws_for)
+from main_experiment.sampling import (analytic_parameters, draw, h_parameters, history_counts, history_panel_mask, history_start)
 
 
 def reference_walk(walk, state, L):

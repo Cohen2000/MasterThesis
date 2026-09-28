@@ -2,12 +2,11 @@
 import csv
 import json
 import math
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 import numpy as np
-from main_experiment.common import DESIGN_VERSION, PREPARED, REFERENCES, ROOT, read_json, write_json
+from main_experiment.common import DESIGN_VERSION, PREPARED, REFERENCES, read_json, write_json
 from main_experiment.evaluation import complete_summary, conditional_summary, errors, parse_final, resolve, strip_fence
 
 GOOD = '{"rho_2": 0.5, "rho_3": 0.2, "rho_4": 0.1, "rho_5": 0}'
