@@ -177,7 +177,8 @@ def submit(replicates, tasks, allow_queued=False):
         for t in group: job_of[t.name] = job
         jobs.append({'array': f'{stage}_{k}', 'job': job, 'tasks': len(group), 'after': upstream})
         print('SUBMITTED', stage, k, job, len(group), flush=True)
-        if stage == 'qwen_bundle':
+        q = qwen_state()
+        if stage == 'qwen_bundle' and not (q['installed'] and q['answers'] >= q['requests']):
             job_of['qwen'] = submit_qwen(job, logs, jobs)
     write_json(folder/'jobs.json', jobs)
     return jobs
