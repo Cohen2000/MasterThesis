@@ -2,8 +2,9 @@
 """Evaluate the paid API answers (DeepSeek Flash, GPT-6 Sol) against the v11 panel.
 
 Reports each group of eight graphs (real, surrogate, synthetic) and all 24
-graphs as equal-source means. Offline methods and Qwen are read unchanged from
-the committed v11 PREDICTIONS.csv (arms R/S/H/B). Accuracy is conditional on
+graphs as equal-source means. Offline methods (plugin, median, MLE, ExtraTrees;
+four-estimator rule) and Qwen are read from the final long-format PREDICTIONS.csv
+(arms R/S/H/B, replicate 0; the four new sources have no API answers). Accuracy is conditional on
 valid final answers; nothing is clipped, repaired or imputed.
 """
 import argparse
@@ -25,9 +26,9 @@ from scripts.api_runner import (API_MAIN_ARMS, actual_usd, manifest, observation
 from scripts.build_v10_results import draw_mcse, errors, mean_by_source  # noqa: E402
 
 API_METHODS = {'deepseek': 'deepseek_flash', 'openai': 'gpt_6_sol', 'openai_tools': 'gpt_6_sol_tools'}
-OFFLINE = ('plugin', 'median', 'design', 'mle', 'et', 'qwen_thinking', 'qwen_nonthinking')
+OFFLINE = ('plugin', 'median', 'mle', 'et', 'qwen_thinking', 'qwen_nonthinking')
 METHODS = OFFLINE + tuple(API_METHODS.values())
-REF_METHOD = {'R': 'plugin', 'S': 'design', 'H': 'mle', 'B': 'mle'}
+REF_METHOD = {'R': 'plugin', 'S': 'mle', 'H': 'mle', 'B': 'mle'}
 GROUPS = ('real', 'surrogate', 'synthetic', 'all24')
 
 
@@ -45,20 +46,23 @@ def truths(directory):
 def committed_rows(path, truth):
     rows = []
     for r in csv.DictReader(open(path)):
-        if r['arm'] not in API_MAIN_ARMS:
+        if (r['arm'] not in API_MAIN_ARMS or r['method'] not in OFFLINE or r.get('group') == 'new4'
+                or r.get('replicate') not in (None, '', '0')):
             continue
+        stratum = r.get('stratum') or ('real' if r['group'] == 'real8' else r['group'])
+        rid = r.get('id') or f"{r['observation_id']}__{r['method']}__r{r['repeat_index']}"
         prediction = json.loads(r['prediction']) if r['prediction'] else None
         valid = r['valid'] == 'True'
         values = prediction if valid else None
         check = errors(values, truth[r['source']])
         stored = float(r['AE2']) if r['AE2'] else None
         if (stored is None) != (check['AE2'] is None) or (stored is not None and abs(stored - check['AE2']) > 1e-9):
-            raise ValueError(f"truth mismatch with committed predictions: {r['id']} {r['method']}")
-        rows.append({'id': r['id'], 'observation_id': r['observation_id'], 'source': r['source'],
-                     'stratum': r['stratum'], 'arm': r['arm'], 'sample_index': int(r['sample_index']),
+            raise ValueError(f"truth mismatch with committed predictions: {rid}")
+        rows.append({'id': rid, 'observation_id': r['observation_id'], 'source': r['source'],
+                     'stratum': stratum, 'arm': r['arm'], 'sample_index': int(r['sample_index']),
                      'repeat_index': int(r['repeat_index']) if r['repeat_index'] else None,
                      'method': r['method'], 'prediction': values, 'valid': valid,
-                     'status': 'completed', 'validation_reason': r['validation_reason'], **check})
+                     'status': 'completed', 'validation_reason': r.get('validation_reason') or '', **check})
     return rows
 
 
@@ -206,8 +210,8 @@ def markdown(table, pairs, runs, out):
     lines = ['# API results (v11)', '',
              'DeepSeek Flash (reasoning high, off-peak, one repeat), GPT-6 Sol (reasoning high, Batch, three',
              'repeats) and GPT-6 Sol with the hosted Python tool (`gpt_6_sol_tools`, otherwise identical) on the',
-             '288 frozen R/S/H/B observations. Offline methods and Qwen (three repeats) are the committed',
-             'v11 predictions. MAE_2 is the equal-source mean over valid answers; `all24` weights all 24 graphs',
+             '288 frozen R/S/H/B observations. Offline methods (plugin, median, MLE, ExtraTrees; the reference',
+             'is plugin for R and the MLE otherwise) and Qwen (three repeats) are the final predictions. MAE_2 is the equal-source mean over valid answers; `all24` weights all 24 graphs',
              'equally. Nothing is clipped, repaired or imputed.', '',
              'Recorded spend charges all DeepSeek input at the cache-miss price and all GPT input at the',
              'cache-write price, so it is an upper bound on the provider bill.', '']
@@ -251,7 +255,7 @@ def main():
     ap.add_argument('--openai-tools', type=Path, help='GPT run with the hosted Python tool')
     ap.add_argument('--openai-tools-repeats', type=int, default=3)
     ap.add_argument('--predictions', type=Path,
-                    default=ROOT / 'docs/results/panel888_v11_main_20260923/PREDICTIONS.csv')
+                    default=ROOT / 'docs/results/final_20260928/PREDICTIONS.csv')
     ap.add_argument('--out', type=Path, required=True)
     a = ap.parse_args()
     truth = truths(a.truth_observations)

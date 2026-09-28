@@ -23,6 +23,7 @@ NEW_FOLD = {k: v['fold'] for k, v in CFG['new_sources'].items()}
 RADOSLAW = 'nr_radoslaw_email'
 ARMS = ('R', 'S', 'S_obs', 'H', 'B')
 RH_ARMS = ('R', 'H')
+MLE_ANCHOR_ARMS = tuple(CFG['et_anchor_mle_arms'])   # four-estimator rule
 
 
 def cluster_path(name):
@@ -51,12 +52,13 @@ STAGE_CODE = {
     'testset': ['v11_ext/core.py', 'v11_ext/observe.py', 'v11_ext/replicates.py'],
     'draw_real': ['v11_ext/core.py', 'v11_ext/observe.py', 'v11_ext/replicates.py'],
     'draw_pool': ['v11_ext/core.py', 'v11_ext/observe.py', 'v11_ext/replicates.py'],
+    'anchor0': ['v11_ext/core.py', 'v11_ext/observe.py', 'v11_ext/replicates.py'],
     'select': ['v11_ext/core.py', 'v11_ext/observe.py', 'v11_ext/replicates.py', 'v11_ext/et.py', '../scripts/build_v10_et.py'],
     'train': ['v11_ext/core.py', 'v11_ext/observe.py', 'v11_ext/replicates.py', 'v11_ext/et.py', '../scripts/build_v10_et.py'],
     'qwen_bundle': ['v11_ext/core.py', 'v11_ext/qwen.py', '../scripts/run_qwen_engine.py'],
     'report': ['v11_ext/core.py', 'v11_ext/qwen.py', 'v11_ext/report.py'],
 }
-CONFIG_KEYS = ('version', 'stream_domains', 'pool_partition', 'pool_chunk', 'windows', 'new_sources')
+CONFIG_KEYS = ('version', 'et_anchor_mle_arms', 'stream_domains', 'pool_partition', 'pool_chunk', 'windows', 'new_sources')
 
 
 @lru_cache(maxsize=None)

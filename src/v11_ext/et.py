@@ -4,7 +4,9 @@ The model, grid, anchors, block weights and selection score are those of
 scripts/build_v10_et.py. Replicate 0 is production: the nine v11 folds reuse the
 sealed choices, are refitted to verify reproduction, and predict new sources with
 the pickled production model; the new nr_radoslaw_email fold is selected and
-fitted on the frozen v11 caches with the v10 seed domains. Replicates k >= 1 use
+fitted on the frozen v11 caches with the v10 seed domains. Under the four-estimator
+rule, S and S_obs are MLE-anchored: every fold is selected and fitted anew, also in
+replicate 0 (v10 seed domains, re-anchored v11 training rows). Replicates k >= 1 use
 their own training draws and the seed domains v10_et_nested_r<k>/v10_et_final_r<k>.
 """
 import os
@@ -12,7 +14,7 @@ import pickle
 import sys
 import numpy as np
 from main_experiment.common import REAL_TEST, ROOT, TRAIN, read_json, seed, write_json
-from .core import RADOSLAW, RH, RH_ARMS, V10, stream_domain
+from .core import MLE_ANCHOR_ARMS, RADOSLAW, RH, RH_ARMS, V10, stream_domain
 from .replicates import v11_cache
 
 sys.path.insert(0, str(ROOT/'scripts'))
@@ -28,6 +30,9 @@ def cpus():
 
 def training(k, arm, inputs):
     """(rows, X) of the ET training observations of one arm and replicate."""
+    if k == 0 and arm in MLE_ANCHOR_ARMS:
+        folder = inputs[f'anchor0:{arm}']
+        return read_json(folder/f'rows_{arm}.json'), np.load(folder/f'X_{arm}.npy')
     if k == 0:
         rows, X = v11_cache(arm)
         ids = [i for i, r in enumerate(rows) if r['arm'] == arm and r['domain'] in ('real_train', 'pool_train')]
@@ -75,7 +80,7 @@ def select(task, out, inputs):
 
 def train(task, out, inputs):
     k, arm, fold = task.params['k'], task.params['arm'], task.params['fold']
-    production = k == 0 and fold in V11_FOLDS
+    production = k == 0 and fold in V11_FOLDS and arm not in MLE_ANCHOR_ARMS
     folder = RH/'et_run/et' if arm in RH_ARMS else V10/'et'
     if production:
         choice = read_json(folder/'choices'/arm/f'{fold}.json')['selected']

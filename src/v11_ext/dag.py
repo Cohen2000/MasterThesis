@@ -10,7 +10,7 @@ import json
 import subprocess
 import time
 from main_experiment.common import TRAIN, read_json, write_json
-from .core import ARMS, CFG, EXT, NEW_SOURCES, ROOT, WORK, Task, frozen_inputs
+from .core import ARMS, CFG, EXT, MLE_ANCHOR_ARMS, NEW_SOURCES, ROOT, WORK, Task, frozen_inputs
 from .et import FOLDS, V11_FOLDS
 
 POOL_GRAPHS = 400
@@ -34,6 +34,8 @@ def build(replicates):
                    estimate=25 if s == 'lkml_reply' else 10) for s in NEW_SOURCES]
     testset = add('testset', 'testset', {}, sources, cpus=2, mem_gb=32, minutes=60, estimate=4)
     add('qwen_bundle', 'qwen_bundle', {}, sources, cpus=1, mem_gb=8, minutes=30, estimate=1)
+    anchor = {arm: add('anchor0', f'anchor0:{arm}', {'arm': arm}, cpus=1, mem_gb=16, minutes=120, estimate=5)
+              for arm in MLE_ANCHOR_ARMS}
     chunk = CFG['pool_chunk']
     for k in range(replicates+1):
         real, pool = {}, []
@@ -43,10 +45,10 @@ def build(replicates):
             pool = [add('draw_pool', f'draw_pool:{k}:{i:03d}', {'k': k, 'first': i*chunk, 'last': (i+1)*chunk},
                         cpus=1, mem_gb=16, minutes=120, estimate=4) for i in range(POOL_GRAPHS//chunk)]
         for arm in ARMS:
-            draws = real.get(arm, [])+pool
+            draws = real.get(arm, [])+pool+([anchor[arm]] if k == 0 and arm in anchor else [])
             for fold in FOLDS:
                 select = None
-                if not (k == 0 and fold in V11_FOLDS):
+                if not (k == 0 and fold in V11_FOLDS and arm not in MLE_ANCHOR_ARMS):
                     select = add('select', f'select:{k}:{arm}:{fold}', {'k': k, 'arm': arm, 'fold': fold},
                                  draws, cpus=8, mem_gb=16, minutes=120, estimate=5)
                 add('train', f'train:{k}:{arm}:{fold}', {'k': k, 'arm': arm, 'fold': fold},
@@ -62,7 +64,7 @@ def arrays(tasks):
     groups = defaultdict(list)
     for t in tasks.values():
         if not t.done: groups[(t.stage, t.params.get('k', -1))].append(t)
-    order = ['source', 'testset', 'qwen_bundle', 'draw_real', 'draw_pool', 'select', 'train', 'report']
+    order = ['source', 'testset', 'qwen_bundle', 'anchor0', 'draw_real', 'draw_pool', 'select', 'train', 'report']
     return sorted(groups.items(), key=lambda kv: (order.index(kv[0][0]), kv[0][1]))
 
 
@@ -219,5 +221,5 @@ def execute(task):
     from . import core, et, qwen, replicates, report, sources
     fn = {'source': sources.source_stage, 'testset': replicates.testset, 'draw_real': replicates.draw_real,
           'draw_pool': replicates.draw_pool, 'select': et.select, 'train': et.train,
-          'qwen_bundle': qwen.bundle, 'report': report.report}[task.stage]
+          'qwen_bundle': qwen.bundle, 'report': report.report, 'anchor0': replicates.anchor0}[task.stage]
     core.run(task, fn)

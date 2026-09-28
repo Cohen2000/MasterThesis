@@ -63,6 +63,25 @@ class ReleaseTests(unittest.TestCase):
         self.assertNotEqual(one, observe.draw_block(g, 'B', 1, core.stream_domain('training', 1), b, None)[1])
 
 
+class FourEstimatorTests(unittest.TestCase):
+    def test_s_arms_anchor_on_the_mle_and_other_arms_keep_their_anchor(self):
+        g = ring()
+        b = budget(g)
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(core, 'WORK', Path(d)):
+            for arm in ('R', 'B'):
+                _, block, _ = observe.draw_block(g, arm, 1, 'sample', b, None)
+                x = observe.feature_vector(block, core.Cache('features', d))
+                np.testing.assert_array_equal(observe.anchored(block, arm, x), x)
+            walk_counts = np.ones(g.D, dtype=np.int64)*2
+            from main_experiment.observation import make, serialize
+            block = serialize(make(g, 'S', {'L': int(walk_counts.sum())}, g.counts, walk_counts))
+            x = observe.feature_vector(block, core.Cache('features', d))
+            y = observe.anchored(block, 'S', x)
+            s = observe.REF_START
+            np.testing.assert_allclose(y[s:s+4], observe.mle(block, core.Cache('mle', d))['rho'])
+            np.testing.assert_array_equal(np.delete(y, range(s, s+4)), np.delete(x, range(s, s+4)))
+
+
 class WindowRuleTests(unittest.TestCase):
     def test_isolated_leading_outlier_is_trimmed(self):
         t = np.r_[0., np.linspace(1000., 2000., 5000)]
@@ -174,12 +193,16 @@ class DagTests(unittest.TestCase):
         self.assertEqual(count('source'), 4)
         self.assertEqual(count('draw_real'), 2*16*5)
         self.assertEqual(count('draw_pool'), 2*20)
-        self.assertEqual(count('select'), 5+2*50)        # replicate 0: only the new radoslaw fold
+        # replicate 0: the new radoslaw fold, plus all folds of the MLE-anchored S and S_obs
+        self.assertEqual(count('select'), 5+2*9+2*50)
+        self.assertEqual(count('anchor0'), 2)
         self.assertEqual(count('train'), 3*50)
         rep0 = tasks['train:0:H:sp_hospital']
         self.assertEqual([t.name for t in rep0.deps], ['testset'])
         self.assertIn('select:0:H:nr_radoslaw_email', [t.name for t in tasks['train:0:H:nr_radoslaw_email'].deps])
-        order = ['source', 'testset', 'qwen_bundle', 'draw_real', 'draw_pool', 'select', 'train', 'report']
+        self.assertEqual(sorted(t.name for t in tasks['train:0:S:sp_hospital'].deps),
+                         ['anchor0:S', 'select:0:S:sp_hospital', 'testset'])
+        order = ['source', 'testset', 'qwen_bundle', 'anchor0', 'draw_real', 'draw_pool', 'select', 'train', 'report']
         for t in tasks.values():
             for dep in t.deps: self.assertLess(order.index(dep.stage), order.index(t.stage)+(t.stage == dep.stage))
 

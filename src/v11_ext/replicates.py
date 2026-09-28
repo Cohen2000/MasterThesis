@@ -14,8 +14,8 @@ from main_experiment.observation import parse
 from main_experiment.data import load_graph
 from main_experiment.pool import regenerate
 from main_experiment.walk_v10_audit import Walk
-from .core import ARMS, NEW_SOURCES, RH, RH_ARMS, V10, Cache, stream_domain
-from .observe import draw_block, et_row, feature_vector
+from .core import ARMS, MLE_ANCHOR_ARMS, NEW_SOURCES, RH, RH_ARMS, V10, Cache, stream_domain
+from .observe import REF_START, anchored, draw_block, et_row, feature_vector
 
 
 def _write(out, rows, X):
@@ -110,6 +110,9 @@ def testset(task, out, inputs):
         x = np.asarray(X[ids], float)
         recomputed = np.array([feature_vector(blocks[r['id']], cache) for r in test])
         check[arm] = {'rows': len(test), 'max_abs_feature_difference': float(np.max(np.abs(recomputed-x)))}
+        if arm in MLE_ANCHOR_ARMS:
+            x = np.array([anchored(blocks[r['id']], arm, v) for r, v in zip(test, x)])
+            for r, v in zip(test, x): r['reference'] = v[REF_START:REF_START+4].tolist()
         for source in NEW_SOURCES:
             folder = inputs[f'source:{source}']
             new = [r for r in read_json(folder/'et_rows.json') if r['arm'] == arm]
@@ -123,3 +126,30 @@ def testset(task, out, inputs):
     worst = max(v['max_abs_feature_difference'] for v in check.values())
     print('TESTSET v11 feature recomputation max |diff|', worst, flush=True)
     if worst > 1e-6: raise AssertionError('current code does not reproduce the v11 ET features')
+
+
+def anchor0(task, out, _inputs):
+    """Replicate-0 training rows of an MLE-anchored arm: the frozen v11 cache with the
+    design anchor replaced by the shared MLE of the same sealed block."""
+    arm = task.params['arm']
+    if arm not in MLE_ANCHOR_ARMS: raise ValueError('anchor0 is only for MLE-anchored arms')
+    rows, X = v11_cache(arm)
+    ids = [i for i, r in enumerate(rows) if r['arm'] == arm and r['domain'] in ('real_train', 'pool_train')]
+    blocks = {}
+    for i in ids:
+        r = rows[i]
+        if r['domain'] == 'real_train' and r['id'] not in blocks:
+            blocks[r['id']] = read_json(V10/'prepared/observations/training'/f'{r["id"]}.json')['block']
+        elif r['domain'] == 'pool_train' and r['id'] not in blocks:
+            for o in read_json(V10/'references/pool/observations'/f'{r["source"]}.json')['observations']:
+                if o['arm'] == arm: blocks[o['id']] = o['block']
+    out_rows, out_X = [], []
+    for i in ids:
+        r = dict(rows[i])
+        x = anchored(blocks[r['id']], arm, X[i])
+        r['reference'] = x[REF_START:REF_START+4].tolist()
+        r['block_sha256'] = digest(blocks[r['id']])
+        out_rows.append(r); out_X.append(x)
+    write_json(out/f'rows_{arm}.json', out_rows)
+    np.save(out/f'X_{arm}.npy', np.asarray(out_X, float))
+    print('ANCHOR0', arm, len(out_rows), flush=True)

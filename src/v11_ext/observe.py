@@ -12,7 +12,7 @@ from main_experiment.common import digest, observation_id
 from main_experiment.observation import FEATURE_NAMES, features, make, messages, parse, serialize
 from main_experiment.sampling import draw
 from main_experiment.shared_mle import fit as mle_fit
-from .core import RH_ARMS, Cache
+from .core import MLE_ANCHOR_ARMS, RH_ARMS, Cache
 
 REF_START = FEATURE_NAMES.index('anchor_rho_2')
 PANEL_FIELD = {'R': 'n_panel', 'H': 'n_panel_history'}
@@ -73,9 +73,17 @@ def feature_vector(block, cache=None):
     return np.asarray(cache.get(digest(block), lambda: features(parse(block)).tolist()), float)
 
 
+def anchored(block, arm, x):
+    """Four-estimator rule: S/S_obs anchor on the shared MLE instead of the design estimator."""
+    if arm not in MLE_ANCHOR_ARMS: return x
+    x = np.array(x, float)
+    x[REF_START:REF_START+4] = mle(block)['rho']
+    return x
+
+
 def et_row(block, oid, source, arm, domain, family, fold, truth, cache=None):
     """ET cache row (same fields as build_v10_et.cache) and its feature vector."""
-    x = feature_vector(block, cache)
+    x = anchored(block, arm, feature_vector(block, cache))
     o = parse(block)
     if o['D_obs'] == 0: raise ValueError('empty observations carry no ET row')
     row = {'id': oid, 'source': source, 'arm': arm, 'domain': domain, 'family': family, 'fold': fold,

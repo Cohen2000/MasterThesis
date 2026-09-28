@@ -3,6 +3,12 @@
 version: v11-ext-20260928
 results: docs/results/v11_ext_20260928
 
+# Four-estimator rule (2026-09-28): every sampler is evaluated with plugin, median, MLE and
+# ExtraTrees only. ExtraTrees for S and S_obs therefore uses the shared MLE as its anchor
+# (target baseline and anchor features) instead of the design estimator, and is reselected
+# and refitted for every fold and replicate. R, H and B keep their v11 anchors and fits.
+et_anchor_mle_arms: [S, S_obs]
+
 # ET replicates. Replicate 0 is the v11 production fit; 1..N redraw the real
 # training observations and the pool-graph observations, reseed the forests and
 # rerun the nested selection. Reduced to 5 when the dry run estimates > 12 h wall time.
