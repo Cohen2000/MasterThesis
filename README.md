@@ -53,6 +53,17 @@ The same table for the 8 real graphs only:
 | GPT-6 Sol | USD 20.25 |
 | GPT-6 Sol + Python | USD 71.43 |
 
+**Extension (2026-09-28, additive to v11):** four more real test sources (Reality Mining, LKML replies, SocioPatterns Malawi, and nr_radoslaw_email promoted from training) run through the same offline pipeline and Qwen, plus ten ExtraTrees replicates (new training draws, new seeds, rerun selection) as the counterpart to the LLM repeats. MAE_2 over the 12 real sources:
+
+| Design | Reference | ExtraTrees (production) | ExtraTrees (11 replicates, mean ± SD) | Qwen 3.6 (thinking) |
+|---|---:|---:|---:|---:|
+| R | 0.027 | 0.028 | 0.027 ± 0.001 | 0.027 |
+| S | 0.088 | 0.075 | 0.074 ± 0.003 | 0.181 |
+| H | 0.071 | 0.039 | 0.042 ± 0.002 | 0.160 |
+| B | 0.076 | 0.079 | 0.080 ± 0.001 | 0.220 |
+
+Paid API models were not run on the new sources. Details: [extension results](docs/results/v11_ext_20260928/MAIN_RESULTS.md), [ET replicates](docs/results/v11_ext_20260928/ET_REPLICATES.md), [report](docs/results/v11_ext_20260928/REPORT.md). Rerun or resume with `python scripts/v11_ext.py --dry-run | --status | --submit` on uc3.
+
 **Where the details are:**
 - Per group of eight graphs, paired sign-flip tests and token use: [API results](docs/results/api_v11_20260923/API_RESULTS.md)
 - All offline methods, Qwen, the `S_obs` ablation and MCSEs: [main results](docs/results/panel888_v11_main_20260923/MAIN_RESULTS.md)
@@ -67,7 +78,8 @@ The same table for the 8 real graphs only:
 | `src/census.py`, `src/dataset_census.py` | Audited raw-data parsers |
 | `scripts/` | Pipeline stages: prepare, training pool, ExtraTrees, Qwen, results, API runner, API evaluation |
 | `cluster/` | Slurm jobs for bwUniCluster (preparation, ExtraTrees, Qwen on H100) |
-| `tests/` | Invariants of the design, MLE fallback and the API runner |
+| `src/v11_ext/`, `scripts/v11_ext.py` | Additive extension: new real sources, ET replicates, hash-keyed SLURM orchestrator |
+| `tests/` | Invariants of the design, estimators, MLE fallback, the API runner and the extension |
 | `docs/` | Protocol, API runbook and committed result tables |
 
 Raw data, generated artifacts and raw model answers stay local. Their checksums are committed with the results. See [third-party material](docs/THIRD_PARTY.md) and the [API runbook](docs/RUNBOOK_PANEL888.md).
