@@ -107,7 +107,9 @@ def collect(inputs, replicates):
                for i, o in obs.items() if 'sealed_et' in o)
     if diff != 0.0: raise AssertionError(f'R/H/B replicate 0 differs from v11: {diff}')
     for (k, i), p in et.items(): rows.append(row(obs[i], 'et', p, replicate=k, origin='panel12'))
-    with (API/'API_PREDICTIONS.csv').open() as f:
+    # The joint API evaluation (v11 + extension runs) supersedes the v11-only file once it exists.
+    joint = ROOT/'docs/results/final_20260928/api/API_PREDICTIONS.csv'
+    with (joint if joint.exists() else API/'API_PREDICTIONS.csv').open() as f:
         for r in csv.DictReader(f):
             p = json.loads(r['prediction']) if r['prediction'] else None
             rows.append(row(obs[r['observation_id']], r['method'], p, repeat=int(r['repeat_index']),
@@ -298,9 +300,8 @@ def main_markdown(table, infer, fam, per_src):
              'Arms R, S, H and B; estimators plugin, median, MLE and ExtraTrees (ET, production fit), plus Qwen and',
              'the paid APIs. Reference (ref.): plugin for R, MLE for S, H and B. Equal-source MAE_2 over valid',
              'answers is primary, ProfileMAE secondary; nothing is clipped or repaired. The twelve real sources are',
-             'the main analysis and are weighted equally. API answers exist only for the eight v11 graphs of each',
-             'block; those rows are **pending** until the API extension has run, and no ranking is formed from',
-             'different source sets. S_obs is a historical ablation and is not reported here.', '']
+             'the main analysis and are weighted equally. A method missing any source of a block is marked',
+             '**pending** and not ranked. S_obs is a historical ablation and is not reported here.', '']
     for g in GROUPS:
         lines += [f'## {TITLE[g]}', '']
         lines += md_table(['Arm', 'Method', 'MAE_2', 'ProfileMAE', 'Signed rho_2', 'Validity', 'Sources'],
@@ -346,7 +347,7 @@ def variability_markdown(training, sampling, response, replicates):
                         fmt(r['median_graph_SD_rho2_across_draws'])] for r in sampling])
     lines += ['', '## LLM answer variability', '',
               'SD of the rho_2 answer across the three repeats of one observation, median over observations with',
-              'three valid answers. DeepSeek has one repeat. GPT: v11 graphs only.', '']
+              'three valid answers. DeepSeek has one repeat.', '']
     lines += md_table(['Group', 'Arm', 'Method', 'Observations', 'Median SD across repeats'],
                       [[r['group'], r['arm'], r['method'], r['observations_with_3_valid'],
                         fmt(r['median_observation_SD_rho2'])] for r in response])
