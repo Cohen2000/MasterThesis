@@ -20,9 +20,9 @@ from pathlib import Path
 import numpy as np
 from main_experiment.common import ROOT, draws_for, read_json, seed, write_csv, write_json
 from main_experiment.data import load_graph
-from main_experiment.observation import parse
+from main_experiment.observation import make, parse, serialize
 from main_experiment.sampling import calibrate
-from main_experiment.shared_mle import fit_profile_from_counts
+from main_experiment.shared_mle import fit as mle_fit, fit_profile_from_counts
 from main_experiment.surrogates import prepare_surrogate
 from main_experiment.walk_v10_audit import AUDIT_ARM_ID, Walk
 from . import core
@@ -213,8 +213,9 @@ def walkdiag(task, out, inputs):
         _, _, counts, _ = walk.run(seeds[first:first+audit.BATCH], L, True)
         for c in counts:
             seen = c > 0
-            hist = np.bincount(g.K[seen], weights=c[seen]/g.m[seen], minlength=6)
-            mle_values.append(fit_profile_from_counts(hist.tolist(), 5).rho)
+            # The S block exactly as released (rounded weights), then the production MLE.
+            block = serialize(make(g, 'S', {'L': L}, g.counts*seen[:, None], c))
+            mle_values.append(mle_fit(parse(block)).rho)
             start = walk.components[g.ends[seen, 0][0]]
             cover_comp.append(float(g.K[seen].sum()/comp_cells[start]))
             touched = np.unique(community[np.r_[g.ends[seen, 0], g.ends[seen, 1]]])
