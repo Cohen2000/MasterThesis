@@ -1,7 +1,6 @@
 """Invariants of the additive v11 extension (new sources, ET replicates, orchestration)."""
 import gzip
 import hashlib
-import io
 import json
 import tempfile
 import unittest
@@ -12,7 +11,6 @@ import numpy as np
 import pandas as pd
 from helpers import ring
 from main_experiment.common import ARM_ID, observation_id, seed
-from main_experiment.observation import parse
 from main_experiment.requests import validate_request
 from main_experiment.sampling import analytic_parameters
 from v11_ext import core, observe, qwen, sources
