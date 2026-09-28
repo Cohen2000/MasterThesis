@@ -338,8 +338,8 @@ def guard(rows, provider, budget, execute, repeats=INITIAL_REPEATS):
         raise ValueError(f'incomplete manifest: {len(rows)} of {expected}')
     if budget is None or budget <= 0:
         raise ValueError('explicit positive --budget-usd required')
-    if provider == 'deepseek' and budget != DEEPSEEK_BUDGET_USD:
-        raise ValueError('DeepSeek production budget is fixed at USD 10')
+    if provider == 'deepseek' and budget > DEEPSEEK_BUDGET_USD:
+        raise ValueError('DeepSeek production budget cannot exceed USD 10')
     if provider == 'openai' and budget > OPENAI_BUDGET_USD:
         raise ValueError('GPT experiment budget cannot exceed the approved USD 200 cap')
     if execute:
@@ -958,7 +958,7 @@ def main():
             print('dry run: manifest and budget cap valid; production needs completed token pilot; no provider request')
             return
         if a.provider == 'deepseek':
-            execute_deepseek(rows, a.output, 1 if smoke else a.max_concurrency, smoke, pilot)
+            execute_deepseek(rows, a.output, 1 if smoke else a.max_concurrency, smoke, pilot, a.budget_usd)
         elif smoke or pilot:
             execute_openai_technical([smoke] if smoke else pilot, a.output, a.budget_usd, a.shared_budget_dir)
         else:
