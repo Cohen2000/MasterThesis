@@ -56,13 +56,17 @@ def install(out):
     if existing.exists():
         if sha(existing) != new: raise RuntimeError('an installed Qwen bundle with different requests exists; not replacing it')
         return
+    # No requests file means no generation can have started: a partial install is completed in place.
     for folder in ('src/main_experiment', 'config/main_experiment'):
-        shutil.copytree(ROOT/folder, QWEN_DIR/folder, ignore=shutil.ignore_patterns('__pycache__'))
+        shutil.copytree(ROOT/folder, QWEN_DIR/folder, ignore=shutil.ignore_patterns('__pycache__'), dirs_exist_ok=True)
     for name in ('study.yaml', 'datasets.yaml'): shutil.copy2(ROOT/'config'/name, QWEN_DIR/'config'/name)
     main = QWEN_DIR/'mainexp'
-    (main/'logs').mkdir(parents=True)
+    (main/'logs').mkdir(parents=True, exist_ok=True)
+    if (main/'answers').exists() and any((main/'answers').iterdir()):
+        raise RuntimeError('answers exist without an installed request manifest')
     shutil.copy2(ROOT/'scripts/run_qwen_engine.py', main/'run_qwen_engine.py')
     shutil.copy2(ROOT/'cluster/qwen_engine.sbatch', main/'qwen_engine.sbatch')
+    if (main/'run').exists(): shutil.rmtree(main/'run')
     shutil.copytree(out/'run', main/'run')
 
 

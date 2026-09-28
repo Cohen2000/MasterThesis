@@ -20,6 +20,7 @@ def main():
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--status', action='store_true')
     ap.add_argument('--submit', action='store_true')
+    ap.add_argument('--attach', action='store_true', help='with --submit: depend on still-queued v11x arrays')
     ap.add_argument('--replicates', type=int)
     ap.add_argument('--plan', type=Path)
     ap.add_argument('--index', type=int)
@@ -32,7 +33,7 @@ def main():
     replicates, tasks, est = dag.plan(a.replicates)
     print(dag.describe(tasks, est, replicates))
     if a.status: print(dag.status())
-    if a.submit: dag.submit(replicates, tasks)
+    if a.submit: dag.submit(replicates, tasks, allow_queued=a.attach)
 
 
 if __name__ == '__main__':

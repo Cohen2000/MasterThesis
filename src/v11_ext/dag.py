@@ -134,8 +134,12 @@ def queued():
     return [line for line in out.splitlines() if ' v11x_' in line]
 
 
-def submit(replicates, tasks):
-    if queued(): raise RuntimeError('v11x jobs are still queued or running; one chain at a time')
+def submit(replicates, tasks, allow_queued=False):
+    """Submit every pending task. With allow_queued, the caller asserts that no queued
+    v11x array produces any pending task (e.g. after cancelling a failed branch)."""
+    if queued() and not allow_queued: raise RuntimeError('v11x jobs are still queued or running; one chain at a time')
+    # Arrays still queued keep producing their tasks; new arrays depend on them instead of duplicating them.
+    live = {line.split()[1]: line.split()[0].split('_')[0] for line in queued()}
     stamp = time.strftime('%Y%m%dT%H%M%S')
     folder = WORK/'plans'/stamp
     logs = EXT/'logs'
@@ -144,6 +148,10 @@ def submit(replicates, tasks):
     jobs = []
     venv = CFG['cluster']['venv']
     for (stage, k), group in arrays(tasks):
+        if f'v11x_{stage}_{k}' in live:
+            for t in group: job_of[t.name] = live[f'v11x_{stage}_{k}']
+            print('ATTACHED', stage, k, live[f'v11x_{stage}_{k}'], flush=True)
+            continue
         plan_file = folder/f'{stage}_{k}.json'
         write_json(plan_file, {'replicates': replicates, 'tasks': [[t.name, t.key] for t in group]})
         upstream = sorted({job_of[d.name] for t in group for d in t.deps if d.name in job_of})
@@ -162,6 +170,8 @@ def submit(replicates, tasks):
         print('SUBMITTED', stage, k, job, len(group), flush=True)
         if stage == 'qwen_bundle':
             job_of['qwen'] = submit_qwen(job, logs, jobs)
+    if 'qwen' not in job_of and 'v11x_qwen_r2' in live:
+        job_of['qwen'] = live['v11x_qwen_r2']
     if 'qwen' not in job_of:
         q = qwen_state()
         if q['installed'] and q['answers'] < q['requests']:
