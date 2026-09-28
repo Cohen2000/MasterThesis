@@ -198,7 +198,7 @@ def api_rows():
 
 # ---------------------------------------------------------------- markdown
 def md_table(header, rows):
-    return ['| '+' | '.join(header)+' |', '|'+'|'.join('---' if i == 0 else '---:' for i in range(len(header)))+'|',
+    return ['| '+' | '.join(header)+' |', '|'+'|'.join('---' if i < 2 else '---:' for i in range(len(header)))+'|',
             *('| '+' | '.join(map(str, r))+' |' for r in rows)]
 
 
@@ -249,7 +249,7 @@ def qwen_summary(rows, answers):
     out = []
     for arm in ARMS:
         for mode in ('qwen_thinking', 'qwen_nonthinking'):
-            sel = [a for a, r in answers if r['arm'] == arm and a['method'] == mode]
+            sel = [(a, r) for a, r in answers if r['arm'] == arm and a['method'] == mode]
             out.append({'arm': arm, 'method': mode, 'requests': len(sel),
                         'completed': sum(a['status'] == 'completed' for a, _ in sel),
                         'valid': sum(a['valid'] for a, _ in sel),
