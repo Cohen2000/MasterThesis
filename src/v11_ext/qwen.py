@@ -49,18 +49,19 @@ def bundle(task, out, inputs):
     print('QWEN_BUNDLE', len(rows), 'observations', len(requests), 'requests', flush=True)
 
 
-def install(out):
-    """Copy the bundle to QWEN_DIR once; an existing bundle must be identical."""
+def install(out, dest=None):
+    """Copy the bundle to dest (default QWEN_DIR) once; an existing bundle must be identical."""
+    dest = dest or QWEN_DIR
     new = sha(out/'run/requests.jsonl')
-    existing = QWEN_DIR/'mainexp/run/requests.jsonl'
+    existing = dest/'mainexp/run/requests.jsonl'
     if existing.exists():
         if sha(existing) != new: raise RuntimeError('an installed Qwen bundle with different requests exists; not replacing it')
         return
     # No requests file means no generation can have started: a partial install is completed in place.
     for folder in ('src/main_experiment', 'config/main_experiment'):
-        shutil.copytree(ROOT/folder, QWEN_DIR/folder, ignore=shutil.ignore_patterns('__pycache__'), dirs_exist_ok=True)
-    for name in ('study.yaml', 'datasets.yaml'): shutil.copy2(ROOT/'config'/name, QWEN_DIR/'config'/name)
-    main = QWEN_DIR/'mainexp'
+        shutil.copytree(ROOT/folder, dest/folder, ignore=shutil.ignore_patterns('__pycache__'), dirs_exist_ok=True)
+    for name in ('study.yaml', 'datasets.yaml'): shutil.copy2(ROOT/'config'/name, dest/'config'/name)
+    main = dest/'mainexp'
     (main/'logs').mkdir(parents=True, exist_ok=True)
     if (main/'answers').exists() and any((main/'answers').iterdir()):
         raise RuntimeError('answers exist without an installed request manifest')

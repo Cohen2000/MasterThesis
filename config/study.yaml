@@ -6,7 +6,8 @@ master_seed: 20260921
 arms:
   R: uniform_node_panel_full_history
   S: interaction_following_walk_with_crawl_log
-  S_obs: same_walk_without_crawl_log
+  # S_obs (same walk without the crawl log) was a Qwen-only ablation up to v11; it is historical
+  # (docs/results/panel888_v11_main_20260923) and not part of current runs or evaluations.
   H: uniform_node_panel_history_fraction_0.60
   B: independent_bernoulli_event_retention
 walk:
@@ -15,7 +16,6 @@ walk:
   steps: fixed_L_without_restart_or_burnin
   observation: each_traversed_dyad_once_with_complete_history
   S_columns: [inv_events, traversals, traversals_per_event]
-  S_obs_columns: [inv_events]
 budget:
   fraction: 0.10
   target: expected_discovered_active_dyad_windows
@@ -34,12 +34,11 @@ training:
   synthetic_pool_train: 400
   synthetic_pool_dev: 100
   et_variant: pooled_only
-  et_features: {R: 175, H: 175, S: 174, S_obs: 174, B: 174}
+  et_features: {R: 175, H: 175, S: 174, B: 174}
   et_selection: nested_leave_one_real_training_source_out
-references:
+references:            # four-estimator rule (2026-09-28): plugin, median, MLE, ExtraTrees per arm
   R: plugin
-  S: design
-  S_obs: design
+  S: mle
   H: mle
   B: mle
 evaluation:
@@ -49,7 +48,7 @@ evaluation:
   no_clipping_or_repair: true
   source_level_exact_signflip: true
 qwen:
-  generation_arms: [R, S, S_obs, H, B]
+  generation_arms: [R, S, H, B]
   R_H_source: completed_panel_release_archive
   S_S_obs_B_source: sealed_v10_archive
 api_main:
@@ -61,6 +60,7 @@ reasoning_exposure:
   openai: provider_reasoning_summary
   qwen: generated_reasoning_block
 panel:
-  real: [sp_hospital, sp_highschool2013, copenhagen_bluetooth, sp_workplace, snap_email_eu, snap_collegemsg, snap_mathoverflow, nr_digg_reply]
+  real: [sp_hospital, sp_highschool2013, copenhagen_bluetooth, sp_workplace, snap_email_eu, snap_collegemsg, snap_mathoverflow, nr_digg_reply,
+         reality_mining, lkml_reply, sp_malawi, nr_radoslaw_email]   # last four added 2026-09-28 (config/v11_ext.yaml)
   surrogates: one_parent_matched_Pwt_per_real
   synthetic: [dar_a0_r1, dar_a08_r1, dar_a0_r2, dar_a08_r2, ad_memoryless_r1, ad_memory_r1, ad_memoryless_r2, ad_memory_r2]

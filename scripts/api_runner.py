@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Offline planning and explicit execution for the frozen v11 API comparison.
+"""Offline planning and explicit execution for the frozen API comparison.
 
-No command contacts a provider unless --execute is supplied. Production reads
-the local copy of the 288 sealed observation JSON files.
+No command contacts a provider unless --execute is supplied. Production reads a
+local copy of a sealed observation set: `v11` (288 observations of the 24 v11
+graphs) or `ext` (96 observations of the four added real sources and their
+surrogates), each checked against its committed freeze manifest.
 """
 import argparse
 from collections import Counter
@@ -53,6 +55,16 @@ BATCH_SIZE_DEFAULT = 96
 DEEPSEEK_BUDGET_USD = 10
 OPENAI_BUDGET_USD = 200
 OBSERVATION_COUNT = 288
+EXT_GRAPHS = tuple(g for s in ('reality_mining', 'lkml_reply', 'sp_malawi', 'nr_radoslaw_email') for g in (s, s+'__pwt'))
+OBSERVATION_SETS = {
+    'v11': {'count': 288, 'graphs': MAIN_KEYS, 'freeze': 'docs/results/panel888_v11_main_20260923/API_FREEZE.json'},
+    'ext': {'count': 96, 'graphs': EXT_GRAPHS, 'freeze': 'docs/results/final_20260928/API_FREEZE_EXT.json'}}
+OBSERVATION_SET = 'v11'
+
+
+def use_observation_set(name):
+    global OBSERVATION_SET, OBSERVATION_COUNT
+    OBSERVATION_SET, OBSERVATION_COUNT = name, OBSERVATION_SETS[name]['count']
 REASONING_EXPOSURE = {'deepseek': 'raw_provider_reasoning',
                       'openai': 'provider_reasoning_summary',
                       'qwen': 'generated_reasoning_block'}
@@ -78,12 +90,12 @@ def load_keys():
 def observations(directory):
     rows = [json.loads(p.read_text()) for p in sorted(directory.glob('*.json'))]
     if len(rows) != OBSERVATION_COUNT or len({r['id'] for r in rows}) != OBSERVATION_COUNT:
-        raise ValueError('v11 API observation set must contain 288 distinct rows')
+        raise ValueError(f'{OBSERVATION_SET} API observation set must contain {OBSERVATION_COUNT} distinct rows')
     for row in rows:
         if set(row) != {'id', 'graph_id', 'stratum', 'arm', 'sample_index',
                         'block', 'block_sha256', 'messages', 'prompt_sha256'}:
             raise ValueError('API observation contains hidden or unexpected metadata')
-        if row['graph_id'] not in MAIN_KEYS or row['arm'] not in API_MAIN_ARMS:
+        if row['graph_id'] not in OBSERVATION_SETS[OBSERVATION_SET]['graphs'] or row['arm'] not in API_MAIN_ARMS:
             raise ValueError('unexpected graph or arm')
         if row['block_sha256'] != digest(row['block']):
             raise ValueError('observation block hash mismatch')
@@ -99,14 +111,14 @@ def observations(directory):
         if row['arm'] == 'B' and '\np=' not in row['block']:
             raise ValueError('B sampling probability missing')
     cells = {(r['graph_id'], r['arm'], r['sample_index']) for r in rows}
-    expected = {(g, arm, i) for g in MAIN_KEYS for arm in API_MAIN_ARMS for i in (1, 2, 3)}
+    expected = {(g, arm, i) for g in OBSERVATION_SETS[OBSERVATION_SET]['graphs'] for arm in API_MAIN_ARMS for i in (1, 2, 3)}
     if cells != expected:
         raise ValueError('incomplete main observation grid')
-    freeze = json.loads((ROOT / 'docs/results/panel888_v11_main_20260923/API_FREEZE.json').read_text())
+    freeze = json.loads((ROOT / OBSERVATION_SETS[OBSERVATION_SET]['freeze']).read_text())
     frozen = [(r['id'], r['block_sha256'], r['prompt_sha256']) for r in sorted(rows, key=lambda r: r['id'])]
     fingerprint = hashlib.sha256(json.dumps(frozen, separators=(',', ':')).encode()).hexdigest()
     if fingerprint != freeze['observation_hash_manifest_sha256']:
-        raise ValueError('local v11 API freeze differs from committed hashes')
+        raise ValueError(f'local {OBSERVATION_SET} API freeze differs from committed hashes')
     return rows
 
 
@@ -343,7 +355,8 @@ def summary(rows, provider, budget=None, records=(), repeats=INITIAL_REPEATS):
     report = {'provider': provider, 'model': MODELS[provider], 'reasoning': 'high',
               'reasoning_exposure': REASONING_EXPOSURE[provider],
               'requests': len(rows), 'arms': API_MAIN_ARMS,
-              'graph_strata': {'real': 8, 'surrogate': 8, 'synthetic': 8},
+              'observation_set': OBSERVATION_SET, 'graph_strata': dict(Counter(
+                  r['stratum'] for r in rows if r.get('repeat_index') == 1 and r.get('sample_index') == 1 and r.get('arm') == 'R')),
               'sampler_draws': 3, 'model_repeats': repeats, **cost,
               'budget_usd': budget}
     print(json.dumps(report, indent=2))
@@ -819,9 +832,31 @@ def collect_openai(run_dir, state, key):
           f'conservative total GPT spend USD {spent:.4f}')
 
 
+def import_technical(source, destination, provider):
+    """Seed a new run directory with the completed smoke/pilot records of an earlier run of the
+    same configuration, so production needs no new paid technical requests. Offline only."""
+    if destination.exists() and any(destination.iterdir()):
+        raise ValueError(f'{destination} is not empty')
+    name = 'responses.jsonl' if provider == 'deepseek' else 'technical_responses.jsonl'
+    records = [r for r in read_jsonl(source / name) if r.get('kind') in ('smoke', 'pilot')]
+    if not any(r['kind'] == 'smoke' for r in records) or sum(r['kind'] == 'pilot' for r in records) < 8:
+        raise ValueError(f'{source} has no completed smoke and token pilot')
+    destination.mkdir(parents=True)
+    (destination / name).write_text(''.join(json.dumps(r) + '\n' for r in records))
+    if (source / 'variant.json').exists():
+        (destination / 'variant.json').write_text((source / 'variant.json').read_text())
+    atomic_json(destination / 'technical_source.json',
+                {'source': str(source), 'records': len(records),
+                 'note': 'technical records reused from the earlier run; their spend is counted again (upper bound)'})
+    print(f'imported {len(records)} technical records from {source}')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('command', choices=('check', 'cost', 'smoke', 'pilot', 'submit', 'status', 'collect'))
+    ap.add_argument('command', choices=('check', 'cost', 'smoke', 'pilot', 'submit', 'status', 'collect',
+                                        'import-technical', 'window'))
+    ap.add_argument('--observation-set', choices=tuple(OBSERVATION_SETS), default='v11')
+    ap.add_argument('--technical-from', type=Path, help='import-technical: earlier run directory')
     ap.add_argument('--provider', choices=tuple(MODELS), required=True)
     ap.add_argument('--observations', type=Path)
     ap.add_argument('--smoke-observation', type=Path, help='one frozen training/dev/pool JSON file')
@@ -837,9 +872,27 @@ def main():
     ap.add_argument('--shared-budget-dir', type=Path, action='append', default=[],
                     help='other GPT run directory whose spend counts against the same budget')
     a = ap.parse_args()
+    use_observation_set(a.observation_set)
     if a.tools and a.provider != 'openai':
         ap.error('--tools is a GPT variant')
     label = 'openai_tools' if a.tools else a.provider
+    if a.command == 'window':
+        from zoneinfo import ZoneInfo
+        now = datetime.now(timezone.utc)
+        allowed, peak, next_peak, remaining = deepseek_window(now)
+        berlin = ZoneInfo('Europe/Berlin')
+        print(json.dumps({'utc_now': now.isoformat(), 'berlin_now': now.astimezone(berlin).isoformat(),
+                          'deepseek_peak_now': peak, 'deepseek_start_allowed_now': allowed,
+                          'next_peak_utc': next_peak.isoformat(), 'next_peak_berlin': next_peak.astimezone(berlin).isoformat(),
+                          'minutes_to_next_peak': round(remaining.total_seconds()/60),
+                          'rule': 'peak = weekdays 01:00-04:00 and 06:00-10:00 UTC; no start within '
+                                  f'{DEEPSEEK_PEAK_BUFFER_MINUTES} min of a peak'}, indent=2))
+        return
+    if a.command == 'import-technical':
+        if not a.technical_from or not a.output:
+            ap.error('import-technical needs --technical-from and --output')
+        import_technical(a.technical_from, a.output, a.provider)
+        return
     if a.command in ('status', 'collect'):
         if not a.output or a.provider != 'openai':
             ap.error('status/collect require an existing OpenAI Batch run directory')

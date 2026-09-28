@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Evaluate the paid API answers (DeepSeek Flash, GPT-6 Sol) against the v11 panel.
+"""Evaluate the paid API answers (DeepSeek Flash, GPT-6 Sol, GPT-6 Sol + Python).
 
-Reports each group of eight graphs (real, surrogate, synthetic) and all 24
-graphs as equal-source means. Offline methods (plugin, median, MLE, ExtraTrees;
-four-estimator rule) and Qwen are read from the final long-format PREDICTIONS.csv
-(arms R/S/H/B, replicate 0; the four new sources have no API answers). Accuracy is conditional on
+Joint evaluation over the 12 real sources, 12 surrogates and 8 synthetic graphs
+(arms R/S/H/B), each block reported separately as equal-source means; originals
+and surrogates are compared as pairs. API answers come from the v11 run directories
+and, after the API extension, from the ext run directories. Offline methods
+(plugin, median, MLE, ExtraTrees) and Qwen are read from the final PREDICTIONS.csv.
+A method whose block is incomplete is reported as pending, never ranked. Accuracy is conditional on
 valid final answers; nothing is clipped, repaired or imputed.
 """
 import argparse
@@ -29,27 +31,22 @@ API_METHODS = {'deepseek': 'deepseek_flash', 'openai': 'gpt_6_sol', 'openai_tool
 OFFLINE = ('plugin', 'median', 'mle', 'et', 'qwen_thinking', 'qwen_nonthinking')
 METHODS = OFFLINE + tuple(API_METHODS.values())
 REF_METHOD = {'R': 'plugin', 'S': 'mle', 'H': 'mle', 'B': 'mle'}
-GROUPS = ('real', 'surrogate', 'synthetic', 'all24')
+GROUPS = ('real', 'surrogate', 'synthetic')
 
 
-def truths(directory):
-    out = {}
-    for path in sorted(Path(directory).glob('*.json')):
-        row = json.loads(path.read_text())
-        if out.setdefault(row['graph_id'], row['truth']) != row['truth']:
-            raise ValueError(f"inconsistent truth for {row['graph_id']}")
-    if len(out) != 24:
-        raise ValueError('truth needs all 24 main graphs')
+def truths(path):
+    out = json.loads(Path(path).read_text())
+    if len(out) != 32:
+        raise ValueError('truth needs all 32 graphs')
     return out
 
 
 def committed_rows(path, truth):
     rows = []
     for r in csv.DictReader(open(path)):
-        if (r['arm'] not in API_MAIN_ARMS or r['method'] not in OFFLINE or r.get('group') == 'new4'
-                or r.get('replicate') not in (None, '', '0')):
+        if r['arm'] not in API_MAIN_ARMS or r['method'] not in OFFLINE or r.get('replicate') not in (None, '', '0'):
             continue
-        stratum = r.get('stratum') or ('real' if r['group'] == 'real8' else r['group'])
+        stratum = r.get('stratum') or r['group']
         rid = r.get('id') or f"{r['observation_id']}__{r['method']}__r{r['repeat_index']}"
         prediction = json.loads(r['prediction']) if r['prediction'] else None
         valid = r['valid'] == 'True'
@@ -89,7 +86,7 @@ def api_rows(label, run_dir, planned, truth):
 
 
 def in_group(row, group):
-    return group == 'all24' or row['stratum'] == group
+    return row['stratum'] == group
 
 
 def summary(rows):
@@ -103,12 +100,13 @@ def summary(rows):
                 cell = [r for r in chosen if r['method'] == method]
                 if not cell:
                     continue
-                sources = sorted({r['source'] for r in cell})
                 ae = mean_by_source(cell, 'AE2')
-                complete = len(ae) == len(sources)
+                block = {r['source'] for r in rows if in_group(r, group) and r['method'] == 'plugin'}
+                complete = set(ae) == block
                 mae = float(np.mean(list(ae.values()))) if complete else None
                 table.append({
-                    'group': group, 'arm': arm, 'method': method, 'sources': len(sources),
+                    'group': group, 'arm': arm, 'method': method, 'sources': len(block),
+                    'status': 'complete' if complete else 'pending',
                     'sources_with_valid': len(ae), 'planned_answers': len(cell),
                     'completed_answers': sum(r['status'] == 'completed' for r in cell),
                     'valid_answers': sum(r['valid'] for r in cell),
@@ -148,12 +146,12 @@ def paired(rows):
                 if not means[first] or not means[second]:
                     continue
                 sources = sorted(set(means[first]) & set(means[second]))
-                expected = 24 if group == 'all24' else 8
+                expected = len(means['plugin'])
                 row = {'group': group, 'arm': arm, 'comparison': f'{first} vs {second}',
                        'sources_with_pairs': len(sources)}
                 if len(sources) == expected:
                     d = np.array([means[first][s] - means[second][s] for s in sources])
-                    row.update({'mean_difference': float(d.mean()), 'first_better_sources': int((d < 0).sum()),
+                    row.update({'sources': expected, 'mean_difference': float(d.mean()), 'first_better_sources': int((d < 0).sum()),
                                 'exact_signflip_p': signflip_exact(d)})
                 out.append(row)
     return out
@@ -206,76 +204,96 @@ def fmt(value, digits=4):
     return '' if value is None else f'{value:.{digits}f}' if isinstance(value, float) else str(value)
 
 
-def markdown(table, pairs, runs, out):
-    lines = ['# API results (v11)', '',
+def families(rows):
+    """Original minus surrogate source-level MAE_2 per method, one pair per source family."""
+    out = []
+    for arm in API_MAIN_ARMS:
+        for method in METHODS:
+            real = mean_by_source([r for r in rows if r['stratum'] == 'real' and r['arm'] == arm and r['method'] == method], 'AE2')
+            sur = mean_by_source([r for r in rows if r['stratum'] == 'surrogate' and r['arm'] == arm and r['method'] == method], 'AE2')
+            fams = sorted(f for f in real if f + '__pwt' in sur)
+            if not fams:
+                continue
+            d = np.array([real[f] - sur[f + '__pwt'] for f in fams])
+            out.append({'arm': arm, 'method': method, 'families': len(fams), 'mean_difference': float(d.mean()),
+                        'original_better': int((d < 0).sum()), 'exact_signflip_p': signflip_exact(d)})
+    return out
+
+
+def markdown(table, pairs, fams, runs, out):
+    lines = ['# API results', '',
              'DeepSeek Flash (reasoning high, off-peak, one repeat), GPT-6 Sol (reasoning high, Batch, three',
              'repeats) and GPT-6 Sol with the hosted Python tool (`gpt_6_sol_tools`, otherwise identical) on the',
-             '288 frozen R/S/H/B observations. Offline methods (plugin, median, MLE, ExtraTrees; the reference',
-             'is plugin for R and the MLE otherwise) and Qwen (three repeats) are the final predictions. MAE_2 is the equal-source mean over valid answers; `all24` weights all 24 graphs',
-             'equally. Nothing is clipped, repaired or imputed.', '',
-             'Recorded spend charges all DeepSeek input at the cache-miss price and all GPT input at the',
-             'cache-write price, so it is an upper bound on the provider bill.', '']
+             'frozen R/S/H/B observations. Offline methods (plugin, median, MLE, ExtraTrees; reference plugin for R',
+             'and the MLE otherwise) and Qwen are the final predictions. MAE_2 is the equal-source mean over valid',
+             'answers within each block; a block missing any source is **pending** and not ranked. Nothing is',
+             'clipped, repaired or imputed. Recorded spend is an upper bound on the provider bill.', '']
     for provider, report in runs.items():
         main = report.get('main', {})
-        tools = f", answers using the tool {main.get('answers_using_tools', 0)}" if provider.endswith('tools') else ''
         lines.append(f"- {provider}: {main.get('responses', 0)} main answers, recorded spend "
                      f"USD {report['total_recorded_spend_usd']:.4f} (incl. smoke/pilot), generation-limit hits "
-                     f"{main.get('generation_limit_hits', 0)}, mean output tokens "
-                     f"{fmt(main.get('output_tokens', {}).get('mean'), 0)}{tools}.")
+                     f"{main.get('generation_limit_hits', 0)}.")
     for group in GROUPS:
         lines += ['', f'## {group}', '',
-                  '| Arm | Method | MAE_2 | ProfileMAE | Signed rho_2 | Valid/planned | Sources valid | MCSE_2 | Skill vs plugin |',
-                  '|---|---|---:|---:|---:|---:|---:|---:|---:|']
+                  '| Arm | Method | MAE_2 | ProfileMAE | Signed rho_2 | Valid/planned | Sources | MCSE_2 |',
+                  '|---|---|---:|---:|---:|---:|---:|---:|']
         for r in table:
-            if r['group'] != group:
-                continue
-            lines.append(f"| {r['arm']} | {r['method']} | {fmt(r['MAE_2'])} | {fmt(r['ProfileMAE'])} | "
-                         f"{fmt(r['signed_rho_2'])} | {r['valid_answers']}/{r['planned_answers']} | "
-                         f"{r['sources_with_valid']}/{r['sources']} | {fmt(r['draw_clustered_MCSE_2'])} | "
-                         f"{fmt(r['skill_vs_plugin'])} |")
-    lines += ['', '## Source-level paired differences', '',
-              'First minus second source-level MAE_2; exact two-sided sign-flip over sources (8 or 24).', '',
-              '| Group | Arm | Comparison | Mean difference | First better | Exact sign-flip p |',
-              '|---|---|---|---:|---:|---:|']
+            if r['group'] == group:
+                lines.append(f"| {r['arm']} | {r['method']} | {fmt(r['MAE_2'])} | {fmt(r['ProfileMAE'])} | "
+                             f"{fmt(r['signed_rho_2'])} | {r['valid_answers']}/{r['planned_answers']} | "
+                             f"{r['sources_with_valid']}/{r['sources']} {'' if r['status'] == 'complete' else '(pending)'} | "
+                             f"{fmt(r['draw_clustered_MCSE_2'])} |")
+    lines += ['', '## Paired original minus surrogate', '',
+              '| Arm | Method | Families | Mean difference | Original better | Exact sign-flip p |', '|---|---|---:|---:|---:|---:|']
+    for r in fams:
+        lines.append(f"| {r['arm']} | {r['method']} | {r['families']} | {fmt(r['mean_difference'])} | "
+                     f"{r['original_better']}/{r['families']} | {fmt(r['exact_signflip_p'])} |")
+    lines += ['', '## Source-level paired differences within a block', '',
+              '| Group | Arm | Comparison | Mean difference | First better | Exact sign-flip p |', '|---|---|---|---:|---:|---:|']
     for r in pairs:
-        n = 24 if r['group'] == 'all24' else 8
-        lines.append(f"| {r['group']} | {r['arm']} | {r['comparison']} | {fmt(r.get('mean_difference'))} | "
-                     f"{fmt(r.get('first_better_sources'))}/{n} | {fmt(r.get('exact_signflip_p'))} |")
+        if 'mean_difference' in r:
+            lines.append(f"| {r['group']} | {r['arm']} | {r['comparison']} | {fmt(r['mean_difference'])} | "
+                         f"{r['first_better_sources']}/{r['sources']} | {fmt(r['exact_signflip_p'])} |")
     (out / 'API_RESULTS.md').write_text('\n'.join(lines) + '\n')
 
 
+def spec(values):
+    """SET=PATH pairs, e.g. v11=/runs/openai_v11 ext=/runs/openai_ext."""
+    return [tuple(v.split('=', 1)) for v in values or []]
+
+
 def main():
+    from scripts import api_runner
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--observations', type=Path, required=True, help='288 frozen API observations')
-    ap.add_argument('--truth-observations', type=Path, required=True, help='360 v10 observations with truth')
-    ap.add_argument('--deepseek', type=Path, required=True)
-    ap.add_argument('--deepseek-repeats', type=int, default=1)
-    ap.add_argument('--openai', type=Path, required=True)
-    ap.add_argument('--openai-repeats', type=int, default=3)
-    ap.add_argument('--openai-tools', type=Path, help='GPT run with the hosted Python tool')
-    ap.add_argument('--openai-tools-repeats', type=int, default=3)
-    ap.add_argument('--predictions', type=Path,
-                    default=ROOT / 'docs/results/final_20260928/PREDICTIONS.csv')
+    ap.add_argument('--observations', nargs='+', required=True, help='SET=DIR frozen API observations (v11, ext)')
+    ap.add_argument('--deepseek', nargs='*', help='SET=RUN_DIR (one repeat)')
+    ap.add_argument('--openai', nargs='*', help='SET=RUN_DIR (three repeats)')
+    ap.add_argument('--openai-tools', nargs='*', help='SET=RUN_DIR (three repeats)')
+    ap.add_argument('--truth', type=Path, default=ROOT / 'docs/results/final_20260928/TRUTH.json')
+    ap.add_argument('--predictions', type=Path, default=ROOT / 'docs/results/final_20260928/PREDICTIONS.csv')
     ap.add_argument('--out', type=Path, required=True)
     a = ap.parse_args()
-    truth = truths(a.truth_observations)
-    obs = observations(a.observations)
+    truth = truths(a.truth)
+    obs = {}
+    for name, directory in spec(a.observations):
+        api_runner.use_observation_set(name)
+        obs[name] = observations(Path(directory))
     rows = committed_rows(a.predictions, truth)
-    runs_in = [('deepseek', a.deepseek, a.deepseek_repeats), ('openai', a.openai, a.openai_repeats)]
-    if a.openai_tools:
-        runs_in.append(('openai_tools', a.openai_tools, a.openai_tools_repeats))
-    for label, run_dir, repeats in runs_in:
-        rows += api_rows(label, run_dir, manifest(obs, label, repeats), truth)
+    runs = {}
+    for label, values, repeats in (('deepseek', a.deepseek, 1), ('openai', a.openai, 3), ('openai_tools', a.openai_tools, 3)):
+        for name, run_dir in spec(values):
+            api_runner.use_observation_set(name)
+            rows += api_rows(label, run_dir, manifest(obs[name], label, repeats), truth)
+            runs[f'{API_METHODS[label]}:{name}'] = run_report('deepseek' if label == 'deepseek' else 'openai', run_dir)
     a.out.mkdir(parents=True, exist_ok=True)
-    table, pairs = summary(rows), paired(rows)
-    runs = {API_METHODS[label]: run_report('deepseek' if label == 'deepseek' else 'openai', run_dir)
-            for label, run_dir, _ in runs_in}
+    table, pairs, fams = summary(rows), paired(rows), families(rows)
     write_csv(a.out / 'SUMMARY.csv', table)
     write_csv(a.out / 'PAIRED.csv', pairs)
+    write_csv(a.out / 'PAIRED_FAMILIES.csv', fams)
     write_csv(a.out / 'PER_SOURCE.csv', per_source([r for r in rows if r['method'] in API_METHODS.values()]))
     write_csv(a.out / 'API_PREDICTIONS.csv', [r for r in rows if r['method'] in API_METHODS.values()])
     write_json(a.out / 'API_RUNS.json', runs)
-    markdown(table, pairs, runs, a.out)
+    markdown(table, pairs, fams, runs, a.out)
     print((a.out / 'API_RESULTS.md').read_text())
 
 

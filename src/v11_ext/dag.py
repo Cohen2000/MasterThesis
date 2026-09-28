@@ -10,8 +10,10 @@ import json
 import subprocess
 import time
 from main_experiment.common import TRAIN, read_json, write_json
-from .core import ARMS, CFG, EXT, MLE_ANCHOR_ARMS, NEW_SOURCES, ROOT, WORK, Task, frozen_inputs
+from .core import ARMS, CFG, EXT, MLE_ANCHOR_ARMS, NEW_SOURCES, RADOSLAW, ROOT, WORK, Task, frozen_inputs
 from .et import FOLDS, V11_FOLDS
+from . import panel12
+from .panel12 import ARMS4, SURROGATES
 
 POOL_GRAPHS = 400
 QWEN_REQUESTS_PER_OBS = 6
@@ -53,9 +55,28 @@ def build(replicates):
                                  draws, cpus=8, mem_gb=16, minutes=120, estimate=5)
                 add('train', f'train:{k}:{arm}:{fold}', {'k': k, 'arm': arm, 'fold': fold},
                     [testset, *([select] if select else []), *draws], cpus=4, mem_gb=16, minutes=30, estimate=1)
-    trains = [t for t in tasks.values() if t.stage == 'train']
-    add('report', 'report', {'replicates': replicates}, [*sources, testset, *trains, tasks['qwen_bundle']],
-        cpus=2, mem_gb=32, minutes=60, estimate=5)
+    # 12 real sources, 12 surrogates, 8 synthetic graphs; arms R/S/H/B (S_obs tasks above are historical).
+    sur = [add('surrogate', f'surrogate:{s}', {'source': s}, [tasks[f'source:{s}']], cpus=4, mem_gb=96,
+               minutes=360, estimate=25 if s == 'lkml_reply' else 10) for s in NEW_SOURCES]
+    testset_sur = add('testset_sur', 'testset_sur', {}, sur, cpus=1, mem_gb=8, minutes=30, estimate=1)
+    for k in range(replicates+1):
+        for arm in ARMS4:
+            for fold in ('synthetic', RADOSLAW):
+                base = tasks[f'train:{k}:{arm}:{fold}']
+                add('train_sur', f'train_sur:{k}:{arm}:{fold}', {'k': k, 'arm': arm, 'fold': fold},
+                    [*base.deps, base, testset_sur], cpus=4, mem_gb=16, minutes=30, estimate=1)
+    add('qwen_sur', 'qwen_sur', {}, sur, cpus=1, mem_gb=8, minutes=30, estimate=1)
+    add('api_freeze', 'api_freeze', {}, [*sources, *sur], cpus=1, mem_gb=8, minutes=30, estimate=1)
+    add('history', 'history', {}, [*sources, *sur], cpus=2, mem_gb=64, minutes=120, estimate=5)
+    for key in (*NEW_SOURCES, *SURROGATES):
+        parent = panel12.family(key)
+        add('walkdiag', f'walkdiag:{key}', {'graph': key},
+            [tasks[f'source:{parent}'], *([tasks[f'surrogate:{parent}']] if key in SURROGATES else [])],
+            cpus=2, mem_gb=64, minutes=360, estimate=30 if parent == 'lkml_reply' else 5)
+    report_deps = [t for t in tasks.values() if t.stage in ('source', 'surrogate', 'testset', 'testset_sur', 'train_sur',
+                                                            'qwen_bundle', 'qwen_sur', 'api_freeze', 'history', 'walkdiag')
+                   or (t.stage == 'train' and t.params['arm'] in ARMS4)]
+    add('report', 'report', {'replicates': replicates}, report_deps, cpus=2, mem_gb=32, minutes=60, estimate=5)
     return tasks
 
 
@@ -64,17 +85,24 @@ def arrays(tasks):
     groups = defaultdict(list)
     for t in tasks.values():
         if not t.done: groups[(t.stage, t.params.get('k', -1))].append(t)
-    order = ['source', 'testset', 'qwen_bundle', 'anchor0', 'draw_real', 'draw_pool', 'select', 'train', 'report']
+    order = ['source', 'surrogate', 'testset', 'testset_sur', 'qwen_bundle', 'qwen_sur', 'api_freeze', 'history',
+             'walkdiag', 'anchor0', 'draw_real', 'draw_pool', 'select', 'train', 'train_sur', 'report']
     return sorted(groups.items(), key=lambda kv: (order.index(kv[0][0]), kv[0][1]))
 
 
-def qwen_state():
+def bundles():
     from .qwen import QWEN_DIR
-    requests = QWEN_DIR/'mainexp/run/requests.jsonl'
-    if not requests.exists():      # about 15 observations per source before drawing
-        return {'installed': False, 'requests': 15*len(NEW_SOURCES)*QWEN_REQUESTS_PER_OBS, 'answers': 0}
+    return {'qwen_bundle': QWEN_DIR, 'qwen_sur': panel12.QWEN_SUR_DIR}
+
+
+def qwen_state(folder=None):
+    from .qwen import QWEN_DIR
+    folder = folder or QWEN_DIR
+    requests = folder/'mainexp/run/requests.jsonl'
+    if not requests.exists():      # about 12-15 observations per graph before drawing
+        return {'installed': False, 'requests': 12*len(NEW_SOURCES)*QWEN_REQUESTS_PER_OBS, 'answers': 0}
     n = len(requests.read_text().splitlines())
-    answered = len(list((QWEN_DIR/'mainexp/answers').glob('*_r*/*.json')))
+    answered = len(list((folder/'mainexp/answers').glob('*_r*/*.json')))
     return {'installed': True, 'requests': n, 'answers': answered}
 
 
@@ -89,11 +117,10 @@ def estimate(tasks):
             finish[t.name] = start + (0. if t.done else t.estimate+QUEUE_MINUTES)
         return finish[t.name]
     cpu_wall = max(map(done_at, tasks.values()))/60
-    q = qwen_state()
     shards = CFG['cluster']['qwen_shards']
-    qwen_left = q['requests'] == 0 or q['answers'] < q['requests']
-    gpu_hours = shards*QWEN_MINUTES_PER_SHARD/60 if qwen_left else 0.
-    qwen_wall = (done_at(tasks['qwen_bundle'])+QWEN_MINUTES_PER_SHARD+QUEUE_MINUTES)/60 if qwen_left else 0.
+    left = [name for name, folder in bundles().items() if qwen_state(folder)['answers'] < qwen_state(folder)['requests']]
+    gpu_hours = len(left)*shards*QWEN_MINUTES_PER_SHARD/60
+    qwen_wall = max([(done_at(tasks[b])+QWEN_MINUTES_PER_SHARD+QUEUE_MINUTES)/60 for b in left], default=0.)
     return {'pending_tasks': len(pending), 'cpu_hours': round(cpu_hours, 1), 'gpu_hours': round(gpu_hours, 1),
             'cpu_critical_path_hours': round(cpu_wall, 2), 'qwen_path_hours': round(qwen_wall, 2),
             'wall_hours': round(max(cpu_wall, qwen_wall)+5/60, 2)}
@@ -120,8 +147,9 @@ def describe(tasks, est, replicates):
     for t in tasks.values():
         total[t.stage][0] += 1; total[t.stage][1] += t.done
     lines.append('  done/total: '+', '.join(f'{s} {d}/{n}' for s, (n, d) in total.items()))
-    q = qwen_state()
-    lines.append(f'  qwen: bundle installed={q["installed"]} answers {q["answers"]}/{q["requests"]}')
+    for name, folder in bundles().items():
+        q = qwen_state(folder)
+        lines.append(f'  {name}: installed={q["installed"]} answers {q["answers"]}/{q["requests"]}')
     lines.append('  estimate: '+json.dumps(est))
     return '\n'.join(lines)
 
@@ -150,12 +178,12 @@ def submit(replicates, tasks, allow_queued=False):
     jobs = []
     venv = CFG['cluster']['venv']
     # Qwen whose bundle already exists starts now, before any array that must wait for it.
-    if 'v11x_qwen_r2' in live:
-        job_of['qwen'] = live['v11x_qwen_r2']
-    elif tasks['qwen_bundle'].done:
-        q = qwen_state()
-        if q['answers'] < q['requests']:
-            job_of['qwen'] = submit_qwen(None, logs, jobs)
+    for name, qdir in bundles().items():
+        q = qwen_state(qdir)
+        if f'v11x_{name}_r2' in live:
+            job_of[f'qwen:{name}'] = live[f'v11x_{name}_r2']
+        elif tasks[name].done and q['answers'] < q['requests']:
+            job_of[f'qwen:{name}'] = submit_qwen(None, logs, jobs, name, qdir)
     for (stage, k), group in arrays(tasks):
         if f'v11x_{stage}_{k}' in live:
             for t in group: job_of[t.name] = live[f'v11x_{stage}_{k}']
@@ -167,8 +195,8 @@ def submit(replicates, tasks, allow_queued=False):
         args = [f'--job-name=v11x_{stage}_{k}', f'--array=0-{len(group)-1}', '--partition=cpu',
                 f'--cpus-per-task={max(t.cpus for t in group)}', f'--mem={max(t.mem_gb for t in group)}G',
                 f'--time={max(t.minutes for t in group)}', f'--output={logs}/%x_%A_%a.out', f'--chdir={ROOT}']
-        if stage == 'report' and 'qwen' in job_of:
-            upstream_any = [job_of['qwen']]
+        upstream_any = [j for n, j in job_of.items() if n.startswith('qwen:')]
+        if stage == 'report' and upstream_any:
             args.append('--dependency=' + ','.join([*(f'afterok:{j}' for j in upstream),
                                                     *(f'afterany:{j}' for j in upstream_any)]))
         elif upstream:
@@ -177,27 +205,27 @@ def submit(replicates, tasks, allow_queued=False):
         for t in group: job_of[t.name] = job
         jobs.append({'array': f'{stage}_{k}', 'job': job, 'tasks': len(group), 'after': upstream})
         print('SUBMITTED', stage, k, job, len(group), flush=True)
-        q = qwen_state()
-        if stage == 'qwen_bundle' and not (q['installed'] and q['answers'] >= q['requests']):
-            job_of['qwen'] = submit_qwen(job, logs, jobs)
+        if stage in bundles():
+            q = qwen_state(bundles()[stage])
+            if not (q['installed'] and q['answers'] >= q['requests']):
+                job_of[f'qwen:{stage}'] = submit_qwen(job, logs, jobs, stage, bundles()[stage])
     write_json(folder/'jobs.json', jobs)
     return jobs
 
 
-def submit_qwen(bundle_job, logs, jobs):
-    from .qwen import QWEN_DIR
-    main = QWEN_DIR/'mainexp'
+def submit_qwen(bundle_job, logs, jobs, name, qdir):
+    main = qdir/'mainexp'
     (main/'logs').mkdir(parents=True, exist_ok=True)
     shards = CFG['cluster']['qwen_shards']
-    exp = str(QWEN_DIR.relative_to(EXT.parent))
+    exp = str(qdir.relative_to(EXT.parent))
     common = [f'--array=0-{shards-1}', f'--chdir={main}', f'--output={logs}/%x_%A_%a.out']
-    first = sbatch([*common, '--job-name=v11x_qwen_r1',
+    first = sbatch([*common, f'--job-name=v11x_{name}_r1',
                     *([f'--dependency=afterok:{bundle_job}'] if bundle_job else []),
                     str(ROOT/'cluster/qwen_engine.sbatch'), exp, str(shards), str(CFG['cluster']['qwen_max_num_seqs']), 'all'])
-    second = sbatch([*common, '--job-name=v11x_qwen_r2', f'--dependency=afterany:{first}',
+    second = sbatch([*common, f'--job-name=v11x_{name}_r2', f'--dependency=afterany:{first}',
                      str(ROOT/'cluster/qwen_engine.sbatch'), exp, str(shards), str(CFG['cluster']['qwen_max_num_seqs']), 'all'])
-    jobs += [{'array': 'qwen_r1', 'job': first, 'tasks': shards}, {'array': 'qwen_r2', 'job': second, 'tasks': shards}]
-    print('SUBMITTED qwen', first, second, flush=True)
+    jobs += [{'array': f'{name}_r1', 'job': first, 'tasks': shards}, {'array': f'{name}_r2', 'job': second, 'tasks': shards}]
+    print('SUBMITTED', name, 'GPU', first, second, flush=True)
     return second
 
 
@@ -222,5 +250,8 @@ def execute(task):
     from . import core, et, qwen, replicates, report, sources
     fn = {'source': sources.source_stage, 'testset': replicates.testset, 'draw_real': replicates.draw_real,
           'draw_pool': replicates.draw_pool, 'select': et.select, 'train': et.train,
-          'qwen_bundle': qwen.bundle, 'report': report.report, 'anchor0': replicates.anchor0}[task.stage]
+          'qwen_bundle': qwen.bundle, 'report': report.report, 'anchor0': replicates.anchor0,
+          'surrogate': panel12.surrogate, 'testset_sur': panel12.testset_sur, 'train_sur': panel12.train_sur,
+          'qwen_sur': panel12.qwen_sur, 'api_freeze': panel12.api_freeze, 'history': panel12.history,
+          'walkdiag': panel12.walkdiag}[task.stage]
     core.run(task, fn)

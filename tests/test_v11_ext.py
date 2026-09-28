@@ -196,15 +196,66 @@ class DagTests(unittest.TestCase):
         # replicate 0: the new radoslaw fold, plus all folds of the MLE-anchored S and S_obs
         self.assertEqual(count('select'), 5+2*9+2*50)
         self.assertEqual(count('anchor0'), 2)
-        self.assertEqual(count('train'), 3*50)
+        self.assertEqual(count('surrogate'), 4)
+        self.assertEqual(count('train_sur'), 3*4*2)      # replicates x R/S/H/B x {synthetic, radoslaw} folds
+        self.assertEqual(count('walkdiag'), 8)
+        self.assertEqual({d.stage for d in tasks['report'].deps} >= {'history', 'walkdiag', 'train_sur', 'qwen_sur',
+                                                                       'api_freeze'}, True)
+        self.assertNotIn('S_obs', {d.params.get('arm') for d in tasks['report'].deps})
         rep0 = tasks['train:0:H:sp_hospital']
         self.assertEqual([t.name for t in rep0.deps], ['testset'])
         self.assertIn('select:0:H:nr_radoslaw_email', [t.name for t in tasks['train:0:H:nr_radoslaw_email'].deps])
         self.assertEqual(sorted(t.name for t in tasks['train:0:S:sp_hospital'].deps),
                          ['anchor0:S', 'select:0:S:sp_hospital', 'testset'])
-        order = ['source', 'testset', 'qwen_bundle', 'anchor0', 'draw_real', 'draw_pool', 'select', 'train', 'report']
+        order = ['source', 'surrogate', 'testset', 'testset_sur', 'qwen_bundle', 'qwen_sur', 'api_freeze', 'history',
+                 'walkdiag', 'anchor0', 'draw_real', 'draw_pool', 'select', 'train', 'train_sur', 'report']
         for t in tasks.values():
             for dep in t.deps: self.assertLess(order.index(dep.stage), order.index(t.stage)+(t.stage == dep.stage))
+
+
+class PanelTests(unittest.TestCase):
+    def test_surrogate_draws_use_the_parent_streams(self):
+        from dataclasses import replace
+        from main_experiment.surrogates import shuffle
+        g = ring()
+        s = shuffle(g)
+        b = budget(g)
+        for arm in ('R', 'B'):
+            parent = observe.draw_block(g, arm, 1, 'sample', b, None)[2]
+            child = observe.draw_block(replace(s, key=g.key), arm, 1, 'sample', b, None)[2]
+            if arm == 'R':     # same node panel, hence the same observed dyads
+                np.testing.assert_array_equal(parent.sum(1) > 0, child.sum(1) > 0)
+            else:              # same per-record retention of the same record order
+                self.assertEqual(parent.sum(), child.sum())
+
+    def test_history_losses_decompose_the_truncated_plugin(self):
+        from v11_ext import panel12
+        g = ring(n=60, per=10)
+        rows = [r for r in panel12.history_rows(g, []) if r['level'] == 'population']
+        for r in rows:
+            expected = r['rho_k']*(1-r['numerator_loss'])/(1-r['denominator_loss']) if r['rho_k'] else 0.
+            self.assertAlmostEqual(r['plugin'], expected, places=12)
+            if r['k'] >= 4: self.assertEqual(r['plugin'], 0.)
+
+    def test_leakage_audit_rejects_a_family_in_training(self):
+        from v11_ext import report
+        obs = {'a': {'source': 'sp_hospital__pwt'}}
+        good = {'fold': 'sp_hospital', 'train_sources': ['snap_email_eu'], 'observations': [{'id': 'a'}],
+                'choice': {'inner_source_scores': {'snap_email_eu': .1}}}
+        self.assertEqual(report.leakage([('t', good)], obs)['leaks'], 0)
+        for bad in ({**good, 'train_sources': ['sp_hospital']},
+                    {**good, 'choice': {'inner_source_scores': {'sp_hospital': .1}}}):
+            with self.assertRaises(AssertionError): report.leakage([('t', bad)], obs)
+
+    def test_incomplete_api_blocks_are_pending(self):
+        from v11_ext import report
+        rows = [{'group': 'real', 'arm': 'R', 'method': m, 'source': s, 'valid': True,
+                 'AE2': .1, 'ProfileAE': .1, 'signed_rho2': .1}
+                for s in ('a', 'b') for m in ('plugin', 'gpt_6_sol') if not (m == 'gpt_6_sol' and s == 'b')]
+        table = {r['method']: r for r in report.summary(rows) if r['group'] == 'real' and r['arm'] == 'R'}
+        self.assertEqual(table['plugin']['MAE_2'], .1)
+        self.assertIsNone(table['gpt_6_sol']['MAE_2'])
+        self.assertTrue(table['gpt_6_sol']['status'].startswith('pending'))
 
 
 if __name__ == '__main__':

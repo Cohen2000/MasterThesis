@@ -1,33 +1,34 @@
-"""Result tables of the v11 extension under the four-estimator rule.
+"""Final result tables: 12 real sources, 12 paired surrogates, 8 synthetic graphs, arms R/S/H/B.
 
-Every sampler is evaluated with plugin, median, MLE and ExtraTrees (plus the LLMs);
-the design estimator is not reported and the S/S_obs reference is the MLE. Real-12 (eight v11 real sources plus the four new ones) is the headline; real-8,
-new-4 and per-source tables follow, and surrogate and synthetic graphs are
-reported only as separate blocks. v11 rows are copied from the sealed v11
-PREDICTIONS.csv; the real-8 summary recomputed here must equal the v11 summary.
-Accuracy is equal-source MAE_2 over valid predictions, as in v11.
+Four estimators per sampler (plugin, median, MLE, ExtraTrees) plus the LLMs. The reference
+is plugin for R and the MLE otherwise. Real sources are the main analysis (all twelve,
+equally weighted); surrogates and synthetic graphs are separate blocks; original-surrogate
+contrasts are paired by source family. Paid API answers exist for the v11 graphs only and
+are marked pending wherever sources are missing. S_obs is historical and not reported.
 """
 import csv
+import itertools
 import json
 import math
 import subprocess
 from collections import Counter, defaultdict
-import itertools
 from statistics import median
 import numpy as np
 from main_experiment.common import ROOT, read_json, write_csv, write_json
-from .core import ARMS, CFG, MLE_ANCHOR_ARMS, NEW_SOURCES, RH, V10, WORK
-from .qwen import answers as qwen_answers
+from .core import CFG, MLE_ANCHOR_ARMS, NEW_SOURCES, RH, V10, WORK
+from .panel12 import ARMS4, QWEN_SUR_DIR, SURROGATES, family
+from .qwen import QWEN_DIR, answers as qwen_answers
 
 V11 = ROOT/'docs/results/panel888_v11_main_20260923'
 API = ROOT/'docs/results/api_v11_20260923'
-METHODS = ('plugin', 'median', 'mle', 'et', 'qwen_thinking', 'qwen_nonthinking')
-REF_METHOD = {'R': 'plugin', 'S': 'mle', 'S_obs': 'mle', 'H': 'mle', 'B': 'mle'}
-GROUPS = {'real12': ('real8', 'new4'), 'real8': ('real8',), 'new4': ('new4',),
-          'surrogate': ('surrogate',), 'synthetic': ('synthetic',)}
-GROUP_TITLE = {'real12': 'Real-12 (headline: 8 v11 real + 4 new real sources)', 'real8': 'Real-8 (v11 real sources)',
-               'new4': 'New-4 (additional real sources)', 'surrogate': 'Surrogate-8 (separate block)',
-               'synthetic': 'Synthetic-8 (separate block)'}
+OFFLINE = ('plugin', 'median', 'mle', 'et')
+QWEN = ('qwen_thinking', 'qwen_nonthinking')
+APIM = ('deepseek_flash', 'gpt_6_sol', 'gpt_6_sol_tools')
+METHODS = OFFLINE+QWEN+APIM
+REF_METHOD = {'R': 'plugin', 'S': 'mle', 'H': 'mle', 'B': 'mle'}
+GROUPS = ('real', 'surrogate', 'synthetic')
+TITLE = {'real': 'Real sources (main analysis, 12 sources)', 'surrogate': 'Surrogates (12, separate block)',
+         'synthetic': 'Synthetic graphs (8, separate block)'}
 
 
 def errors(p, truth):
@@ -40,153 +41,108 @@ def fmt(x, digits=4):
     return '' if x is None or (isinstance(x, float) and math.isnan(x)) else f'{x:.{digits}f}'
 
 
+def md_table(header, rows):
+    return ['| '+' | '.join(header)+' |', '|'+'|'.join('---' if i < 2 else '---:' for i in range(len(header)))+'|',
+            *('| '+' | '.join(map(str, r))+' |' for r in rows)]
+
+
 # ---------------------------------------------------------------- collection
-def v11_rows():
-    truth = {}
+def observations(inputs):
+    obs = {}
     for folder in (V10/'prepared/observations/sample', RH/'mainexp/run/observations/sample'):
-        for path in folder.glob('*.json'):
-            r = read_json(path); truth[r['id']] = r['truth']
+        for p in folder.glob('*.json'):
+            r = read_json(p); obs[r['id']] = r
+    for parent in NEW_SOURCES:
+        for name in (f'source:{parent}', f'surrogate:{parent}'):
+            for p in (inputs[name]/'observations').glob('*.json'):
+                r = read_json(p); obs[r['id']] = r
+    return {i: {'id': i, 'source': r['graph_id'], 'group': r['stratum'], 'arm': r['arm'],
+                'sample_index': r['sample_index'], 'truth': r['truth']}
+            for i, r in obs.items() if r['arm'] in ARMS4 and
+            (r['arm'] not in ('R', 'H') or '-panel-release__' in i)}     # R/H: the released draws only
+
+
+def row(o, method, p, replicate=None, repeat=None, valid=None, origin='', reason=''):
+    return {'observation_id': o['id'], 'source': o['source'], 'family': family(o['source']), 'group': o['group'],
+            'arm': o['arm'], 'sample_index': o['sample_index'], 'method': method, 'replicate': replicate,
+            'repeat_index': repeat, 'prediction': p, 'valid': p is not None if valid is None else valid,
+            'validation_reason': reason, 'origin': origin, 'truth_rho2': o['truth'][0], **errors(p, o['truth'])}
+
+
+def collect(inputs, replicates):
+    obs = observations(inputs)
     rows = []
     with (V11/'PREDICTIONS.csv').open() as f:
         for r in csv.DictReader(f):
-            # Four-estimator rule: no design estimator; S/S_obs ET is refitted with the MLE anchor.
-            if r['method'] == 'design' or (r['method'] == 'et' and r['arm'] in MLE_ANCHOR_ARMS): continue
-            p = json.loads(r['prediction']) if r['prediction'] else None
-            group = 'real8' if r['stratum'] == 'real' else r['stratum']
-            rows.append({'observation_id': r['observation_id'], 'source': r['source'], 'group': group,
-                         'arm': r['arm'], 'sample_index': int(r['sample_index']), 'method': r['method'],
-                         'replicate': 0 if r['method'] == 'et' else None,
-                         'repeat_index': int(r['repeat_index']) if r['repeat_index'] else None,
-                         'prediction': p, 'valid': r['valid'] == 'True', 'origin': 'v11_sealed',
-                         'truth_rho2': truth[r['observation_id']][0], **errors(p, truth[r['observation_id']])})
-    if len({r['observation_id'] for r in rows}) != 360: raise ValueError('v11 predictions incomplete')
-    return rows, truth
-
-
-def new_rows(inputs, et, qwen):
-    rows, observations = [], {}
-    for source in NEW_SOURCES:
-        folder = inputs[f'source:{source}']
-        for path in (folder/'observations').glob('*.json'):
-            r = read_json(path); observations[r['id']] = r
-        for x in read_json(folder/'offline.json'):
-            o = observations[x['id']]
-            rows.append(_row(o, x['method'], x['prediction'], None, None))
-    for (k, oid), p in et.items():
-        if oid in observations: rows.append(_row(observations[oid], 'et', p, k, None))
-    for a in qwen:
-        rows.append({**_row(observations[a['observation_id']], a['method'], a['prediction'], None, a['repeat_index']),
-                     'valid': a['valid'], 'validation_reason': a['validation_reason']})
-    return rows, observations
-
-
-def _row(o, method, p, replicate, repeat):
-    return {'observation_id': o['id'], 'source': o['graph_id'], 'group': 'new4', 'arm': o['arm'],
-            'sample_index': o['sample_index'], 'method': method, 'replicate': replicate, 'repeat_index': repeat,
-            'prediction': p, 'valid': p is not None, 'origin': 'v11_ext', 'truth_rho2': o['truth'][0],
-            **errors(p, o['truth'])}
-
-
-def et_replicates(inputs, replicates):
-    out = {}
+            if r['observation_id'] not in obs: continue
+            if r['method'] in ('plugin', 'median', 'mle', *QWEN):
+                p = json.loads(r['prediction']) if r['prediction'] else None
+                rows.append(row(obs[r['observation_id']], r['method'], p,
+                                repeat=int(r['repeat_index']) if r['repeat_index'] else None,
+                                valid=r['valid'] == 'True', origin='v11', reason=r.get('validation_reason', '')))
+            if r['method'] == 'et' and r['arm'] not in MLE_ANCHOR_ARMS:
+                obs[r['observation_id']]['sealed_et'] = json.loads(r['prediction'])
+    for parent in NEW_SOURCES:
+        for name in (f'source:{parent}', f'surrogate:{parent}'):
+            for x in read_json(inputs[name]/'offline.json'):
+                if x['id'] in obs and x['method'] in ('plugin', 'median', 'mle'):
+                    rows.append(row(obs[x['id']], x['method'], x['prediction'], origin='panel12'))
+    for folder in (QWEN_DIR, QWEN_SUR_DIR):
+        for a in qwen_answers(folder):
+            if a['observation_id'] in obs:
+                if a['status'] != 'completed': raise RuntimeError(f'Qwen answer missing: {a["id"]}')
+                rows.append(row(obs[a['observation_id']], a['method'], a['prediction'], repeat=a['repeat_index'],
+                                valid=a['valid'], origin='panel12', reason=a['validation_reason']))
+    et, outputs = {}, []
     for name, folder in inputs.items():
-        if not name.startswith('train:'): continue
-        d = read_json(folder/'predictions.json')
-        for r in d['observations']:
-            if (d['replicate'], r['id']) in out: raise ValueError('duplicate ET prediction')
-            out[d['replicate'], r['id']] = r['prediction']
-    reps = {k for k, _ in out}
-    if reps != set(range(replicates+1)): raise ValueError('ET replicates incomplete')
-    counts = {k: sum(1 for kk, _ in out if kk == k) for k in reps}
-    if len(set(counts.values())) != 1: raise ValueError(f'unequal ET coverage per replicate: {counts}')
-    return out
+        if name.startswith(('train:', 'train_sur:')):
+            d = read_json(folder/'predictions.json'); outputs.append((name, d))
+            for r in d['observations']:
+                if r['id'] in obs:
+                    if (d['replicate'], r['id']) in et: raise ValueError('duplicate ET prediction')
+                    et[d['replicate'], r['id']] = r['prediction']
+    missing = [(k, i) for k in range(replicates+1) for i in obs if (k, i) not in et]
+    if missing: raise ValueError(f'ET predictions missing: {missing[:3]}')
+    diff = max(float(np.max(np.abs(np.asarray(et[0, i])-np.asarray(o['sealed_et']))))
+               for i, o in obs.items() if 'sealed_et' in o)
+    if diff != 0.0: raise AssertionError(f'R/H/B replicate 0 differs from v11: {diff}')
+    for (k, i), p in et.items(): rows.append(row(obs[i], 'et', p, replicate=k, origin='panel12'))
+    with (API/'API_PREDICTIONS.csv').open() as f:
+        for r in csv.DictReader(f):
+            p = json.loads(r['prediction']) if r['prediction'] else None
+            rows.append(row(obs[r['observation_id']], r['method'], p, repeat=int(r['repeat_index']),
+                            valid=r['valid'] == 'True', origin='api_v11', reason=r['validation_reason']))
+    return rows, obs, outputs
 
 
-# ---------------------------------------------------------------- summaries
-def equal_source(rows, field='AE2'):
-    by = defaultdict(list)
+# ---------------------------------------------------------------- accuracy
+def by_source(rows, field='AE2'):
+    out = defaultdict(list)
     for r in rows:
-        if r[field] is not None: by[r['source']].append(r[field])
-    return {s: float(np.mean(v)) for s, v in by.items()}
+        if r[field] is not None: out[r['source']].append(r[field])
+    return {s: float(np.mean(v)) for s, v in out.items()}
 
 
-def summary_row(rows, sources):
-    ae, pe, sg = equal_source(rows), equal_source(rows, 'ProfileAE'), equal_source(rows, 'signed_rho2')
-    complete = set(ae) == set(sources)
-    return {'MAE_2': float(np.mean(list(ae.values()))) if complete else None,
-            'ProfileMAE': float(np.mean(list(pe.values()))) if complete else None,
-            'signed_rho_2': float(np.mean(list(sg.values()))) if complete else None,
-            'validity': float(np.mean([r['valid'] for r in rows])) if rows else None,
-            'sources': len(sources), 'sources_with_valid': len(ae)}
-
-
-def main_tables(rows):
-    sources = {g: sorted({r['source'] for r in rows if r['group'] in members}) for g, members in GROUPS.items()}
+def summary(rows):
+    sources = {g: sorted({r['source'] for r in rows if r['group'] == g}) for g in GROUPS}
     table = []
-    for g, members in GROUPS.items():
-        for arm in ARMS:
-            for method in METHODS:
-                sel = [r for r in rows if r['group'] in members and r['arm'] == arm and r['method'] == method
-                       and r['replicate'] in (None, 0)]
-                if not sel: continue
-                table.append({'group': g, 'arm': arm, 'method': method,
-                              'reference': method == REF_METHOD[arm], **summary_row(sel, sources[g])})
-    return table, sources
-
-
-def per_source(rows):
-    out = []
-    key = lambda r: (r['group'], r['source'], r['arm'], r['method'])
-    grouped = defaultdict(list)
-    for r in rows:
-        if r['replicate'] in (None, 0): grouped[key(r)].append(r)
-    for (group, source, arm, method), sel in sorted(grouped.items()):
-        valid = [r for r in sel if r['AE2'] is not None]
-        out.append({'group': group, 'source': source, 'arm': arm, 'method': method,
-                    'MAE_2': float(np.mean([r['AE2'] for r in valid])) if valid else None,
-                    'ProfileMAE': float(np.mean([r['ProfileAE'] for r in valid])) if valid else None,
-                    'signed_rho_2': float(np.mean([r['signed_rho2'] for r in valid])) if valid else None,
-                    'validity': len(valid)/len(sel)})
-    return out
-
-
-def spread(values):
-    a = np.asarray(values, float)
-    return float(np.std(a, ddof=1)), float(np.ptp(a))
-
-
-def replicate_table(rows, api, replicates):
-    """ET replicate variability next to LLM repeat variability, per arm and group."""
-    out = []
-    sources = {g: sorted({r['source'] for r in rows if r['group'] in m}) for g, m in GROUPS.items()}
-    et = [r for r in rows if r['method'] == 'et']
-    for g, members in GROUPS.items():
-        for arm in ARMS:
-            sel = [r for r in et if r['group'] in members and r['arm'] == arm]
-            if not sel: continue
-            maes = [summary_row([r for r in sel if r['replicate'] == k], sources[g])['MAE_2'] for k in range(replicates+1)]
-            per_obs = defaultdict(list)
-            for r in sel: per_obs[r['observation_id']].append(r['prediction'][0])
-            if any(len(v) != replicates+1 for v in per_obs.values()): raise ValueError('ET replicate grid incomplete')
-            sd_range = [spread(v) for v in per_obs.values()]
-            entry = {'group': g, 'arm': arm, 'observations': len(per_obs), 'replicates': replicates+1,
-                     'ET_MAE_2_mean': float(np.mean(maes)), 'ET_MAE_2_SD': float(np.std(maes, ddof=1)),
-                     'ET_MAE_2_min': min(maes), 'ET_MAE_2_max': max(maes), 'ET_MAE_2_production': maes[0],
-                     'ET_median_obs_SD': median(s for s, _ in sd_range),
-                     'ET_share_range_gt_0.01': float(np.mean([r > .01 for _, r in sd_range])),
-                     'MLE_obs_SD': 0.0}
-            for label, source_rows in (('qwen_thinking', rows), ('qwen_nonthinking', rows),
-                                       ('gpt_6_sol', api), ('gpt_6_sol_tools', api)):
-                reps = defaultdict(list)
-                for r in source_rows:
-                    if r['method'] == label and r['group'] in members and r['arm'] == arm and r['valid']:
-                        reps[r['observation_id']].append(r['prediction'][0])
-                full = [spread(v) for v in reps.values() if len(v) == 3]
-                entry[f'{label}_obs_with_3_valid'] = len(full)
-                entry[f'{label}_median_obs_SD'] = median(s for s, _ in full) if full else None
-                entry[f'{label}_share_range_gt_0.01'] = float(np.mean([r > .01 for _, r in full])) if full else None
-            out.append(entry)
-    return out
+    for g in GROUPS:
+        for arm in ARMS4:
+            for m in METHODS:
+                sel = [r for r in rows if r['group'] == g and r['arm'] == arm and r['method'] == m]
+                ae = by_source(sel)
+                complete = bool(ae) and set(ae) == set(sources[g])
+                entry = {'group': g, 'arm': arm, 'method': m, 'reference': m == REF_METHOD[arm],
+                         'sources': len(sources[g]), 'sources_with_valid': len(ae),
+                         'status': f'{len(ae)}/{len(sources[g])}' if complete else f'pending ({len(ae)}/{len(sources[g])})',
+                         'MAE_2': None, 'ProfileMAE': None, 'signed_rho_2': None,
+                         'validity': float(np.mean([r['valid'] for r in sel])) if sel else None}
+                if complete:
+                    entry.update(MAE_2=float(np.mean(list(ae.values()))),
+                                 ProfileMAE=float(np.mean(list(by_source(sel, 'ProfileAE').values()))),
+                                 signed_rho_2=float(np.mean(list(by_source(sel, 'signed_rho2').values()))))
+                table.append(entry)
+    return table
 
 
 def signflip(values):
@@ -196,220 +152,313 @@ def signflip(values):
                           for s in itertools.product((-1, 1), repeat=len(a))]))
 
 
-def inference(rows):
-    """Source-level MAE_2 differences (first minus second) with exact sign-flip p-values."""
+def paired_methods(rows):
+    """Within a block: first minus second source-level MAE_2 (both complete on the same sources)."""
     out = []
-    for g, members in GROUPS.items():
-        for arm in ARMS:
+    for g in GROUPS:
+        for arm in ARMS4:
             ref = REF_METHOD[arm]
-            pairs = list(dict.fromkeys([('et', ref), ('qwen_thinking', ref), ('qwen_thinking', 'plugin'),
-                                        ('et', 'plugin'), (ref, 'plugin')]))
-            for first, second in pairs:
+            for first, second in dict.fromkeys([('et', ref), ('qwen_thinking', ref), (ref, 'plugin'),
+                                                ('et', 'plugin'), ('qwen_thinking', 'plugin')]):
                 if first == second: continue
-                means = [equal_source([r for r in rows if r['group'] in members and r['arm'] == arm and
-                                       r['method'] == m and r['replicate'] in (None, 0)]) for m in (first, second)]
-                sources = sorted(set(means[0]) & set(means[1]))
-                d = np.array([means[0][s]-means[1][s] for s in sources])
+                a, b = (by_source([r for r in rows if r['group'] == g and r['arm'] == arm and r['method'] == m])
+                        for m in (first, second))
+                if set(a) != set(b): continue
+                d = np.array([a[s]-b[s] for s in sorted(a)])
                 out.append({'group': g, 'arm': arm, 'comparison': f'{first} vs {second}', 'sources': len(d),
                             'mean_difference': float(d.mean()), 'first_better': int((d < 0).sum()),
                             'exact_signflip_p': signflip(d)})
     return out
 
 
-def inference_markdown(infer):
-    lines = ['## Source-level paired comparisons', '',
-             'First minus second source-level MAE_2 (negative: first is better); exact two-sided sign-flip',
-             'test over sources.', '']
-    rows = [[r['group'], r['arm'], r['comparison'], fmt(r['mean_difference']),
-             f"{r['first_better']}/{r['sources']}", fmt(r['exact_signflip_p'])] for r in infer]
-    return lines+md_table(['Group', 'Arm', 'Comparison', 'Mean difference', 'First better', 'Sign-flip p'], rows)+['']
+def paired_families(rows):
+    """Original minus surrogate source-level MAE_2, one pair per source family."""
+    out = []
+    for arm in ARMS4:
+        for m in OFFLINE+QWEN:
+            real = by_source([r for r in rows if r['group'] == 'real' and r['arm'] == arm and r['method'] == m])
+            sur = by_source([r for r in rows if r['group'] == 'surrogate' and r['arm'] == arm and r['method'] == m])
+            fams = sorted(f for f in real if f+'__pwt' in sur)
+            d = np.array([real[f]-sur[f+'__pwt'] for f in fams])
+            out.append({'arm': arm, 'method': m, 'families': len(d),
+                        'original_MAE_2': float(np.mean([real[f] for f in fams])),
+                        'surrogate_MAE_2': float(np.mean([sur[f+'__pwt'] for f in fams])),
+                        'mean_difference': float(d.mean()), 'original_better': int((d < 0).sum()),
+                        'exact_signflip_p': signflip(d)})
+    return out
 
 
-def api_rows():
-    rows = []
-    with (API/'API_PREDICTIONS.csv').open() as f:
-        for r in csv.DictReader(f):
-            rows.append({'observation_id': r['observation_id'], 'method': r['method'], 'arm': r['arm'],
-                         'group': 'real8' if r['stratum'] == 'real' else r['stratum'],
-                         'valid': r['valid'] == 'True',
-                         'prediction': json.loads(r['prediction']) if r['prediction'] else None})
-    return rows
+def per_source(rows):
+    grouped = defaultdict(list)
+    for r in rows: grouped[r['group'], r['source'], r['arm'], r['method']].append(r)
+    out = []
+    for (g, s, arm, m), sel in sorted(grouped.items()):
+        valid = [r for r in sel if r['AE2'] is not None]
+        out.append({'group': g, 'source': s, 'arm': arm, 'method': m, 'answers': len(sel), 'valid': len(valid),
+                    'MAE_2': float(np.mean([r['AE2'] for r in valid])) if valid else None,
+                    'ProfileMAE': float(np.mean([r['ProfileAE'] for r in valid])) if valid else None,
+                    'signed_rho_2': float(np.mean([r['signed_rho2'] for r in valid])) if valid else None})
+    return out
+
+
+# ---------------------------------------------------------------- variability
+def sd(values):
+    return float(np.std(np.asarray(values, float), ddof=1))
+
+
+def variability(rows, replicates):
+    """Training (ET fits), sampling (sampler draws) and LLM answer variability, kept apart."""
+    training, sampling, response = [], [], []
+    for g in GROUPS:
+        n_graphs = len({r['source'] for r in rows if r['group'] == g})
+        for arm in ARMS4:
+            et = [r for r in rows if r['group'] == g and r['arm'] == arm and r['method'] == 'et']
+            maes = [float(np.mean(list(by_source([r for r in et if r['replicate'] == k]).values())))
+                    for k in range(replicates+1)]
+            per_obs = defaultdict(list)
+            for r in et: per_obs[r['observation_id']].append(r['prediction'][0])
+            training.append({'group': g, 'arm': arm, 'fits': replicates+1, 'ET_MAE_2_mean': float(np.mean(maes)),
+                             'ET_MAE_2_SD': sd(maes), 'ET_MAE_2_min': min(maes), 'ET_MAE_2_max': max(maes),
+                             'median_observation_SD_rho2': median(sd(v) for v in per_obs.values())})
+            for m in METHODS:
+                cells = defaultdict(lambda: defaultdict(list))
+                reps = defaultdict(list)
+                for r in rows:
+                    if (r['group'], r['arm'], r['method']) == (g, arm, m) and r['valid'] and r['replicate'] in (None, 0):
+                        cells[r['source']][r['sample_index']].append(r['prediction'][0])
+                        reps[r['observation_id']].append(r['prediction'][0])
+                draw_sd = [sd([np.mean(v) for v in draws.values()]) for draws in cells.values() if len(draws) >= 2]
+                if draw_sd:
+                    sampling.append({'group': g, 'arm': arm, 'method': m, 'graphs': len(draw_sd), 'graphs_in_block': n_graphs,
+                                     'median_graph_SD_rho2_across_draws': median(draw_sd)})
+                full = [sd(v) for v in reps.values() if len(v) == 3] if m in QWEN+APIM else []
+                if full:
+                    response.append({'group': g, 'arm': arm, 'method': m, 'observations_with_3_valid': len(full),
+                                     'median_observation_SD_rho2': median(full)})
+    return training, sampling, response
+
+
+# ---------------------------------------------------------------- leakage audit
+def leakage(outputs, obs):
+    """No fit may train or select on the family (original or surrogate) of its test graphs."""
+    for name, d in outputs:
+        fold = d['fold']
+        families = {family(obs[r['id']]['source']) for r in d['observations'] if r['id'] in obs}
+        inner = set(d['choice'].get('inner_source_scores', {}))
+        bad = (families & set(d['train_sources'])) | (families & inner) | ({fold} & (set(d['train_sources']) | inner))
+        if bad: raise AssertionError(f'{name}: test family in training or selection: {bad}')
+        if fold != 'synthetic' and families - {fold}: raise AssertionError(f'{name}: test graphs outside fold {fold}')
+    return {'fits_checked': len(outputs), 'leaks': 0,
+            'rule': 'the test family (original and surrogate) is absent from the real training rows and from '
+                    'the inner selection sources of every fit, including the nr_radoslaw_email fold'}
+
+
+# ---------------------------------------------------------------- diagnostics
+def history_summary(path):
+    rows = list(csv.DictReader(path.open()))
+    for r in rows:
+        for k in ('numerator_loss', 'denominator_loss', 'plugin_error', 'mle_error'):
+            r[k] = float(r[k]) if r.get(k) not in (None, '') else None
+        r['k'] = int(r['k'])
+    losses, errs = [], []
+    for g in ('real', 'surrogate'):
+        pop = [r for r in rows if r['group'] == g and r['level'] == 'population']
+        for window in ('last60', 'first60'):
+            for k in range(2, 6):
+                sel = [r for r in pop if r['window'] == window and r['k'] == k]
+                losses.append({'group': g, 'window': window, 'k': k, 'graphs': len(sel),
+                               'numerator_loss': float(np.mean([r['numerator_loss'] for r in sel])),
+                               'denominator_loss': float(np.mean([r['denominator_loss'] for r in sel])),
+                               'plugin_signed_error': float(np.mean([r['plugin_error'] for r in sel])),
+                               'graphs_abs_error_le_0.01': sum(abs(r['plugin_error']) <= .01 for r in sel)})
+        for level, window in (('population', 'last60'), ('population', 'first60'), ('H_sampled', 'last60')):
+            for est in ('plugin', 'mle'):
+                per_graph = defaultdict(lambda: defaultdict(list))
+                for r in rows:
+                    if (r['group'], r['level'], r['window']) == (g, level, window):
+                        per_graph[r['graph_id']][r['k']].append(r[f'{est}_error'])
+                e = {gid: [float(np.mean(v[k])) for k in range(2, 6)] for gid, v in per_graph.items()}
+                errs.append({'group': g, 'estimator': est, 'truncation': window, 'node_sampling': level == 'H_sampled',
+                             'graphs': len(e), 'signed_rho2': float(np.mean([v[0] for v in e.values()])),
+                             'MAE_2': float(np.mean([abs(v[0]) for v in e.values()])),
+                             'ProfileMAE': float(np.mean([np.mean(np.abs(v)) for v in e.values()]))})
+    return losses, errs
+
+
+WALK_COLUMNS = ('graph_id', 'L', 'stationary_shift_rho2', 'plugin_rho2_bias', 'plugin_rho2_sd', 'design_S_rho2_bias',
+                'design_S_rho2_sd', 'mle_S_rho2_bias', 'mle_S_rho2_sd', 'gate_applicable', 'gate_pass',
+                'weight_ess_mean', 'ratio_ess_mean', 'revisit_rate_mean', 'distinct_dyads_mean', 'components',
+                'largest_component_cell_share', 'walk_cell_share_of_start_component', 'communities',
+                'communities_touched_share', 'walk_cell_share_of_touched_communities')
 
 
 # ---------------------------------------------------------------- markdown
-def md_table(header, rows):
-    return ['| '+' | '.join(header)+' |', '|'+'|'.join('---' if i < 2 else '---:' for i in range(len(header)))+'|',
-            *('| '+' | '.join(map(str, r))+' |' for r in rows)]
-
-
-def main_markdown(table, per_src, sources, qwen_complete):
+def main_markdown(table, infer, fam, per_src):
     lines = ['# Main results', '',
-             'Every sampler is evaluated with four estimators, plugin, median, MLE and ExtraTrees (ET), and',
-             'with Qwen. The reference (ref.) is plugin for R and the MLE for S, S_obs, H and B. Equal-source',
-             'MAE_2 (lower is better); ProfileMAE and signed rho_2 error are secondary. LLM accuracy uses valid',
-             'final answers only; nothing is clipped or repaired. ET is replicate 0; its replicate variability',
-             'is in [ET_REPLICATES.md](ET_REPLICATES.md). ET for S and S_obs is anchored on the MLE. Paid API',
-             'models ran on the v11 graphs only: [API_RESULTS.md](API_RESULTS.md).',
-             f'Qwen complete for the new sources: {qwen_complete}.', '']
+             'Arms R, S, H and B; estimators plugin, median, MLE and ExtraTrees (ET, production fit), plus Qwen and',
+             'the paid APIs. Reference (ref.): plugin for R, MLE for S, H and B. Equal-source MAE_2 over valid',
+             'answers is primary, ProfileMAE secondary; nothing is clipped or repaired. The twelve real sources are',
+             'the main analysis and are weighted equally. API answers exist only for the eight v11 graphs of each',
+             'block; those rows are **pending** until the API extension has run, and no ranking is formed from',
+             'different source sets. S_obs is a historical ablation and is not reported here.', '']
     for g in GROUPS:
-        lines += [f'## {GROUP_TITLE[g]}', '', f'Sources: {", ".join(sources[g])}.', '']
-        rows = [[r['arm'], r['method']+(' (ref.)' if r['reference'] else ''), fmt(r['MAE_2']), fmt(r['ProfileMAE']),
-                 fmt(r['signed_rho_2']), fmt(r['validity'], 3), f"{r['sources_with_valid']}/{r['sources']}"]
-                for r in table if r['group'] == g]
-        lines += md_table(['Arm', 'Method', 'MAE_2', 'ProfileMAE', 'Signed rho_2', 'Validity', 'Sources'], rows)+['']
-    lines += ['## Per source (real-12, MAE_2)', '']
-    cols = METHODS
+        lines += [f'## {TITLE[g]}', '']
+        lines += md_table(['Arm', 'Method', 'MAE_2', 'ProfileMAE', 'Signed rho_2', 'Validity', 'Sources'],
+                          [[r['arm'], r['method']+(' (ref.)' if r['reference'] else ''), fmt(r['MAE_2']),
+                            fmt(r['ProfileMAE']), fmt(r['signed_rho_2']), fmt(r['validity'], 3), r['status']]
+                           for r in table if r['group'] == g])+['']
+    lines += ['## Paired original minus surrogate (12 source families)', '',
+              'Source-level MAE_2 of the original minus that of its surrogate; each family is one pair.', '']
+    lines += md_table(['Arm', 'Method', 'Original', 'Surrogate', 'Mean difference', 'Original better', 'Sign-flip p'],
+                      [[r['arm'], r['method'], fmt(r['original_MAE_2']), fmt(r['surrogate_MAE_2']),
+                        fmt(r['mean_difference']), f"{r['original_better']}/{r['families']}", fmt(r['exact_signflip_p'])]
+                       for r in fam])+['']
+    lines += ['## Paired methods within a block', '',
+              'First minus second source-level MAE_2 (negative: first better); exact sign-flip over sources.', '']
+    lines += md_table(['Group', 'Arm', 'Comparison', 'Mean difference', 'First better', 'Sign-flip p'],
+                      [[r['group'], r['arm'], r['comparison'], fmt(r['mean_difference']),
+                        f"{r['first_better']}/{r['sources']}", fmt(r['exact_signflip_p'])] for r in infer])+['']
     index = {(r['source'], r['arm'], r['method']): r['MAE_2'] for r in per_src}
-    rows = [[f"{s} ({'new' if g == 'new4' else 'v11'})", arm, *(fmt(index.get((s, arm, m))) for m in cols)]
-            for g in ('real8', 'new4') for s in sources[g] for arm in ARMS]
-    lines += md_table(['Source', 'Arm', *cols], rows)+['', 'All groups and metrics: `PER_SOURCE.csv`.', '']
-    return lines
+    reals = sorted({r['source'] for r in per_src if r['group'] == 'real'})
+    lines += ['## Real sources (MAE_2 per source)', '']
+    lines += md_table(['Source', 'Arm', *OFFLINE, *QWEN],
+                      [[s, arm, *(fmt(index.get((s, arm, m))) for m in OFFLINE+QWEN)] for s in reals for arm in ARMS4])
+    return '\n'.join(lines+['', 'All groups, API methods and metrics: `PER_SOURCE.csv`.', ''])
 
 
-def replicate_markdown(rep, replicates, verification):
-    lines = ['# ET replicates', '',
-             f'Replicate 0 is the v11 production fit; replicates 1-{replicates} redraw every real training',
-             'observation and every pool-train observation on the fixed pool graphs, reseed the forests and rerun',
-             'the nested leave-one-real-training-source-out selection. Test observations are fixed.',
-             f'Statistics use all {replicates+1} replicates. Per-observation SD is the sample SD of the rho_2',
-             'prediction; LLM columns use observations with three valid repeats (GPT-6 Sol: v11 R/S/H/B only).',
-             'MLE is deterministic at fixed input (SD 0).', '',
-             'R, H and B replicate 0 is the v11 production fit; S and S_obs replicate 0 is the MLE-anchored',
-             'refit with the production seeds (four-estimator rule).', '',
-             f'Replicate-0 reproduction (R, H, B): {verification}', '']
-    header = ['Group', 'Arm', 'ET MAE_2 mean ± SD', 'ET prod.', 'ET med. obs SD', 'ET share range>0.01',
-              'Qwen-T med. SD', 'Qwen-T share', 'Qwen-NT med. SD', 'Qwen-NT share', 'GPT med. SD', 'GPT share',
-              'GPT+Py med. SD', 'GPT+Py share', 'MLE SD']
-    rows = [[r['group'], r['arm'], f"{fmt(r['ET_MAE_2_mean'])} ± {fmt(r['ET_MAE_2_SD'])}", fmt(r['ET_MAE_2_production']),
-             fmt(r['ET_median_obs_SD']), fmt(r['ET_share_range_gt_0.01'], 3),
-             fmt(r['qwen_thinking_median_obs_SD']), fmt(r['qwen_thinking_share_range_gt_0.01'], 3),
-             fmt(r['qwen_nonthinking_median_obs_SD']), fmt(r['qwen_nonthinking_share_range_gt_0.01'], 3),
-             fmt(r['gpt_6_sol_median_obs_SD']), fmt(r['gpt_6_sol_share_range_gt_0.01'], 3),
-             fmt(r['gpt_6_sol_tools_median_obs_SD']), fmt(r['gpt_6_sol_tools_share_range_gt_0.01'], 3), '0'] for r in rep]
-    return '\n'.join(lines+md_table(header, rows)+[''])
+def variability_markdown(training, sampling, response, replicates):
+    lines = ['# Variability', '',
+             'Three different sources of variation, reported separately and not compared with one another',
+             f'(different quantities and repetition counts: {replicates+1} ET fits, 3 sampler draws, 3 LLM answers).', '',
+             f'## Training variability (ExtraTrees, {replicates+1} fits)', '',
+             'Fit 0 is the production fit; fits 1-10 redraw the real training and pool observations, reseed the',
+             'forests and rerun the nested selection. Test observations are fixed.', '']
+    lines += md_table(['Group', 'Arm', 'MAE_2 mean', 'MAE_2 SD', 'MAE_2 min', 'MAE_2 max', 'Median obs. SD'],
+                      [[r['group'], r['arm'], fmt(r['ET_MAE_2_mean']), fmt(r['ET_MAE_2_SD']), fmt(r['ET_MAE_2_min']),
+                        fmt(r['ET_MAE_2_max']), fmt(r['median_observation_SD_rho2'])] for r in training])
+    lines += ['', '## Sampling variability', '',
+              'SD of the rho_2 estimate across the three sampler draws of a graph (LLM: mean of the valid answers per',
+              'draw; ET: production fit), median over graphs. Plugin, median and MLE are deterministic given an',
+              'observation; their uncertainty is this sampling variability, which is not zero. Graphs with a',
+              'saturated (single-draw) H panel are excluded. API methods: v11 graphs only.', '']
+    lines += md_table(['Group', 'Arm', 'Method', 'Graphs', 'Median SD across draws'],
+                      [[r['group'], r['arm'], r['method'], f"{r['graphs']}/{r['graphs_in_block']}",
+                        fmt(r['median_graph_SD_rho2_across_draws'])] for r in sampling])
+    lines += ['', '## LLM answer variability', '',
+              'SD of the rho_2 answer across the three repeats of one observation, median over observations with',
+              'three valid answers. DeepSeek has one repeat. GPT: v11 graphs only.', '']
+    lines += md_table(['Group', 'Arm', 'Method', 'Observations', 'Median SD across repeats'],
+                      [[r['group'], r['arm'], r['method'], r['observations_with_3_valid'],
+                        fmt(r['median_observation_SD_rho2'])] for r in response])
+    return '\n'.join(lines+[''])
 
 
-def qwen_summary(rows, answers):
-    out = []
-    for arm in ARMS:
-        for mode in ('qwen_thinking', 'qwen_nonthinking'):
-            sel = [(a, r) for a, r in answers if r['arm'] == arm and a['method'] == mode]
-            out.append({'arm': arm, 'method': mode, 'requests': len(sel),
-                        'completed': sum(a['status'] == 'completed' for a, _ in sel),
-                        'valid': sum(a['valid'] for a, _ in sel),
-                        'invalid_reasons': json.dumps(dict(sorted(Counter(
-                            a['validation_reason'] for a, _ in sel if not a['valid']).items()))),
-                        'median_output_tokens': median([a['output_tokens'] for a, _ in sel if a.get('output_tokens')] or [0]),
-                        'median_seconds': median([a['seconds'] for a, _ in sel if a.get('seconds')] or [0])})
-    return out
+def history_markdown(losses, errs):
+    lines = ['# History truncation (arm H)', '',
+             'Population level: every dyad of the graph, no node sampling. K counts active windows among all five,',
+             'J among the three retained ones (last 60% = windows 3-5, first 60% = windows 1-3). For k = 2..5 the',
+             'numerator loss is 1 - #(J>=k)/#(K>=k) and the denominator loss 1 - #(J>=1)/#(K>=1); the truncated',
+             'plugin equals rho_k (1 - numerator loss)/(1 - denominator loss), so the losses cancel only when',
+             'they are equal. With three windows J >= 4 is impossible, so the truncated plugin is 0 for k = 4, 5.',
+             '"H sampled" uses the actual H draws (last 60% plus the node panel): truncation plus node sampling.',
+             'Equal-graph means over the 12 real sources and the 12 surrogates.', '', '## Losses', '']
+    lines += md_table(['Group', 'Window', 'k', 'Numerator loss', 'Denominator loss', 'Plugin signed error',
+                       '|error| <= 0.01'],
+                      [[r['group'], r['window'], r['k'], fmt(r['numerator_loss']), fmt(r['denominator_loss']),
+                        fmt(r['plugin_signed_error']), f"{r['graphs_abs_error_le_0.01']}/{r['graphs']}"] for r in losses])
+    lines += ['', '## Errors', '']
+    lines += md_table(['Group', 'Estimator', 'Truncation', 'Node sampling', 'Signed rho_2', 'MAE_2', 'ProfileMAE'],
+                      [[r['group'], r['estimator'], r['truncation'], 'yes' if r['node_sampling'] else 'no',
+                        fmt(r['signed_rho2']), fmt(r['MAE_2']), fmt(r['ProfileMAE'])] for r in errs])
+    return '\n'.join(lines+['', 'Per graph and k: `HISTORY.csv`.', ''])
+
+
+def walk_markdown(walks):
+    lines = ['# Walk diagnostics of the added graphs', '',
+             'The unchanged 1000-walk audit of `scripts/audit_v10_walk.py` (same seeds, calibration and gate rule:',
+             'applicable when |stationary shift| > 0.05; pass when the design ratio removes 90% of the plugin bias',
+             'and halves its RMSE) on the four added originals and their surrogates. Bias and SD of rho_2 are',
+             'reported separately for plugin, the design ratio (gate criterion only) and the MLE (S reference).',
+             'ESS: weight ESS of the traversal weights and ratio ESS. Coverage: discovered cells per cell of the',
+             'start component, and per cell of the Louvain communities touched (a dyad counts for the community',
+             'of its first endpoint). The 24 v11 graphs: `docs/results/panel888_v10_walk_gate_20260923`.', '']
+    lines += md_table(['Graph', 'L', 'Shift', 'Plugin bias', 'Plugin SD', 'Design bias', 'Design SD', 'MLE bias',
+                       'MLE SD', 'Gate appl.', 'Gate pass', 'Weight ESS', 'Ratio ESS', 'Revisit rate', 'Distinct dyads',
+                       'Components', 'Largest comp.', 'Comp. coverage', 'Communities', 'Comm. touched', 'Comm. coverage'],
+                      [[w['graph_id'], w['L'], fmt(w['stationary_shift_rho2']), fmt(w['plugin_rho2_bias']),
+                        fmt(w['plugin_rho2_sd']), fmt(w['design_S_rho2_bias']), fmt(w['design_S_rho2_sd']),
+                        fmt(w['mle_S_rho2_bias']), fmt(w['mle_S_rho2_sd']), w['gate_applicable'], w['gate_pass'],
+                        fmt(w['weight_ess_mean'], 1), fmt(w['ratio_ess_mean'], 1), fmt(w['revisit_rate_mean'], 3),
+                        fmt(w['distinct_dyads_mean'], 1), w['components'], fmt(w['largest_component_cell_share'], 3),
+                        fmt(w['walk_cell_share_of_start_component'], 3), w['communities'],
+                        fmt(w['communities_touched_share'], 3), fmt(w['walk_cell_share_of_touched_communities'], 3)]
+                       for w in walks])
+    return '\n'.join(lines+[''])
 
 
 # ---------------------------------------------------------------- wall times
 def wall_times():
     jobs = []
-    for path in sorted((WORK/'plans').glob('*/jobs.json')):
-        jobs += read_json(path)
-    ids = ','.join(j['job'] for j in jobs)
-    if not ids: return {}, []
-    out = subprocess.run(['sacct', '-j', ids, '-X', '-P', '-n', '--format=JobID,JobName,Elapsed,Start,End,State,AllocCPUS,ElapsedRaw'],
-                         capture_output=True, text=True).stdout
-    rows = [dict(zip(['job', 'name', 'elapsed', 'start', 'end', 'state', 'cpus', 'seconds'], line.split('|')))
-            for line in out.splitlines() if line]
+    for path in sorted((WORK/'plans').glob('*/jobs.json')): jobs += read_json(path)
+    if not jobs: return []
+    out = subprocess.run(['sacct', '-j', ','.join(j['job'] for j in jobs), '-X', '-P', '-n',
+                          '--format=JobName,Start,End,State,AllocCPUS,ElapsedRaw'], capture_output=True, text=True).stdout
     by = defaultdict(list)
-    for r in rows: by[r['name']].append(r)
-    summary = []
-    for name, group in sorted(by.items()):
-        starts = [g['start'] for g in group if g['start'] not in ('Unknown', 'None')]
-        ends = [g['end'] for g in group if g['end'] not in ('Unknown', 'None')]
-        summary.append({'array': name, 'tasks': len(group), 'states': ','.join(sorted({g['state'] for g in group})),
-                        'first_start': min(starts) if starts else '', 'last_end': max(ends) if ends else '',
-                        'max_task_seconds': max(int(g['seconds'] or 0) for g in group),
-                        'cpu_hours': sum(int(g['seconds'] or 0)*int(g['cpus'] or 0) for g in group)/3600})
-    return {'first_start': min(s['first_start'] for s in summary if s['first_start']),
-            'last_end': max(s['last_end'] for s in summary if s['last_end'])}, summary
+    for line in out.splitlines():
+        name, start, end, state, cpus, seconds = line.split('|')
+        by[name].append((start, end, state, int(cpus or 0), int(seconds or 0)))
+    return [{'array': n, 'tasks': len(v), 'states': ','.join(sorted({x[2] for x in v})),
+             'first_start': min(x[0] for x in v), 'last_end': max(x[1] for x in v),
+             'cpu_hours': sum(x[3]*x[4] for x in v)/3600} for n, v in sorted(by.items())]
 
 
 # ---------------------------------------------------------------- stage
-def m_arm(meta, oid):
-    return meta[oid]['arm']
-
-
 def report(task, out, inputs):
     replicates = task.params['replicates']
-    old, truth = v11_rows()
-    et = et_replicates(inputs, replicates)
-    # Replicate 0 of every v11 observation must equal the sealed v11 ET prediction.
-    sealed = {r['observation_id']: r['prediction'] for r in old if r['method'] == 'et'}   # R, H, B only
-    rep0_diff = max(float(np.max(np.abs(np.asarray(et[0, oid])-np.asarray(p)))) for oid, p in sealed.items())
-    if rep0_diff != 0.0: raise AssertionError(f'replicate 0 differs from v11 ET: {rep0_diff}')
-    answers = qwen_answers()
-    qwen_complete = all(a['status'] == 'completed' for a in answers)
-    if not qwen_complete:
-        missing = sum(a['status'] == 'missing' for a in answers)
-        raise RuntimeError(f'Qwen incomplete: {missing} missing answers of {len(answers)}')
-    new, observations = new_rows(inputs, et, answers)
-    obs_meta = {r['observation_id']: r for r in old}
-    reps = []
-    for (k, oid), p in sorted(et.items()):
-        if oid not in obs_meta or (k == 0 and m_arm(obs_meta, oid) not in MLE_ANCHOR_ARMS): continue
-        m = obs_meta[oid]
-        reps.append({**{f: m[f] for f in ('observation_id', 'source', 'group', 'arm', 'sample_index', 'truth_rho2')},
-                     'method': 'et', 'replicate': k, 'repeat_index': None, 'prediction': p, 'valid': True,
-                     'origin': 'v11_ext', **errors(p, truth[oid])})
-    rows = old+reps+new
+    rows, obs, outputs = collect(inputs, replicates)
+    write_json(out/'TRUTH.json', {o['source']: o['truth'] for o in obs.values()})
     write_csv(out/'PREDICTIONS.csv', [{**r, 'prediction': json.dumps(r['prediction']) if r['prediction'] else ''}
                                       for r in rows])
-    table, sources = main_tables(rows)
-    # The recomputed real-8 table must equal the sealed v11 summary.
-    with (V11/'SUMMARY.csv').open() as f:
-        sealed_summary = {(r['arm'], r['method']): float(r['MAE_2']) for r in csv.DictReader(f)
-                          if r['stratum'] == 'real' and r['MAE_2']}
-    worst = max(abs(r['MAE_2']-sealed_summary[r['arm'], r['method']]) for r in table
-                if r['group'] == 'real8' and (r['arm'], r['method']) in sealed_summary
-                and not (r['method'] == 'et' and r['arm'] in MLE_ANCHOR_ARMS))
-    if worst > 1e-12: raise AssertionError(f'real-8 summary differs from v11: {worst}')
-    write_csv(out/'MAIN_SUMMARY.csv', table)
-    per_src = per_source(rows)
-    write_csv(out/'PER_SOURCE.csv', per_src)
-    infer = inference(rows)
-    write_csv(out/'SOURCE_INFERENCE.csv', infer)
-    (out/'MAIN_RESULTS.md').write_text('\n'.join(main_markdown(table, per_src, sources, qwen_complete) +
-                                                inference_markdown(infer)))
-    rep = replicate_table(rows, api_rows(), replicates)
-    write_csv(out/'ET_REPLICATES.csv', rep)
-    trains = [read_json(folder/'predictions.json') for name, folder in inputs.items() if name.startswith('train:')]
-    ver = [t['verification'] for t in trains if 'verification' in t]
-    verification = {'folds_verified': len(ver),
-                    'refit_vs_v11_max_abs': max(v['refit_vs_v11_max_abs'] for v in ver),
-                    'sealed_model_vs_v11_max_abs': max(v['sealed_model_vs_v11_max_abs'] for v in ver),
-                    'refit_vs_sealed_model_new_rows_max_abs': max(v['refit_vs_sealed_model_new_rows_max_abs'] or 0 for v in ver),
-                    'replicate0_equals_v11_predictions': rep0_diff == 0.0}
-    choices = [{'replicate': t['replicate'], 'arm': t['arm'], 'fold': t['fold'], 'anchor': t['choice']['anchor'],
-                'min_samples_leaf': t['choice']['min_samples_leaf'], 'max_features': t['choice']['max_features'],
-                'inner_MAE_2': t['choice']['mean_inner_source_MAE2'], 'n_train': t['n_train']} for t in trains]
-    write_csv(out/'ET_CHOICES.csv', sorted(choices, key=lambda r: (r['replicate'], r['arm'], r['fold'])))
-    (out/'ET_REPLICATES.md').write_text(replicate_markdown(rep, replicates, json.dumps(verification)))
-    qs = qwen_summary(new, [(a, observations[a['observation_id']]) for a in answers])
-    write_csv(out/'QWEN_NEW_SOURCES.csv', qs)
-    src = [read_json(inputs[f'source:{s}']/'summary.json') for s in NEW_SOURCES]
-    write_csv(out/'SOURCES.csv', [{'source': s['source'], 'label': s['label'], 'fold': s['fold'], 'N': s['N'],
-                                   'D': s['D'], 'M': s['M'], **{f'rho_{k}': s['truth'][k-2] for k in range(2, 6)},
-                                   'window_shares': json.dumps([round(x, 4) for x in s['window_check']['shares']]),
-                                   'window_flagged': s['window_check']['flagged'],
-                                   'trimmed_records': s['window_check']['trimmed_records'],
-                                   'n_panel': s['n_panel'], 'n_panel_history': s['n_panel_history'], 'L': s['L'],
-                                   'p': s['p'], 'h_saturated': s['h_saturated'],
-                                   'budget_matched_by_arm': json.dumps(s['budget_matched_by_arm']),
-                                   'unmatched_reasons': json.dumps(s['unmatched_reasons']),
-                                   'observations': s['observations']} for s in src])
-    walls, arrays = wall_times()
-    write_csv(out/'WALL_TIMES.csv', arrays)
-    feature_check = read_json(inputs['testset']/'feature_check.json')
-    write_json(out/'REPORT.json', {'version': CFG['version'], 'replicates': replicates, 'et_verification': verification,
-                                   'feature_recomputation_check': feature_check, 'wall': walls,
-                                   'rows': len(rows), 'new_observations': len(observations),
-                                   'qwen_new_requests': len(answers), 'qwen_new_valid': sum(a['valid'] for a in answers),
-                                   'real8_summary_max_abs_difference_to_v11': worst,
-                                   'sources': {s['source']: {'window_check': s['window_check'],
-                                                             'unmatched_reasons': s['unmatched_reasons']} for s in src}})
+    main = [r for r in rows if r['replicate'] in (None, 0)]
+    table, infer, fam, per_src = summary(main), paired_methods(main), paired_families(main), per_source(main)
+    write_csv(out/'SUMMARY.csv', table); write_csv(out/'PAIRED_METHODS.csv', infer)
+    write_csv(out/'PAIRED_FAMILIES.csv', fam); write_csv(out/'PER_SOURCE.csv', per_src)
+    (out/'MAIN_RESULTS.md').write_text(main_markdown(table, infer, fam, per_src))
+    training, sampling, response = variability(rows, replicates)
+    write_csv(out/'VARIABILITY_TRAINING.csv', training); write_csv(out/'VARIABILITY_SAMPLING.csv', sampling)
+    write_csv(out/'VARIABILITY_RESPONSE.csv', response)
+    (out/'VARIABILITY.md').write_text(variability_markdown(training, sampling, response, replicates))
+    losses, errs = history_summary(inputs['history']/'HISTORY.csv')
+    (out/'HISTORY.csv').write_text((inputs['history']/'HISTORY.csv').read_text())
+    write_csv(out/'HISTORY_LOSSES.csv', losses); write_csv(out/'HISTORY_ERRORS.csv', errs)
+    (out/'HISTORY.md').write_text(history_markdown(losses, errs))
+    walks = [read_json(inputs[f'walkdiag:{k}']/'walk.json') for k in (*NEW_SOURCES, *SURROGATES)]
+    write_csv(out/'WALK.csv', walks)
+    (out/'WALK.md').write_text(walk_markdown([{c: w[c] for c in WALK_COLUMNS} for w in walks]))
+    leak = leakage(outputs, obs)
+    write_csv(out/'ET_CHOICES.csv', sorted(({'replicate': d['replicate'], 'arm': d['arm'], 'fold': d['fold'],
+                                             'anchor': d['choice']['anchor'],
+                                             'min_samples_leaf': d['choice']['min_samples_leaf'],
+                                             'max_features': d['choice']['max_features'],
+                                             'inner_MAE_2': d['choice']['mean_inner_source_MAE2']}
+                                            for n, d in outputs if n.startswith('train:')),
+                                           key=lambda r: (r['replicate'], r['arm'], r['fold'])))
+    graphs = [read_json(inputs[f'{s}:{p}']/'summary.json') for p in NEW_SOURCES for s in ('source', 'surrogate')]
+    write_csv(out/'ADDED_GRAPHS.csv', [{'graph': g['source'], 'N': g['N'], 'D': g['D'], 'M': g['M'],
+                                        **{f'rho_{k}': g['truth'][k-2] for k in range(2, 6)},
+                                        'budget_matched_by_arm': json.dumps({a: g['budget_matched_by_arm'][a] for a in ARMS4}),
+                                        'h_saturated': g['h_saturated'], 'n_panel': g['n_panel'],
+                                        'n_panel_history': g['n_panel_history'], 'L': g['L'], 'p': g['p']} for g in graphs])
+    freeze = read_json(inputs['api_freeze']/'API_FREEZE_EXT.json')
+    write_json(out/'API_FREEZE_EXT.json', freeze)
+    write_csv(out/'WALL_TIMES.csv', wall_times())
+    qwen_new = [r for r in rows if r['method'] in QWEN and r['origin'] == 'panel12']
+    write_json(out/'REPORT.json', {
+        'version': CFG['version'], 'arms': list(ARMS4), 'replicates': replicates,
+        'blocks': {g: sorted({r['source'] for r in rows if r['group'] == g}) for g in GROUPS},
+        'leakage': leak, 'r_h_b_replicate0_equals_v11': True,
+        'train_sur_models': Counter(d['check']['model'] for n, d in outputs if n.startswith('train_sur:')),
+        'qwen_added_answers': len(qwen_new), 'qwen_added_valid': sum(r['valid'] for r in qwen_new),
+        'qwen_added_invalid_reasons': Counter(r['validation_reason'] for r in qwen_new if not r['valid']),
+        'api_pending_observations': freeze['observations'], 'rows': len(rows)})
     print('REPORT', len(rows), 'rows', flush=True)
