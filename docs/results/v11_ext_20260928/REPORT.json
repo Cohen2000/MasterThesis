@@ -1,0 +1,112 @@
+{
+  "et_verification": {
+    "folds_verified": 45,
+    "refit_vs_sealed_model_new_rows_max_abs": 1.1102230246251565e-16,
+    "refit_vs_v11_max_abs": 1.6653345369377348e-16,
+    "replicate0_equals_v11_predictions": true,
+    "sealed_model_vs_v11_max_abs": 1.1102230246251565e-16
+  },
+  "feature_recomputation_check": {
+    "B": {
+      "max_abs_feature_difference": 0.0,
+      "rows": 72
+    },
+    "H": {
+      "max_abs_feature_difference": 0.0,
+      "rows": 72
+    },
+    "R": {
+      "max_abs_feature_difference": 8.881784197001252e-16,
+      "rows": 72
+    },
+    "S": {
+      "max_abs_feature_difference": 0.0,
+      "rows": 72
+    },
+    "S_obs": {
+      "max_abs_feature_difference": 0.0,
+      "rows": 72
+    }
+  },
+  "new_observations": 60,
+  "qwen_new_requests": 360,
+  "qwen_new_valid": 355,
+  "real8_summary_max_abs_difference_to_v11": 0.0,
+  "replicates": 10,
+  "rows": 8568,
+  "sources": {
+    "lkml_reply": {
+      "unmatched_reasons": [],
+      "window_check": {
+        "flagged": false,
+        "min_share": 0.18934618904470096,
+        "rule": "none needed",
+        "shares": [
+          0.18934618904470096,
+          0.20733238478049235,
+          0.19323538536499024,
+          0.18941523954201042,
+          0.22067080126780603
+        ],
+        "threshold": 0.01,
+        "trimmed_records": 0
+      }
+    },
+    "nr_radoslaw_email": {
+      "unmatched_reasons": [],
+      "window_check": {
+        "flagged": false,
+        "min_share": 0.17245040783821614,
+        "rule": "v10 graph reused unchanged",
+        "shares": [
+          0.23663062889135575,
+          0.19863410396254647,
+          0.17245040783821614,
+          0.1947970461894879,
+          0.19748781311839375
+        ],
+        "threshold": 0.01,
+        "trimmed_records": 0
+      }
+    },
+    "reality_mining": {
+      "unmatched_reasons": [],
+      "window_check": {
+        "flagged": false,
+        "min_share": 0.10025686135024728,
+        "rule": "none needed",
+        "shares": [
+          0.2815592293307548,
+          0.3477638579467279,
+          0.11345348594504104,
+          0.156966565427229,
+          0.10025686135024728
+        ],
+        "threshold": 0.01,
+        "trimmed_records": 0
+      }
+    },
+    "sp_malawi": {
+      "unmatched_reasons": [],
+      "window_check": {
+        "flagged": false,
+        "min_share": 0.14777159727449582,
+        "rule": "none needed",
+        "shares": [
+          0.22675060854603932,
+          0.19178242890520367,
+          0.14777159727449582,
+          0.23682949957475097,
+          0.19686586569951023
+        ],
+        "threshold": 0.01,
+        "trimmed_records": 0
+      }
+    }
+  },
+  "version": "v11-ext-20260928",
+  "wall": {
+    "first_start": "2026-09-28T03:03:21",
+    "last_end": "2026-09-28T03:25:57"
+  }
+}
