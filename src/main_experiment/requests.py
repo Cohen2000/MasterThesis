@@ -1,13 +1,13 @@
 """Request manifest: one request per (observation, configuration, model repeat).
 
-All four configurations see identical observations, prompts and three repeats.
-Only the two Qwen configurations are enabled for dispatch. The paid-provider
-entries are frozen historical placeholders in the original Qwen manifest;
-scripts/api_runner.py builds the current GPT-6 Sol and DeepSeek plans directly
-from the same sealed observations.
+All configurations see identical observations, prompts and three repeats. This
+manifest drives the Qwen runs on the cluster; the paid API models (GPT-6 Sol,
+DeepSeek) are planned by scripts/api_runner.py from the same frozen observations,
+so their entries here are placeholders that are never dispatched.
 """
 from .common import CONFIGS, LLM_REPEATS, DESIGN_VERSION, seed, digest
 
+# Fixed protocol stamp: part of every Qwen seed and payload hash. Changing the text changes the requests.
 REQUEST_PROTOCOL_VERSION = 'panel888-access-v9-20260922'
 
 def protocol_version(arm):

@@ -1,4 +1,9 @@
-"""Stage 1: graphs, surrogates, budgets, observations, prompts and requests.
+"""Preparation stage: graphs, surrogates, budgets, observations, prompts and requests.
+
+In plain words: the first pipeline step. It loads every graph, tunes the sampling arms,
+draws all observations, writes the prompts and the Qwen request list, and records the
+code fingerprints. The additional real test sources are prepared by src/pipeline/sources.py
+with the same functions.
 
 Strictly offline. For each of the 16 real training sources, the eight synthetic
 main instances and the eight surrogates, this stage builds the canonical graph,

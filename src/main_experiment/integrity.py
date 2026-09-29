@@ -1,4 +1,8 @@
-"""Resume guards of the two long-running transports (Qwen rounds, API ledger)."""
+"""Resume guards of the long-running model runs (Qwen rounds, API ledger).
+
+In plain words: a long run may be interrupted and restarted. These helpers make sure a
+restart uses exactly the same inputs and that two processes never write at the same time.
+"""
 from contextlib import contextmanager
 import fcntl
 from pathlib import Path

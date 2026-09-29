@@ -1,64 +1,47 @@
-# How persistent is a network you only partly see?
+# Network persistence from partial temporal observations
 
-Temporal networks (who interacts with whom, and when) are rarely observed completely. This project asks how well the **persistence** of a network can be recovered from a small sample. Persistence here means the share of interacting pairs that are active in at least *k* of five time windows (`rho_k`, with `rho_2` as the main target). Classical estimators, a supervised model (ExtraTrees) and language models (Qwen, DeepSeek, GPT) all get the same sampled data.
+Many networks change over time: people meet, email or reply to each other on some days and not on others. This study measures how well different methods can tell, from a small sample of such a network, how persistent its connections are. The target, `rho_2`, is the share of interacting pairs that are active in at least two of five equal time windows.
 
-## Setup
+The comparison covers 12 real networks, a time-shuffled copy of each, and 8 synthetic networks with known answers. Each network is sampled in four ways (sampling arms): R takes random nodes, S follows a random walk along interactions, H takes random nodes but sees only the last 60% of the time span, and B keeps each interaction with a fixed probability. Every network has three samples per arm, 384 samples in total. Four methods without a language model and five language-model configurations estimate `rho_2` from exactly the same samples. The [study design](docs/DESIGN.md) explains every method and term in plain words.
 
-- **32 graphs:** 12 real interaction datasets, one matched surrogate per real source (12) and 8 synthetic graphs.
-- **4 sampling designs, each seeing about 10% of the activity:**
-  - **R:** a random panel of nodes
-  - **S:** an interaction-following random walk, with its crawl log
-  - **H:** a node panel that only sees the last 60% of history
-  - **B:** random thinning of individual events
-- Each design is drawn 3 times per graph; estimators and models receive only the released design information (e.g. panel size, crawl log, thinning probability).
-- **Four estimators per design:** plugin, training median, a shared maximum-likelihood model (MLE) and ExtraTrees, next to Qwen 3.6 and the paid APIs. The reference is plugin for R and the MLE otherwise.
-- **Metric:** absolute error of `rho_2`, averaged per graph, then equally over graphs (MAE_2). The 12 real sources are the main analysis; surrogates and synthetic graphs are separate blocks, and originals are compared with their surrogates as pairs.
-- **LLM answers:** only answers whose final output is one valid JSON profile are scored. Nothing is repaired.
+## Main result
 
-Full method: [protocol](docs/PROTOCOL_PANEL888_20260921.md).
+Average error in `rho_2` (MAE_2, lower is better) over the 12 real networks; 0.03 means the estimate is off by 3 percentage points on average. The observed share is the standard method for arm R, the statistical model for S, H and B.
 
-## Results
+| Arm | Observed share (plug-in) | Training median | Statistical model (MLE) | ExtraTrees | Qwen, thinking | Qwen, no thinking | DeepSeek Flash | GPT-6 Sol | GPT-6 Sol + Python |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| R | 0.027 | 0.232 | 0.037 | 0.028 | 0.027 | 0.411 | 0.026 | 0.027 | 0.027 |
+| S | 0.301 | 0.232 | 0.069 | 0.050 | 0.181 | 0.475 | 0.090 | 0.084 | 0.081 |
+| H | 0.064 | 0.232 | 0.071 | 0.039 | 0.160 | 0.252 | 0.129 | 0.054 | 0.061 |
+| B | 0.164 | 0.232 | 0.076 | 0.079 | 0.220 | 0.527 | 0.176 | 0.108 | 0.151 |
 
-MAE_2 over the 12 real sources (lower is better). The reference estimator of each design is in bold; ExtraTrees is the production fit (11-fit mean ± SD in [variability](docs/results/final_20260928/VARIABILITY.md)).
+Every language model answered each sample three times; only answers in the required format are scored. ExtraTrees output is limited to valid values (between 0 and 1, never increasing), which changes no `rho_2` value. Recorded API spend: DeepSeek Flash USD 23.50, GPT-6 Sol USD 27.59, GPT-6 Sol + Python USD 94.50. All tables, validity counts, variability and checks are in [docs/results/final](docs/results/final/REPORT.md).
 
-| Design | Plugin | Median | MLE | ExtraTrees | Qwen 3.6 (thinking) | DeepSeek Flash | GPT-6 Sol | GPT-6 Sol + Python |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| R | **0.027** | 0.232 | 0.037 | 0.028 | 0.027 | 0.027 | 0.027 | 0.027 |
-| S | 0.301 | 0.232 | **0.069** | 0.050 | 0.181 | 0.087 | 0.084 | 0.081 |
-| H | 0.064 | 0.232 | **0.071** | 0.039 | 0.160 | 0.118 | 0.054 | 0.061 |
-| B | 0.164 | 0.232 | **0.076** | 0.079 | 0.220 | 0.195 | 0.108 | 0.151 |
+DeepSeek Flash: 1,022 of 1,152 answers are collected so far; the tables are updated when the remaining answers are in.
 
-Model repeats: Qwen 3, DeepSeek 1, GPT-6 Sol 3, GPT-6 Sol + Python 3. Recorded API spend (upper bounds, all runs): DeepSeek USD 9.44, GPT-6 Sol USD 28.13, GPT-6 Sol + Python USD 95.76. Earlier results (8 real sources, S_obs ablation, design estimator) remain under `docs/results/` as history.
-
-**Where the details are:**
-- [Main results](docs/results/final_20260928/MAIN_RESULTS.md): all blocks, paired original–surrogate comparisons, per-source tables
-- [Run report](docs/results/final_20260928/REPORT.md): what ran, checks, diagnostics, API extension
-- [API results](docs/results/final_20260928/api/API_RESULTS.md): all API models per block, paired tests, spend
-- [Variability](docs/results/final_20260928/VARIABILITY.md), [history truncation](docs/results/final_20260928/HISTORY.md), [walk diagnostics](docs/results/final_20260928/WALK.md)
-- Historical: [v11 main results](docs/results/panel888_v11_main_20260923/MAIN_RESULTS.md), [v11 API results](docs/results/api_v11_20260923/API_RESULTS.md), [hidden panel size](docs/results/panel888_v10_RH_panel_release/REPORT.md), [walk gate](docs/results/panel888_v10_walk_gate_20260923/WALK_GATE.md)
-
-## Repository
+## Repository layout
 
 | Path | Contents |
 |---|---|
-| `config/` | Study settings, dataset registry and the exact LLM prompts |
-| `src/main_experiment/` | Sampling, observations, estimators, ExtraTrees features, evaluation |
-| `src/census.py`, `src/dataset_census.py` | Audited raw-data parsers |
-| `src/v11_ext/` | Added sources and surrogates, ExtraTrees replicates, diagnostics, final report, SLURM orchestration |
-| `scripts/` | Pipeline entry points (see below) |
-| `cluster/` | Slurm jobs for bwUniCluster (CPU stages, Qwen on H100) |
-| `tests/` | Design invariants, estimators, evaluation, API runner, extension |
-| `docs/` | Protocol, API runbook and all committed result tables |
+| `src/main_experiment/` | The building blocks: loading networks (`data.py`), sampling arms (`sampling.py`, `walk.py`), the sample text shown to every method (`observation.py`), the offline estimators (`baselines.py`, `shared_mle.py`, `mixtures.py`), the answer format check (`evaluation.py`), synthetic networks and time-shuffled copies |
+| `src/pipeline/` | The cluster pipeline: one task per step (`dag.py` plans them), the real networks prepared in the pipeline (`sources.py`), ExtraTrees (`et.py`, `replicates.py`), time-shuffled copies and checks (`surrogates_and_checks.py`), Qwen (`qwen.py`) and all result tables (`report.py`) |
+| `scripts/` | Programs to run: preparation, training networks, ExtraTrees, the API models (`api_runner.py`), evaluation (`evaluate_api.py`) |
+| `cluster/` | Job scripts for the computing cluster (SLURM) |
+| `config/` | Prompts, data sources and settings |
+| `tests/` | Automatic tests |
+| `docs/` | Study design with glossary, and the final results |
 
-Pipeline, in order (cluster jobs for the CPU and GPU stages are in `cluster/`):
+## Reproduce the evaluation
 
-1. `prepare_study.py`: graphs, budgets, sampler draws and prompts (`fetch_tokenizers.py` first)
-2. `build_v10_pool.py`: synthetic training pool; `build_v10_et.py cache|select|train`: ExtraTrees
-3. `run_qwen_engine.py`: Qwen answers on H100 (via `cluster/submit_production.sh`)
-4. `rh_panel_sensitivity.py`: v11 release of the R/H panel size (observations, ET, Qwen, comparison)
-5. `build_v10_results.py`: v10 tables and the v11 composition; `api_runner.py`, `evaluate_api.py`: paid API runs ([runbook](docs/RUNBOOK_PANEL888.md))
-6. `v11_ext.py --dry-run | --status | --submit`: added sources, surrogates, ET replicates, diagnostics and final tables, resumable on uc3
-7. `audit_v10_walk.py`, `confirm_v10_walk.py`, `report_v10_walk_gate.py`: walk-gate check; `verify_*.py`: archive and ET verification
-8. `api_cycle.sh`: drives one paid API run (GPT Batch, DeepSeek off-peak); commands in the [run report](docs/results/final_20260928/REPORT.md)
+Install the Python requirements, provide the raw data (`data/raw/`) and the frozen observation and answer directories, and run:
 
-Raw data, generated artifacts and raw model answers stay local; their checksums are committed with the results. See [third-party material](docs/THIRD_PARTY.md).
+```bash
+PYTHONPATH=src .venv/bin/pytest -q
+M=~/.local/share/masterthesis
+.venv/bin/python scripts/evaluate_api.py --observations $M/api_observations \
+  --deepseek $M/api_runs/deepseek --openai $M/api_runs/openai --openai-tools $M/api_runs/openai_tools \
+  --out results/api_evaluation
+PYTHONPATH=src .venv/bin/python -c "from pipeline.report import finalize; finalize('docs/results/final', 'results/api_evaluation')"
+```
+
+The evaluation reads the frozen predictions and answers; it does not regenerate observations or model predictions. Raw data and provider answers stay outside Git; their hashes are in [`CHECKSUMS.json`](docs/results/final/CHECKSUMS.json). See [third-party material](docs/THIRD_PARTY.md) for data sources.

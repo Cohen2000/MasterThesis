@@ -1,9 +1,18 @@
-"""Block-only plug-in, design and working-model estimates for v10."""
+"""Simple estimators computed from an observation block alone (plug-in, design, working models)."""
 import math
 from . import mixtures
 from .observation import validate
 
 
+# In plain words: the simple estimators that need no training.
+# - plugin: count, among the observed pairs, the share active in >= k windows. Unbiased
+#   for the node panel R, biased for the other arms.
+# - design_estimate: the walk (S) visits busy pairs more often; re-weighting each pair by
+#   1/(its number of events) undoes that preference (a ratio estimator).
+# - h_extrapolator / corrector: simple working models for H and B.
+# The MLE lives in shared_mle.py; ExtraTrees in the scripts.
+#
+# Starting point ('anchor') for ExtraTrees: the forest learns a correction to this value.
 def anchor_profile(o):
     """Same-information residual-learning anchor for ExtraTrees."""
     if o['arm'] == 'R':
@@ -27,6 +36,7 @@ def bisect(fn, target, lo, hi):
     raise ArithmeticError('bisection did not converge')
 
 
+# Helpers for the Binomial working model: a pair is active in each window with probability q.
 def zbin_mean(q, n):
     """Mean of a zero-truncated Binomial(n, q)."""
     if q == 0: return 1.
@@ -42,6 +52,7 @@ def activity(mean, n):
     return bisect(lambda q: zbin_mean(q, n), mean, 0., 1.)
 
 
+# Convert an activity probability q into rho_2..rho_5 for pairs seen at least once.
 def profile(q):
     """rho_2..rho_5 of K ~ Binomial(5, q) conditioned on K >= 1."""
     if q == 0: return [0.]*4
@@ -55,6 +66,7 @@ def active_windows(o):
     return sum(r[0].count('1')*r[1] for r in o['table'])
 
 
+# Plug-in (naive) estimate: share of observed pairs active in >= k observed windows.
 def plugin(o):
     if o['D_obs'] == 0: raise ValueError('empty sample requires fold median')
     return [sum(r[1] for r in o['table'] if r[0].count('1') >= k)/o['D_obs'] for k in range(2, 6)]
@@ -83,6 +95,9 @@ def _event_rate(o):
     return bisect(lambda r: 1. if r == 0 else r/-math.expm1(-r), mean, 0., mean)
 
 
+# Simple arm-specific correction: plugin for R, design weights for S, the Binomial
+# extrapolation for H, and for B a thinning correction (a window with events can lose all
+# of them when events are dropped, so observed activity is scaled back up).
 def corrector(o):
     validate(o)
     D = o['D_obs']
@@ -99,6 +114,7 @@ def corrector(o):
     return profile(q) if q <= 1 else [1.]*4
 
 
+# Walk arm: weighted share, using the inverse-event weights released in the observation.
 def design_estimate(o):
     """S-arm ratio estimate from released per-pattern weights."""
     if o['arm'] not in ('S', 'S_obs'): raise ValueError('S arm required')
@@ -117,6 +133,8 @@ def mixture_start(o):
     return mu, (r/p if p > 0 else float('nan'))
 
 
+# B arm: fit the event-thinning mixture model; fall back to the simple corrector if the
+# optimiser does not converge.
 def mixture_reference(o, corrector_prediction):
     fit = mixtures.fit_events(o, *mixture_start(o))
     prediction = list(fit.prediction); fallback = ''

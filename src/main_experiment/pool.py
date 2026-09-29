@@ -1,4 +1,7 @@
-"""Frozen synthetic training/development pool for the learned baseline.
+"""Synthetic training/development pool for the learned baseline (ExtraTrees).
+
+In plain words: hundreds of extra synthetic graphs with known truth, so ExtraTrees can
+learn how observations relate to persistence on many different mechanisms.
 
 The pool exists so the ExtraTrees reference is fitted on a diverse set of
 mechanisms rather than on sixteen real sources alone. It adds no generator
@@ -28,6 +31,7 @@ from .observation import make, parse, serialize
 from .sampling import calibrate, draw
 from .synthetic import generate_one
 
+# Fixed identity stamp of the pool (stored with every pool file and part of its seeds): data, not a description.
 POOL_VERSION='pool-v3-panel888-20260921'
 
 # Held constant across the pool, with the reason each one is not varied.

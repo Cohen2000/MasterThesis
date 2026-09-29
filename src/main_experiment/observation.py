@@ -1,4 +1,9 @@
-"""Serialized observation blocks, prompts and released-evidence ET features.
+"""Observation blocks: the text a model sees, its parser, prompts and ExtraTrees features.
+
+In plain words: an observation is summarised as a small table (one row per pattern of
+observed active windows, e.g. 01101) plus the arm's parameters. The same block is given
+to every language model, and ExtraTrees gets numeric features computed from it, so all
+methods use exactly the same information.
 
 Rows group observed dyads by window pattern. S adds crawl traversals and
 inverse-event sums; S_obs contains the inverse-event sums without the crawl log.
@@ -17,6 +22,7 @@ S_OBS_HEADER = HEADER+',inv_events'
 S_HEADER = S_OBS_HEADER+',traversals,traversals_per_event'
 ALL_PATTERNS = [f'{p:05b}' for p in range(1, 32)]
 
+# Fixed identity stamp of the feature definition, stored with every feature table (data).
 FEATURE_VERSION = 'features-v10-access-contract-20260923'
 # Only released evidence enters ET; sampler calibration fields are intentionally absent.
 FEATURE_NAMES = ([f'arm_{a}' for a in ARMS] +
@@ -54,6 +60,7 @@ def rounded(x):
     return float(f'{x:.12g}')
 
 
+# Summarise one draw as the observation dict: only what the sampler saw, never hidden truth.
 def make(g, arm, budget, counts, traversals=None):
     """Observed-only summary of a draw; `counts` are observed events per dyad and window.
 
@@ -89,6 +96,7 @@ def _count(x):
     return type(x) is int and x >= 0
 
 
+# Refuse any observation whose numbers do not add up (a guard against silent bugs).
 def validate(o):
     """Internal consistency of an observation (raises ValueError)."""
     arm = o['arm']
@@ -148,6 +156,7 @@ def _format(x):
     return format(x, '.12g') if type(x) is float else str(x)
 
 
+# The observation as the text block the language models read.
 def serialize(o):
     """Text block shown to the model."""
     validate(o)
@@ -161,6 +170,7 @@ def serialize(o):
     return '\n'.join(lines)
 
 
+# Read a text block back into numbers; used by every estimator, so all methods share one input.
 def parse(text):
     """Inverse of serialize; validates the result."""
     lines = text.splitlines()
@@ -198,6 +208,7 @@ def parse(text):
     return o
 
 
+# Numeric description of a block for ExtraTrees (pattern shares, sizes, arm parameters, anchors).
 def features(o):
     """Released-evidence features only; hidden calibration fields never enter ET."""
     from .baselines import anchor_profile
@@ -221,6 +232,7 @@ def features(o):
     return np.array(f, float)
 
 
+# The full prompt: shared system text + the arm's sampling rule + the observation block.
 def messages(block):
     """System and user message: common task text, the arm's sampling rule and the observation block."""
     o = parse(block)

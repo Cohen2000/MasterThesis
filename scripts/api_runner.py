@@ -2,9 +2,16 @@
 """Offline planning and explicit execution for the frozen API comparison.
 
 No command contacts a provider unless --execute is supplied. Production reads a
-local copy of a sealed observation set: `v11` (288 observations of the 24 v11
-graphs) or `ext` (96 observations of the four added real sources and their
-surrogates), each checked against its committed freeze manifest.
+local copy of the frozen observation set (384 observations: 32 graphs x R/S/H/B x
+3 draws), checked against the fingerprint in docs/results/final/CHECKSUMS.json.
+
+In plain words: this script sends the frozen prompts to the paid models (DeepSeek
+Flash and GPT-6 Sol, with or without a Python tool), three repeats per observation,
+and stores every raw answer. It is built to be stopped and resumed safely: every
+launch is logged before it is sent, a request is never sent twice by accident, and
+the recorded spend plus the worst case of all open requests must stay within the
+budget before anything new starts. DeepSeek only runs in its cheaper off-peak hours;
+GPT runs through the Batch API in chunks.
 """
 import argparse
 from collections import Counter
@@ -24,13 +31,14 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
+import yaml  # noqa: E402
 from main_experiment.common import MAIN_KEYS, digest  # noqa: E402
 from main_experiment.evaluation import parse_final  # noqa: E402
 from main_experiment.observation import messages, parse  # noqa: E402
 
 API_MAIN_ARMS = ('R', 'S', 'H', 'B')
 MODELS = {'deepseek': 'deepseek-flash', 'openai': 'gpt-6-sol'}
-INITIAL_REPEATS = 1
+REPEATS = 3                                  # model answers per observation
 MAX_REPEATS = 3
 GENERATION_CAP = 128000                      # GPT-6 Sol maximum
 GENERATION_CAPS = {'deepseek': 393216, 'openai': GENERATION_CAP}   # provider maxima
@@ -52,24 +60,19 @@ CONTAINER_USD = 0.06
 OPENAI_POLL_SECONDS = 15
 DEEPSEEK_DEFAULT_CONCURRENCY = 8
 BATCH_SIZE_DEFAULT = 96
-DEEPSEEK_BUDGET_USD = 10
+DEEPSEEK_BUDGET_USD = 25
 OPENAI_BUDGET_USD = 200
-OBSERVATION_COUNT = 288
-EXT_GRAPHS = tuple(g for s in ('reality_mining', 'lkml_reply', 'sp_malawi', 'nr_radoslaw_email') for g in (s, s+'__pwt'))
-OBSERVATION_SETS = {
-    'v11': {'count': 288, 'graphs': MAIN_KEYS, 'freeze': 'docs/results/panel888_v11_main_20260923/API_FREEZE.json'},
-    'ext': {'count': 96, 'graphs': EXT_GRAPHS, 'freeze': 'docs/results/final_20260928/API_FREEZE_EXT.json'}}
-OBSERVATION_SET = 'v11'
-
-
-def use_observation_set(name):
-    global OBSERVATION_SET, OBSERVATION_COUNT
-    OBSERVATION_SET, OBSERVATION_COUNT = name, OBSERVATION_SETS[name]['count']
+# All 32 test graphs: stage-1 panel plus the stage-2 real sources and their surrogates.
+STAGE2_SOURCES = tuple(yaml.safe_load((ROOT / 'config/pipeline.yaml').read_text())['stage2_sources'])
+API_GRAPHS = MAIN_KEYS + tuple(g for s in STAGE2_SOURCES for g in (s, s + '__pwt'))
+OBSERVATION_COUNT = len(API_GRAPHS) * len(API_MAIN_ARMS) * 3     # 384
+CHECKSUMS = ROOT / 'docs/results/final/CHECKSUMS.json'
 REASONING_EXPOSURE = {'deepseek': 'raw_provider_reasoning',
                       'openai': 'provider_reasoning_summary',
                       'qwen': 'generated_reasoning_block'}
 
 
+# API keys come from the environment or from a private file (mode 600); they are never logged.
 def load_keys():
     path = Path.home() / '.config/masterthesis/api_keys.env'
     if not path.exists():
@@ -87,15 +90,18 @@ def load_keys():
                 os.environ[name] = value
 
 
+# Load the frozen observation set and check it thoroughly: exactly 384 rows, no hidden
+# fields, hashes of every block and prompt, the complete graph x arm x draw grid, and the
+# fingerprint committed in CHECKSUMS.json.
 def observations(directory):
     rows = [json.loads(p.read_text()) for p in sorted(directory.glob('*.json'))]
     if len(rows) != OBSERVATION_COUNT or len({r['id'] for r in rows}) != OBSERVATION_COUNT:
-        raise ValueError(f'{OBSERVATION_SET} API observation set must contain {OBSERVATION_COUNT} distinct rows')
+        raise ValueError(f'the API observation set must contain {OBSERVATION_COUNT} distinct rows')
     for row in rows:
         if set(row) != {'id', 'graph_id', 'stratum', 'arm', 'sample_index',
                         'block', 'block_sha256', 'messages', 'prompt_sha256'}:
             raise ValueError('API observation contains hidden or unexpected metadata')
-        if row['graph_id'] not in OBSERVATION_SETS[OBSERVATION_SET]['graphs'] or row['arm'] not in API_MAIN_ARMS:
+        if row['graph_id'] not in API_GRAPHS or row['arm'] not in API_MAIN_ARMS:
             raise ValueError('unexpected graph or arm')
         if row['block_sha256'] != digest(row['block']):
             raise ValueError('observation block hash mismatch')
@@ -111,22 +117,23 @@ def observations(directory):
         if row['arm'] == 'B' and '\np=' not in row['block']:
             raise ValueError('B sampling probability missing')
     cells = {(r['graph_id'], r['arm'], r['sample_index']) for r in rows}
-    expected = {(g, arm, i) for g in OBSERVATION_SETS[OBSERVATION_SET]['graphs'] for arm in API_MAIN_ARMS for i in (1, 2, 3)}
+    expected = {(g, arm, i) for g in API_GRAPHS for arm in API_MAIN_ARMS for i in (1, 2, 3)}
     if cells != expected:
         raise ValueError('incomplete main observation grid')
-    freeze = json.loads((ROOT / OBSERVATION_SETS[OBSERVATION_SET]['freeze']).read_text())
+    freeze = json.loads(CHECKSUMS.read_text())['observations']
     frozen = [(r['id'], r['block_sha256'], r['prompt_sha256']) for r in sorted(rows, key=lambda r: r['id'])]
     fingerprint = hashlib.sha256(json.dumps(frozen, separators=(',', ':')).encode()).hexdigest()
-    if fingerprint != freeze['observation_hash_manifest_sha256']:
-        raise ValueError(f'local {OBSERVATION_SET} API freeze differs from committed hashes')
+    if fingerprint != freeze['fingerprint_sha256']:
+        raise ValueError('local API observations differ from the committed fingerprint')
     return rows
 
 
+# A smoke/pilot request built from a training observation (never from a test graph).
 def technical_observation(path, provider, kind):
     row = json.loads(path.read_text())
     if row.get('domain') not in ('training', 'pool_train', 'pool_dev'):
         raise ValueError(f'{kind} requires a training/dev/pool observation')
-    if row.get('graph_id') in MAIN_KEYS or row.get('empty'):
+    if row.get('graph_id') in API_GRAPHS or row.get('empty'):
         raise ValueError(f'{kind} cannot use a main graph or empty observation')
     if row.get('arm') not in API_MAIN_ARMS:
         raise ValueError(f'{kind} arm must be R/S/H/B')
@@ -143,6 +150,7 @@ def smoke_observation(path, provider):
     return technical_observation(path, provider, 'smoke')
 
 
+# Token pilot: 8-12 training observations covering every arm, used to project the cost.
 def pilot_manifest(directory, provider):
     rows = [technical_observation(path, provider, 'pilot') for path in sorted(directory.glob('*.json'))]
     if not 8 <= len(rows) <= 12 or len({r['id'] for r in rows}) != len(rows):
@@ -154,11 +162,13 @@ def pilot_manifest(directory, provider):
     return rows
 
 
+# Opaque request ID sent to the provider: a hash, so no graph or arm name leaks.
 def provider_id(internal_id):
     return 'req_' + hashlib.sha256(internal_id.encode()).hexdigest()[:32]
 
 
-def manifest(rows, provider, repeats=INITIAL_REPEATS):
+# All requests: every observation x repeat, with stable IDs <observation>__<provider>__r<k>.
+def manifest(rows, provider, repeats=REPEATS):
     if not 1 <= repeats <= MAX_REPEATS:
         raise ValueError('repeats must be 1..3')
     result = []
@@ -179,6 +189,7 @@ def manifest(rows, provider, repeats=INITIAL_REPEATS):
     return result
 
 
+# The exact request body: same prompt for every model, reasoning effort high, JSON output.
 def payload(provider, row):
     if provider == 'openai':
         body = {'model': MODELS[provider], 'input': row['messages'],
@@ -199,6 +210,7 @@ def batch_line(row):
             'body': payload('openai', row)}
 
 
+# Conservative upper bound on the prompt's token count (checked against every answer).
 def input_allowance(row):
     # Conservative proxy checked against frozen local tokenizer counts.
     return math.ceil(sum(len(m['content']) for m in row['messages']) / 2) + 256
@@ -213,6 +225,7 @@ def usage_tokens(record, provider):
     return counts
 
 
+# Spend of one answer from the token usage the provider reported.
 def actual_usd(record, provider):
     input_count, output_count = usage_tokens(record, provider)
     rates = OPENAI_STANDARD_RATES if provider == 'openai' and record.get('kind') in ('smoke', 'pilot') else RATES[provider]
@@ -245,6 +258,7 @@ def token_stats(records, provider):
     return stats
 
 
+# Cost projection from the pilot's token usage (expected and conservative).
 def estimate(rows, provider, records=()):
     """Pilot-based run projection; generation cap appears only in worst-case figures."""
     records = list(records)
@@ -274,6 +288,7 @@ def estimate(rows, provider, records=()):
     return result
 
 
+# The most an open request can possibly cost (full generation cap).
 def in_flight_worst_usd(rows, provider, standard=False):
     """Hard upper bound: generation cannot exceed the cap and the input allowance
     exceeds provider input counts (checked on every DeepSeek answer)."""
@@ -304,6 +319,7 @@ def next_deepseek_peak(now):
     raise AssertionError('next DeepSeek peak not found')
 
 
+# DeepSeek off-peak rule: no start during peak hours or in the buffer before them.
 def deepseek_window(now):
     """Return off-peak allowance and time left before the next UTC peak."""
     if now.tzinfo is None or now.utcoffset() is None:
@@ -330,7 +346,8 @@ def require_deepseek_offpeak(now, announce=False):
         raise ValueError(f'DeepSeek execution paused: within the {DEEPSEEK_PEAK_BUFFER_MINUTES}-minute pre-peak buffer. Resume in the next off-peak window.')
 
 
-def guard(rows, provider, budget, execute, repeats=INITIAL_REPEATS):
+# Refuse to run without a complete manifest and an explicit budget within the approved cap.
+def guard(rows, provider, budget, execute, repeats=REPEATS):
     if len({r['id'] for r in rows}) != len(rows):
         raise ValueError('duplicate request IDs')
     expected = OBSERVATION_COUNT * repeats
@@ -339,7 +356,7 @@ def guard(rows, provider, budget, execute, repeats=INITIAL_REPEATS):
     if budget is None or budget <= 0:
         raise ValueError('explicit positive --budget-usd required')
     if provider == 'deepseek' and budget > DEEPSEEK_BUDGET_USD:
-        raise ValueError('DeepSeek production budget cannot exceed USD 10')
+        raise ValueError('DeepSeek production budget cannot exceed USD 25')
     if provider == 'openai' and budget > OPENAI_BUDGET_USD:
         raise ValueError('GPT experiment budget cannot exceed the approved USD 200 cap')
     if execute:
@@ -350,12 +367,12 @@ def guard(rows, provider, budget, execute, repeats=INITIAL_REPEATS):
     return estimate(rows, provider)
 
 
-def summary(rows, provider, budget=None, records=(), repeats=INITIAL_REPEATS):
+def summary(rows, provider, budget=None, records=(), repeats=REPEATS):
     cost = estimate(rows, provider, records)
     report = {'provider': provider, 'model': MODELS[provider], 'reasoning': 'high',
               'reasoning_exposure': REASONING_EXPOSURE[provider],
               'requests': len(rows), 'arms': API_MAIN_ARMS,
-              'observation_set': OBSERVATION_SET, 'graph_strata': dict(Counter(
+              'graph_strata': dict(Counter(
                   r['stratum'] for r in rows if r.get('repeat_index') == 1 and r.get('sample_index') == 1 and r.get('arm') == 'R')),
               'sampler_draws': 3, 'model_repeats': repeats, **cost,
               'budget_usd': budget}
@@ -371,6 +388,11 @@ class ProviderRejected(RuntimeError):
         self.detail = detail
 
 
+class LaunchLost(RuntimeError):
+    """Transport failed before a provider response was received."""
+
+
+# One HTTP call; unbilled rejections (e.g. 429) are distinguished from other failures.
 def request(url, key, body=None, method='GET', content_type='application/json', timeout=1800):
     headers = {'Authorization': 'Bearer ' + key}
     if body is not None:
@@ -386,6 +408,7 @@ def request(url, key, body=None, method='GET', content_type='application/json', 
         raise RuntimeError(f'HTTP {error.code}: {detail}') from None
 
 
+# Append one JSON line and force it to disk, so a crash never loses a record.
 def append_durable(path, value):
     with path.open('a') as handle:
         handle.write(json.dumps(value, ensure_ascii=False) + '\n')
@@ -398,6 +421,7 @@ def rejection(rid, error):
             'received_utc': datetime.now(timezone.utc).isoformat()}
 
 
+# How many launches of each ID may have produced (billable) output.
 def live_launches(attempt_ids, rejected_ids):
     """Launches per ID that may have generated output (rejections excluded)."""
     rejected = Counter(rejected_ids)
@@ -420,6 +444,7 @@ def reasoning_tokens(usage):
     return details.get('reasoning_tokens', usage.get('reasoning_tokens'))
 
 
+# Turn one GPT response into the stored record (answer text, usage, tool calls, validity).
 def openai_record(body, rid, prompt_sha256=None, kind='main', arm=None, repeat_index=None):
     """Keep the provider summary as returned; hidden reasoning is unavailable."""
     output = body.get('output') or []
@@ -450,8 +475,10 @@ def read_jsonl(path):
     return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
 
+# Read what a DeepSeek run directory already contains: answers, spend and what is left.
+# A launch without an answer blocks the run unless it was recorded in lost.jsonl.
 def deepseek_progress(rows, run_dir, extra=()):
-    """Read durable completions; never retry a launched request with no answer."""
+    """Read durable completions; a launch without an answer is only retried if recorded as lost."""
     planned = {r['id']: r for r in rows}
     completed = {}
     for record in read_jsonl(run_dir / 'responses.jsonl'):
@@ -466,8 +493,9 @@ def deepseek_progress(rows, run_dir, extra=()):
             raise ValueError(f'unexpected completed DeepSeek ID: {rid}')
         actual_usd(record, 'deepseek')  # Missing usage cannot silently lower the budget.
         completed[rid] = record
+    lost = read_jsonl(run_dir / 'lost.jsonl')
     launches = live_launches([r['id'] for r in read_jsonl(run_dir / 'attempts.jsonl')],
-                            [r['id'] for r in read_jsonl(run_dir / 'rejected.jsonl')])
+                            [r['id'] for r in read_jsonl(run_dir / 'rejected.jsonl')] + [r['id'] for r in lost])
     if any(count > 1 or count < 0 for count in launches.values()):
         raise ValueError('duplicate DeepSeek launch IDs')
     uncertain = {rid for rid, count in launches.items() if count == 1 and rid not in completed}
@@ -476,12 +504,13 @@ def deepseek_progress(rows, run_dir, extra=()):
     for row in extra:
         if row['id'] in completed and completed[row['id']]['prompt_sha256'] != row['prompt_sha256']:
             raise ValueError('completed technical prompt mismatch')
-    spent = sum(actual_usd(r, 'deepseek') for r in completed.values())
+    spent = sum(actual_usd(r, 'deepseek') for r in completed.values()) + sum(r['worst_case_usd'] for r in lost)
     remaining_main = [r for r in rows if r['id'] not in completed]
     remaining_extra = [r for r in extra if r['id'] not in completed]
     return completed, spent, remaining_main, remaining_extra
 
 
+# Send repeat 1 of everything first, then repeat 2, then 3 (balanced if the budget runs out).
 def dispatch_order(rows):
     """Balanced order: if the budget ends early, missing requests fall in the last
     repeat/sample index across all graphs and arms, not in one stratum."""
@@ -489,6 +518,9 @@ def dispatch_order(rows):
                                        r.get('stratum', ''), r.get('graph_id', ''), r.get('arm', '')))
 
 
+# Run DeepSeek requests in parallel. Each launch is logged first; an answer is written the
+# moment it arrives. A launch that fails without an answer is recorded as lost, charged at
+# its worst-case cost and relaunched at most once.
 def execute_deepseek(rows, run_dir, max_concurrency, smoke=None, pilot=None, budget=DEEPSEEK_BUDGET_USD):
     """Rolling pool. A request starts only if recorded spend plus the hard worst
     case of every open request, including the new one, stays within budget, so a
@@ -500,6 +532,7 @@ def execute_deepseek(rows, run_dir, max_concurrency, smoke=None, pilot=None, bud
     lock = Lock()
     extra = [smoke] if smoke else pilot or []
     completed, spent, remaining_main, remaining_extra = deepseek_progress(rows, run_dir, extra)
+    lost_counts = Counter(r['id'] for r in read_jsonl(run_dir / 'lost.jsonl'))
     if smoke is None and not any(record.get('kind') == 'smoke' for record in completed.values()):
         raise ValueError('DeepSeek production requires a completed training smoke in the same output directory')
     if smoke is None and pilot is None:
@@ -509,10 +542,10 @@ def execute_deepseek(rows, run_dir, max_concurrency, smoke=None, pilot=None, bud
         projection = estimate(rows, 'deepseek', completed.values())
         print(f"DeepSeek projection: expected USD {projection['projected_total_usd']}, "
               f"conservative USD {projection['conservative_projected_total_usd']} (budget USD {budget})")
-    pending = dispatch_order(remaining_extra if extra else remaining_main)
+    pending = dispatch_order(r for r in (remaining_extra if extra else remaining_main) if lost_counts[r['id']] < 2)
     print(f'DeepSeek completed: {len(completed)}; actual off-peak spend: USD {spent:.4f}; remaining in this command: {len(pending)}')
     if not pending:
-        return
+        return 'terminal' if remaining_main else None
     require_deepseek_offpeak(datetime.now(timezone.utc), announce=True)
     with (run_dir / 'responses.jsonl').open('a') as answers, (run_dir / 'attempts.jsonl').open('a') as attempts:
         def send(row):
@@ -528,6 +561,8 @@ def execute_deepseek(rows, run_dir, max_concurrency, smoke=None, pilot=None, bud
                 with lock:
                     append_durable(run_dir / 'rejected.jsonl', rejection(row['id'], error))
                 raise
+            except Exception as error:  # no provider answer (transport, HTTP 5xx, cut-off body)
+                raise LaunchLost(f'{type(error).__name__}: {error}') from error
             choice = answer['choices'][0]
             final = choice['message'].get('content') or ''
             limit_hit = choice.get('finish_reason') == 'length'
@@ -570,6 +605,17 @@ def execute_deepseek(rows, run_dir, max_concurrency, smoke=None, pilot=None, bud
                     row = open_requests.pop(future)
                     try:
                         record = future.result()
+                    except LaunchLost as error:
+                        reserve = in_flight_worst_usd([row], 'deepseek')
+                        append_durable(run_dir / 'lost.jsonl', {'id': row['id'], 'error': str(error),
+                                                                'received_utc': datetime.now(timezone.utc).isoformat(),
+                                                                'worst_case_usd': reserve})
+                        spent += reserve
+                        lost_counts[row['id']] += 1
+                        if lost_counts[row['id']] < 2:
+                            pending.append(row)
+                        print(f"DeepSeek launch lost: {row['id']}; retry {lost_counts[row['id']]}/1", flush=True)
+                        continue
                     except Exception as error:
                         errors.append(error)
                         print(f"DeepSeek request failed: {row['id']}: {error}", flush=True)
@@ -592,8 +638,11 @@ def execute_deepseek(rows, run_dir, max_concurrency, smoke=None, pilot=None, bud
         raise RuntimeError(f'{len(errors)} DeepSeek request(s) failed; completed responses were saved. Check uncertain attempts before resuming.') from errors[0]
     if stop:
         print('stopped: ' + stop)
+        return 'budget' if stop.startswith('budget reached') else None
+    return 'terminal' if main_remaining else None
 
 
+# The GPT variants share one budget: add the spend of the other GPT run directory.
 def shared_spend(directories):
     """Recorded spend of other GPT run directories drawing on the same budget;
     they must have no open Batch chunk or open technical response."""
@@ -609,6 +658,7 @@ def shared_spend(directories):
     return spent
 
 
+# Read what a GPT run directory already contains (answers and open technical responses).
 def openai_progress(rows, run_dir, technical_only=False, check_main=True):
     """Collected records; launched background responses without a record are
     returned as resumable {id: response_id}, never relaunched."""
@@ -699,6 +749,8 @@ def chunk_numbers(run_dir):
     return sorted(int(p.name[6:9]) for p in run_dir.glob('chunk_[0-9][0-9][0-9].batch.json'))
 
 
+# Submit the next Batch chunk of GPT requests (one chunk open at a time, within budget);
+# collect_openai() later downloads and stores its answers.
 def execute_openai(rows, run_dir, batch_size, budget=OPENAI_BUDGET_USD, shared=()):
     """Submit only the next Batch chunk after collecting every previous chunk."""
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -776,6 +828,7 @@ def download_openai_file(file_id, key):
         return response.read()
 
 
+# Download a finished Batch, store every answer and record unbilled failures for resubmission.
 def collect_openai(run_dir, state, key):
     prefix, _ = latest_chunk(run_dir)
     marker = prefix.with_suffix('.collected.json')
@@ -832,31 +885,10 @@ def collect_openai(run_dir, state, key):
           f'conservative total GPT spend USD {spent:.4f}')
 
 
-def import_technical(source, destination, provider):
-    """Seed a new run directory with the completed smoke/pilot records of an earlier run of the
-    same configuration, so production needs no new paid technical requests. Offline only."""
-    if destination.exists() and any(destination.iterdir()):
-        raise ValueError(f'{destination} is not empty')
-    name = 'responses.jsonl' if provider == 'deepseek' else 'technical_responses.jsonl'
-    records = [r for r in read_jsonl(source / name) if r.get('kind') in ('smoke', 'pilot')]
-    if not any(r['kind'] == 'smoke' for r in records) or sum(r['kind'] == 'pilot' for r in records) < 8:
-        raise ValueError(f'{source} has no completed smoke and token pilot')
-    destination.mkdir(parents=True)
-    (destination / name).write_text(''.join(json.dumps(r) + '\n' for r in records))
-    if (source / 'variant.json').exists():
-        (destination / 'variant.json').write_text((source / 'variant.json').read_text())
-    atomic_json(destination / 'technical_source.json',
-                {'source': str(source), 'records': len(records),
-                 'note': 'technical records reused from the earlier run; their spend is counted again (upper bound)'})
-    print(f'imported {len(records)} technical records from {source}')
-
-
+# Command line: check / cost / smoke / pilot / submit / status / collect / window.
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('command', choices=('check', 'cost', 'smoke', 'pilot', 'submit', 'status', 'collect',
-                                        'import-technical', 'window'))
-    ap.add_argument('--observation-set', choices=tuple(OBSERVATION_SETS), default='v11')
-    ap.add_argument('--technical-from', type=Path, help='import-technical: earlier run directory')
+    ap.add_argument('command', choices=('check', 'cost', 'smoke', 'pilot', 'submit', 'status', 'collect', 'window'))
     ap.add_argument('--provider', choices=tuple(MODELS), required=True)
     ap.add_argument('--observations', type=Path)
     ap.add_argument('--smoke-observation', type=Path, help='one frozen training/dev/pool JSON file')
@@ -864,7 +896,7 @@ def main():
     ap.add_argument('--budget-usd', type=float)
     ap.add_argument('--max-concurrency', type=int, default=DEEPSEEK_DEFAULT_CONCURRENCY)
     ap.add_argument('--batch-size', type=int, default=BATCH_SIZE_DEFAULT)
-    ap.add_argument('--repeats', type=int, default=INITIAL_REPEATS,
+    ap.add_argument('--repeats', type=int, default=REPEATS,
                     help='target total model repeats, 1..3; completed IDs are skipped')
     ap.add_argument('--output', type=Path, help='run directory')
     ap.add_argument('--execute', action='store_true', help='explicitly allow provider network requests')
@@ -872,7 +904,6 @@ def main():
     ap.add_argument('--shared-budget-dir', type=Path, action='append', default=[],
                     help='other GPT run directory whose spend counts against the same budget')
     a = ap.parse_args()
-    use_observation_set(a.observation_set)
     if a.tools and a.provider != 'openai':
         ap.error('--tools is a GPT variant')
     label = 'openai_tools' if a.tools else a.provider
@@ -887,11 +918,6 @@ def main():
                           'minutes_to_next_peak': round(remaining.total_seconds()/60),
                           'rule': 'peak = weekdays 01:00-04:00 and 06:00-10:00 UTC; no start within '
                                   f'{DEEPSEEK_PEAK_BUFFER_MINUTES} min of a peak'}, indent=2))
-        return
-    if a.command == 'import-technical':
-        if not a.technical_from or not a.output:
-            ap.error('import-technical needs --technical-from and --output')
-        import_technical(a.technical_from, a.output, a.provider)
         return
     if a.command in ('status', 'collect'):
         if not a.output or a.provider != 'openai':
@@ -958,7 +984,9 @@ def main():
             print('dry run: manifest and budget cap valid; production needs completed token pilot; no provider request')
             return
         if a.provider == 'deepseek':
-            execute_deepseek(rows, a.output, 1 if smoke else a.max_concurrency, smoke, pilot, a.budget_usd)
+            outcome = execute_deepseek(rows, a.output, 1 if smoke else a.max_concurrency, smoke, pilot, a.budget_usd)
+            if outcome == 'budget': sys.exit(3)
+            if outcome == 'terminal': sys.exit(4)
         elif smoke or pilot:
             execute_openai_technical([smoke] if smoke else pilot, a.output, a.budget_usd, a.shared_budget_dir)
         else:

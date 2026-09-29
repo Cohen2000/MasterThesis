@@ -11,9 +11,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from main_experiment.common import MAIN_KEYS, digest
+from main_experiment.common import digest
 from main_experiment.evaluation import parse_final
-from scripts.api_runner import (API_MAIN_ARMS, GENERATION_CAP, ProviderRejected, collect_openai,
+from scripts.api_runner import (API_GRAPHS, API_MAIN_ARMS, GENERATION_CAP, ProviderRejected, collect_openai,
                                 deepseek_progress, deepseek_window, estimate,
                                 execute_deepseek, execute_openai, execute_openai_technical, guard, main,
                                 manifest, observations, openai_progress, openai_record, payload, provider_id,
@@ -26,9 +26,6 @@ ROOT = Path(__file__).resolve().parents[1]
 class APIPreparation(unittest.TestCase):
     def test_sealed_scientific_files(self):
         expected = {
-            'docs/results/panel888_v10_main_20260923/REPORT.json': 'b6ee576e2790a9904ba389d2ff12e90afc6d08a34305f56e00b5e54d90a30a73',
-            'docs/results/panel888_v10_walk_gate_20260923/WALK_GATE.md': '803b0c522a736c22388734420f6a001268a1e917646546801ed3bf63ab486dad',
-            'docs/results/panel888_v10_main_20260923/QWEN_ARCHIVE_VERIFICATION.json': '86ae5625471d4177e22a59b4f6d2b4c6799d10879ac6c210e680156bfcd53a2b',
             'config/main_experiment/system.txt': '402ac97f8c3b0cf6b48d18ebf0a20eb1b39dcc314042801883e48a0a973a867d',
             'config/main_experiment/user_prefix.txt': '0f9a7e95378a126a643108bd5fabdc350ebad02e2fbc983e73eecf4a936558f7',
         }
@@ -40,8 +37,8 @@ class APIPreparation(unittest.TestCase):
                  'stratum': 'surrogate' if g.endswith('__pwt') else 'synthetic' if g.startswith(('dar_', 'ad_')) else 'real',
                  'arm': arm, 'sample_index': i, 'prompt_sha256': 'frozen',
                  'messages': [{'role': 'system', 'content': 'system'}, {'role': 'user', 'content': 'user'}]}
-                for g in MAIN_KEYS for arm in (*API_MAIN_ARMS, 'S_obs') for i in (1, 2, 3)]
-        for provider, count in (('deepseek', 288), ('openai', 288)):
+                for g in API_GRAPHS for arm in (*API_MAIN_ARMS, 'S_obs') for i in (1, 2, 3)]
+        for provider, count in (('deepseek', 1152), ('openai', 1152)):
             planned = manifest(rows, provider)
             self.assertEqual(len(planned), count)
             self.assertNotIn('S_obs', {r['arm'] for r in planned})
@@ -69,7 +66,7 @@ class APIPreparation(unittest.TestCase):
         self.assertEqual(payload('deepseek', manifest(rows, 'deepseek')[0])['max_tokens'], 393216)
         for provider in ('deepseek', 'openai'):
             self.assertEqual([len(manifest(rows, provider, repeats=n)) for n in (1, 2, 3)],
-                             [288, 576, 864])
+                             [384, 768, 1152])
         plan = estimate(manifest(rows, 'deepseek'), 'deepseek')
         self.assertIsNone(plan['conservative_projected_total_usd'])
         self.assertGreater(plan['theoretical_full_main_worst_case_usd'], 10)
@@ -209,19 +206,19 @@ class APIPreparation(unittest.TestCase):
             self.assertEqual([r['custom_id'] for r in second], [provider_id(rows[2]['id'])])
 
     def test_smoke_is_training_only(self):
-        path = os.environ.get('V10_SMOKE_OBSERVATION')
+        path = os.environ.get('SMOKE_OBSERVATION')
         if not path:
-            self.skipTest('set V10_SMOKE_OBSERVATION to one sealed training row')
+            self.skipTest('set SMOKE_OBSERVATION to one sealed training row')
         row = smoke_observation(Path(path), 'deepseek')
         self.assertTrue(row['id'].endswith('__deepseek__smoke'))
-        main_path = next(Path(os.environ['V10_OBSERVATIONS']).glob('*.json'))
+        main_path = next(Path(os.environ['API_OBSERVATIONS']).glob('*.json'))
         with self.assertRaisesRegex(ValueError, 'training/dev/pool'):
             smoke_observation(main_path, 'deepseek')
 
     def test_submit_without_execute_never_calls_provider(self):
-        directory = os.environ.get('V10_OBSERVATIONS')
+        directory = os.environ.get('API_OBSERVATIONS')
         if not directory:
-            self.skipTest('set V10_OBSERVATIONS to the sealed sample directory')
+            self.skipTest('set API_OBSERVATIONS to the sealed sample directory')
         with tempfile.TemporaryDirectory() as temp:
             output = Path(temp) / 'run'
             for provider, budget in (('deepseek', '10'), ('openai', '200')):
@@ -270,17 +267,17 @@ class APIPreparation(unittest.TestCase):
         self.assertEqual(flagged['final_text'], record['final_text'])
 
     def test_actual_frozen_prompts_when_available(self):
-        path = os.environ.get('V10_OBSERVATIONS')
+        path = os.environ.get('API_OBSERVATIONS')
         if not path:
-            self.skipTest('set V10_OBSERVATIONS to the sealed sample directory')
+            self.skipTest('set API_OBSERVATIONS to the sealed sample directory')
         rows = observations(Path(path))
-        self.assertEqual(len(rows), 288)
+        self.assertEqual(len(rows), 384)
         self.assertEqual({a: sum(r['arm'] == a for r in rows) for a in API_MAIN_ARMS},
-                          {'R': 72, 'S': 72, 'H': 72, 'B': 72})
+                          {'R': 96, 'S': 96, 'H': 96, 'B': 96})
         self.assertNotIn('S_obs', {r['arm'] for r in rows})
         self.assertTrue(all('truth' not in r for r in rows))
-        for provider, count, budget in (('deepseek', 288, 10), ('openai', 288, 200)):
-            planned = manifest(rows, provider)
+        for provider, count, budget in (('deepseek', 384, 10), ('openai', 384, 200)):
+            planned = manifest(rows, provider, repeats=1)
             self.assertEqual(len(planned), count)
             def records(output):
                 usage = {'prompt_tokens': 100, 'completion_tokens': output} if provider == 'deepseek' else {
@@ -293,17 +290,17 @@ class APIPreparation(unittest.TestCase):
             self.assertEqual(plan['pilot_usage']['conservative_tokens_per_request'], 12_500)
             self.assertLess(plan['conservative_projected_total_usd'], budget)
             self.assertGreater(estimate(planned, provider, records(GENERATION_CAP))['conservative_projected_total_usd'], budget)
-            self.assertEqual(len(manifest(rows, provider, repeats=3)), 864)
-        pilot_path = os.environ.get('V10_PILOT_OBSERVATIONS')
+            self.assertEqual(len(manifest(rows, provider, repeats=3)), 1152)
+        pilot_path = os.environ.get('PILOT_OBSERVATIONS')
         if pilot_path:
             pilot = pilot_manifest(Path(pilot_path), 'deepseek')
             self.assertEqual(len(pilot), 12)
             self.assertEqual({r['arm'] for r in pilot}, set(API_MAIN_ARMS))
 
-    def test_repeat_extension_skips_completed_r1(self):
-        path = os.environ.get('V10_OBSERVATIONS')
+    def test_later_repeats_skip_completed_first_repeat(self):
+        path = os.environ.get('API_OBSERVATIONS')
         if not path:
-            self.skipTest('set V10_OBSERVATIONS to the v11 API freeze')
+            self.skipTest('set API_OBSERVATIONS to the frozen API observations')
         samples = observations(Path(path))
         for provider in ('deepseek', 'openai'):
             r1 = manifest(samples, provider, repeats=1)
@@ -317,59 +314,20 @@ class APIPreparation(unittest.TestCase):
                 (root / 'responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in records))
                 if provider == 'deepseek':
                     completed, _, pending, _ = deepseek_progress(r3, root)
-                    self.assertEqual(len(completed), 288)
-                    self.assertEqual(len(pending), 576)
+                    self.assertEqual(len(completed), 384)
+                    self.assertEqual(len(pending), 768)
                 else:
                     _, completed = openai_progress(r3, root)
-                    self.assertEqual(len(completed), 288)
-                    self.assertEqual(len({r['id'] for r in r3} - {r['id'] for r in completed}), 576)
+                    self.assertEqual(len(completed), 384)
+                    self.assertEqual(len({r['id'] for r in r3} - {r['id'] for r in completed}), 768)
                 (root / 'responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in records + records[:1]))
                 with self.assertRaisesRegex(ValueError, 'duplicate'):
                     (deepseek_progress if provider == 'deepseek' else openai_progress)(r3, root)
 
-    def test_v11_composite_provenance_when_available(self):
-        api_path = os.environ.get('V10_OBSERVATIONS')
-        released_path = os.environ.get('V11_RELEASED_RUN')
-        if not api_path or not released_path:
-            self.skipTest('set v11 API and completed released R/H paths')
-        api = {(r['graph_id'], r['arm'], r['sample_index']): r
-               for r in observations(Path(api_path))}
-        old = {(r['graph_id'], r['arm'], r['sample_index']): r
-               for p in (Path.home() / '.local/share/masterthesis/v10_observations').glob('*.json')
-               for r in [json.loads(p.read_text())]}
-        released = {(r['graph_id'], r['arm'], r['sample_index']): r
-                    for p in (Path(released_path) / 'observations/sample').glob('*.json')
-                    for r in [json.loads(p.read_text())]}
-        requests = [json.loads(line) for line in (Path(released_path) / 'requests.jsonl').read_text().splitlines()]
-        prompt_hashes = {r['prompt_sha256'] for r in requests}
-        for key, row in api.items():
-            source = released[key] if row['arm'] in ('R', 'H') else old[key]
-            self.assertEqual(row['block'], source['block'])
-            self.assertEqual(row['messages'], source['messages'])
-            self.assertEqual(row['prompt_sha256'], source['prompt_sha256'])
-            if row['arm'] in ('R', 'H'):
-                self.assertIn(row['prompt_sha256'], prompt_hashes)
-                hidden = old[key]
-                self.assertEqual(row['block'].replace(f"n_panel={source['n_panel']}\n", ''), hidden['block'])
-        with (ROOT / 'docs/results/panel888_v10_main_20260923/PREDICTIONS.csv').open() as stream:
-            import csv
-            old_predictions = {(r['id'], r['method']): r for r in csv.DictReader(stream)
-                               if r['arm'] in ('S', 'S_obs', 'B')}
-        with (ROOT / 'docs/results/panel888_v11_main_20260923/PREDICTIONS.csv').open() as stream:
-            final = list(csv.DictReader(stream))
-        self.assertEqual(old_predictions, {(r['id'], r['method']): r for r in final
-                                            if r['arm'] in ('S', 'S_obs', 'B')})
-        qwen = [r for r in final if r['method'].startswith('qwen')]
-        self.assertEqual((len(qwen), sum(r['valid'] == 'True' for r in qwen)), (2160, 2159))
-        freeze = json.loads((ROOT / 'docs/results/panel888_v11_main_20260923/API_FREEZE.json').read_text())
-        release_verification = json.loads((ROOT / 'docs/results/panel888_v10_RH_panel_release/VERIFICATION.json').read_text())
-        self.assertEqual(freeze['qwen_archive_checksums_sha256']['released_RH'],
-                         release_verification['archive']['checksums_sha256'])
-
     def test_high_pilot_usage_blocks_full_production(self):
-        path = os.environ.get('V10_OBSERVATIONS')
+        path = os.environ.get('API_OBSERVATIONS')
         if not path:
-            self.skipTest('set V10_OBSERVATIONS to the sealed sample directory')
+            self.skipTest('set API_OBSERVATIONS to the sealed sample directory')
         samples = observations(Path(path))
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -430,6 +388,25 @@ class APIPreparation(unittest.TestCase):
                 handle.write('{"id":"other"}\n')
             with self.assertRaisesRegex(ValueError, 'uncertain'):
                 deepseek_progress([], path)
+
+    def test_lost_deepseek_launch_is_charged_and_retried_once(self):
+        smoke = {'id': 'training__deepseek__smoke', 'prompt_sha256': 'training',
+                 'messages': [{'role': 'user', 'content': 'small'}], 'kind': 'smoke'}
+        answer = {'model': 'deepseek-flash', 'usage': {'prompt_tokens': 12, 'completion_tokens': 4},
+                  'choices': [{'message': {'content': '{"rho_2":0.8,"rho_3":0.6,"rho_4":0.4,"rho_5":0.2}'},
+                               'finish_reason': 'stop'}]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
+                 patch('scripts.api_runner.require_deepseek_offpeak'), \
+                 patch('scripts.api_runner.request', side_effect=[TimeoutError('lost'), answer]) as send, \
+                 redirect_stdout(StringIO()):
+                execute_deepseek([], path, 1, smoke)
+            self.assertEqual(send.call_count, 2)
+            self.assertEqual(len((path / 'lost.jsonl').read_text().splitlines()), 1)
+            completed, spent, _, _ = deepseek_progress([], path)
+            self.assertIn(smoke['id'], completed)
+            self.assertGreater(spent, 0)
 
     def test_openai_technical_background_is_resumed_not_relaunched(self):
         smoke = {'id': 'training__openai__smoke', 'prompt_sha256': 'training', 'arm': 'R',

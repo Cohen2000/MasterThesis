@@ -1,4 +1,11 @@
-"""v10 panel, design constants, deterministic seeds and I/O helpers."""
+"""Stage-1 panel, design constants, deterministic seeds and I/O helpers."""
+# Shared settings of the whole study, in plain words:
+# - which graphs are tested (real sources, their surrogates, synthetic graphs) and which
+#   real graphs are used for training;
+# - the sampling design (5 time windows, the sampling arms, the 10% budget, draws, repeats);
+# - one function (seed) that derives every random number stream from fixed labels, so the
+#   whole study is exactly reproducible;
+# - small file helpers (hashing, JSON/CSV writing) used everywhere.
 from pathlib import Path
 import hashlib
 import json
@@ -6,10 +13,14 @@ import os
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
+# Fixed identity stamp written into prepared files and model answers and checked against
+# them later. It is data, not a description: changing the text would break those checks.
 DESIGN_VERSION = 'panel888-access-v10-20260923'
+# The single root of all randomness in the study.
 MASTER_SEED = 20260921
 
-# Output tree of the current study. Every stage writes into its own subfolder.
+# Local output tree of stage 1 (not committed; the folder name matches the existing
+# workspaces). Every stage writes into its own subfolder.
 RESULTS = ROOT/'results/panel888_v10'
 PREPARED = RESULTS/'prepared'         # graphs, calibration, observations, requests
 REFERENCES = RESULTS/'references'     # training pool, ExtraTrees folds, baseline predictions
@@ -19,10 +30,15 @@ QWEN = RESULTS/'qwen'                 # collected Qwen answers and their evaluat
 BUILD = RESULTS/'build'               # compiled walk kernel (not an artifact)
 
 # ---------------------------------------------------------------- panel
+# Real test graphs of the base panel (the other real test sources are listed in config/).
 REAL_TEST = ('sp_hospital', 'sp_highschool2013', 'copenhagen_bluetooth', 'sp_workplace',
              'snap_email_eu', 'snap_collegemsg', 'snap_mathoverflow', 'nr_digg_reply')
+# Each real test graph has one surrogate with the suffix '__pwt' (timestamps shuffled).
 SURROGATES = tuple(key+'__pwt' for key in REAL_TEST)
 SURROGATE_PARENT = dict(zip(SURROGATES, REAL_TEST))
+# Eight synthetic graphs with known persistence: DAR = discrete autoregressive activity
+# (a0 = no memory, a08 = strong memory), ad = activity-driven with or without memory;
+# r1/r2 = two random realisations of each generator.
 SYNTH = ('dar_a0_r1', 'dar_a08_r1', 'dar_a0_r2', 'dar_a08_r2',
          'ad_memoryless_r1', 'ad_memory_r1', 'ad_memoryless_r2', 'ad_memory_r2')
 MAIN_KEYS = REAL_TEST + SURROGATES + SYNTH
@@ -33,16 +49,26 @@ TRAIN = ('sp_hospital', 'sp_primaryschool', 'sp_highschool2013', 'sp_workplace',
          'snap_bitcoin_otc', 'nr_radoslaw_email', 'nr_digg_reply', 'jodie_wikipedia',
          'jodie_reddit', 'jodie_lastfm', 'jodie_mooc', 'copenhagen_bluetooth')
 # Reporting blocks: real, surrogate, and the four synthetic generator conditions.
+# Reporting blocks used by the early tables (real, surrogate, one per synthetic generator).
 STRATA = ('real', 'surrogate', 'dar_a0', 'dar_a08', 'ad_memoryless', 'ad_memory')
 
 # ---------------------------------------------------------------- design
+# The time axis of every graph is cut into W = 5 equal windows. rho_k is the share of
+# interacting pairs that are active in at least k of the 5 windows; rho_2 is the target.
 W = 5
+# Sampling arms (how a partial observation is taken):
+# R = node panel (random nodes, all their interactions), S = interaction-following walk,
+# H = node panel that only sees the first 60% of time, B = random thinning of events.
+# S_obs is an older walk variant that is kept for reproducibility but not reported.
 ARMS = ('R', 'S', 'S_obs', 'H', 'B')
 # Versioned identities; they key every random stream and every observation ID.
+# Fixed labels of the arms. They are part of every random stream and every observation ID,
+# so they must stay byte-identical; changing one would draw different observations.
 ARM_ID = {'R': 'R-p888-access-v9-20260922',
           'S': 'S-interaction-p888-access-v10-20260923',
           'S_obs': 'S-obs-interaction-p888-access-v10-20260923',
           'H': 'H-p888-access-v9-20260922', 'B': 'B-p888-access-v9-20260922'}
+# Budget: every arm is tuned so that it observes about 10% of all active (pair, window) cells.
 COVERAGE_FRACTION = 0.10     # T = 0.10 * sum_e K_e expected observed active dyad-windows
 BUDGET_TOLERANCE = 0.05      # relative tolerance of every arm's expectation around T
 H_FRACTION = 0.60            # primary elapsed-time history fraction of arm H
@@ -50,9 +76,11 @@ H_SENSITIVITY = (0.40, 0.60, 0.80)
 SAMPLER_DRAWS = 3            # test sampler draws per graph and arm
 TRAINING_DRAWS = 5           # training sampler draws per graph and arm
 LLM_REPEATS = 3
+# Language-model configurations that get the same prompts.
 CONFIGS = ('sol', 'deepseek', 'qwen_thinking', 'qwen_nonthinking')
 QWEN_CONFIGS = ('qwen_thinking', 'qwen_nonthinking')
 # Budget-sensitivity study (separate from the main study, which is fixed at 0.10).
+# Optional side study with other budgets; not part of the reported results.
 BUDGET_GRID = (0.025, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50)
 BUDGET_SENSITIVITY = ROOT/'results/panel888_budget_sensitivity'
 
@@ -62,6 +90,7 @@ def parent_source(key):
     return SURROGATE_PARENT.get(key, key)
 
 
+# Which block a graph belongs to: real, surrogate or synthetic.
 def graph_stratum(key):
     if key in SURROGATE_PARENT: return 'surrogate'
     if key in TRAIN: return 'real'
@@ -74,6 +103,8 @@ def in_stratum(graph_id, stratum):
     return graph_id.startswith(stratum+'_r')
 
 
+# Leave-one-source-out: a model that predicts graph X must not have been trained on X.
+# A surrogate uses the same fold as its parent, because it is built from the parent's data.
 def fold_for(key):
     """LOSO fold: a real source and its surrogate use the fold without the parent."""
     parent = parent_source(key)
@@ -90,6 +121,7 @@ def draws_for(arm, budget, domain='sample'):
     return TRAINING_DRAWS if domain in ('training', 'pool_train', 'pool_dev') else SAMPLER_DRAWS
 
 
+# Arm label used in IDs and seeds; other budgets get a suffix so their streams differ.
 def sampler_id(arm, fraction=COVERAGE_FRACTION):
     """Versioned sampler identity. Every budget other than the main 0.10 gets its own
     identity, hence its own random streams, observation IDs and request IDs."""
@@ -97,10 +129,12 @@ def sampler_id(arm, fraction=COVERAGE_FRACTION):
     return f'{ARM_ID[arm]}-b{round(fraction*1000):03d}'
 
 
+# ID of one observation: graph + arm label + draw number, e.g. sp_hospital__R-...__s1.
 def observation_id(graph_id, arm, index, fraction=COVERAGE_FRACTION):
     return f'{graph_id}__{sampler_id(arm, fraction)}__s{index}'
 
 
+# How many observations and model requests the design implies (used as a consistency check).
 def planned_sizes(budgets):
     """Main/training observation and request counts derived from the calibrated budgets."""
     main = sum(draws_for(arm, budgets[g]) for g in MAIN_KEYS for arm in ARMS)
@@ -128,11 +162,13 @@ def seed(domain, graph_id='', arm_id='', sample_index=0, repeat_index=0, config_
     return value
 
 
+# A numpy random generator seeded from the same labels as seed().
 def rng(*args):
     return np.random.Generator(np.random.PCG64(seed(*args)))
 
 
 # ---------------------------------------------------------------- I/O
+# SHA-256 of a file's bytes.
 def sha(path):
     h = hashlib.sha256()
     with open(path, 'rb') as f:
@@ -147,6 +183,7 @@ def digest(value):
                                      allow_nan=False).encode()).hexdigest()
 
 
+# Write to a temporary file first and rename it, so a crash never leaves half a file.
 def write_json(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -165,6 +202,7 @@ def read_jsonl(path):
     return [json.loads(line) for line in Path(path).read_text().splitlines()]
 
 
+# Same safe-write pattern for CSV tables; lists and dicts are stored as JSON text.
 def write_csv(path, rows):
     """CSV with the union of row keys; nested values are JSON encoded."""
     import csv
@@ -190,6 +228,8 @@ def fresh_directory(path):
     return path
 
 
+# Fingerprint of the scientific code, stored next to every prepared output so one can
+# later check which code produced it.
 def code_hashes():
     """Hashes of the scientific modules, recorded in every stage's inputs."""
     folder = ROOT/'src/main_experiment'

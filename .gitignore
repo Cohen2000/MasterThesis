@@ -37,10 +37,8 @@ CLAUDE.local.md
 /results/**
 /figures/generated/
 
-# Prevent accidental addition of untracked bulk artifacts inside archives
-/archive/**/results/**
-!/archive/*/docs/results/**
-/archive/**/logs/**
+# Local archive folder (never part of the repository)
+/archive/
 
 # Transient execution artifacts
 *.log

@@ -7,6 +7,9 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from main_experiment.common import ROOT, sha, write_json
 from huggingface_hub import snapshot_download
 
+# One-time setup: the prompts' token counts are measured with the exact tokenizers of
+# the models. Only the tokenizer files are downloaded (pinned revisions), never the
+# model weights. Each download gets a provenance.json with file hashes.
 out=ROOT/'data/tokenizers'; out.mkdir(parents=True,exist_ok=True)
 for name,repo,revision in [
  ('qwen','Qwen/Qwen3.6-35B-A3B','995ad96eacd98c81ed38be0c5b274b04031597b0'),
@@ -17,6 +20,7 @@ for name,repo,revision in [
                                       'chat_template.jinja','vocab.json','merges.txt','config.json'])
     write_json(dest/'provenance.json',{'repo':repo,'revision':revision,
                'files':{p.name:sha(p) for p in dest.iterdir() if p.is_file() and p.name!='provenance.json'}})
+# GPT tokenizer (o200k_base): downloading it once fills the local cache.
 os.environ['TIKTOKEN_CACHE_DIR']=str(out/'tiktoken')
 import tiktoken
 tiktoken.get_encoding('o200k_base')

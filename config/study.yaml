@@ -1,13 +1,12 @@
-protocol: docs/PROTOCOL_PANEL888_20260921.md
-design_version: panel888-access-v11-20260923
-results: docs/results/panel888_v11_main_20260923
+# Summary of the study design (descriptive; the code reads its settings from src/ and config/pipeline.yaml).
+design: docs/DESIGN.md
+results: docs/results/final
 W: 5
 master_seed: 20260921
 arms:
   R: uniform_node_panel_full_history
   S: interaction_following_walk_with_crawl_log
-  # S_obs (same walk without the crawl log) was a Qwen-only ablation up to v11; it is historical
-  # (docs/results/panel888_v11_main_20260923) and not part of current runs or evaluations.
+  # S_obs (the same walk without the crawl log) is drawn for reproducibility of the random streams only.
   H: uniform_node_panel_history_fraction_0.60
   B: independent_bernoulli_event_retention
 walk:
@@ -36,7 +35,7 @@ training:
   et_variant: pooled_only
   et_features: {R: 175, H: 175, S: 174, B: 174}
   et_selection: nested_leave_one_real_training_source_out
-references:            # four-estimator rule (2026-09-28): plugin, median, MLE, ExtraTrees per arm
+references:            # four estimators per arm: plugin, median, MLE, ExtraTrees
   R: plugin
   S: mle
   H: mle
@@ -50,17 +49,17 @@ evaluation:
 qwen:
   generation_arms: [R, S, H, B]
   R_H_source: completed_panel_release_archive
-  S_S_obs_B_source: sealed_v10_archive
+  S_B_source: stage1_archive
 api_main:
   arms: [R, S, H, B]
-  deepseek: {model: deepseek-flash, reasoning: high, initial_repeats: 1, maximum_repeats: 3, budget_usd: 10, off_peak_only: true}
-  openai: {model: gpt-6-sol, reasoning: high, initial_repeats: 1, maximum_repeats: 3, transport: batch_responses, budget_usd: 200}
+  deepseek: {model: deepseek-flash, reasoning: high, repeats: 3, off_peak_only: true}
+  openai: {model: gpt-6-sol, reasoning: high, repeats: 3, transport: batch_responses, variants: [no_tools, hosted_python]}
 reasoning_exposure:
   deepseek: raw_provider_reasoning
   openai: provider_reasoning_summary
   qwen: generated_reasoning_block
 panel:
   real: [sp_hospital, sp_highschool2013, copenhagen_bluetooth, sp_workplace, snap_email_eu, snap_collegemsg, snap_mathoverflow, nr_digg_reply,
-         reality_mining, lkml_reply, sp_malawi, nr_radoslaw_email]   # last four added 2026-09-28 (config/v11_ext.yaml)
+         reality_mining, lkml_reply, sp_malawi, nr_radoslaw_email]   # last four prepared in stage 2 (config/pipeline.yaml)
   surrogates: one_parent_matched_Pwt_per_real
   synthetic: [dar_a0_r1, dar_a08_r1, dar_a0_r2, dar_a08_r2, ad_memoryless_r1, ad_memory_r1, ad_memoryless_r2, ad_memory_r2]

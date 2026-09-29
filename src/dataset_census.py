@@ -1,5 +1,9 @@
 """Audited empirical census, W sensitivity and bounded timing feasibility.
 
+In plain words: reads each raw dataset exactly as downloaded (with its audited parser)
+and checks how the persistence measure reacts to the number of windows W. The parser
+here is also used by the main pipeline to load the real sources.
+
 Only local files are read. Each retained row is one event, with no deduplication,
 edge-weight expansion, sampling, largest-component restriction or downloads.
 """

@@ -1,5 +1,9 @@
 """Canonical temporal graphs: undirected dyads, event records and five windows.
 
+In plain words: turns a raw event list (who interacted with whom, when) into one clean
+graph object: pairs are undirected, self-loops removed, time is cut into 5 windows, and
+the true rho_2..rho_5 of the complete graph are computed. "Dyad" = node pair.
+
 A graph is a list of event records (dyad, timestamp). The archive horizon
 [t_start, t_end] is cut into W=5 equal windows; K_e is the number of windows in
 which dyad e has at least one event, and the estimand is rho_k = mean_e[K_e >= k]

@@ -1,4 +1,8 @@
-"""Algorithms fixed in docs/PROTOCOL_PANEL888_20260921.md before coding.
+"""Synthetic temporal graphs with known persistence (two generator families).
+
+In plain words: DAR graphs switch each pair on/off per round with a tunable memory;
+activity-driven (AD) graphs let active nodes contact others, with or without memory of
+past partners. The algorithms were fixed before any result was computed (docs/DESIGN.md).
 
 The frozen eight main-test instances are produced by generate_pair with the
 frozen defaults; the training/development pool (see pool.py) uses the same two
@@ -76,6 +80,8 @@ def generate_pair(family,replicate):
     """The frozen main-test pairs: two modes sharing every latent quantity."""
     pair_id=f'{family}_pair_r{replicate}'; r=rng('graph',pair_id)
     common={'family':family,'replicate':replicate,'seed':seed('graph',pair_id),
+            # 'algorithm_document' is the file name recorded in every stored graph manifest (data);
+            # the algorithms are described in docs/DESIGN.md.
             'horizon':[0,1],'algorithm_document':'docs/PROTOCOL_PANEL888_20260921.md'}
     if family=='dar':
         L=dar_latents(r,**DAR_DEFAULTS)

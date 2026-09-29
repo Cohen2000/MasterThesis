@@ -1,5 +1,9 @@
 """Beta-mixture reference of arm B (independent Bernoulli event thinning).
 
+In plain words: under arm B each event is kept with probability p, so a window in which a
+pair was active can look empty. This model describes both layers at once (how active a pair
+is, and how many events it has per active window) and inverts the thinning.
+
 Model family after Dorazio & Royle (2003), Mixture Models for Estimating the Size
 of a Closed Population When Capture Rates Vary among Individuals,
 https://doi.org/10.1111/1541-0420.00042. That paper motivates a Beta mixture over

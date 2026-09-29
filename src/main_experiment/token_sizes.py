@@ -1,3 +1,8 @@
+"""Prompt length check: counts the tokens of every prompt with each model's tokenizer.
+
+In plain words: every prompt must fit comfortably into every model (at most 4096 input
+tokens); this is checked with the exact tokenizers downloaded by scripts/fetch_tokenizers.py.
+"""
 from pathlib import Path
 import os
 from .common import sha,read_json

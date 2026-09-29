@@ -1,5 +1,11 @@
 """Shared zero-truncated Beta-Binomial observation-model MLE.
 
+In plain words: the statistical reference estimator. It assumes every pair has its own
+activity probability (drawn from a Beta distribution), fits that distribution to the
+observed counts of active windows, and computes rho_2..rho_5 from the fit. Each arm only
+changes which information enters the fit. Pairs never observed are handled by
+"zero truncation": the model only describes pairs seen at least once.
+
 A single working-model baseline used across every arm: a common latent
 persistence model
 

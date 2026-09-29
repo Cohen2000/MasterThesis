@@ -1,5 +1,8 @@
 """Strict parsing of final answers and hierarchical error aggregation.
 
+In plain words: decides whether a model answer counts (valid) and turns valid answers into
+errors. The same parser is used for every language model.
+
 An answer is valid only if its final text is one JSON object with exactly the
 keys rho_2..rho_5, finite numbers in [0,1], non-increasing, optionally wrapped
 in a single whole-answer code fence. Invalid answers are never imputed;
@@ -15,6 +18,7 @@ KEYS=tuple(f'rho_{k}' for k in range(2,6))
 FENCE=re.compile(r'\A```[A-Za-z0-9_+-]*\s*\n(.*?)\n?```\s*\Z',re.S)
 
 
+# Allow exactly one ``` code fence around the whole answer (models often add one).
 def strip_fence(raw):
     """Remove one surrounding markdown code fence, if the whole answer is one.
 
@@ -32,6 +36,7 @@ def strip_fence(raw):
     return (m.group(1),True) if m else (raw,False)
 
 
+# The validity rule shared by all language models: returns (values, reason).
 def parse_final(raw):
     def pairs(items):
         d={}
@@ -56,6 +61,17 @@ def parse_final(raw):
 EVALUATION_VERSION='validity-conditional-mae-v1-20260918'
 
 
+def valid_profile(p):
+    """ExtraTrees output as a valid profile: each value limited to [0, 1], then each rho_k
+    capped at rho_(k-1), so the profile never increases. A valid profile is unchanged."""
+    out=[]
+    for x in p:
+        x=min(1.,max(0.,float(x)))
+        out.append(min(x,out[-1]) if out else x)
+    return out
+
+
+# Status of one planned Qwen request: empty observation, not started, answered, failed.
 def resolve(o,record=None):
     """State and parsed prediction of one planned request; failures have no estimate."""
     base={'prediction':None,'valid':None,'replacement':None,'started':False,'terminal':False}
@@ -90,6 +106,7 @@ def complete_summary(cells,expected=None):
     return conditional_summary(cells,expected,complete=True)
 
 
+# Equal-source mean over valid answers only, with a clustered standard error.
 def conditional_summary(cells,expected=None,complete=False):
     """Source-equal mean of valid-answer means; NaN denotes an unavailable answer.
 

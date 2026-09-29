@@ -1,4 +1,9 @@
-"""The five v10 observation arms and their budget calibration.
+"""Sampling arms: how a partial observation of a graph is taken, and its budget.
+
+In plain words: each arm hides most of the graph in a different way. Its size
+parameter (panel size, walk length or keep-probability) is tuned per graph so that
+every arm sees about the same amount of data. S_obs is a walk variant that is kept
+for reproducibility of the random streams but is not reported.
 
 Every arm is matched on the expected number of observed active dyad-windows,
 T = 0.10 * sum_e K_e, computed per graph (surrogates separately from parents):
@@ -23,17 +28,26 @@ surrogate uses its parent's node permutation (R, H), walk stream (S/S_obs) and
 per-record uniforms (B). Only the full-archive quantities above are used to
 set n, L and p; no realised sample is ever used.
 """
+# In plain words: this module takes a complete graph and produces a partial observation
+# of it, in one of the sampling arms. First each arm's size parameter is tuned so that
+# every arm sees about the same amount of data (10% of the active pair-window cells):
+#   R: how many nodes are in the panel;   H: the same, for the late-history panel;
+#   S: how many steps the walk takes;     B: which share of events is kept.
+# Then draw() actually samples. All randomness comes from fixed seeds, and a surrogate
+# reuses its parent's random numbers, so differences between them come from the graph,
+# not from luck.
 from decimal import Decimal
 import numpy as np
 from .common import (BUDGET_TOLERANCE, COVERAGE_FRACTION, DESIGN_VERSION, H_FRACTION,
                      parent_source, rng, sampler_id, seed)
 from .data import window_counts
 
-from .walk_v10_audit import (Walk, walk_length, validate_walk_length,
+from .walk import (Walk, walk_length, validate_walk_length,
                              MAX_RELATIVE_MCSE)
 
 
 # ---------------------------------------------------------------- analytic arms R, H, B
+# R: choose the panel size n so that the expected observed volume is closest to the budget T.
 def panel_size(total, T, N):
     """Integer panel size n in 0..N whose expected observed volume pi(n)*total is closest to T.
 
@@ -45,6 +59,7 @@ def panel_size(total, T, N):
     return best, float(expected[best])
 
 
+# H: only events after this time point are visible (the last 60% of the time axis).
 def history_start(g, h=H_FRACTION):
     """Earliest retrievable time of arm H: t_start + (1-h)(t_end-t_start)."""
     if not 0 < h <= 1: raise ValueError('history fraction must be in (0,1]')
@@ -72,6 +87,8 @@ def h_parameters(g, T, h=H_FRACTION):
             'h_saturated': bool(n == g.N), 'h_within_tolerance': bool(abs(relative_error) <= BUDGET_TOLERANCE)}
 
 
+# B: choose the keep-probability p of each event so that the expected number of observed
+# active cells equals T (found by bisection).
 def bernoulli_p(g, T):
     """Retention probability p with expected observed active cells equal to T.
 
@@ -111,6 +128,8 @@ def analytic_parameters(g, fraction=COVERAGE_FRACTION):
             'bernoulli_expected_events': p*g.M, 'bernoulli_dyad_share': float(np.mean(-np.expm1(g.m*np.log1p(-p))))}
 
 
+# All arms' parameters for one graph. The walk length L has no formula; it is found by
+# simulating many walks (see walk.py).
 def calibrate(g, build_dir, fraction=COVERAGE_FRACTION):
     """Complete budget of one graph: analytic arms plus the calibrated walk length.
 
@@ -149,6 +168,7 @@ def calibrate(g, build_dir, fraction=COVERAGE_FRACTION):
 
 
 # ---------------------------------------------------------------- drawing observations
+# Which pairs are observed by a node panel: both endpoints must be among the sampled nodes.
 def node_panel_mask(g, r, size):
     """Dyads whose two endpoints are among the first `size` nodes of a uniform permutation.
 
@@ -172,6 +192,8 @@ def draw_sampler_id(arm, budget):
     return sampler_id(arm, budget.get('coverage_fraction', COVERAGE_FRACTION))
 
 
+# One observation draw: returns the observed events per pair and window (and, for the
+# walk, how often each pair was traversed).
 def draw(g, arm, index, domain, budget, walk=None):
     """Observed events per dyad and window for one sampler draw.
 

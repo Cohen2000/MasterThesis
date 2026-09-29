@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Persistence census over public temporal graph datasets.
 
-Implements the measures from Definition Note v3:
+In plain words: the dataset survey that came before the experiment. For every candidate
+public temporal graph it computes how persistent pairs are (rho_k for several window
+counts), plus sensitivity checks, and draws overview plots. It helped choose the sources.
+
+Implements the measures of the persistence definition:
   - Horizon [t_min, t_max], W equal-length half-open windows, last window closed.
   - a_e = number of distinct active windows per observed node pair (indicator).
   - rho_{k,W} = share of observed pairs with a_e >= k.

@@ -118,3 +118,10 @@ class EvaluationIntegrationTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ValidProfile(unittest.TestCase):
+    def test_extratrees_output_is_made_valid_and_valid_profiles_stay_unchanged(self):
+        from main_experiment.evaluation import valid_profile
+        self.assertEqual(valid_profile([1.02, 0.5, 0.6, -0.01]), [1.0, 0.5, 0.5, 0.0])
+        self.assertEqual(valid_profile([0.8, 0.6, 0.4, 0.2]), [0.8, 0.6, 0.4, 0.2])

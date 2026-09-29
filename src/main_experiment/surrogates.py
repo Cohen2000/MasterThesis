@@ -1,5 +1,10 @@
 """P[w,t] timestamp-shuffled temporal surrogates of the real sources.
 
+In plain words: a surrogate is the real graph with its timestamps randomly shuffled.
+Who interacts with whom, and how often, stays the same; only the timing is destroyed.
+Comparing a method on the original and on its surrogate shows whether it uses real
+temporal structure.
+
 The timestamp vector of the parent's canonical event records is permuted
 uniformly at random. Record i keeps its dyad, so nodes, dyad support, events per
 dyad, the total event count, the timestamp multiset and the archive bounds are
