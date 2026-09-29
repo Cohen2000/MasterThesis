@@ -237,6 +237,33 @@ class PanelTests(unittest.TestCase):
             self.assertAlmostEqual(r['plugin'], expected, places=12)
             if r['k'] >= 4: self.assertEqual(r['plugin'], 0.)
 
+    def test_history_sampled_absolute_error_precedes_draw_average(self):
+        from v11_ext import report
+        import csv
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'history.csv'
+            with path.open('w') as f:
+                writer = csv.DictWriter(f, fieldnames=['group', 'level', 'window', 'graph_id', 'k',
+                                                       'numerator_loss', 'denominator_loss', 'plugin_error', 'mle_error'])
+                writer.writeheader()
+                for group in ('real', 'surrogate'):
+                    for error in (.2, -.2):
+                        for k in range(2, 6):
+                            writer.writerow(dict(group=group, level='H_sampled', window='last60', graph_id='g', k=k,
+                                                 numerator_loss=0, denominator_loss=0, plugin_error=error, mle_error=error))
+                for group in ('real', 'surrogate'):
+                    for window in ('last60', 'first60'):
+                        for k in range(2, 6):
+                            writer.writerow(dict(group=group, level='population', window=window, graph_id='g', k=k,
+                                                 numerator_loss=0, denominator_loss=0, plugin_error=0, mle_error=0))
+            _, errors = report.history_summary(path)
+            sampled = next(r for r in errors if r['group'] == 'real' and r['estimator'] == 'mle' and r['node_sampling'])
+            self.assertAlmostEqual(sampled['signed_rho2'], 0)
+            self.assertAlmostEqual(sampled['MAE_2'], .2)
+            self.assertAlmostEqual(sampled['ProfileMAE'], .2)
+
     def test_leakage_audit_rejects_a_family_in_training(self):
         from v11_ext import report
         obs = {'a': {'source': 'sp_hospital__pwt'}}

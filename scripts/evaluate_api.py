@@ -6,8 +6,8 @@ Joint evaluation over the 12 real sources, 12 surrogates and 8 synthetic graphs
 and surrogates are compared as pairs. API answers come from the v11 run directories
 and, after the API extension, from the ext run directories. Offline methods
 (plugin, median, MLE, ExtraTrees) and Qwen are read from the final PREDICTIONS.csv.
-A method whose block is incomplete is reported as pending, never ranked. Accuracy is conditional on
-valid final answers; nothing is clipped, repaired or imputed.
+A method whose block is incomplete is reported as pending, never ranked. LLM accuracy is conditional
+on valid final answers; ET uses every raw profile. Nothing is clipped, repaired or imputed.
 """
 import argparse
 import csv
@@ -50,7 +50,7 @@ def committed_rows(path, truth):
         rid = r.get('id') or f"{r['observation_id']}__{r['method']}__r{r['repeat_index']}"
         prediction = json.loads(r['prediction']) if r['prediction'] else None
         valid = r['valid'] == 'True'
-        values = prediction if valid else None
+        values = prediction if valid or r['method'] == 'et' else None
         check = errors(values, truth[r['source']])
         stored = float(r['AE2']) if r['AE2'] else None
         if (stored is None) != (check['AE2'] is None) or (stored is not None and abs(stored - check['AE2']) > 1e-9):
@@ -135,7 +135,7 @@ def paired(rows):
     """Source-level MAE_2 difference (first minus second); each method uses all of
     its valid answers for a source."""
     out = []
-    for group in GROUPS:
+    for group in ('real', 'surrogate'):
         for arm in API_MAIN_ARMS:
             chosen = [r for r in rows if in_group(r, group) and r['arm'] == arm]
             means = {m: mean_by_source([r for r in chosen if r['method'] == m], 'AE2') for m in METHODS}
@@ -226,7 +226,7 @@ def markdown(table, pairs, fams, runs, out):
              'repeats) and GPT-6 Sol with the hosted Python tool (`gpt_6_sol_tools`, otherwise identical) on the',
              'frozen R/S/H/B observations. Offline methods (plugin, median, MLE, ExtraTrees; reference plugin for R',
              'and the MLE otherwise) and Qwen are the final predictions. MAE_2 is the equal-source mean over valid',
-             'answers within each block; a block missing any source is **pending** and not ranked. Nothing is',
+             'LLM answers and all raw ET profiles; a block missing any source is **pending** and not ranked. Nothing is',
              'clipped, repaired or imputed. Recorded spend is an upper bound on the provider bill.', '']
     for provider, report in runs.items():
         main = report.get('main', {})
@@ -243,6 +243,9 @@ def markdown(table, pairs, fams, runs, out):
                              f"{fmt(r['signed_rho_2'])} | {r['valid_answers']}/{r['planned_answers']} | "
                              f"{r['sources_with_valid']}/{r['sources']} {'' if r['status'] == 'complete' else '(pending)'} | "
                              f"{fmt(r['draw_clustered_MCSE_2'])} |")
+        if group == 'synthetic':
+            lines += ['', 'The eight synthetic graphs form four generator pairs with shared random numbers;',
+                      'these MAE results are descriptive (minimum two-sided sign-flip p with four blocks: 0.125).']
     lines += ['', '## Paired original minus surrogate', '',
               '| Arm | Method | Families | Mean difference | Original better | Exact sign-flip p |', '|---|---|---:|---:|---:|---:|']
     for r in fams:

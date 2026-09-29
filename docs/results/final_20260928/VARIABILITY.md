@@ -1,7 +1,7 @@
 # Variability
 
-Three different sources of variation, reported separately and not compared with one another
-(different quantities and repetition counts: 11 ET fits, 3 sampler draws, 3 LLM answers).
+Training, sampling and answer variability are reported below; the fixed-input table compares
+training and answer variation at three predictions per observation.
 
 ## Training variability (ExtraTrees, 11 fits)
 
@@ -196,3 +196,32 @@ three valid answers. DeepSeek has one repeat.
 | synthetic | B | qwen_nonthinking | 24 | 0.2328 |
 | synthetic | B | gpt_6_sol | 24 | 0.0127 |
 | synthetic | B | gpt_6_sol_tools | 24 | 0.0168 |
+
+## Fixed-input comparison (real sources)
+
+Median per-observation SD of rho_2. MLE is deterministic; ET uses 200 seeded random
+three-fit subsets of its 11 fits, averaging each observation’s SD over subsets.
+LLMs use observations with three valid repeats.
+
+| Arm | Method | Observations | Median SD |
+|---|---|---:|---:|
+| R | mle | 36 | 0.0000 |
+| R | et | 36 | 0.0041 |
+| R | qwen_thinking | 36 | 0.0000 |
+| R | gpt_6_sol | 36 | 0.0000 |
+| R | gpt_6_sol_tools | 36 | 0.0000 |
+| S | mle | 36 | 0.0000 |
+| S | et | 36 | 0.0060 |
+| S | qwen_thinking | 36 | 0.0794 |
+| S | gpt_6_sol | 36 | 0.0001 |
+| S | gpt_6_sol_tools | 36 | 0.0000 |
+| H | mle | 36 | 0.0000 |
+| H | et | 36 | 0.0051 |
+| H | qwen_thinking | 36 | 0.2187 |
+| H | gpt_6_sol | 36 | 0.0167 |
+| H | gpt_6_sol_tools | 36 | 0.0216 |
+| B | mle | 36 | 0.0000 |
+| B | et | 36 | 0.0048 |
+| B | qwen_thinking | 36 | 0.1628 |
+| B | gpt_6_sol | 36 | 0.0509 |
+| B | gpt_6_sol_tools | 36 | 0.1220 |

@@ -15,6 +15,8 @@ from collections import Counter, defaultdict
 from statistics import median
 import numpy as np
 from main_experiment.common import ROOT, read_json, write_csv, write_json
+from main_experiment.observation import parse
+from main_experiment.baselines import design_estimate
 from .core import CFG, MLE_ANCHOR_ARMS, NEW_SOURCES, RH, V10, WORK
 from .panel12 import ARMS4, QWEN_SUR_DIR, SURROGATES, family
 from .qwen import QWEN_DIR, answers as qwen_answers
@@ -63,6 +65,8 @@ def observations(inputs):
 
 
 def row(o, method, p, replicate=None, repeat=None, valid=None, origin='', reason=''):
+    if method == 'et' and p is not None:
+        valid = len(p) == 4 and all(math.isfinite(x) and 0 <= x <= 1 for x in p) and all(a >= b for a, b in zip(p, p[1:]))
     return {'observation_id': o['id'], 'source': o['source'], 'family': family(o['source']), 'group': o['group'],
             'arm': o['arm'], 'sample_index': o['sample_index'], 'method': method, 'replicate': replicate,
             'repeat_index': repeat, 'prediction': p, 'valid': p is not None if valid is None else valid,
@@ -157,7 +161,7 @@ def signflip(values):
 def paired_methods(rows):
     """Within a block: first minus second source-level MAE_2 (both complete on the same sources)."""
     out = []
-    for g in GROUPS:
+    for g in ('real', 'surrogate'):
         for arm in ARMS4:
             ref = REF_METHOD[arm]
             for first, second in dict.fromkeys([('et', ref), ('qwen_thinking', ref), (ref, 'plugin'),
@@ -195,11 +199,12 @@ def per_source(rows):
     for r in rows: grouped[r['group'], r['source'], r['arm'], r['method']].append(r)
     out = []
     for (g, s, arm, m), sel in sorted(grouped.items()):
-        valid = [r for r in sel if r['AE2'] is not None]
-        out.append({'group': g, 'source': s, 'arm': arm, 'method': m, 'answers': len(sel), 'valid': len(valid),
-                    'MAE_2': float(np.mean([r['AE2'] for r in valid])) if valid else None,
-                    'ProfileMAE': float(np.mean([r['ProfileAE'] for r in valid])) if valid else None,
-                    'signed_rho_2': float(np.mean([r['signed_rho2'] for r in valid])) if valid else None})
+        scored = [r for r in sel if r['AE2'] is not None]
+        out.append({'group': g, 'source': s, 'arm': arm, 'method': m, 'answers': len(sel),
+                    'valid': sum(r['valid'] for r in sel),
+                    'MAE_2': float(np.mean([r['AE2'] for r in scored])) if scored else None,
+                    'ProfileMAE': float(np.mean([r['ProfileAE'] for r in scored])) if scored else None,
+                    'signed_rho_2': float(np.mean([r['signed_rho2'] for r in scored])) if scored else None})
     return out
 
 
@@ -226,7 +231,7 @@ def variability(rows, replicates):
                 cells = defaultdict(lambda: defaultdict(list))
                 reps = defaultdict(list)
                 for r in rows:
-                    if (r['group'], r['arm'], r['method']) == (g, arm, m) and r['valid'] and r['replicate'] in (None, 0):
+                    if (r['group'], r['arm'], r['method']) == (g, arm, m) and (r['valid'] or m == 'et') and r['replicate'] in (None, 0):
                         cells[r['source']][r['sample_index']].append(r['prediction'][0])
                         reps[r['observation_id']].append(r['prediction'][0])
                 draw_sd = [sd([np.mean(v) for v in draws.values()]) for draws in cells.values() if len(draws) >= 2]
@@ -238,6 +243,61 @@ def variability(rows, replicates):
                     response.append({'group': g, 'arm': arm, 'method': m, 'observations_with_3_valid': len(full),
                                      'median_observation_SD_rho2': median(full)})
     return training, sampling, response
+
+
+def fixed_input_variability(rows):
+    """Median observation SD at fixed input, with ET fit count matched to LLM repeats."""
+    rng = np.random.default_rng(20260928)
+    out = []
+    for arm in ARMS4:
+        for method in ('mle', 'et', 'qwen_thinking', 'gpt_6_sol', 'gpt_6_sol_tools'):
+            cells = defaultdict(list)
+            for r in rows:
+                if r['group'] == 'real' and r['arm'] == arm and r['method'] == method and (r['valid'] or method == 'et'):
+                    cells[r['observation_id']].append(r['prediction'][0])
+            if method == 'mle':
+                values = [0. for v in cells.values() if v]
+            elif method == 'et':
+                values = [float(np.mean([sd(np.asarray(v)[rng.choice(len(v), 3, replace=False)])
+                                         for _ in range(200)])) for v in cells.values() if len(v) == 11]
+            else:
+                values = [sd(v) for v in cells.values() if len(v) == 3]
+            out.append({'arm': arm, 'method': method, 'observations': len(values),
+                        'median_observation_SD_rho2': median(values)})
+    return out
+
+
+def s_design_appendix(block_paths, rows):
+    """Descriptive S ratio from the released traversal weights and frozen answers."""
+    design = {}
+    for path in block_paths:
+        item = read_json(path)
+        if item['arm'] == 'S':
+            design[item['id']] = design_estimate(item if 'table' in item else parse(item['block']))
+    if len(design) != 96: raise ValueError(f'expected 96 frozen S observations, got {len(design)}')
+    srows = [r for r in rows if r['arm'] == 'S' and r['observation_id'] in design]
+    out = []
+    for group in GROUPS:
+        cells = defaultdict(list)
+        seen = set()
+        for r in srows:
+            if r['group'] == group and r['observation_id'] not in seen:
+                cells[r['source']].append(abs(design[r['observation_id']][0] - r['truth_rho2']))
+                seen.add(r['observation_id'])
+        out.append({'group': group, 'arm': 'S', 'model': 'design', 'sources': len(cells),
+                    'MAE_2': float(np.mean([np.mean(v) for v in cells.values()])),
+                    'valid_answers': '', 'share_plugin': '', 'share_design': '', 'share_mle': ''})
+    base = {(r['observation_id'], r['method']): r['prediction'][0] for r in srows
+            if r['method'] in ('plugin', 'mle') and r['replicate'] in (None, 0)}
+    for method in QWEN+APIM:
+        answers = [r for r in srows if r['group'] == 'real' and r['method'] == method and r['valid']]
+        out.append({'group': 'real', 'arm': 'S', 'model': method, 'sources': len({r['source'] for r in answers}),
+                    'MAE_2': '', 'valid_answers': len(answers),
+                    **{f'share_{name}': float(np.mean([abs(r['prediction'][0] -
+                             (design[r['observation_id']][0] if name == 'design' else
+                              base[r['observation_id'], name])) <= .005 for r in answers]))
+                       for name in ('plugin', 'design', 'mle')}})
+    return out
 
 
 # ---------------------------------------------------------------- leakage audit
@@ -279,11 +339,11 @@ def history_summary(path):
                 for r in rows:
                     if (r['group'], r['level'], r['window']) == (g, level, window):
                         per_graph[r['graph_id']][r['k']].append(r[f'{est}_error'])
-                e = {gid: [float(np.mean(v[k])) for k in range(2, 6)] for gid, v in per_graph.items()}
+                e = {gid: [[float(x) for x in v[k]] for k in range(2, 6)] for gid, v in per_graph.items()}
                 errs.append({'group': g, 'estimator': est, 'truncation': window, 'node_sampling': level == 'H_sampled',
-                             'graphs': len(e), 'signed_rho2': float(np.mean([v[0] for v in e.values()])),
-                             'MAE_2': float(np.mean([abs(v[0]) for v in e.values()])),
-                             'ProfileMAE': float(np.mean([np.mean(np.abs(v)) for v in e.values()]))})
+                             'graphs': len(e), 'signed_rho2': float(np.mean([np.mean(v[0]) for v in e.values()])),
+                             'MAE_2': float(np.mean([np.mean(np.abs(v[0])) for v in e.values()])),
+                             'ProfileMAE': float(np.mean([np.mean([np.mean(np.abs(k)) for k in v]) for v in e.values()]))})
     return losses, errs
 
 
@@ -295,11 +355,12 @@ WALK_COLUMNS = ('graph_id', 'L', 'stationary_shift_rho2', 'plugin_rho2_bias', 'p
 
 
 # ---------------------------------------------------------------- markdown
-def main_markdown(table, infer, fam, per_src):
+def main_markdown(table, infer, fam, per_src, s_design=None):
     lines = ['# Main results', '',
              'Arms R, S, H and B; estimators plugin, median, MLE and ExtraTrees (ET, production fit), plus Qwen and',
-             'the paid APIs. Reference (ref.): plugin for R, MLE for S, H and B. Equal-source MAE_2 over valid',
-             'answers is primary, ProfileMAE secondary; nothing is clipped or repaired. The twelve real sources are',
+             'the paid APIs. Reference (ref.): plugin for R, MLE for S, H and B. Equal-source MAE_2 is primary,',
+             'ProfileMAE secondary; LLM scores use valid answers and ET scores all raw profiles, including invalid ones.',
+             'Nothing is clipped or repaired. The twelve real sources are',
              'the main analysis and are weighted equally. A method missing any source of a block is marked',
              '**pending** and not ranked. S_obs is a historical ablation and is not reported here.', '']
     for g in GROUPS:
@@ -308,6 +369,9 @@ def main_markdown(table, infer, fam, per_src):
                           [[r['arm'], r['method']+(' (ref.)' if r['reference'] else ''), fmt(r['MAE_2']),
                             fmt(r['ProfileMAE']), fmt(r['signed_rho_2']), fmt(r['validity'], 3), r['status']]
                            for r in table if r['group'] == g])+['']
+        if g == 'synthetic':
+            lines += ['These eight graphs form four generator pairs with shared random numbers; their MAE tables are descriptive,',
+                      'since a four-block two-sided sign-flip test has minimum p = 0.125.', '']
     lines += ['## Paired original minus surrogate (12 source families)', '',
               'Source-level MAE_2 of the original minus that of its surrogate; each family is one pair.', '']
     lines += md_table(['Arm', 'Method', 'Original', 'Surrogate', 'Mean difference', 'Original better', 'Sign-flip p'],
@@ -324,13 +388,25 @@ def main_markdown(table, infer, fam, per_src):
     lines += ['## Real sources (MAE_2 per source)', '']
     lines += md_table(['Source', 'Arm', *OFFLINE, *QWEN],
                       [[s, arm, *(fmt(index.get((s, arm, m))) for m in OFFLINE+QWEN)] for s in reals for arm in ARMS4])
-    return '\n'.join(lines+['', 'All groups, API methods and metrics: `PER_SOURCE.csv`.', ''])
+    lines += ['', 'All groups, API methods and metrics: `PER_SOURCE.csv`.', '']
+    if s_design is not None:
+        lines += ['## Appendix: S design ratio', '',
+                  'The plain protocol ratio sums traversals_per_event for patterns with at least k active windows',
+                  'and divides by the sum over all patterns. It is a descriptive appendix, not a reference.',
+                  'MAE_2 is equal-source weighted; answer shares use valid LLM answers and tolerance 0.005.', '']
+        lines += md_table(['Group', 'S design MAE_2'],
+                          [[r['group'], fmt(r['MAE_2'])] for r in s_design if r['model'] == 'design'])+['']
+        lines += md_table(['Real S model', 'Valid answers', 'Near plugin', 'Near design', 'Near MLE'],
+                          [[r['model'], r['valid_answers'], fmt(r['share_plugin'], 3), fmt(r['share_design'], 3),
+                            fmt(r['share_mle'], 3)] for r in s_design if r['model'] != 'design'])
+        lines += ['', 'Per-group and per-model values: `S_DESIGN_APPENDIX.csv`.', '']
+    return '\n'.join(lines)
 
 
-def variability_markdown(training, sampling, response, replicates):
+def variability_markdown(training, sampling, response, replicates, fixed=None):
     lines = ['# Variability', '',
-             'Three different sources of variation, reported separately and not compared with one another',
-             f'(different quantities and repetition counts: {replicates+1} ET fits, 3 sampler draws, 3 LLM answers).', '',
+             'Training, sampling and answer variability are reported below; the fixed-input table compares',
+             'training and answer variation at three predictions per observation.', '',
              f'## Training variability (ExtraTrees, {replicates+1} fits)', '',
              'Fit 0 is the production fit; fits 1-10 redraw the real training and pool observations, reseed the',
              'forests and rerun the nested selection. Test observations are fixed.', '']
@@ -351,6 +427,14 @@ def variability_markdown(training, sampling, response, replicates):
     lines += md_table(['Group', 'Arm', 'Method', 'Observations', 'Median SD across repeats'],
                       [[r['group'], r['arm'], r['method'], r['observations_with_3_valid'],
                         fmt(r['median_observation_SD_rho2'])] for r in response])
+    if fixed is not None:
+        lines += ['', '## Fixed-input comparison (real sources)', '',
+                  'Median per-observation SD of rho_2. MLE is deterministic; ET uses 200 seeded random',
+                  'three-fit subsets of its 11 fits, averaging each observation’s SD over subsets.',
+                  'LLMs use observations with three valid repeats.', '']
+        lines += md_table(['Arm', 'Method', 'Observations', 'Median SD'],
+                          [[r['arm'], r['method'], r['observations'], fmt(r['median_observation_SD_rho2'])]
+                           for r in fixed])
     return '\n'.join(lines+[''])
 
 
@@ -425,11 +509,17 @@ def report(task, out, inputs):
     table, infer, fam, per_src = summary(main), paired_methods(main), paired_families(main), per_source(main)
     write_csv(out/'SUMMARY.csv', table); write_csv(out/'PAIRED_METHODS.csv', infer)
     write_csv(out/'PAIRED_FAMILIES.csv', fam); write_csv(out/'PER_SOURCE.csv', per_src)
-    (out/'MAIN_RESULTS.md').write_text(main_markdown(table, infer, fam, per_src))
+    s_paths = list((V10/'prepared/observations/sample').glob('*__S-*.json'))
+    s_paths += [p for name in inputs if name.startswith(('source:', 'surrogate:'))
+                for p in (inputs[name]/'observations').glob('*__S-*.json')]
+    s_design = s_design_appendix(s_paths, main)
+    write_csv(out/'S_DESIGN_APPENDIX.csv', s_design)
+    (out/'MAIN_RESULTS.md').write_text(main_markdown(table, infer, fam, per_src, s_design))
     training, sampling, response = variability(rows, replicates)
     write_csv(out/'VARIABILITY_TRAINING.csv', training); write_csv(out/'VARIABILITY_SAMPLING.csv', sampling)
     write_csv(out/'VARIABILITY_RESPONSE.csv', response)
-    (out/'VARIABILITY.md').write_text(variability_markdown(training, sampling, response, replicates))
+    (out/'VARIABILITY.md').write_text(variability_markdown(training, sampling, response, replicates,
+                                                            fixed_input_variability(rows)))
     losses, errs = history_summary(inputs['history']/'HISTORY.csv')
     (out/'HISTORY.csv').write_text((inputs['history']/'HISTORY.csv').read_text())
     write_csv(out/'HISTORY_LOSSES.csv', losses); write_csv(out/'HISTORY_ERRORS.csv', errs)

@@ -4,7 +4,7 @@ DeepSeek Flash (reasoning high, off-peak, one repeat), GPT-6 Sol (reasoning high
 repeats) and GPT-6 Sol with the hosted Python tool (`gpt_6_sol_tools`, otherwise identical) on the
 frozen R/S/H/B observations. Offline methods (plugin, median, MLE, ExtraTrees; reference plugin for R
 and the MLE otherwise) and Qwen are the final predictions. MAE_2 is the equal-source mean over valid
-answers within each block; a block missing any source is **pending** and not ranked. Nothing is
+LLM answers and all raw ET profiles; a block missing any source is **pending** and not ranked. Nothing is
 clipped, repaired or imputed. Recorded spend is an upper bound on the provider bill.
 
 - deepseek_flash:v11: 288 main answers, recorded spend USD 6.9177 (incl. smoke/pilot), generation-limit hits 0.
@@ -21,7 +21,7 @@ clipped, repaired or imputed. Recorded spend is an upper bound on the provider b
 | R | plugin | 0.0267 | 0.0220 | -0.0087 | 36/36 | 12/12  | 0.0039 |
 | R | median | 0.2321 | 0.1287 | 0.0006 | 36/36 | 12/12  | 0.0000 |
 | R | mle | 0.0372 | 0.0270 | 0.0225 | 36/36 | 12/12  | 0.0071 |
-| R | et | 0.0282 | 0.0230 | -0.0085 | 36/36 | 12/12  | 0.0037 |
+| R | et | 0.0282 | 0.0230 | -0.0085 | 34/36 | 12/12  | 0.0037 |
 | R | qwen_thinking | 0.0269 | 0.0234 | -0.0095 | 108/108 | 12/12  | 0.0038 |
 | R | qwen_nonthinking | 0.4114 | 0.3280 | 0.4086 | 108/108 | 12/12  | 0.0117 |
 | R | deepseek_flash | 0.0267 | 0.0220 | -0.0087 | 36/36 | 12/12  | 0.0039 |
@@ -30,7 +30,7 @@ clipped, repaired or imputed. Recorded spend is an upper bound on the provider b
 | S | plugin | 0.3006 | 0.2522 | 0.2836 | 36/36 | 12/12  | 0.0068 |
 | S | median | 0.2321 | 0.1287 | 0.0006 | 36/36 | 12/12  | 0.0000 |
 | S | mle | 0.0685 | 0.0415 | 0.0433 | 36/36 | 12/12  | 0.0080 |
-| S | et | 0.0504 | 0.0334 | 0.0233 | 36/36 | 12/12  | 0.0054 |
+| S | et | 0.0504 | 0.0334 | 0.0233 | 35/36 | 12/12  | 0.0054 |
 | S | qwen_thinking | 0.1814 | 0.1489 | 0.1416 | 108/108 | 12/12  | 0.0131 |
 | S | qwen_nonthinking | 0.4752 | 0.4210 | 0.4587 | 106/108 | 12/12  | 0.0228 |
 | S | deepseek_flash | 0.0873 | 0.0508 | 0.0341 | 35/36 | 12/12  | 0.0102 |
@@ -62,7 +62,7 @@ clipped, repaired or imputed. Recorded spend is an upper bound on the provider b
 | R | plugin | 0.0160 | 0.0211 | 0.0008 | 36/36 | 12/12  | 0.0023 |
 | R | median | 0.3453 | 0.2994 | -0.2655 | 36/36 | 12/12  | 0.0000 |
 | R | mle | 0.0365 | 0.0335 | 0.0227 | 36/36 | 12/12  | 0.0024 |
-| R | et | 0.0171 | 0.0214 | -0.0063 | 36/36 | 12/12  | 0.0024 |
+| R | et | 0.0171 | 0.0214 | -0.0063 | 31/36 | 12/12  | 0.0024 |
 | R | qwen_thinking | 0.0172 | 0.0233 | 0.0008 | 108/108 | 12/12  | 0.0024 |
 | R | qwen_nonthinking | 0.2604 | 0.2506 | 0.1723 | 108/108 | 12/12  | 0.0228 |
 | R | deepseek_flash | 0.0160 | 0.0211 | 0.0008 | 36/36 | 12/12  | 0.0023 |
@@ -103,7 +103,7 @@ clipped, repaired or imputed. Recorded spend is an upper bound on the provider b
 | R | plugin | 0.0235 | 0.0168 | -0.0032 | 24/24 | 8/8  | 0.0026 |
 | R | median | 0.2987 | 0.2119 | -0.1506 | 24/24 | 8/8  | 0.0000 |
 | R | mle | 0.0219 | 0.0152 | -0.0077 | 24/24 | 8/8  | 0.0031 |
-| R | et | 0.0226 | 0.0167 | -0.0034 | 24/24 | 8/8  | 0.0025 |
+| R | et | 0.0226 | 0.0167 | -0.0034 | 21/24 | 8/8  | 0.0025 |
 | R | qwen_thinking | 0.0235 | 0.0173 | -0.0033 | 72/72 | 8/8  | 0.0027 |
 | R | qwen_nonthinking | 0.2194 | 0.1734 | 0.1827 | 72/72 | 8/8  | 0.0223 |
 | R | deepseek_flash | 0.0235 | 0.0168 | -0.0032 | 24/24 | 8/8  | 0.0026 |
@@ -112,7 +112,7 @@ clipped, repaired or imputed. Recorded spend is an upper bound on the provider b
 | S | plugin | 0.1271 | 0.1083 | 0.1271 | 24/24 | 8/8  | 0.0040 |
 | S | median | 0.2987 | 0.2119 | -0.1506 | 24/24 | 8/8  | 0.0000 |
 | S | mle | 0.0250 | 0.0201 | 0.0085 | 24/24 | 8/8  | 0.0044 |
-| S | et | 0.0184 | 0.0164 | 0.0032 | 24/24 | 8/8  | 0.0038 |
+| S | et | 0.0184 | 0.0164 | 0.0032 | 23/24 | 8/8  | 0.0038 |
 | S | qwen_thinking | 0.0786 | 0.0627 | 0.0614 | 72/72 | 8/8  | 0.0084 |
 | S | qwen_nonthinking | 0.2807 | 0.2544 | 0.2750 | 72/72 | 8/8  | 0.0222 |
 | S | deepseek_flash | 0.0278 | 0.0196 | 0.0010 | 24/24 | 8/8  | 0.0050 |
@@ -136,6 +136,9 @@ clipped, repaired or imputed. Recorded spend is an upper bound on the provider b
 | B | deepseek_flash | 0.2452 | 0.1794 | -0.0439 | 24/24 | 8/8  | 0.0482 |
 | B | gpt_6_sol | 0.1295 | 0.1037 | 0.0578 | 72/72 | 8/8  | 0.0135 |
 | B | gpt_6_sol_tools | 0.1067 | 0.0917 | 0.0458 | 72/72 | 8/8  | 0.0076 |
+
+The eight synthetic graphs form four generator pairs with shared random numbers;
+these MAE results are descriptive (minimum two-sided sign-flip p with four blocks: 0.125).
 
 ## Paired original minus surrogate
 
@@ -288,56 +291,3 @@ clipped, repaired or imputed. Recorded spend is an upper bound on the provider b
 | surrogate | B | gpt_6_sol_tools vs qwen_thinking | -0.2074 | 12/12 | 0.0005 |
 | surrogate | B | deepseek_flash vs gpt_6_sol | 0.1334 | 0/12 | 0.0005 |
 | surrogate | B | gpt_6_sol_tools vs gpt_6_sol | -0.0050 | 5/12 | 0.7861 |
-| synthetic | R | deepseek_flash vs plugin | 0.0000 | 2/8 | 0.5000 |
-| synthetic | R | deepseek_flash vs et | 0.0009 | 4/8 | 0.2500 |
-| synthetic | R | deepseek_flash vs qwen_thinking | 0.0000 | 5/8 | 0.9922 |
-| synthetic | R | gpt_6_sol vs plugin | -0.0000 | 4/8 | 0.8594 |
-| synthetic | R | gpt_6_sol vs et | 0.0009 | 4/8 | 0.2578 |
-| synthetic | R | gpt_6_sol vs qwen_thinking | 0.0000 | 4/8 | 0.9297 |
-| synthetic | R | gpt_6_sol_tools vs plugin | 0.0000 | 2/8 | 0.2500 |
-| synthetic | R | gpt_6_sol_tools vs et | 0.0009 | 4/8 | 0.2500 |
-| synthetic | R | gpt_6_sol_tools vs qwen_thinking | 0.0000 | 4/8 | 0.9531 |
-| synthetic | R | deepseek_flash vs gpt_6_sol | 0.0000 | 4/8 | 0.8516 |
-| synthetic | R | gpt_6_sol_tools vs gpt_6_sol | 0.0000 | 3/8 | 0.4609 |
-| synthetic | S | deepseek_flash vs plugin | -0.0993 | 8/8 | 0.0078 |
-| synthetic | S | deepseek_flash vs mle | 0.0028 | 3/8 | 0.4531 |
-| synthetic | S | deepseek_flash vs et | 0.0093 | 1/8 | 0.0547 |
-| synthetic | S | deepseek_flash vs qwen_thinking | -0.0509 | 8/8 | 0.0078 |
-| synthetic | S | gpt_6_sol vs plugin | -0.0976 | 8/8 | 0.0078 |
-| synthetic | S | gpt_6_sol vs mle | 0.0045 | 1/8 | 0.0703 |
-| synthetic | S | gpt_6_sol vs et | 0.0110 | 2/8 | 0.0469 |
-| synthetic | S | gpt_6_sol vs qwen_thinking | -0.0492 | 7/8 | 0.0156 |
-| synthetic | S | gpt_6_sol_tools vs plugin | -0.1000 | 8/8 | 0.0078 |
-| synthetic | S | gpt_6_sol_tools vs mle | 0.0021 | 4/8 | 0.5625 |
-| synthetic | S | gpt_6_sol_tools vs et | 0.0087 | 2/8 | 0.1562 |
-| synthetic | S | gpt_6_sol_tools vs qwen_thinking | -0.0515 | 7/8 | 0.0156 |
-| synthetic | S | deepseek_flash vs gpt_6_sol | -0.0017 | 6/8 | 0.2969 |
-| synthetic | S | gpt_6_sol_tools vs gpt_6_sol | -0.0024 | 5/8 | 0.0625 |
-| synthetic | H | deepseek_flash vs plugin | -0.0330 | 7/8 | 0.2578 |
-| synthetic | H | deepseek_flash vs mle | 0.0243 | 1/8 | 0.0469 |
-| synthetic | H | deepseek_flash vs et | 0.0325 | 1/8 | 0.1328 |
-| synthetic | H | deepseek_flash vs qwen_thinking | -0.1013 | 6/8 | 0.0312 |
-| synthetic | H | gpt_6_sol vs plugin | -0.0587 | 8/8 | 0.0078 |
-| synthetic | H | gpt_6_sol vs mle | -0.0014 | 5/8 | 0.8750 |
-| synthetic | H | gpt_6_sol vs et | 0.0068 | 3/8 | 0.5703 |
-| synthetic | H | gpt_6_sol vs qwen_thinking | -0.1270 | 8/8 | 0.0078 |
-| synthetic | H | gpt_6_sol_tools vs plugin | -0.0536 | 7/8 | 0.0156 |
-| synthetic | H | gpt_6_sol_tools vs mle | 0.0037 | 2/8 | 0.6016 |
-| synthetic | H | gpt_6_sol_tools vs et | 0.0119 | 2/8 | 0.2500 |
-| synthetic | H | gpt_6_sol_tools vs qwen_thinking | -0.1219 | 8/8 | 0.0078 |
-| synthetic | H | deepseek_flash vs gpt_6_sol | 0.0257 | 2/8 | 0.1484 |
-| synthetic | H | gpt_6_sol_tools vs gpt_6_sol | 0.0051 | 3/8 | 0.1641 |
-| synthetic | B | deepseek_flash vs plugin | -0.1803 | 8/8 | 0.0078 |
-| synthetic | B | deepseek_flash vs mle | 0.1698 | 1/8 | 0.0156 |
-| synthetic | B | deepseek_flash vs et | 0.2087 | 0/8 | 0.0078 |
-| synthetic | B | deepseek_flash vs qwen_thinking | -0.0851 | 6/8 | 0.0625 |
-| synthetic | B | gpt_6_sol vs plugin | -0.2960 | 8/8 | 0.0078 |
-| synthetic | B | gpt_6_sol vs mle | 0.0541 | 1/8 | 0.0234 |
-| synthetic | B | gpt_6_sol vs et | 0.0930 | 1/8 | 0.0156 |
-| synthetic | B | gpt_6_sol vs qwen_thinking | -0.2008 | 8/8 | 0.0078 |
-| synthetic | B | gpt_6_sol_tools vs plugin | -0.3188 | 8/8 | 0.0078 |
-| synthetic | B | gpt_6_sol_tools vs mle | 0.0313 | 0/8 | 0.0078 |
-| synthetic | B | gpt_6_sol_tools vs et | 0.0702 | 0/8 | 0.0078 |
-| synthetic | B | gpt_6_sol_tools vs qwen_thinking | -0.2236 | 8/8 | 0.0078 |
-| synthetic | B | deepseek_flash vs gpt_6_sol | 0.1157 | 1/8 | 0.0156 |
-| synthetic | B | gpt_6_sol_tools vs gpt_6_sol | -0.0228 | 6/8 | 0.0703 |

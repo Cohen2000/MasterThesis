@@ -1,8 +1,9 @@
 # Main results
 
 Arms R, S, H and B; estimators plugin, median, MLE and ExtraTrees (ET, production fit), plus Qwen and
-the paid APIs. Reference (ref.): plugin for R, MLE for S, H and B. Equal-source MAE_2 over valid
-answers is primary, ProfileMAE secondary; nothing is clipped or repaired. The twelve real sources are
+the paid APIs. Reference (ref.): plugin for R, MLE for S, H and B. Equal-source MAE_2 is primary,
+ProfileMAE secondary; LLM scores use valid answers and ET scores all raw profiles, including invalid ones.
+Nothing is clipped or repaired. The twelve real sources are
 the main analysis and are weighted equally. A method missing any source of a block is marked
 **pending** and not ranked. S_obs is a historical ablation and is not reported here.
 
@@ -13,7 +14,7 @@ the main analysis and are weighted equally. A method missing any source of a blo
 | R | plugin (ref.) | 0.0267 | 0.0220 | -0.0087 | 1.000 | 12/12 |
 | R | median | 0.2321 | 0.1287 | 0.0006 | 1.000 | 12/12 |
 | R | mle | 0.0372 | 0.0270 | 0.0225 | 1.000 | 12/12 |
-| R | et | 0.0282 | 0.0230 | -0.0085 | 1.000 | 12/12 |
+| R | et | 0.0282 | 0.0230 | -0.0085 | 0.944 | 12/12 |
 | R | qwen_thinking | 0.0269 | 0.0234 | -0.0095 | 1.000 | 12/12 |
 | R | qwen_nonthinking | 0.4114 | 0.3280 | 0.4086 | 1.000 | 12/12 |
 | R | deepseek_flash | 0.0267 | 0.0220 | -0.0087 | 1.000 | 12/12 |
@@ -22,7 +23,7 @@ the main analysis and are weighted equally. A method missing any source of a blo
 | S | plugin | 0.3006 | 0.2522 | 0.2836 | 1.000 | 12/12 |
 | S | median | 0.2321 | 0.1287 | 0.0006 | 1.000 | 12/12 |
 | S | mle (ref.) | 0.0685 | 0.0415 | 0.0433 | 1.000 | 12/12 |
-| S | et | 0.0504 | 0.0334 | 0.0233 | 1.000 | 12/12 |
+| S | et | 0.0504 | 0.0334 | 0.0233 | 0.972 | 12/12 |
 | S | qwen_thinking | 0.1814 | 0.1489 | 0.1416 | 1.000 | 12/12 |
 | S | qwen_nonthinking | 0.4752 | 0.4210 | 0.4587 | 0.981 | 12/12 |
 | S | deepseek_flash | 0.0873 | 0.0508 | 0.0341 | 0.972 | 12/12 |
@@ -54,7 +55,7 @@ the main analysis and are weighted equally. A method missing any source of a blo
 | R | plugin (ref.) | 0.0160 | 0.0211 | 0.0008 | 1.000 | 12/12 |
 | R | median | 0.3453 | 0.2994 | -0.2655 | 1.000 | 12/12 |
 | R | mle | 0.0365 | 0.0335 | 0.0227 | 1.000 | 12/12 |
-| R | et | 0.0171 | 0.0214 | -0.0063 | 1.000 | 12/12 |
+| R | et | 0.0171 | 0.0214 | -0.0063 | 0.861 | 12/12 |
 | R | qwen_thinking | 0.0172 | 0.0233 | 0.0008 | 1.000 | 12/12 |
 | R | qwen_nonthinking | 0.2604 | 0.2506 | 0.1723 | 1.000 | 12/12 |
 | R | deepseek_flash | 0.0160 | 0.0211 | 0.0008 | 1.000 | 12/12 |
@@ -95,7 +96,7 @@ the main analysis and are weighted equally. A method missing any source of a blo
 | R | plugin (ref.) | 0.0235 | 0.0168 | -0.0032 | 1.000 | 8/8 |
 | R | median | 0.2987 | 0.2119 | -0.1506 | 1.000 | 8/8 |
 | R | mle | 0.0219 | 0.0152 | -0.0077 | 1.000 | 8/8 |
-| R | et | 0.0226 | 0.0167 | -0.0034 | 1.000 | 8/8 |
+| R | et | 0.0226 | 0.0167 | -0.0034 | 0.875 | 8/8 |
 | R | qwen_thinking | 0.0235 | 0.0173 | -0.0033 | 1.000 | 8/8 |
 | R | qwen_nonthinking | 0.2194 | 0.1734 | 0.1827 | 1.000 | 8/8 |
 | R | deepseek_flash | 0.0235 | 0.0168 | -0.0032 | 1.000 | 8/8 |
@@ -104,7 +105,7 @@ the main analysis and are weighted equally. A method missing any source of a blo
 | S | plugin | 0.1271 | 0.1083 | 0.1271 | 1.000 | 8/8 |
 | S | median | 0.2987 | 0.2119 | -0.1506 | 1.000 | 8/8 |
 | S | mle (ref.) | 0.0250 | 0.0201 | 0.0085 | 1.000 | 8/8 |
-| S | et | 0.0184 | 0.0164 | 0.0032 | 1.000 | 8/8 |
+| S | et | 0.0184 | 0.0164 | 0.0032 | 0.958 | 8/8 |
 | S | qwen_thinking | 0.0786 | 0.0627 | 0.0614 | 1.000 | 8/8 |
 | S | qwen_nonthinking | 0.2807 | 0.2544 | 0.2750 | 1.000 | 8/8 |
 | S | deepseek_flash | 0.0278 | 0.0196 | 0.0010 | 1.000 | 8/8 |
@@ -128,6 +129,9 @@ the main analysis and are weighted equally. A method missing any source of a blo
 | B | deepseek_flash | 0.2452 | 0.1794 | -0.0439 | 1.000 | 8/8 |
 | B | gpt_6_sol | 0.1295 | 0.1037 | 0.0578 | 1.000 | 8/8 |
 | B | gpt_6_sol_tools | 0.1067 | 0.0917 | 0.0458 | 1.000 | 8/8 |
+
+These eight graphs form four generator pairs with shared random numbers; their MAE tables are descriptive,
+since a four-block two-sided sign-flip test has minimum p = 0.125.
 
 ## Paired original minus surrogate (12 source families)
 
@@ -200,23 +204,6 @@ First minus second source-level MAE_2 (negative: first better); exact sign-flip 
 | surrogate | B | mle vs plugin | -0.1930 | 11/12 | 0.0010 |
 | surrogate | B | et vs plugin | -0.2064 | 11/12 | 0.0010 |
 | surrogate | B | qwen_thinking vs plugin | 0.0102 | 7/12 | 0.6089 |
-| synthetic | R | et vs plugin | -0.0009 | 4/8 | 0.2500 |
-| synthetic | R | qwen_thinking vs plugin | -0.0000 | 2/8 | 1.0000 |
-| synthetic | S | et vs mle | -0.0066 | 5/8 | 0.1094 |
-| synthetic | S | qwen_thinking vs mle | 0.0536 | 0/8 | 0.0078 |
-| synthetic | S | mle vs plugin | -0.1021 | 8/8 | 0.0078 |
-| synthetic | S | et vs plugin | -0.1087 | 8/8 | 0.0078 |
-| synthetic | S | qwen_thinking vs plugin | -0.0485 | 7/8 | 0.0156 |
-| synthetic | H | et vs mle | -0.0082 | 7/8 | 0.4453 |
-| synthetic | H | qwen_thinking vs mle | 0.1256 | 1/8 | 0.0156 |
-| synthetic | H | mle vs plugin | -0.0573 | 7/8 | 0.0625 |
-| synthetic | H | et vs plugin | -0.0655 | 7/8 | 0.0156 |
-| synthetic | H | qwen_thinking vs plugin | 0.0683 | 1/8 | 0.0234 |
-| synthetic | B | et vs mle | -0.0389 | 8/8 | 0.0078 |
-| synthetic | B | qwen_thinking vs mle | 0.2549 | 0/8 | 0.0078 |
-| synthetic | B | mle vs plugin | -0.3501 | 8/8 | 0.0078 |
-| synthetic | B | et vs plugin | -0.3890 | 8/8 | 0.0078 |
-| synthetic | B | qwen_thinking vs plugin | -0.0951 | 6/8 | 0.0859 |
 
 ## Real sources (MAE_2 per source)
 
@@ -272,3 +259,25 @@ First minus second source-level MAE_2 (negative: first better); exact sign-flip 
 | sp_workplace | B | 0.1459 | 0.1287 | 0.0393 | 0.0236 | 0.2799 | 0.5611 |
 
 All groups, API methods and metrics: `PER_SOURCE.csv`.
+
+## Appendix: S design ratio
+
+The plain protocol ratio sums traversals_per_event for patterns with at least k active windows
+and divides by the sum over all patterns. It is a descriptive appendix, not a reference.
+MAE_2 is equal-source weighted; answer shares use valid LLM answers and tolerance 0.005.
+
+| Group | S design MAE_2 |
+|---|---|
+| real | 0.0880 |
+| surrogate | 0.0996 |
+| synthetic | 0.0284 |
+
+| Real S model | Valid answers | Near plugin | Near design | Near MLE |
+|---|---|---:|---:|---:|
+| qwen_thinking | 108 | 0.500 | 0.204 | 0.130 |
+| qwen_nonthinking | 106 | 0.066 | 0.047 | 0.047 |
+| deepseek_flash | 35 | 0.171 | 0.657 | 0.286 |
+| gpt_6_sol | 108 | 0.120 | 0.898 | 0.241 |
+| gpt_6_sol_tools | 108 | 0.120 | 0.926 | 0.231 |
+
+Per-group and per-model values: `S_DESIGN_APPENDIX.csv`.

@@ -37,13 +37,13 @@ Equal-graph means over the 12 real sources and the 12 surrogates.
 | real | mle | last60 | no | 0.0657 | 0.0689 | 0.0435 |
 | real | plugin | first60 | no | -0.0585 | 0.0585 | 0.0697 |
 | real | mle | first60 | no | 0.0585 | 0.0601 | 0.0385 |
-| real | plugin | last60 | yes | -0.0533 | 0.0637 | 0.0717 |
-| real | mle | last60 | yes | 0.0676 | 0.0685 | 0.0431 |
+| real | plugin | last60 | yes | -0.0533 | 0.0639 | 0.0720 |
+| real | mle | last60 | yes | 0.0676 | 0.0706 | 0.0444 |
 | surrogate | plugin | last60 | no | -0.0980 | 0.0980 | 0.2033 |
 | surrogate | mle | last60 | no | 0.0105 | 0.0456 | 0.0388 |
 | surrogate | plugin | first60 | no | -0.0595 | 0.0595 | 0.1850 |
 | surrogate | mle | first60 | no | 0.0382 | 0.0467 | 0.0454 |
-| surrogate | plugin | last60 | yes | -0.0934 | 0.0934 | 0.2005 |
-| surrogate | mle | last60 | yes | 0.0150 | 0.0487 | 0.0453 |
+| surrogate | plugin | last60 | yes | -0.0934 | 0.0945 | 0.2008 |
+| surrogate | mle | last60 | yes | 0.0150 | 0.0491 | 0.0471 |
 
 Per graph and k: `HISTORY.csv`.

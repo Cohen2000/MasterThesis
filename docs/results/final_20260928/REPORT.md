@@ -30,16 +30,38 @@ Tables: [MAIN_RESULTS.md](MAIN_RESULTS.md), [VARIABILITY.md](VARIABILITY.md), [H
   - For k = 2 the numerator loss exceeds the denominator loss: real 0.51 vs 0.40 for the last 60%, 0.36 vs 0.21 for the first 60%.
   - The population-level truncated plugin therefore underestimates rho_2 (real signed error −0.052, surrogates −0.098). Only 1 of 12 real sources is within 0.01.
   - For k = 4 and 5 the truncated plugin is 0 by construction.
-  - Node sampling adds almost nothing on top of truncation (real plugin MAE_2 0.065 at population level vs 0.064 with the H draws; MLE 0.069 vs 0.069).
+  - Node sampling changes real plugin MAE_2 from 0.065 at population level to 0.064 over H draws, and MLE from 0.069 to 0.071 (0.0706, matching the main table).
   - First vs last 60%: the real MAE_2 is 0.059 vs 0.065 for plugin and 0.060 vs 0.069 for the MLE.
 - **Walks (added graphs):**
-  - The unchanged gate criterion is applicable to all eight added graphs and passes only for lkml_reply and nr_radoslaw_email. reality_mining, sp_malawi and four surrogates fail; in v11 only sp_hospital__pwt failed. The gate judges the design ratio, which is no longer a reported estimator. The S reference is now the MLE, whose walk bias and SD are listed separately.
+  - The unchanged gate criterion is applicable to all eight added graphs and passes only for lkml_reply and nr_radoslaw_email. reality_mining, sp_malawi and four surrogates fail; in v11 only sp_hospital__pwt failed. The gate judges the design ratio, now reported descriptively in the main-results appendix. The S reference is the MLE, whose walk bias and SD are listed separately.
   - **sp_malawi** is the extreme case:
     - weight ESS 6.4, revisit rate 0.89, and only about 20 of 347 dyads discovered per walk;
     - the walk touches 18% of the 21 communities;
     - MLE bias +0.186 with SD 0.209 (plugin bias +0.163, SD 0.291).
   - On sp_malawi__pwt the production MLE rejects 2 of 1000 walk histograms: these walks discovered only dyads active in all five windows. They are counted as failures, not repaired. This case never occurred in the actual test draws.
-- **Variability:** training variability (11 ET fits), sampling variability (3 sampler draws) and LLM answer variability (3 repeats) are reported separately and not compared. The real ET MAE_2 SD across fits is 0.001–0.003 per arm. The deterministic plugin/median/MLE outputs have sampling variability, which is not zero.
+- **Variability:** training variability (11 ET fits), sampling variability (3 sampler draws) and LLM answer variability (3 repeats) are reported separately. A fixed-input comparison in `VARIABILITY.md` matches ET to three predictions using 200 seeded three-fit subsets. The real ET MAE_2 SD across fits is 0.001–0.003 per arm. The deterministic plugin/median/MLE outputs have sampling variability, which is not zero.
+
+## W sensitivity of census truth
+
+Using the frozen canonical event graphs and the window rule in `src/census.py`, rho_k at W = 4 and 8 is compared with W = 5 for all 12 real sources and 12 surrogates. The W = 5 profiles match `TRUTH.json` for every source. For rho_2:
+
+| Block | W | Mean absolute change | Maximum absolute change | Spearman ranking vs W=5 |
+|---|---:|---:|---:|---:|
+| Real | 4 | 0.0176 | 0.0363 | 0.9860 |
+| Real | 8 | 0.0253 | 0.0610 | 0.9860 |
+| Surrogate | 4 | 0.0150 | 0.0830 | 0.9860 |
+| Surrogate | 8 | 0.0140 | 0.0375 | 0.9930 |
+
+Mean and maximum changes and ranking correlations for every shared rho_k, plus each source's rho_2 at W = 4, 5 and 8: `W_SENSITIVITY.csv`. This is a truth-only calculation; it uses no sampling or estimator.
+
+## Post-review fixes
+
+- **History:** H-draw MAE_2 and ProfileMAE now average absolute error within each graph before averaging graphs; signed error remains signed. Real H MLE MAE_2 is 0.0706.
+- **Synthetic tests:** removed per-graph sign-flip results. The eight graphs are four paired generators with shared random numbers; four-block two-sided tests cannot attain p below 0.125. Synthetic MAE tables remain descriptive.
+- **ET validity:** the same bounds and monotonicity rule as the LLMs flags 12/384 production profiles (3 real) and 88/4,224 profiles across 11 fits. Every raw prediction remains scored. Clipping to [0,1] and enforcing a cumulative minimum would leave rho_2 unchanged in all 12 production cases, so MAE_2 changes by exactly 0.
+- **Fixed-input variability:** the real-source comparison shows ET median SD near 0.005 in each arm; GPT-6 Sol is near 0 in R/S, 0.0167 in H and 0.0509 in B.
+- **S design appendix:** the plain traversal-weight ratio has real-source MAE_2 0.0880. On the eight v11 real sources, 67/72 valid GPT-6 Sol answers (93.1%) are within 0.005 of it; it is not a reference.
+- **W sensitivity:** census truth is reported for W = 4, 5 and 8 on all 24 real and surrogate graphs, with source rankings and per-source rho_2 in `W_SENSITIVITY.csv`.
 
 ## Remaining issues
 
