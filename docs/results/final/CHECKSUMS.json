@@ -3,9 +3,9 @@
   "directory": "~/.local/share/masterthesis/api_runs/<model>",
   "files": {
    "deepseek": {
-    "attempts.jsonl": "23381f77ed8fdeeb27eaaed1a23f87eb7ec1a0116d3f62eddd1274e95e545df7",
+    "attempts.jsonl": "e92a0d529bd6fceb72d681b6c96a9c9630e9030b455d797b121a4e38b8906d7c",
     "lost.jsonl": "62a78f2263ab01e9713b6cfce778f7eed7e74ea0ca6f85d0952d3c9a16ffe56a",
-    "responses.jsonl": "5d6cdba933d42a2eaef24381f603473883315f9f3ee3b54ef84b55e612bd2c1b"
+    "responses.jsonl": "532e7f2ad6471163df8cd99889f1bf966115c5e8b1c001619a5100ba565a0fa8"
    },
    "openai": {
     "chunk_001.batch.json": "df04e55fcc558f82fa686f4a9e173148290d9007c5d1e6f8b494de2f88d549be",

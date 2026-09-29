@@ -5,7 +5,7 @@ real,R,mle,12,12,0.01613613446707247
 real,R,et,12,12,0.017667165456367047
 real,R,qwen_thinking,12,12,0.018772554876780558
 real,R,qwen_nonthinking,12,12,0.037507775911762686
-real,R,deepseek_flash,12,12,0.018781184960688646
+real,R,deepseek_flash,12,12,0.018781181872927336
 real,R,gpt_6_sol,12,12,0.01876215511127448
 real,R,gpt_6_sol_tools,12,12,0.01876581431118205
 real,S,plugin,12,12,0.011471571064364222
@@ -14,7 +14,7 @@ real,S,mle,12,12,0.03737065243947038
 real,S,et,12,12,0.024500488037671814
 real,S,qwen_thinking,12,12,0.07822936455452313
 real,S,qwen_nonthinking,12,12,0.06881284117360599
-real,S,deepseek_flash,12,12,0.06784427633011457
+real,S,deepseek_flash,12,12,0.06784517377105566
 real,S,gpt_6_sol,12,12,0.05437162663317701
 real,S,gpt_6_sol_tools,12,12,0.046985174998695714
 real,H,plugin,12,12,0.008728031764608776
@@ -23,7 +23,7 @@ real,H,mle,12,12,0.01323408363839658
 real,H,et,12,12,0.009013259827455246
 real,H,qwen_thinking,12,12,0.09200148664597176
 real,H,qwen_nonthinking,12,12,0.12089576976618457
-real,H,deepseek_flash,12,12,0.08107739318194183
+real,H,deepseek_flash,12,12,0.08561460495616433
 real,H,gpt_6_sol,12,12,0.01517479793062603
 real,H,gpt_6_sol_tools,12,12,0.02252785885831364
 real,B,plugin,12,12,0.006402359535207386
@@ -32,7 +32,7 @@ real,B,mle,12,12,0.008767121343083776
 real,B,et,12,12,0.007544048619051029
 real,B,qwen_thinking,12,12,0.11757246663424051
 real,B,qwen_nonthinking,12,12,0.03032292516286697
-real,B,deepseek_flash,12,12,0.11637081913473912
+real,B,deepseek_flash,12,12,0.1370242604866042
 real,B,gpt_6_sol,12,12,0.03876388374866285
 real,B,gpt_6_sol_tools,12,12,0.05870351753938871
 surrogate,R,plugin,12,12,0.016005507481830147
@@ -41,7 +41,7 @@ surrogate,R,mle,12,12,0.014712987244204084
 surrogate,R,et,12,12,0.01681321916104886
 surrogate,R,qwen_thinking,12,12,0.016674495848698904
 surrogate,R,qwen_nonthinking,12,12,0.05427853040245194
-surrogate,R,deepseek_flash,12,12,0.016005557360684868
+surrogate,R,deepseek_flash,12,12,0.0160055751830451
 surrogate,R,gpt_6_sol,12,12,0.016022658413932276
 surrogate,R,gpt_6_sol_tools,12,12,0.015998563410561828
 surrogate,S,plugin,12,12,0.0033702113779742805
@@ -50,7 +50,7 @@ surrogate,S,mle,12,12,0.04518157784474146
 surrogate,S,et,12,12,0.04619589471228214
 surrogate,S,qwen_thinking,12,12,0.04443162828390827
 surrogate,S,qwen_nonthinking,12,12,0.1807531490660147
-surrogate,S,deepseek_flash,12,12,0.0536657974863696
+surrogate,S,deepseek_flash,12,12,0.0526542177615594
 surrogate,S,gpt_6_sol,12,12,0.04082335536919128
 surrogate,S,gpt_6_sol_tools,12,12,0.041668668438376744
 surrogate,H,plugin,12,12,0.008176054568470034
@@ -59,7 +59,7 @@ surrogate,H,mle,12,12,0.005609266508443032
 surrogate,H,et,12,12,0.006261407583545778
 surrogate,H,qwen_thinking,12,12,0.08521617860105024
 surrogate,H,qwen_nonthinking,12,12,0.16152875976134853
-surrogate,H,deepseek_flash,12,12,0.06888549832124127
+surrogate,H,deepseek_flash,12,12,0.05677564191036197
 surrogate,H,gpt_6_sol,12,12,0.030373616134577897
 surrogate,H,gpt_6_sol_tools,12,12,0.019021667614745656
 surrogate,B,plugin,12,12,0.008732949512065403
@@ -68,7 +68,7 @@ surrogate,B,mle,12,12,0.009727113760558785
 surrogate,B,et,12,12,0.00946762964013654
 surrogate,B,qwen_thinking,12,12,0.14897912077298475
 surrogate,B,qwen_nonthinking,12,12,0.0384198706931498
-surrogate,B,deepseek_flash,12,12,0.13023453282783762
+surrogate,B,deepseek_flash,12,12,0.11930308979667442
 surrogate,B,gpt_6_sol,12,12,0.07170824176632913
 surrogate,B,gpt_6_sol_tools,12,12,0.05706254529912401
 synthetic,R,plugin,8,8,0.027036578936652372
@@ -77,7 +77,7 @@ synthetic,R,mle,8,8,0.02480316542386203
 synthetic,R,et,8,8,0.025058384216378547
 synthetic,R,qwen_thinking,8,8,0.027361329261458907
 synthetic,R,qwen_nonthinking,8,8,0.06261253379610215
-synthetic,R,deepseek_flash,8,8,0.027036650113665905
+synthetic,R,deepseek_flash,8,8,0.027036644122254712
 synthetic,R,gpt_6_sol,8,8,0.027050148091269002
 synthetic,R,gpt_6_sol_tools,8,8,0.027045734959093053
 synthetic,S,plugin,8,8,0.01772578876179642
@@ -86,7 +86,7 @@ synthetic,S,mle,8,8,0.01940489202012463
 synthetic,S,et,8,8,0.016635494298510793
 synthetic,S,qwen_thinking,8,8,0.05248127531050751
 synthetic,S,qwen_nonthinking,8,8,0.03777141125884416
-synthetic,S,deepseek_flash,8,8,0.027865912697601802
+synthetic,S,deepseek_flash,8,8,0.03156557268784167
 synthetic,S,gpt_6_sol,8,8,0.020695009814957633
 synthetic,S,gpt_6_sol_tools,8,8,0.018700464112583207
 synthetic,H,plugin,8,8,0.025750120351529605
@@ -95,7 +95,7 @@ synthetic,H,mle,8,8,0.03371800871267051
 synthetic,H,et,8,8,0.025731495786978073
 synthetic,H,qwen_thinking,8,8,0.05549133213631531
 synthetic,H,qwen_nonthinking,8,8,0.0961765092654934
-synthetic,H,deepseek_flash,8,8,0.030115299247475837
+synthetic,H,deepseek_flash,8,8,0.026137497441969318
 synthetic,H,gpt_6_sol,8,8,0.033729863307711605
 synthetic,H,gpt_6_sol_tools,8,8,0.03853234956514321
 synthetic,B,plugin,8,8,0.011202275150209048
@@ -104,6 +104,6 @@ synthetic,B,mle,8,8,0.09041040371563566
 synthetic,B,et,8,8,0.02527195327834698
 synthetic,B,qwen_thinking,8,8,0.1183329474752384
 synthetic,B,qwen_nonthinking,8,8,0.19344436658524444
-synthetic,B,deepseek_flash,8,8,0.22576128274945823
+synthetic,B,deepseek_flash,8,8,0.2734366276771123
 synthetic,B,gpt_6_sol,8,8,0.15801941372657566
 synthetic,B,gpt_6_sol_tools,8,8,0.10823831537421641

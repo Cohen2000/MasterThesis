@@ -21,11 +21,9 @@ A language-model answer is valid when its final text is exactly one JSON object 
 |---|---:|---:|
 | Qwen, thinking | 1,152 | 1,151 |
 | Qwen, no thinking | 1,152 | 1,150 |
-| DeepSeek Flash | 1,152 | 1,021 |
+| DeepSeek Flash | 1,152 | 1,151 |
 | GPT-6 Sol | 1,152 | 1,152 |
 | GPT-6 Sol + Python | 1,152 | 1,152 |
-
-DeepSeek Flash: 1,022 of 1,152 answers are collected so far; the tables are updated when the remaining answers are in.
 
 ## Checks
 
@@ -42,7 +40,7 @@ Spend computed from the token counts the providers reported, at list prices, inc
 
 | Provider | Model | Spend (USD) |
 |---|---|---:|
-| DeepSeek | DeepSeek Flash | 23.50 |
+| DeepSeek | DeepSeek Flash | 26.51 |
 | OpenAI | GPT-6 Sol | 27.59 |
 | OpenAI | GPT-6 Sol + Python | 94.50 |
 | OpenAI | total | 122.10 |

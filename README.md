@@ -10,14 +10,12 @@ Average error in `rho_2` (MAE_2, lower is better) over the 12 real networks; 0.0
 
 | Arm | Observed share (plug-in) | Training median | Statistical model (MLE) | ExtraTrees | Qwen, thinking | Qwen, no thinking | DeepSeek Flash | GPT-6 Sol | GPT-6 Sol + Python |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| R | 0.027 | 0.232 | 0.037 | 0.028 | 0.027 | 0.411 | 0.026 | 0.027 | 0.027 |
+| R | 0.027 | 0.232 | 0.037 | 0.028 | 0.027 | 0.411 | 0.027 | 0.027 | 0.027 |
 | S | 0.301 | 0.232 | 0.069 | 0.050 | 0.181 | 0.475 | 0.090 | 0.084 | 0.081 |
-| H | 0.064 | 0.232 | 0.071 | 0.039 | 0.160 | 0.252 | 0.129 | 0.054 | 0.061 |
-| B | 0.164 | 0.232 | 0.076 | 0.079 | 0.220 | 0.527 | 0.176 | 0.108 | 0.151 |
+| H | 0.064 | 0.232 | 0.071 | 0.039 | 0.160 | 0.252 | 0.133 | 0.054 | 0.061 |
+| B | 0.164 | 0.232 | 0.076 | 0.079 | 0.220 | 0.527 | 0.172 | 0.108 | 0.151 |
 
-Every language model answered each sample three times; only answers in the required format are scored. ExtraTrees output is limited to valid values (between 0 and 1, never increasing), which changes no `rho_2` value. Recorded API spend: DeepSeek Flash USD 23.50, GPT-6 Sol USD 27.59, GPT-6 Sol + Python USD 94.50. All tables, validity counts, variability and checks are in [docs/results/final](docs/results/final/REPORT.md).
-
-DeepSeek Flash: 1,022 of 1,152 answers are collected so far; the tables are updated when the remaining answers are in.
+Every language model answered each sample three times; only answers in the required format are scored. ExtraTrees output is limited to valid values (between 0 and 1, never increasing), which changes no `rho_2` value. Recorded API spend: DeepSeek Flash USD 26.51, GPT-6 Sol USD 27.59, GPT-6 Sol + Python USD 94.50. All tables, validity counts, variability and checks are in [docs/results/final](docs/results/final/REPORT.md).
 
 ## Repository layout
 

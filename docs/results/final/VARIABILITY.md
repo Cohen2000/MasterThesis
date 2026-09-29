@@ -59,7 +59,7 @@ H arm covers every node have a single observation there and are left out.
 | real | H (random nodes, last 60% of time) | ExtraTrees (trained model) | 12/12 | 0.0090 |
 | real | H (random nodes, last 60% of time) | Qwen, thinking | 12/12 | 0.0920 |
 | real | H (random nodes, last 60% of time) | Qwen, no thinking | 12/12 | 0.1209 |
-| real | H (random nodes, last 60% of time) | DeepSeek Flash | 12/12 | 0.0811 |
+| real | H (random nodes, last 60% of time) | DeepSeek Flash | 12/12 | 0.0856 |
 | real | H (random nodes, last 60% of time) | GPT-6 Sol | 12/12 | 0.0152 |
 | real | H (random nodes, last 60% of time) | GPT-6 Sol + Python | 12/12 | 0.0225 |
 | real | B (random event loss) | Observed share (plug-in) | 12/12 | 0.0064 |
@@ -68,7 +68,7 @@ H arm covers every node have a single observation there and are left out.
 | real | B (random event loss) | ExtraTrees (trained model) | 12/12 | 0.0075 |
 | real | B (random event loss) | Qwen, thinking | 12/12 | 0.1176 |
 | real | B (random event loss) | Qwen, no thinking | 12/12 | 0.0303 |
-| real | B (random event loss) | DeepSeek Flash | 12/12 | 0.1164 |
+| real | B (random event loss) | DeepSeek Flash | 12/12 | 0.1370 |
 | real | B (random event loss) | GPT-6 Sol | 12/12 | 0.0388 |
 | real | B (random event loss) | GPT-6 Sol + Python | 12/12 | 0.0587 |
 | time-shuffled copy | R (random nodes) | Observed share (plug-in) | 12/12 | 0.0160 |
@@ -86,7 +86,7 @@ H arm covers every node have a single observation there and are left out.
 | time-shuffled copy | S (random walk) | ExtraTrees (trained model) | 12/12 | 0.0462 |
 | time-shuffled copy | S (random walk) | Qwen, thinking | 12/12 | 0.0444 |
 | time-shuffled copy | S (random walk) | Qwen, no thinking | 12/12 | 0.1808 |
-| time-shuffled copy | S (random walk) | DeepSeek Flash | 12/12 | 0.0537 |
+| time-shuffled copy | S (random walk) | DeepSeek Flash | 12/12 | 0.0527 |
 | time-shuffled copy | S (random walk) | GPT-6 Sol | 12/12 | 0.0408 |
 | time-shuffled copy | S (random walk) | GPT-6 Sol + Python | 12/12 | 0.0417 |
 | time-shuffled copy | H (random nodes, last 60% of time) | Observed share (plug-in) | 12/12 | 0.0082 |
@@ -95,7 +95,7 @@ H arm covers every node have a single observation there and are left out.
 | time-shuffled copy | H (random nodes, last 60% of time) | ExtraTrees (trained model) | 12/12 | 0.0063 |
 | time-shuffled copy | H (random nodes, last 60% of time) | Qwen, thinking | 12/12 | 0.0852 |
 | time-shuffled copy | H (random nodes, last 60% of time) | Qwen, no thinking | 12/12 | 0.1615 |
-| time-shuffled copy | H (random nodes, last 60% of time) | DeepSeek Flash | 12/12 | 0.0689 |
+| time-shuffled copy | H (random nodes, last 60% of time) | DeepSeek Flash | 12/12 | 0.0568 |
 | time-shuffled copy | H (random nodes, last 60% of time) | GPT-6 Sol | 12/12 | 0.0304 |
 | time-shuffled copy | H (random nodes, last 60% of time) | GPT-6 Sol + Python | 12/12 | 0.0190 |
 | time-shuffled copy | B (random event loss) | Observed share (plug-in) | 12/12 | 0.0087 |
@@ -104,7 +104,7 @@ H arm covers every node have a single observation there and are left out.
 | time-shuffled copy | B (random event loss) | ExtraTrees (trained model) | 12/12 | 0.0095 |
 | time-shuffled copy | B (random event loss) | Qwen, thinking | 12/12 | 0.1490 |
 | time-shuffled copy | B (random event loss) | Qwen, no thinking | 12/12 | 0.0384 |
-| time-shuffled copy | B (random event loss) | DeepSeek Flash | 12/12 | 0.1302 |
+| time-shuffled copy | B (random event loss) | DeepSeek Flash | 12/12 | 0.1193 |
 | time-shuffled copy | B (random event loss) | GPT-6 Sol | 12/12 | 0.0717 |
 | time-shuffled copy | B (random event loss) | GPT-6 Sol + Python | 12/12 | 0.0571 |
 | synthetic | R (random nodes) | Observed share (plug-in) | 8/8 | 0.0270 |
@@ -122,7 +122,7 @@ H arm covers every node have a single observation there and are left out.
 | synthetic | S (random walk) | ExtraTrees (trained model) | 8/8 | 0.0166 |
 | synthetic | S (random walk) | Qwen, thinking | 8/8 | 0.0525 |
 | synthetic | S (random walk) | Qwen, no thinking | 8/8 | 0.0378 |
-| synthetic | S (random walk) | DeepSeek Flash | 8/8 | 0.0279 |
+| synthetic | S (random walk) | DeepSeek Flash | 8/8 | 0.0316 |
 | synthetic | S (random walk) | GPT-6 Sol | 8/8 | 0.0207 |
 | synthetic | S (random walk) | GPT-6 Sol + Python | 8/8 | 0.0187 |
 | synthetic | H (random nodes, last 60% of time) | Observed share (plug-in) | 8/8 | 0.0258 |
@@ -131,7 +131,7 @@ H arm covers every node have a single observation there and are left out.
 | synthetic | H (random nodes, last 60% of time) | ExtraTrees (trained model) | 8/8 | 0.0257 |
 | synthetic | H (random nodes, last 60% of time) | Qwen, thinking | 8/8 | 0.0555 |
 | synthetic | H (random nodes, last 60% of time) | Qwen, no thinking | 8/8 | 0.0962 |
-| synthetic | H (random nodes, last 60% of time) | DeepSeek Flash | 8/8 | 0.0301 |
+| synthetic | H (random nodes, last 60% of time) | DeepSeek Flash | 8/8 | 0.0261 |
 | synthetic | H (random nodes, last 60% of time) | GPT-6 Sol | 8/8 | 0.0337 |
 | synthetic | H (random nodes, last 60% of time) | GPT-6 Sol + Python | 8/8 | 0.0385 |
 | synthetic | B (random event loss) | Observed share (plug-in) | 8/8 | 0.0112 |
@@ -140,7 +140,7 @@ H arm covers every node have a single observation there and are left out.
 | synthetic | B (random event loss) | ExtraTrees (trained model) | 8/8 | 0.0253 |
 | synthetic | B (random event loss) | Qwen, thinking | 8/8 | 0.1183 |
 | synthetic | B (random event loss) | Qwen, no thinking | 8/8 | 0.1934 |
-| synthetic | B (random event loss) | DeepSeek Flash | 8/8 | 0.2258 |
+| synthetic | B (random event loss) | DeepSeek Flash | 8/8 | 0.2734 |
 | synthetic | B (random event loss) | GPT-6 Sol | 8/8 | 0.1580 |
 | synthetic | B (random event loss) | GPT-6 Sol + Python | 8/8 | 0.1082 |
 
@@ -153,62 +153,62 @@ valid answers.
 |---|---|---:|---:|---:|
 | real | R (random nodes) | Qwen, thinking | 36 | 0.0000 |
 | real | R (random nodes) | Qwen, no thinking | 36 | 0.0777 |
-| real | R (random nodes) | DeepSeek Flash | 28 | 0.0000 |
+| real | R (random nodes) | DeepSeek Flash | 36 | 0.0000 |
 | real | R (random nodes) | GPT-6 Sol | 36 | 0.0000 |
 | real | R (random nodes) | GPT-6 Sol + Python | 36 | 0.0000 |
 | real | S (random walk) | Qwen, thinking | 36 | 0.0794 |
 | real | S (random walk) | Qwen, no thinking | 35 | 0.0681 |
-| real | S (random walk) | DeepSeek Flash | 27 | 0.0087 |
+| real | S (random walk) | DeepSeek Flash | 35 | 0.0087 |
 | real | S (random walk) | GPT-6 Sol | 36 | 0.0001 |
 | real | S (random walk) | GPT-6 Sol + Python | 36 | 0.0000 |
 | real | H (random nodes, last 60% of time) | Qwen, thinking | 36 | 0.2187 |
 | real | H (random nodes, last 60% of time) | Qwen, no thinking | 36 | 0.1577 |
-| real | H (random nodes, last 60% of time) | DeepSeek Flash | 28 | 0.1032 |
+| real | H (random nodes, last 60% of time) | DeepSeek Flash | 36 | 0.1032 |
 | real | H (random nodes, last 60% of time) | GPT-6 Sol | 36 | 0.0167 |
 | real | H (random nodes, last 60% of time) | GPT-6 Sol + Python | 36 | 0.0216 |
 | real | B (random event loss) | Qwen, thinking | 36 | 0.1628 |
 | real | B (random event loss) | Qwen, no thinking | 36 | 0.0706 |
-| real | B (random event loss) | DeepSeek Flash | 28 | 0.1541 |
+| real | B (random event loss) | DeepSeek Flash | 36 | 0.1186 |
 | real | B (random event loss) | GPT-6 Sol | 36 | 0.0509 |
 | real | B (random event loss) | GPT-6 Sol + Python | 36 | 0.1220 |
 | time-shuffled copy | R (random nodes) | Qwen, thinking | 36 | 0.0000 |
 | time-shuffled copy | R (random nodes) | Qwen, no thinking | 36 | 0.0611 |
-| time-shuffled copy | R (random nodes) | DeepSeek Flash | 24 | 0.0000 |
+| time-shuffled copy | R (random nodes) | DeepSeek Flash | 36 | 0.0000 |
 | time-shuffled copy | R (random nodes) | GPT-6 Sol | 36 | 0.0000 |
 | time-shuffled copy | R (random nodes) | GPT-6 Sol + Python | 36 | 0.0000 |
 | time-shuffled copy | S (random walk) | Qwen, thinking | 35 | 0.0068 |
 | time-shuffled copy | S (random walk) | Qwen, no thinking | 36 | 0.0786 |
-| time-shuffled copy | S (random walk) | DeepSeek Flash | 24 | 0.0067 |
+| time-shuffled copy | S (random walk) | DeepSeek Flash | 36 | 0.0042 |
 | time-shuffled copy | S (random walk) | GPT-6 Sol | 36 | 0.0001 |
 | time-shuffled copy | S (random walk) | GPT-6 Sol + Python | 36 | 0.0001 |
 | time-shuffled copy | H (random nodes, last 60% of time) | Qwen, thinking | 36 | 0.0771 |
 | time-shuffled copy | H (random nodes, last 60% of time) | Qwen, no thinking | 36 | 0.1400 |
-| time-shuffled copy | H (random nodes, last 60% of time) | DeepSeek Flash | 24 | 0.0819 |
+| time-shuffled copy | H (random nodes, last 60% of time) | DeepSeek Flash | 36 | 0.0853 |
 | time-shuffled copy | H (random nodes, last 60% of time) | GPT-6 Sol | 36 | 0.0364 |
 | time-shuffled copy | H (random nodes, last 60% of time) | GPT-6 Sol + Python | 36 | 0.0410 |
 | time-shuffled copy | B (random event loss) | Qwen, thinking | 36 | 0.1850 |
 | time-shuffled copy | B (random event loss) | Qwen, no thinking | 36 | 0.0764 |
-| time-shuffled copy | B (random event loss) | DeepSeek Flash | 25 | 0.2812 |
+| time-shuffled copy | B (random event loss) | DeepSeek Flash | 36 | 0.2526 |
 | time-shuffled copy | B (random event loss) | GPT-6 Sol | 36 | 0.1370 |
 | time-shuffled copy | B (random event loss) | GPT-6 Sol + Python | 36 | 0.0992 |
 | synthetic | R (random nodes) | Qwen, thinking | 24 | 0.0000 |
 | synthetic | R (random nodes) | Qwen, no thinking | 24 | 0.1020 |
-| synthetic | R (random nodes) | DeepSeek Flash | 11 | 0.0000 |
+| synthetic | R (random nodes) | DeepSeek Flash | 24 | 0.0000 |
 | synthetic | R (random nodes) | GPT-6 Sol | 24 | 0.0000 |
 | synthetic | R (random nodes) | GPT-6 Sol + Python | 24 | 0.0000 |
 | synthetic | S (random walk) | Qwen, thinking | 24 | 0.0378 |
 | synthetic | S (random walk) | Qwen, no thinking | 24 | 0.0617 |
-| synthetic | S (random walk) | DeepSeek Flash | 12 | 0.0071 |
+| synthetic | S (random walk) | DeepSeek Flash | 24 | 0.0071 |
 | synthetic | S (random walk) | GPT-6 Sol | 24 | 0.0022 |
 | synthetic | S (random walk) | GPT-6 Sol + Python | 24 | 0.0003 |
 | synthetic | H (random nodes, last 60% of time) | Qwen, thinking | 24 | 0.1831 |
 | synthetic | H (random nodes, last 60% of time) | Qwen, no thinking | 24 | 0.1529 |
-| synthetic | H (random nodes, last 60% of time) | DeepSeek Flash | 10 | 0.0071 |
+| synthetic | H (random nodes, last 60% of time) | DeepSeek Flash | 24 | 0.0211 |
 | synthetic | H (random nodes, last 60% of time) | GPT-6 Sol | 24 | 0.0033 |
 | synthetic | H (random nodes, last 60% of time) | GPT-6 Sol + Python | 24 | 0.0073 |
 | synthetic | B (random event loss) | Qwen, thinking | 24 | 0.2311 |
 | synthetic | B (random event loss) | Qwen, no thinking | 24 | 0.2328 |
-| synthetic | B (random event loss) | DeepSeek Flash | 12 | 0.0667 |
+| synthetic | B (random event loss) | DeepSeek Flash | 24 | 0.0603 |
 | synthetic | B (random event loss) | GPT-6 Sol | 24 | 0.0127 |
 | synthetic | B (random event loss) | GPT-6 Sol + Python | 24 | 0.0168 |
 
@@ -223,24 +223,24 @@ number, so its SD is 0.
 | R (random nodes) | Statistical model (MLE) | 36 | 0.0000 |
 | R (random nodes) | ExtraTrees (trained model) | 36 | 0.0041 |
 | R (random nodes) | Qwen, thinking | 36 | 0.0000 |
-| R (random nodes) | DeepSeek Flash | 28 | 0.0000 |
+| R (random nodes) | DeepSeek Flash | 36 | 0.0000 |
 | R (random nodes) | GPT-6 Sol | 36 | 0.0000 |
 | R (random nodes) | GPT-6 Sol + Python | 36 | 0.0000 |
 | S (random walk) | Statistical model (MLE) | 36 | 0.0000 |
 | S (random walk) | ExtraTrees (trained model) | 36 | 0.0060 |
 | S (random walk) | Qwen, thinking | 36 | 0.0794 |
-| S (random walk) | DeepSeek Flash | 27 | 0.0087 |
+| S (random walk) | DeepSeek Flash | 35 | 0.0087 |
 | S (random walk) | GPT-6 Sol | 36 | 0.0001 |
 | S (random walk) | GPT-6 Sol + Python | 36 | 0.0000 |
 | H (random nodes, last 60% of time) | Statistical model (MLE) | 36 | 0.0000 |
 | H (random nodes, last 60% of time) | ExtraTrees (trained model) | 36 | 0.0051 |
 | H (random nodes, last 60% of time) | Qwen, thinking | 36 | 0.2187 |
-| H (random nodes, last 60% of time) | DeepSeek Flash | 28 | 0.1032 |
+| H (random nodes, last 60% of time) | DeepSeek Flash | 36 | 0.1032 |
 | H (random nodes, last 60% of time) | GPT-6 Sol | 36 | 0.0167 |
 | H (random nodes, last 60% of time) | GPT-6 Sol + Python | 36 | 0.0216 |
 | B (random event loss) | Statistical model (MLE) | 36 | 0.0000 |
 | B (random event loss) | ExtraTrees (trained model) | 36 | 0.0048 |
 | B (random event loss) | Qwen, thinking | 36 | 0.1628 |
-| B (random event loss) | DeepSeek Flash | 28 | 0.1541 |
+| B (random event loss) | DeepSeek Flash | 36 | 0.1186 |
 | B (random event loss) | GPT-6 Sol | 36 | 0.0509 |
 | B (random event loss) | GPT-6 Sol + Python | 36 | 0.1220 |

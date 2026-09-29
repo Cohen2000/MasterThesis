@@ -22,7 +22,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | R (random nodes) | ExtraTrees (trained model) | 0.0282 | 0.0230 | -0.0085 | 1.000 | 12/12 |
 | R (random nodes) | Qwen, thinking | 0.0269 | 0.0234 | -0.0095 | 1.000 | 12/12 |
 | R (random nodes) | Qwen, no thinking | 0.4114 | 0.3280 | 0.4086 | 1.000 | 12/12 |
-| R (random nodes) | DeepSeek Flash | 0.0261 | 0.0216 | -0.0080 | 0.926 | 12/12 |
+| R (random nodes) | DeepSeek Flash | 0.0267 | 0.0220 | -0.0087 | 1.000 | 12/12 |
 | R (random nodes) | GPT-6 Sol | 0.0267 | 0.0220 | -0.0087 | 1.000 | 12/12 |
 | R (random nodes) | GPT-6 Sol + Python | 0.0273 | 0.0221 | -0.0081 | 1.000 | 12/12 |
 | S (random walk) | Observed share (plug-in) | 0.3006 | 0.2522 | 0.2836 | 1.000 | 12/12 |
@@ -31,7 +31,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | S (random walk) | ExtraTrees (trained model) | 0.0504 | 0.0334 | 0.0233 | 1.000 | 12/12 |
 | S (random walk) | Qwen, thinking | 0.1814 | 0.1489 | 0.1416 | 1.000 | 12/12 |
 | S (random walk) | Qwen, no thinking | 0.4752 | 0.4210 | 0.4587 | 0.981 | 12/12 |
-| S (random walk) | DeepSeek Flash | 0.0904 | 0.0488 | 0.0421 | 0.917 | 12/12 |
+| S (random walk) | DeepSeek Flash | 0.0897 | 0.0481 | 0.0407 | 0.991 | 12/12 |
 | S (random walk) | GPT-6 Sol | 0.0841 | 0.0402 | 0.0406 | 1.000 | 12/12 |
 | S (random walk) | GPT-6 Sol + Python | 0.0813 | 0.0404 | 0.0380 | 1.000 | 12/12 |
 | H (random nodes, last 60% of time) | Observed share (plug-in) | 0.0639 | 0.0720 | -0.0533 | 1.000 | 12/12 |
@@ -40,7 +40,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | H (random nodes, last 60% of time) | ExtraTrees (trained model) | 0.0390 | 0.0316 | 0.0146 | 1.000 | 12/12 |
 | H (random nodes, last 60% of time) | Qwen, thinking | 0.1598 | 0.1021 | 0.0568 | 1.000 | 12/12 |
 | H (random nodes, last 60% of time) | Qwen, no thinking | 0.2516 | 0.1654 | 0.0577 | 1.000 | 12/12 |
-| H (random nodes, last 60% of time) | DeepSeek Flash | 0.1290 | 0.0707 | 0.0923 | 0.926 | 12/12 |
+| H (random nodes, last 60% of time) | DeepSeek Flash | 0.1326 | 0.0728 | 0.0948 | 1.000 | 12/12 |
 | H (random nodes, last 60% of time) | GPT-6 Sol | 0.0537 | 0.0328 | 0.0305 | 1.000 | 12/12 |
 | H (random nodes, last 60% of time) | GPT-6 Sol + Python | 0.0615 | 0.0384 | 0.0405 | 1.000 | 12/12 |
 | B (random event loss) | Observed share (plug-in) | 0.1643 | 0.1049 | -0.1643 | 1.000 | 12/12 |
@@ -49,7 +49,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | B (random event loss) | ExtraTrees (trained model) | 0.0789 | 0.0457 | 0.0230 | 1.000 | 12/12 |
 | B (random event loss) | Qwen, thinking | 0.2196 | 0.1429 | -0.0152 | 1.000 | 12/12 |
 | B (random event loss) | Qwen, no thinking | 0.5267 | 0.4988 | 0.5156 | 1.000 | 12/12 |
-| B (random event loss) | DeepSeek Flash | 0.1761 | 0.1065 | -0.0277 | 0.926 | 12/12 |
+| B (random event loss) | DeepSeek Flash | 0.1724 | 0.1044 | -0.0262 | 1.000 | 12/12 |
 | B (random event loss) | GPT-6 Sol | 0.1077 | 0.0777 | 0.0050 | 1.000 | 12/12 |
 | B (random event loss) | GPT-6 Sol + Python | 0.1512 | 0.1102 | 0.0645 | 1.000 | 12/12 |
 
@@ -63,7 +63,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | R (random nodes) | ExtraTrees (trained model) | 0.0171 | 0.0212 | -0.0063 | 1.000 | 12/12 |
 | R (random nodes) | Qwen, thinking | 0.0172 | 0.0233 | 0.0008 | 1.000 | 12/12 |
 | R (random nodes) | Qwen, no thinking | 0.2604 | 0.2506 | 0.1723 | 1.000 | 12/12 |
-| R (random nodes) | DeepSeek Flash | 0.0159 | 0.0206 | 0.0010 | 0.889 | 12/12 |
+| R (random nodes) | DeepSeek Flash | 0.0160 | 0.0211 | 0.0008 | 1.000 | 12/12 |
 | R (random nodes) | GPT-6 Sol | 0.0160 | 0.0211 | 0.0008 | 1.000 | 12/12 |
 | R (random nodes) | GPT-6 Sol + Python | 0.0160 | 0.0211 | 0.0008 | 1.000 | 12/12 |
 | S (random walk) | Observed share (plug-in) | 0.2456 | 0.3152 | 0.1945 | 1.000 | 12/12 |
@@ -72,7 +72,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | S (random walk) | ExtraTrees (trained model) | 0.0618 | 0.0631 | -0.0546 | 1.000 | 12/12 |
 | S (random walk) | Qwen, thinking | 0.1742 | 0.2004 | 0.1077 | 0.991 | 12/12 |
 | S (random walk) | Qwen, no thinking | 0.4426 | 0.4427 | 0.0768 | 1.000 | 12/12 |
-| S (random walk) | DeepSeek Flash | 0.1092 | 0.0901 | 0.0017 | 0.889 | 12/12 |
+| S (random walk) | DeepSeek Flash | 0.1101 | 0.0902 | 0.0013 | 1.000 | 12/12 |
 | S (random walk) | GPT-6 Sol | 0.0923 | 0.0745 | 0.0084 | 1.000 | 12/12 |
 | S (random walk) | GPT-6 Sol + Python | 0.0878 | 0.0701 | 0.0005 | 1.000 | 12/12 |
 | H (random nodes, last 60% of time) | Observed share (plug-in) | 0.0945 | 0.2008 | -0.0934 | 1.000 | 12/12 |
@@ -81,7 +81,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | H (random nodes, last 60% of time) | ExtraTrees (trained model) | 0.0435 | 0.0597 | -0.0389 | 1.000 | 12/12 |
 | H (random nodes, last 60% of time) | Qwen, thinking | 0.1382 | 0.1880 | -0.0150 | 1.000 | 12/12 |
 | H (random nodes, last 60% of time) | Qwen, no thinking | 0.3627 | 0.3015 | -0.2744 | 1.000 | 12/12 |
-| H (random nodes, last 60% of time) | DeepSeek Flash | 0.0991 | 0.0734 | 0.0374 | 0.889 | 12/12 |
+| H (random nodes, last 60% of time) | DeepSeek Flash | 0.0969 | 0.0746 | 0.0350 | 1.000 | 12/12 |
 | H (random nodes, last 60% of time) | GPT-6 Sol | 0.0575 | 0.0428 | -0.0113 | 1.000 | 12/12 |
 | H (random nodes, last 60% of time) | GPT-6 Sol + Python | 0.0504 | 0.0430 | -0.0104 | 1.000 | 12/12 |
 | B (random event loss) | Observed share (plug-in) | 0.3251 | 0.2827 | -0.3251 | 1.000 | 12/12 |
@@ -90,7 +90,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | B (random event loss) | ExtraTrees (trained model) | 0.1186 | 0.1317 | -0.0764 | 1.000 | 12/12 |
 | B (random event loss) | Qwen, thinking | 0.3353 | 0.2975 | -0.1974 | 1.000 | 12/12 |
 | B (random event loss) | Qwen, no thinking | 0.2669 | 0.2887 | 0.2388 | 1.000 | 12/12 |
-| B (random event loss) | DeepSeek Flash | 0.2866 | 0.2609 | -0.1194 | 0.898 | 12/12 |
+| B (random event loss) | DeepSeek Flash | 0.2925 | 0.2632 | -0.1338 | 1.000 | 12/12 |
 | B (random event loss) | GPT-6 Sol | 0.1329 | 0.1221 | -0.0181 | 1.000 | 12/12 |
 | B (random event loss) | GPT-6 Sol + Python | 0.1279 | 0.1211 | 0.0108 | 1.000 | 12/12 |
 
@@ -104,7 +104,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | R (random nodes) | ExtraTrees (trained model) | 0.0226 | 0.0167 | -0.0034 | 1.000 | 8/8 |
 | R (random nodes) | Qwen, thinking | 0.0235 | 0.0173 | -0.0033 | 1.000 | 8/8 |
 | R (random nodes) | Qwen, no thinking | 0.2194 | 0.1734 | 0.1827 | 1.000 | 8/8 |
-| R (random nodes) | DeepSeek Flash | 0.0237 | 0.0170 | -0.0045 | 0.819 | 8/8 |
+| R (random nodes) | DeepSeek Flash | 0.0235 | 0.0168 | -0.0032 | 1.000 | 8/8 |
 | R (random nodes) | GPT-6 Sol | 0.0235 | 0.0168 | -0.0032 | 1.000 | 8/8 |
 | R (random nodes) | GPT-6 Sol + Python | 0.0235 | 0.0168 | -0.0032 | 1.000 | 8/8 |
 | S (random walk) | Observed share (plug-in) | 0.1271 | 0.1083 | 0.1271 | 1.000 | 8/8 |
@@ -113,7 +113,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | S (random walk) | ExtraTrees (trained model) | 0.0184 | 0.0164 | 0.0032 | 1.000 | 8/8 |
 | S (random walk) | Qwen, thinking | 0.0786 | 0.0627 | 0.0614 | 1.000 | 8/8 |
 | S (random walk) | Qwen, no thinking | 0.2807 | 0.2544 | 0.2750 | 1.000 | 8/8 |
-| S (random walk) | DeepSeek Flash | 0.0302 | 0.0227 | 0.0035 | 0.833 | 8/8 |
+| S (random walk) | DeepSeek Flash | 0.0310 | 0.0227 | 0.0028 | 1.000 | 8/8 |
 | S (random walk) | GPT-6 Sol | 0.0295 | 0.0210 | 0.0081 | 1.000 | 8/8 |
 | S (random walk) | GPT-6 Sol + Python | 0.0271 | 0.0199 | 0.0083 | 1.000 | 8/8 |
 | H (random nodes, last 60% of time) | Observed share (plug-in) | 0.0948 | 0.1214 | -0.0902 | 1.000 | 8/8 |
@@ -122,7 +122,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | H (random nodes, last 60% of time) | ExtraTrees (trained model) | 0.0293 | 0.0191 | -0.0134 | 1.000 | 8/8 |
 | H (random nodes, last 60% of time) | Qwen, thinking | 0.1631 | 0.1348 | 0.0426 | 1.000 | 8/8 |
 | H (random nodes, last 60% of time) | Qwen, no thinking | 0.2435 | 0.1822 | -0.0826 | 1.000 | 8/8 |
-| H (random nodes, last 60% of time) | DeepSeek Flash | 0.0594 | 0.0533 | 0.0336 | 0.806 | 8/8 |
+| H (random nodes, last 60% of time) | DeepSeek Flash | 0.0578 | 0.0520 | 0.0355 | 1.000 | 8/8 |
 | H (random nodes, last 60% of time) | GPT-6 Sol | 0.0361 | 0.0248 | 0.0057 | 1.000 | 8/8 |
 | H (random nodes, last 60% of time) | GPT-6 Sol + Python | 0.0412 | 0.0279 | 0.0077 | 1.000 | 8/8 |
 | B (random event loss) | Observed share (plug-in) | 0.4255 | 0.2543 | -0.4255 | 1.000 | 8/8 |
@@ -131,7 +131,7 @@ so every network counts equally. The 12 real networks are the main analysis. Ter
 | B (random event loss) | ExtraTrees (trained model) | 0.0365 | 0.0443 | -0.0190 | 1.000 | 8/8 |
 | B (random event loss) | Qwen, thinking | 0.3303 | 0.2518 | -0.1291 | 1.000 | 8/8 |
 | B (random event loss) | Qwen, no thinking | 0.3382 | 0.3083 | 0.1636 | 1.000 | 8/8 |
-| B (random event loss) | DeepSeek Flash | 0.2016 | 0.1582 | -0.0068 | 0.833 | 8/8 |
+| B (random event loss) | DeepSeek Flash | 0.1970 | 0.1612 | -0.0148 | 1.000 | 8/8 |
 | B (random event loss) | GPT-6 Sol | 0.1295 | 0.1037 | 0.0578 | 1.000 | 8/8 |
 | B (random event loss) | GPT-6 Sol + Python | 0.1067 | 0.0917 | 0.0458 | 1.000 | 8/8 |
 
@@ -286,7 +286,7 @@ each language model lie within 0.005 of the observed share, the design ratio or 
 |---|---|---:|---:|---:|
 | Qwen, thinking | 108 | 0.500 | 0.204 | 0.130 |
 | Qwen, no thinking | 106 | 0.066 | 0.047 | 0.047 |
-| DeepSeek Flash | 99 | 0.162 | 0.697 | 0.232 |
+| DeepSeek Flash | 107 | 0.159 | 0.682 | 0.243 |
 | GPT-6 Sol | 108 | 0.120 | 0.898 | 0.241 |
 | GPT-6 Sol + Python | 108 | 0.120 | 0.926 | 0.231 |
 
