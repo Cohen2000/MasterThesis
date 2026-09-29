@@ -23,7 +23,7 @@ DeepSeek Flash: 1,022 of 1,152 answers are collected so far; the tables are upda
 
 | Path | Contents |
 |---|---|
-| `src/main_experiment/` | The building blocks: loading networks (`data.py`), sampling arms (`sampling.py`, `walk.py`), the sample text shown to every method (`observation.py`), the offline estimators (`baselines.py`, `shared_mle.py`, `mixtures.py`), the answer format check (`evaluation.py`), synthetic networks and time-shuffled copies |
+| `src/study/` | The building blocks: loading networks (`data.py`), sampling arms (`sampling.py`, `walk.py`), the sample text shown to every method (`observation.py`), the offline estimators (`estimators.py`, `mle.py`, `thinning_model.py`), the answer format check (`answer_format.py`), synthetic networks and time-shuffled copies |
 | `src/pipeline/` | The cluster pipeline: one task per step (`dag.py` plans them), the real networks prepared in the pipeline (`sources.py`), ExtraTrees (`et.py`, `replicates.py`), time-shuffled copies and checks (`surrogates_and_checks.py`), Qwen (`qwen.py`) and all result tables (`report.py`) |
 | `scripts/` | Programs to run: preparation, training networks, ExtraTrees, the API models (`api_runner.py`), evaluation (`evaluate_api.py`) |
 | `cluster/` | Job scripts for the computing cluster (SLURM) |

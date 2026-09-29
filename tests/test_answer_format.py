@@ -1,6 +1,6 @@
 """Strict answer parsing and the valid-profile rule for ExtraTrees output."""
 import unittest
-from main_experiment.evaluation import parse_final, strip_fence, valid_profile
+from study.answer_format import parse_final, strip_fence, valid_profile
 
 GOOD = '{"rho_2": 0.5, "rho_3": 0.2, "rho_4": 0.1, "rho_5": 0}'
 INVALID = ['{}', '[]', 'prose\n```json\n'+GOOD+'\n```', GOOD+' {}', '{"rho_2":.2}',

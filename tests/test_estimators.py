@@ -5,9 +5,9 @@ import numpy as np
 from scipy.optimize import minimize, minimize_scalar
 from scipy.stats import binom
 from helpers import complete6, graph
-from main_experiment.baselines import activity, corrector, h_extrapolator, profile
-from main_experiment.observation import make
-from main_experiment.sampling import h_parameters
+from study.estimators import activity, corrector, h_extrapolator, profile
+from study.observation import make
+from study.sampling import h_parameters
 
 
 class CorrectorTests(unittest.TestCase):

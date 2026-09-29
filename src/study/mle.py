@@ -27,7 +27,7 @@ exchangeability across windows.
           them); fit is the zero-truncated Beta-Binomial likelihood over
           J=1..m, and the SAME (alpha, beta) is then plugged into the W=5
           model. m=5 makes this identical to the R fit.
-  B       reuses mixtures.fit_events, which already implements exactly the
+  B       reuses thinning_model.fit_events, which already implements exactly the
           Beta-activity / ZTP(lambda) event-detection / Binomial(p) thinning
           model of this module's docstring (cell_probs(a,b,d,n) with
           d=(1-exp(-p*lambda))/(1-exp(-lambda)) is delta(lambda,p); its event
@@ -37,14 +37,14 @@ exchangeability across windows.
 Fallback (used only on a genuine optimizer failure or a starts-disagreement,
 never as a manual truth-informed repair): the homogeneous-binomial limit of
 the same family, i.e. one shared activity probability q (reusing
-baselines.activity/profile), with B keeping its event-detection nuisance
-parameter (baselines.corrector already implements exactly that homogeneous
+estimators.activity/profile), with B keeping its event-detection nuisance
+parameter (estimators.corrector already implements exactly that homogeneous
 B corrector).
 """
 import math
 from dataclasses import dataclass, field
-from . import baselines, mixtures
-from .mixtures import LOG_KAPPA_BOUNDS, LOGIT_BOUND, PENALTY, START_KAPPAS, _pack, _solve, _unpack, cell_probs, diagnose, predict_profile
+from . import estimators, thinning_model
+from .thinning_model import LOG_KAPPA_BOUNDS, LOGIT_BOUND, PENALTY, START_KAPPAS, _pack, _solve, _unpack, cell_probs, diagnose, predict_profile
 
 BOUNDS = [(-LOGIT_BOUND, LOGIT_BOUND), LOG_KAPPA_BOUNDS]
 
@@ -100,7 +100,7 @@ def fit_zt_bb(counts, n):
     D = sum(counts[1:])
     if D <= 0: raise ValueError('empty sample requires fold median')
     mean = sum(j*counts[j] for j in range(1, n+1))/D
-    mu0 = baselines.activity(mean, n)
+    mu0 = estimators.activity(mean, n)
     mu0 = min(max(mu0, 1e-6), 1-1e-6)
     starts = [_pack(mu0, k) for k in (0.2, *START_KAPPAS, 2000., 20000.)]
     best, values, _ = _solve(zt_bb_nll(counts, n), starts, BOUNDS)
@@ -119,9 +119,9 @@ def fit_profile_from_counts(counts, n):
     a, b, status, flags, objective = fit_zt_bb(counts, n)
     D = sum(counts[1:])
     mean = sum(j*counts[j] for j in range(1, n+1))/D
-    q = baselines.activity(mean, n)
+    q = estimators.activity(mean, n)
     if a is None:
-        return Result(baselines.profile(q), float('nan'), float('nan'), fit_status=status or 'not_converged',
+        return Result(estimators.profile(q), float('nan'), float('nan'), fit_status=status or 'not_converged',
                       fallback_used=True, objective=float('nan'), flags=flags or {})
     return Result(predict_profile(a, b), a, b, fit_status=status, fallback_used=False,
                   objective=objective, flags=flags)
@@ -134,14 +134,14 @@ def fit_rsh(o):
 
 
 def fit_b(o):
-    """B: reuse mixtures.fit_events (same activity/ZTP/thinning model); fall back
-    to the homogeneous B corrector (baselines.corrector) on genuine failure.
+    """B: reuse thinning_model.fit_events (same activity/ZTP/thinning model); fall back
+    to the homogeneous B corrector (estimators.corrector) on genuine failure.
     """
     if o['D_obs'] == 0: raise ValueError('empty sample requires fold median')
-    mu0, lam0 = baselines.mixture_start(o)
-    fit = mixtures.fit_events(o, mu0, lam0)
+    mu0, lam0 = estimators.mixture_start(o)
+    fit = thinning_model.fit_events(o, mu0, lam0)
     if fit.status == 'not_converged':
-        return Result(baselines.corrector(o), float('nan'), float('nan'), lam=float('nan'),
+        return Result(estimators.corrector(o), float('nan'), float('nan'), lam=float('nan'),
                       fit_status=fit.status, fallback_used=True, objective=float('nan'), flags=dict(fit.flags))
     return Result(fit.prediction, fit.a, fit.b, lam=fit.lam, fit_status=fit.status,
                   fallback_used=False, objective=fit.nll, flags=dict(fit.flags))

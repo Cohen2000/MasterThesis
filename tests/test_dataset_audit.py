@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from dataset_census import (count_feasibility, distinct_timestamp_counts,
+from dataset_audit import (count_feasibility, distinct_timestamp_counts,
                             occupancy_counts, parse_audited,
                             prepare_complete, relative_cutoff,
                             summarize_events, survival, window_sensitivity)

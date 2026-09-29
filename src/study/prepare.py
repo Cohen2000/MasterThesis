@@ -2,7 +2,7 @@
 
 In plain words: the first pipeline step. It loads every graph, tunes the sampling arms,
 draws all observations, writes the prompts and the Qwen request list, and records the
-code fingerprints. The additional real test sources are prepared by src/pipeline/sources.py
+code fingerprints. The additional real test sources are prepared by src/pipeline/real_networks.py
 with the same functions.
 
 Strictly offline. For each of the 16 real training sources, the eight synthetic
@@ -17,23 +17,23 @@ import json
 import platform
 import subprocess
 import numpy as np
-from .common import (ARMS, CONFIGS, DESIGN_VERSION, LLM_REPEATS, MAIN_KEYS, MASTER_SEED, PREPARED, BUILD,
-                     ROOT, SEEDS, SURROGATE_PARENT, SURROGATES, SYNTH, TRAIN, code_hashes, digest, draws_for,
+from .common import (ARMS, CONFIGS, DESIGN_VERSION, LLM_REPEATS, STAGE1_GRAPHS, MASTER_SEED, PREPARED, BUILD,
+                     ROOT, SEEDS, SURROGATE_PARENT, SURROGATES, SYNTHETIC_GRAPHS, TRAINING_SOURCES, code_hashes, digest, draws_for,
                      fresh_directory, graph_stratum, observation_id, parent_source, planned_sizes, read_json,
                      sha, write_csv, write_json)
 from .data import load_graph, prepare_real, save_graph
 from .observation import FEATURE_VERSION, features, make, messages, parse, serialize
-from .requests import EXECUTION_POLICY, planned
+from .model_requests import EXECUTION_POLICY, planned
 from .sampling import calibrate, draw
 from .surrogates import prepare_surrogate
 from .synthetic import generate_pair
-from .token_sizes import TOKEN_COUNTS, TokenCounters
+from .prompt_length import TOKEN_COUNTS, TokenCounters
 
 
 def build_graph(key, out, raw_dir):
     """Canonical graph of one real source, synthetic instance or surrogate."""
     folder = out/'graphs'/key
-    if key in TRAIN:
+    if key in TRAINING_SOURCES:
         return prepare_real(key, raw_dir, folder)
     if key in SURROGATES:
         return prepare_surrogate(load_graph(out/'graphs'/SURROGATE_PARENT[key]), folder)
@@ -69,7 +69,7 @@ def observation_row(g, arm, index, domain, budget, counts, traversals):
 
 def domains_of(key):
     """Test draws for the 24 main graphs, training draws for the 16 real sources."""
-    return (['training'] if key in TRAIN else [])+(['sample'] if key in MAIN_KEYS else [])
+    return (['training'] if key in TRAINING_SOURCES else [])+(['sample'] if key in STAGE1_GRAPHS else [])
 
 
 def record_environment(out):
@@ -94,7 +94,7 @@ def run(out=PREPARED, raw_dir=ROOT/'data/raw', tokenizers=ROOT/'data/tokenizers'
                                    'design_version': DESIGN_VERSION, 'feature_version': FEATURE_VERSION})
     record_environment(out)
     budgets = {}; data_rows = []; main_rows = []; training_rows = []
-    for key in (*TRAIN, *SYNTH, *SURROGATES):
+    for key in (*TRAINING_SOURCES, *SYNTHETIC_GRAPHS, *SURROGATES):
         g = build_graph(key, out, raw_dir)
         budget, walk, validation_volumes = calibrate(g, BUILD)
         budgets[key] = budget

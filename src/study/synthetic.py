@@ -5,7 +5,7 @@ activity-driven (AD) graphs let active nodes contact others, with or without mem
 past partners. The algorithms were fixed before any result was computed (docs/DESIGN.md).
 
 The frozen eight main-test instances are produced by generate_pair with the
-frozen defaults; the training/development pool (see pool.py) uses the same two
+frozen defaults; the training/development pool (see training_pool.py) uses the same two
 families through generate_one with varied parameters and independent streams.
 Parameter names are chosen so the frozen defaults reproduce bit-identically:
 the activity-driven tail is carried as tail = gamma - 1 (default exactly 1.8)

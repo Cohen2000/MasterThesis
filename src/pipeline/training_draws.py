@@ -12,11 +12,11 @@ the training observations are drawn again (replicates 1..10) and the forests ref
 import tempfile
 from pathlib import Path
 import numpy as np
-from main_experiment.common import digest, draws_for, fold_for, observation_id, read_json, write_json
-from main_experiment.observation import parse
-from main_experiment.data import load_graph
-from main_experiment.pool import regenerate
-from main_experiment.walk import Walk
+from study.common import digest, draws_for, fold_for, observation_id, read_json, write_json
+from study.observation import parse
+from study.data import load_graph
+from study.training_pool import regenerate
+from study.walk import Walk
 from .core import ARMS, MLE_ANCHOR_ARMS, STAGE2_SOURCES, PANEL_RUN, PANEL_ARMS, STAGE1, Cache, stream_domain
 from .observe import REF_START, anchored, draw_block, et_row, feature_vector
 

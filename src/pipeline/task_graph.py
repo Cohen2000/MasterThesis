@@ -19,11 +19,11 @@ from collections import defaultdict
 import json
 import subprocess
 import time
-from main_experiment.common import TRAIN, read_json, write_json
+from study.common import TRAINING_SOURCES, read_json, write_json
 from .core import ARMS, CFG, PIPELINE_DIR, MLE_ANCHOR_ARMS, STAGE2_SOURCES, RADOSLAW, ROOT, WORK, Task, frozen_inputs
-from .et import FOLDS, STAGE1_FOLDS
+from .extratrees_fits import FOLDS, STAGE1_FOLDS
 from . import surrogates_and_checks as panel
-from .surrogates_and_checks import ARMS4, SURROGATES
+from .surrogates_and_checks import REPORTED_ARMS, SURROGATES
 
 # Number of synthetic training graphs in the ExtraTrees training pool.
 POOL_GRAPHS = 400
@@ -63,7 +63,7 @@ def build(replicates):
         real, pool = {}, []
         if k:
             real = {arm: [add('draw_real', f'draw_real:{k}:{s}:{arm}', {'k': k, 'source': s, 'arm': arm},
-                              cpus=1, mem_gb=24, minutes=60, estimate=1.5) for s in TRAIN] for arm in ARMS}
+                              cpus=1, mem_gb=24, minutes=60, estimate=1.5) for s in TRAINING_SOURCES] for arm in ARMS}
             pool = [add('draw_pool', f'draw_pool:{k}:{i:03d}', {'k': k, 'first': i*chunk, 'last': (i+1)*chunk},
                         cpus=1, mem_gb=16, minutes=120, estimate=4) for i in range(POOL_GRAPHS//chunk)]
         for arm in ARMS:
@@ -83,7 +83,7 @@ def build(replicates):
                minutes=360, estimate=25 if s == 'lkml_reply' else 10) for s in STAGE2_SOURCES]
     testset_sur = add('testset_sur', 'testset_sur', {}, sur, cpus=1, mem_gb=8, minutes=30, estimate=1)
     for k in range(replicates+1):
-        for arm in ARMS4:
+        for arm in REPORTED_ARMS:
             for fold in ('synthetic', RADOSLAW):
                 base = tasks[f'train:{k}:{arm}:{fold}']
                 add('train_sur', f'train_sur:{k}:{arm}:{fold}', {'k': k, 'arm': arm, 'fold': fold},
@@ -100,7 +100,7 @@ def build(replicates):
     # Step 6: the final report waits for everything above.
     report_deps = [t for t in tasks.values() if t.stage in ('source', 'surrogate', 'testset', 'testset_sur', 'train_sur',
                                                             'qwen_bundle', 'qwen_sur', 'api_freeze', 'history', 'walkdiag')
-                   or (t.stage == 'train' and t.params['arm'] in ARMS4)]
+                   or (t.stage == 'train' and t.params['arm'] in REPORTED_ARMS)]
     add('report', 'report', {'replicates': replicates}, report_deps, cpus=2, mem_gb=32, minutes=60, estimate=5)
     return tasks
 
@@ -289,10 +289,11 @@ def run_named(name, replicates=None):
 # Map each stage name to the function that does the work; core.run writes the outputs
 # into a fresh folder named after the task key.
 def execute(task):
-    from . import core, et, qwen, replicates, report, sources
-    fn = {'source': sources.source_stage, 'testset': replicates.testset, 'draw_real': replicates.draw_real,
-          'draw_pool': replicates.draw_pool, 'select': et.select, 'train': et.train,
-          'qwen_bundle': qwen.bundle, 'report': report.report, 'anchor0': replicates.anchor0,
+    from . import core, qwen, report, real_networks, training_draws
+    from . import extratrees_fits as et
+    fn = {'source': real_networks.source_stage, 'testset': training_draws.testset, 'draw_real': training_draws.draw_real,
+          'draw_pool': training_draws.draw_pool, 'select': et.select, 'train': et.train,
+          'qwen_bundle': qwen.bundle, 'report': report.report, 'anchor0': training_draws.anchor0,
           'surrogate': panel.surrogate, 'testset_sur': panel.testset_sur, 'train_sur': panel.train_sur,
           'qwen_sur': panel.qwen_sur, 'api_freeze': panel.api_freeze, 'history': panel.history,
           'walkdiag': panel.walkdiag}[task.stage]

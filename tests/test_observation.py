@@ -3,10 +3,10 @@ import tempfile
 import unittest
 import numpy as np
 from helpers import complete6, tiny
-from main_experiment.common import ARMS, H_SENSITIVITY
-from main_experiment.observation import (FEATURE_NAMES, features, make, messages,
+from study.common import ARMS, H_SENSITIVITY
+from study.observation import (FEATURE_NAMES, features, make, messages,
                                          parse, serialize, validate)
-from main_experiment.sampling import Walk, analytic_parameters, draw, h_parameters
+from study.sampling import Walk, analytic_parameters, draw, h_parameters
 
 
 class SerializationTests(unittest.TestCase):
@@ -51,8 +51,8 @@ class SerializationTests(unittest.TestCase):
 class FeatureTests(unittest.TestCase):
 
     def test_derived_features_are_shares_and_reference_profiles(self):
-        from main_experiment.baselines import anchor_profile
-        from main_experiment.observation import ALL_PATTERNS
+        from study.estimators import anchor_profile
+        from study.observation import ALL_PATTERNS
         g = complete6(); b = h_parameters(g, .1*g.cells, .6)
         o = make(g, 'H', b, draw(g, 'H', 1, 'sample', b)[0])
         v = dict(zip(FEATURE_NAMES, features(o)))

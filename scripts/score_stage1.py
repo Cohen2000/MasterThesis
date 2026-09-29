@@ -17,18 +17,18 @@ from collections import defaultdict
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from main_experiment.baselines import design_estimate, plugin
-from main_experiment.common import (ARMS, PREPARED, REAL_TEST, RESULTS, TRAIN, fold_for,
+from study.estimators import design_estimate, plugin
+from study.common import (ARMS, PREPARED, STAGE1_REAL, RESULTS, TRAINING_SOURCES, fold_for,
                                     read_json, read_jsonl, write_csv)
-from main_experiment.evaluation import parse_final
-from main_experiment.observation import parse
-from main_experiment.shared_mle import fit as mle_fit
+from study.answer_format import parse_final
+from study.observation import parse
+from study.mle import fit as mle_fit
 
 # 'design' is the inverse-probability estimator for the walk arms (S, S_obs); it was the
 # S reference at this stage.
 METHODS = ('plugin', 'median', 'design', 'mle', 'et', 'qwen_thinking', 'qwen_nonthinking')
 QWEN = ('qwen_thinking', 'qwen_nonthinking')
-REF_METHOD = {'R': 'plugin', 'S': 'design', 'S_obs': 'design', 'H': 'mle', 'B': 'mle'}
+REFERENCE = {'R': 'plugin', 'S': 'design', 'S_obs': 'design', 'H': 'mle', 'B': 'mle'}
 
 
 # A prediction profile is valid if it has 4 finite values in [0, 1] that never increase
@@ -56,9 +56,9 @@ def median_profiles(prepared):
     for p in (prepared / 'observations/training').glob('*.json'):
         r = read_json(p)
         truth[r['source_family']] = r['truth']
-    if set(truth) != set(TRAIN): raise ValueError('incomplete real training sources')
-    return {fold: np.median([truth[s] for s in TRAIN if s != fold], axis=0).tolist()
-            for fold in (*REAL_TEST, 'synthetic')}
+    if set(truth) != set(TRAINING_SOURCES): raise ValueError('incomplete real training sources')
+    return {fold: np.median([truth[s] for s in TRAINING_SOURCES if s != fold], axis=0).tolist()
+            for fold in (*STAGE1_REAL, 'synthetic')}
 
 
 # Collect the ExtraTrees prediction of every observation from the fitted models' output files.
@@ -110,7 +110,7 @@ def offline_rows(prepared, et_dir, gate):
         if r['arm'] in ('S', 'S_obs'): pred['design'] = design_estimate(o)
         fit = mle_fit(o)
         pred['mle'] = fit.rho
-        ref = pred[REF_METHOD[r['arm']]]
+        ref = pred[REFERENCE[r['arm']]]
         inv_hajek = None
         if r['arm'] in ('S', 'S_obs'):
             inv_hajek = [sum(row[3] for row in o['table'] if row[0].count('1') >= k) /
@@ -125,7 +125,7 @@ def offline_rows(prepared, et_dir, gate):
                       'fit_status': fit.fit_status if method == 'mle' else '',
                       'mle_flags': json.dumps(fit.flags, sort_keys=True) if method == 'mle' else '{}',
                       'inv_events_hajek_rho2': inv_hajek[0] if inv_hajek else None,
-                      'reference_method': REF_METHOD[r['arm']], 'reference_rho2': ref[0],
+                      'reference_method': REFERENCE[r['arm']], 'reference_rho2': ref[0],
                       'plugin_rho2': pred['plugin'][0],
                       'not_correctable_at_this_budget': gate.get(r['graph_id'], False)
                       if r['arm'] in ('S', 'S_obs') else False,

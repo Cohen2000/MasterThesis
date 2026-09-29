@@ -10,7 +10,7 @@ from collections import deque
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from main_experiment.common import read_json, DESIGN_VERSION, digest, sha, write_json
+from study.common import read_json, DESIGN_VERSION, digest, sha, write_json
 
 # presence_penalty is 1.5 for thinking (discourages loop-y reasoning) and 0 for
 # non-thinking: for a short numeric JSON answer, a presence penalty is a decoding
@@ -48,7 +48,7 @@ def split_reasoning(text, thinking):
 
 
 def load_requests(run, passes, arms, shard_index, shard_count):
-    from main_experiment.requests import validate_request
+    from study.model_requests import validate_request
     rows = [json.loads(l) for l in (run / 'requests.jsonl').read_text().splitlines()]
     wanted = {(MODES[m]['config_id'], rep): m for m, rep in passes}
     obs = {}
@@ -140,7 +140,7 @@ def main():
     started = time.time()
     run = Path(a.run); out = Path(a.out)
     if a.shard_count<1 or not 0<=a.shard_index<a.shard_count: raise ValueError('invalid shard')
-    from main_experiment.integrity import bind
+    from study.run_guards import bind
     out.mkdir(parents=True,exist_ok=True)
     import fcntl
     lock=open(out/f'shard_{a.shard_index}.lock','a')
@@ -172,7 +172,7 @@ def main():
     from vllm.sampling_params import StructuredOutputsParams
     from transformers import AutoTokenizer
     import vllm, inspect, transformers, torch
-    from main_experiment.requests import EXECUTION_POLICY
+    from study.model_requests import EXECUTION_POLICY
     for module,name in ((vllm,'vllm'),(transformers,'transformers'),(torch,'torch')):
         if module.__version__!=EXECUTION_POLICY['qwen'][name+'_version']:
             raise ValueError(f'unpinned {name} version: {module.__version__}')

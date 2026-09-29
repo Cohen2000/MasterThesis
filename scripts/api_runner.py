@@ -32,9 +32,9 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 import yaml  # noqa: E402
-from main_experiment.common import MAIN_KEYS, digest  # noqa: E402
-from main_experiment.evaluation import parse_final  # noqa: E402
-from main_experiment.observation import messages, parse  # noqa: E402
+from study.common import STAGE1_GRAPHS, digest  # noqa: E402
+from study.answer_format import parse_final  # noqa: E402
+from study.observation import messages, parse  # noqa: E402
 
 API_MAIN_ARMS = ('R', 'S', 'H', 'B')
 MODELS = {'deepseek': 'deepseek-flash', 'openai': 'gpt-6-sol'}
@@ -64,7 +64,7 @@ DEEPSEEK_BUDGET_USD = 25
 OPENAI_BUDGET_USD = 200
 # All 32 test graphs: stage-1 panel plus the stage-2 real sources and their surrogates.
 STAGE2_SOURCES = tuple(yaml.safe_load((ROOT / 'config/pipeline.yaml').read_text())['stage2_sources'])
-API_GRAPHS = MAIN_KEYS + tuple(g for s in STAGE2_SOURCES for g in (s, s + '__pwt'))
+API_GRAPHS = STAGE1_GRAPHS + tuple(g for s in STAGE2_SOURCES for g in (s, s + '__pwt'))
 OBSERVATION_COUNT = len(API_GRAPHS) * len(API_MAIN_ARMS) * 3     # 384
 CHECKSUMS = ROOT / 'docs/results/final/CHECKSUMS.json'
 REASONING_EXPOSURE = {'deepseek': 'raw_provider_reasoning',

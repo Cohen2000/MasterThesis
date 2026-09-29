@@ -10,10 +10,10 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 from helpers import ring
-from main_experiment.common import ARM_ID, observation_id, seed
-from main_experiment.requests import validate_request
-from main_experiment.sampling import analytic_parameters
-from pipeline import core, observe, qwen, sources
+from study.common import ARM_ID, observation_id, seed
+from study.model_requests import validate_request
+from study.sampling import analytic_parameters
+from pipeline import core, observe, qwen, real_networks
 
 STAGE1_DOMAINS = {'sample', 'training', 'pool_train', 'pool_dev', 'pool', 'pool_definition', 'graph',
                'llm', 'v10_et_nested', 'v10_et_final'}
@@ -73,7 +73,7 @@ class FourEstimatorTests(unittest.TestCase):
                 x = observe.feature_vector(block, core.Cache('features', d))
                 np.testing.assert_array_equal(observe.anchored(block, arm, x), x)
             walk_counts = np.ones(g.D, dtype=np.int64)*2
-            from main_experiment.observation import make, serialize
+            from study.observation import make, serialize
             block = serialize(make(g, 'S', {'L': int(walk_counts.sum())}, g.counts, walk_counts))
             x = observe.feature_vector(block, core.Cache('features', d))
             y = observe.anchored(block, 'S', x)
@@ -85,18 +85,18 @@ class FourEstimatorTests(unittest.TestCase):
 class WindowRuleTests(unittest.TestCase):
     def test_isolated_leading_outlier_is_trimmed(self):
         t = np.r_[0., np.linspace(1000., 2000., 5000)]
-        lo, hi, lead, trail = sources.end_outliers(t, .001)
+        lo, hi, lead, trail = real_networks.end_outliers(t, .001)
         self.assertEqual((lo, hi, lead, trail), (1000., 2000., 1, 0))
         frame = pd.DataFrame({'u': [str(i % 7) for i in range(len(t))], 'v': [str(i % 7+1) for i in range(len(t))], 't': t})
-        g, _, _, report = sources.checked_graph('x', frame, False, {'min_share': .01, 'max_trim_share': .001})
+        g, _, _, report = real_networks.checked_graph('x', frame, False, {'min_share': .01, 'max_trim_share': .001})
         self.assertEqual(report['trimmed_records'], 1)
         self.assertFalse(report['flagged'])
-        self.assertGreaterEqual(min(sources.window_shares(g)), .01)
+        self.assertGreaterEqual(min(real_networks.window_shares(g)), .01)
 
     def test_genuine_sparse_window_is_flagged_not_trimmed(self):
         t = np.r_[np.linspace(0., 100., 3000), np.linspace(900., 1000., 3000), [450.]]
         frame = pd.DataFrame({'u': ['a']*len(t), 'v': ['b']*len(t), 't': t})
-        g, _, _, report = sources.checked_graph('x', frame, False, {'min_share': .01, 'max_trim_share': .001})
+        g, _, _, report = real_networks.checked_graph('x', frame, False, {'min_share': .01, 'max_trim_share': .001})
         self.assertTrue(report['flagged'])
         self.assertEqual(report['trimmed_records'], 0)
         self.assertEqual(g.M, len(t))
@@ -116,15 +116,15 @@ class RawParserTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)
             ok = self.write_zip(d, 1)
-            frame, facts = sources.load_raw('x', self.spec(ok, member='edges.csv', columns={'u': 0, 'v': 1, 'weight': 2, 't': 3}), d)
+            frame, facts = real_networks.load_raw('x', self.spec(ok, member='edges.csv', columns={'u': 0, 'v': 1, 'weight': 2, 't': 3}), d)
             self.assertEqual(len(frame), 20)
             self.assertEqual(facts['weight_values'], [1])
             bad = self.write_zip(d, 2)
             with self.assertRaises(ValueError):
-                sources.load_raw('x', self.spec(bad, member='edges.csv', columns={'u': 0, 'v': 1, 'weight': 2, 't': 3}), d)
+                real_networks.load_raw('x', self.spec(bad, member='edges.csv', columns={'u': 0, 'v': 1, 'weight': 2, 't': 3}), d)
             spec = self.spec(ok, member='edges.csv', columns={'u': 0, 'v': 1, 'weight': 2, 't': 3})
             spec['sha256'] = '0'*64
-            with self.assertRaises(ValueError): sources.load_raw('x', spec, d)
+            with self.assertRaises(ValueError): real_networks.load_raw('x', spec, d)
 
     def test_sociopatterns_records_must_be_20s(self):
         with tempfile.TemporaryDirectory() as d:
@@ -132,10 +132,10 @@ class RawParserTests(unittest.TestCase):
             path = d/'m.csv.gz'
             with gzip.open(path, 'wt') as f: f.write(',contact_time,day,id1,id2\n0,0,22,1,2\n1,20,22,2,3\n')
             spec = self.spec(path, header=',contact_time,day,id1,id2', columns={'u': 3, 'v': 4, 't': 1})
-            frame, _ = sources.load_raw('m', spec, d)
+            frame, _ = real_networks.load_raw('m', spec, d)
             self.assertEqual(frame.t.tolist(), [0., 20.])
             with gzip.open(path, 'wt') as f: f.write(',contact_time,day,id1,id2\n0,7,22,1,2\n')
-            with self.assertRaises(ValueError): sources.load_raw('m', self.spec(path, header=spec['header'], columns=spec['columns']), d)
+            with self.assertRaises(ValueError): real_networks.load_raw('m', self.spec(path, header=spec['header'], columns=spec['columns']), d)
 
 
 class QwenRequestTests(unittest.TestCase):
@@ -185,10 +185,10 @@ class TaskTests(unittest.TestCase):
 
 class DagTests(unittest.TestCase):
     def test_task_graph_shape(self):
-        from pipeline import dag
-        with tempfile.TemporaryDirectory() as d, mock.patch.object(dag, 'frozen_inputs', lambda: {}), \
+        from pipeline import task_graph
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(task_graph, 'frozen_inputs', lambda: {}), \
                 mock.patch.object(core, 'WORK', Path(d)):
-            tasks = dag.build(2)
+            tasks = task_graph.build(2)
         count = lambda stage: sum(t.stage == stage for t in tasks.values())
         self.assertEqual(count('source'), 4)
         self.assertEqual(count('draw_real'), 2*16*5)
@@ -216,7 +216,7 @@ class DagTests(unittest.TestCase):
 class PanelTests(unittest.TestCase):
     def test_surrogate_draws_use_the_parent_streams(self):
         from dataclasses import replace
-        from main_experiment.surrogates import shuffle
+        from study.surrogates import shuffle
         g = ring()
         s = shuffle(g)
         b = budget(g)

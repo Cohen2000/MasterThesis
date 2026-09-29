@@ -2,7 +2,7 @@
 import itertools
 import numpy as np
 import pandas as pd
-from main_experiment.data import canonical
+from study.data import canonical
 
 
 def graph(rows, key='fixture', proximity=False):

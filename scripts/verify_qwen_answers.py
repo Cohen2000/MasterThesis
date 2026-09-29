@@ -6,9 +6,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from main_experiment.common import (DESIGN_VERSION, QWEN_CONFIGS, ROOT, read_json,
+from study.common import (DESIGN_VERSION, QWEN_CONFIGS, ROOT, read_json,
                                     read_jsonl, sha, write_json)
-from main_experiment.requests import EXECUTION_POLICY
+from study.model_requests import EXECUTION_POLICY
 
 
 # Integrity check before Qwen answers are scored: every planned request has exactly one

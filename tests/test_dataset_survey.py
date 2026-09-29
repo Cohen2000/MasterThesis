@@ -5,8 +5,8 @@ import unittest
 
 import pandas as pd
 
-from census import normalize, parse_events
-from dataset_census import census_datasets, summarize_events
+from dataset_survey import normalize, parse_events
+from dataset_audit import census_datasets, summarize_events
 
 
 class EmpiricalLoading(unittest.TestCase):

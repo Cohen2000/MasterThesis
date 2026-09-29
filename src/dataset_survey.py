@@ -22,10 +22,10 @@ Implements the measures of the persistence definition:
   - Context: window length / median inter-event time.
 
 Usage:
-  python census.py --peek snap_collegemsg          # verify parsing
-  python census.py --only snap_collegemsg          # one dataset
-  python census.py                                  # all downloaded datasets
-  python census.py --markdown --plots --classify   # full report
+  python dataset_survey.py --peek snap_collegemsg          # verify parsing
+  python dataset_survey.py --only snap_collegemsg          # one dataset
+  python dataset_survey.py                                  # all downloaded datasets
+  python dataset_survey.py --markdown --plots --classify   # full report
 """
 
 import argparse

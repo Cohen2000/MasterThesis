@@ -8,11 +8,11 @@ the released block and are cached by its hash.
 """
 import math
 import numpy as np
-from main_experiment.baselines import design_estimate, plugin
-from main_experiment.common import digest, observation_id
-from main_experiment.observation import FEATURE_NAMES, features, make, messages, parse, serialize
-from main_experiment.sampling import draw
-from main_experiment.shared_mle import fit as mle_fit
+from study.estimators import design_estimate, plugin
+from study.common import digest, observation_id
+from study.observation import FEATURE_NAMES, features, make, messages, parse, serialize
+from study.sampling import draw
+from study.mle import fit as mle_fit
 from .core import MLE_ANCHOR_ARMS, PANEL_ARMS, Cache
 
 REF_START = FEATURE_NAMES.index('anchor_rho_2')
@@ -101,7 +101,7 @@ def _finite(x):
     return None if isinstance(x, float) and not math.isfinite(x) else x
 
 
-# Shared MLE of one block (see src/main_experiment/shared_mle.py), cached.
+# Shared MLE of one block (see src/study/mle.py), cached.
 def mle(block, cache=None):
     """Shared-MLE fit of one block (cached): prediction, fallback and diagnostics."""
     def compute():
@@ -126,17 +126,17 @@ def offline_predictions(block, median, cache=None):
 
 def training_truths(stage1):
     """Full-archive truth of each of the 16 real training sources (frozen stage-1 training draws)."""
-    from main_experiment.common import TRAIN, read_json
+    from study.common import TRAINING_SOURCES, read_json
     truth = {}
     for path in sorted((stage1/'prepared/observations/training').glob('*.json')):
         r = read_json(path)
         if truth.setdefault(r['source_family'], r['truth']) != r['truth']: raise ValueError('training truth mismatch')
-    if set(truth) != set(TRAIN): raise ValueError('incomplete real training sources')
+    if set(truth) != set(TRAINING_SOURCES): raise ValueError('incomplete real training sources')
     return truth
 
 
 # The 'median' baseline: median true profile of the training sources outside the fold.
 def fold_median(truths, fold):
     """Training-median profile of a fold (all 16 sources for the synthetic fold)."""
-    from main_experiment.common import TRAIN
-    return np.median([truths[s] for s in TRAIN if s != fold], axis=0).tolist()
+    from study.common import TRAINING_SOURCES
+    return np.median([truths[s] for s in TRAINING_SOURCES if s != fold], axis=0).tolist()

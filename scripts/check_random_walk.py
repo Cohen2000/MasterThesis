@@ -10,9 +10,9 @@ import sys
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from main_experiment.common import MAIN_KEYS, graph_stratum, seed, write_csv, write_json
-from main_experiment.data import load_graph
-from main_experiment.walk import AUDIT_ARM_ID, Walk, walk_length, validate_walk_length
+from study.common import STAGE1_GRAPHS, graph_stratum, seed, write_csv, write_json
+from study.data import load_graph
+from study.walk import AUDIT_ARM_ID, Walk, walk_length, validate_walk_length
 
 PATHS = 1000
 BATCH = 16
@@ -99,7 +99,7 @@ def main():
     args = ap.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     rows = []
-    for key in MAIN_KEYS:
+    for key in STAGE1_GRAPHS:
         g = load_graph(args.graphs / key)
         row = audit_graph(g, args.build)
         rows.append(row)

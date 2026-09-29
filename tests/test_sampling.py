@@ -4,8 +4,8 @@ import math
 import unittest
 import numpy as np
 from helpers import complete6, ring, tiny
-from main_experiment.common import (COVERAGE_FRACTION, H_SENSITIVITY, draws_for)
-from main_experiment.sampling import (analytic_parameters, draw, h_parameters, history_counts, history_panel_mask, history_start)
+from study.common import (COVERAGE_FRACTION, H_SENSITIVITY, draws_for)
+from study.sampling import (analytic_parameters, draw, h_parameters, history_counts, history_panel_mask, history_start)
 
 
 def reference_walk(walk, state, L):
@@ -56,7 +56,7 @@ class AnalyticArmTests(unittest.TestCase):
         self.assertAlmostEqual(b['T'], COVERAGE_FRACTION*g.cells)
 
     def test_retention_probability_is_machine_independent(self):
-        from main_experiment.sampling import bernoulli_p
+        from study.sampling import bernoulli_p
         g = ring(n=80, per=6, seed=2)
         p, expected = bernoulli_p(g, .1*g.cells)
         self.assertEqual(p, float(f'{p:.12g}'))                      # 12 significant digits
@@ -87,7 +87,7 @@ class HistoryArmTests(unittest.TestCase):
     def test_affine_time_change_preserves_access(self):
         g = complete6()
         import pandas as pd
-        from main_experiment.data import canonical
+        from study.data import canonical
         shifted = canonical('shifted', pd.DataFrame({'u': g.u, 'v': g.v, 't': 100+20*g.t}), horizon=(100, 120))[0]
         for h in H_SENSITIVITY: np.testing.assert_array_equal(history_counts(g, h), history_counts(shifted, h))
 

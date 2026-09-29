@@ -11,8 +11,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from main_experiment.common import digest
-from main_experiment.evaluation import parse_final
+
+from study.answer_format import parse_final
 from scripts.api_runner import (API_GRAPHS, API_MAIN_ARMS, GENERATION_CAP, ProviderRejected, collect_openai,
                                 deepseek_progress, deepseek_window, estimate,
                                 execute_deepseek, execute_openai, execute_openai_technical, guard, main,
@@ -26,8 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 class APIPreparation(unittest.TestCase):
     def test_sealed_scientific_files(self):
         expected = {
-            'config/main_experiment/system.txt': '402ac97f8c3b0cf6b48d18ebf0a20eb1b39dcc314042801883e48a0a973a867d',
-            'config/main_experiment/user_prefix.txt': '0f9a7e95378a126a643108bd5fabdc350ebad02e2fbc983e73eecf4a936558f7',
+            'config/prompts/system.txt': '402ac97f8c3b0cf6b48d18ebf0a20eb1b39dcc314042801883e48a0a973a867d',
+            'config/prompts/user_prefix.txt': '0f9a7e95378a126a643108bd5fabdc350ebad02e2fbc983e73eecf4a936558f7',
         }
         for name, digest in expected.items():
             self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), digest)

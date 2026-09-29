@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from census import count_nodes, load_registry, normalize, window_index
+from dataset_survey import count_nodes, load_registry, normalize, window_index
 
 WINDOWS = tuple(range(2, 21))
 THRESHOLDS = ("0.2", "0.4", "0.6", "0.8", "1.0")

@@ -2,9 +2,9 @@
 import unittest
 import numpy as np
 from helpers import graph, tiny
-from main_experiment.common import (SURROGATES, fold_for, parent_source)
-from main_experiment.surrogates import audit, collisions, shuffle
-from main_experiment.synthetic import generate_pair
+from study.common import (SURROGATES, fold_for, parent_source)
+from study.surrogates import audit, collisions, shuffle
+from study.synthetic import generate_pair
 
 
 class CanonicalGraphTests(unittest.TestCase):

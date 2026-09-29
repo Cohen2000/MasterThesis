@@ -17,14 +17,14 @@ from pathlib import Path
 import numpy as np
 from sklearn.ensemble import ExtraTreesRegressor
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from main_experiment.baselines import plugin
-from main_experiment.common import (ARMS, PREPARED, REAL_TEST, REFERENCES, RESULTS,
-                                    TRAIN, fold_for, read_json, seed, write_json)
-from main_experiment.observation import FEATURE_NAMES, features, parse
+from study.estimators import plugin
+from study.common import (ARMS, PREPARED, STAGE1_REAL, REFERENCES, RESULTS,
+                                    TRAINING_SOURCES, fold_for, read_json, seed, write_json)
+from study.observation import FEATURE_NAMES, features, parse
 
 # Output folder, the cross-validation folds (one per real test source + all synthetic graphs) and the settings grid.
 OUT = RESULTS / 'et'
-FOLDS = (*REAL_TEST, 'synthetic')
+FOLDS = (*STAGE1_REAL, 'synthetic')
 GRID = [(anchor, leaf, maxfeat) for anchor in ('plugin', 'reference')
         for leaf in (1, 5, 20) for maxfeat in (.5, 1.)]
 REF_START = FEATURE_NAMES.index('anchor_rho_2')
@@ -106,7 +106,7 @@ def select_one(index):
     rows, X = load()
     arm = ARMS[index // len(FOLDS)]
     outer_fold = FOLDS[index % len(FOLDS)]
-    inner_sources = [s for s in TRAIN if s != outer_fold]
+    inner_sources = [s for s in TRAINING_SOURCES if s != outer_fold]
     pool_ids = indices(rows, arm, 'pool_train')
     real_ids = indices(rows, arm, 'real_train')
     candidates = []
@@ -171,7 +171,7 @@ def train_one(index):
     test_ids = np.array([i for i, r in enumerate(rows)
                          if r['arm'] == arm and r['domain'] == 'main' and r['fold'] == fold], dtype=int)
     if not len(train_ids) or not len(test_ids): raise ValueError('missing fold rows')
-    if fold in REAL_TEST and any(rows[i]['source'] == fold for i in train_ids):
+    if fold in STAGE1_REAL and any(rows[i]['source'] == fold for i in train_ids):
         raise AssertionError('test source entered training')
     x_train, truth, base = arrays(rows, X, train_ids, anchor)
     x_test, _, test_base = arrays(rows, X, test_ids, anchor)

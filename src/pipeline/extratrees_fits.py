@@ -18,14 +18,14 @@ import os
 import pickle
 import sys
 import numpy as np
-from main_experiment.common import REAL_TEST, ROOT, TRAIN, read_json, seed, write_json
+from study.common import STAGE1_REAL, ROOT, TRAINING_SOURCES, read_json, seed, write_json
 from .core import MLE_ANCHOR_ARMS, RADOSLAW, PANEL_RUN, PANEL_ARMS, STAGE1, stream_domain
-from .replicates import stage1_cache
+from .training_draws import stage1_cache
 
 sys.path.insert(0, str(ROOT/'scripts'))
 import extratrees as extratrees  # noqa: E402
 
-STAGE1_FOLDS = (*REAL_TEST, 'synthetic')
+STAGE1_FOLDS = (*STAGE1_REAL, 'synthetic')
 FOLDS = (*STAGE1_FOLDS, RADOSLAW)
 
 
@@ -49,7 +49,7 @@ def training(k, arm, inputs):
         if name.startswith(('draw_real:', 'draw_pool:')) and (folder/f'rows_{arm}.json').exists():
             rows += read_json(folder/f'rows_{arm}.json'); Xs.append(np.load(folder/f'X_{arm}.npy'))
     X = np.vstack(Xs)
-    if len(rows) != len(X) or {r['source'] for r in rows if r['domain'] == 'real_train'} != set(TRAIN):
+    if len(rows) != len(X) or {r['source'] for r in rows if r['domain'] == 'real_train'} != set(TRAINING_SOURCES):
         raise ValueError(f'replicate {k}/{arm}: incomplete training draws')
     return rows, X
 
@@ -61,7 +61,7 @@ def select(task, out, inputs):
     rows, X = training(k, arm, inputs)
     pool_ids = np.array([i for i, r in enumerate(rows) if r['domain'] == 'pool_train'], dtype=int)
     real_ids = np.array([i for i, r in enumerate(rows) if r['domain'] == 'real_train'], dtype=int)
-    inner_sources = [s for s in TRAIN if s != outer]
+    inner_sources = [s for s in TRAINING_SOURCES if s != outer]
     candidates = []
     for anchor, leaf, maxfeat in extratrees.GRID:
         scores = []
@@ -100,7 +100,7 @@ def train(task, out, inputs):
     rows, X = training(k, arm, inputs)
     train_ids = np.array([i for i, r in enumerate(rows) if r['domain'] == 'pool_train' or
                           (r['domain'] == 'real_train' and r['source'] != fold)], dtype=int)
-    if fold in (*REAL_TEST, RADOSLAW) and any(rows[i]['source'] == fold for i in train_ids):
+    if fold in (*STAGE1_REAL, RADOSLAW) and any(rows[i]['source'] == fold for i in train_ids):
         raise AssertionError('test source entered training')
     test_rows = read_json(inputs['testset']/f'rows_{arm}.json')
     test_X = np.load(inputs['testset']/f'X_{arm}.npy')

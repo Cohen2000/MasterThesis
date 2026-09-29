@@ -18,7 +18,7 @@ import shutil
 import socket
 import time
 import yaml
-from main_experiment.common import ROOT, digest, read_json, sha, write_json
+from study.common import ROOT, digest, read_json, sha, write_json
 
 CFG = yaml.safe_load((ROOT/'config/pipeline.yaml').read_text())
 STAGE2_SOURCES = tuple(CFG['stage2_sources'])                  # real test sources prepared in stage 2
@@ -54,13 +54,13 @@ def stream_domain(kind, k):
 
 # ---------------------------------------------------------------- hashing
 STAGE_CODE = {
-    'source': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/sources.py'],
-    'testset': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/replicates.py'],
-    'draw_real': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/replicates.py'],
-    'draw_pool': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/replicates.py'],
-    'anchor0': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/replicates.py'],
-    'select': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/replicates.py', 'pipeline/et.py', '../scripts/extratrees.py'],
-    'train': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/replicates.py', 'pipeline/et.py', '../scripts/extratrees.py'],
+    'source': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/real_networks.py'],
+    'testset': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/training_draws.py'],
+    'draw_real': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/training_draws.py'],
+    'draw_pool': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/training_draws.py'],
+    'anchor0': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/training_draws.py'],
+    'select': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/training_draws.py', 'pipeline/extratrees_fits.py', '../scripts/extratrees.py'],
+    'train': ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/training_draws.py', 'pipeline/extratrees_fits.py', '../scripts/extratrees.py'],
     'qwen_bundle': ['pipeline/core.py', 'pipeline/qwen.py', '../scripts/run_qwen_engine.py'],
     'report': ['pipeline/core.py', 'pipeline/qwen.py', 'pipeline/report.py'],
 }
@@ -71,8 +71,8 @@ CONFIG_KEYS = ('version', 'et_anchor_mle_arms', 'stream_domains', 'pool_partitio
 # Fingerprint of the code a stage runs: the core modules plus the stage's own files.
 def code_hash(stage):
     src = ROOT/'src'
-    files = sorted((src/'main_experiment').glob('*.py')) + sorted((src/'main_experiment').glob('*.cpp'))
-    files += sorted((ROOT/'config/main_experiment').glob('*.txt'))
+    files = sorted((src/'study').glob('*.py')) + sorted((src/'study').glob('*.cpp'))
+    files += sorted((ROOT/'config/prompts').glob('*.txt'))
     files += [src/p for p in STAGE_CODE[stage]]
     return digest({str(p.relative_to(ROOT)) if p.is_relative_to(ROOT) else str(p): sha(p) for p in
                    (f.resolve() for f in files)})

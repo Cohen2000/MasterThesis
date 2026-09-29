@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from census import profile, spans, window_index
+from dataset_survey import profile, spans, window_index
 
 
 class PersistenceTarget(unittest.TestCase):

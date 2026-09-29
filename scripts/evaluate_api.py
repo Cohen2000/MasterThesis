@@ -31,8 +31,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 sys.path.insert(0, str(ROOT))
-from main_experiment.common import write_csv, write_json  # noqa: E402
-from main_experiment.evaluation import parse_final  # noqa: E402
+from study.common import write_csv, write_json  # noqa: E402
+from study.answer_format import parse_final  # noqa: E402
 from scripts.api_runner import (API_MAIN_ARMS, actual_usd, manifest, observations,  # noqa: E402
                                 percentile, read_jsonl, usage_tokens)
 from scripts.score_stage1 import draw_mcse, errors, mean_by_source  # noqa: E402
@@ -44,7 +44,7 @@ OFFLINE = ('plugin', 'median', 'mle', 'et', 'qwen_thinking', 'qwen_nonthinking')
 METHODS = OFFLINE + tuple(API_METHODS.values())
 # Reference estimator per sampling arm: the plain count (plugin) is unbiased under R,
 # the bias-correcting maximum-likelihood estimator (MLE) is the reference elsewhere.
-REF_METHOD = {'R': 'plugin', 'S': 'mle', 'H': 'mle', 'B': 'mle'}
+REFERENCE = {'R': 'plugin', 'S': 'mle', 'H': 'mle', 'B': 'mle'}
 # The three graph blocks. They are always scored separately, never mixed.
 GROUPS = ('real', 'surrogate', 'synthetic')
 
@@ -177,7 +177,7 @@ def paired(rows):
             chosen = [r for r in rows if in_group(r, group) and r['arm'] == arm]
             means = {m: mean_by_source([r for r in chosen if r['method'] == m], 'AE2') for m in METHODS}
             comparisons = [(api, other) for api in API_METHODS.values()
-                           for other in dict.fromkeys(('plugin', REF_METHOD[arm], 'et', 'qwen_thinking'))]
+                           for other in dict.fromkeys(('plugin', REFERENCE[arm], 'et', 'qwen_thinking'))]
             comparisons += [('deepseek_flash', 'gpt_6_sol'), ('gpt_6_sol_tools', 'gpt_6_sol')]
             for first, second in comparisons:
                 if not means[first] or not means[second]:

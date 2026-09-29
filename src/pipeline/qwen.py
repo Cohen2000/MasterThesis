@@ -9,9 +9,9 @@ PIPELINE_DIR/qwen and is never replaced; the unchanged runner skips every answer
 """
 import json
 import shutil
-from main_experiment.common import ROOT, digest, read_json, read_jsonl, seed, sha, write_json
-from main_experiment.evaluation import parse_final
-from main_experiment.requests import payload, planned, protocol_version, validate_request
+from study.common import ROOT, digest, read_json, read_jsonl, seed, sha, write_json
+from study.answer_format import parse_final
+from study.model_requests import payload, planned, protocol_version, validate_request
 from .core import PIPELINE_DIR, STAGE2_SOURCES, PANEL_ARMS
 
 QWEN_DIR = PIPELINE_DIR/'qwen'          # experiment directory 'pipeline/qwen' for cluster/qwen_engine.sbatch
@@ -61,7 +61,7 @@ def install(out, dest=None):
         if sha(existing) != new: raise RuntimeError('an installed Qwen bundle with different requests exists; not replacing it')
         return
     # No requests file means no generation can have started: a partial install is completed in place.
-    for folder in ('src/main_experiment', 'config/main_experiment'):
+    for folder in ('src/study', 'config/prompts'):
         shutil.copytree(ROOT/folder, dest/folder, ignore=shutil.ignore_patterns('__pycache__'), dirs_exist_ok=True)
     for name in ('study.yaml', 'datasets.yaml'): shutil.copy2(ROOT/'config'/name, dest/'config'/name)
     main = dest/'mainexp'

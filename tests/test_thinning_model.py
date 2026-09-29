@@ -8,11 +8,11 @@ import math
 import unittest
 from fractions import Fraction
 import numpy as np
-from main_experiment import mixtures as mx
-from main_experiment.baselines import mixture_start, profile
-from main_experiment.observation import make, validate
-from main_experiment.sampling import analytic_parameters, draw
-from main_experiment.synthetic import generate_pair
+from study import thinning_model as mx
+from study.estimators import mixture_start, profile
+from study.observation import make, validate
+from study.sampling import analytic_parameters, draw
+from study.synthetic import generate_pair
 
 
 def make_observation(patterns, counts, p):

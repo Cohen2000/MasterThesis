@@ -1,6 +1,6 @@
 """Simple estimators computed from an observation block alone (plug-in, design, working models)."""
 import math
-from . import mixtures
+from . import thinning_model
 from .observation import validate
 
 
@@ -10,7 +10,7 @@ from .observation import validate
 # - design_estimate: the walk (S) visits busy pairs more often; re-weighting each pair by
 #   1/(its number of events) undoes that preference (a ratio estimator).
 # - h_extrapolator / corrector: simple working models for H and B.
-# The MLE lives in shared_mle.py; ExtraTrees in the scripts.
+# The MLE lives in mle.py; ExtraTrees in the scripts.
 #
 # Starting point ('anchor') for ExtraTrees: the forest learns a correction to this value.
 def anchor_profile(o):
@@ -19,7 +19,7 @@ def anchor_profile(o):
         return plugin(o)
     if o['arm'] in ('S', 'S_obs'): return design_estimate(o)
     if o['arm'] == 'H':
-        from .shared_mle import fit
+        from .mle import fit
         return fit(o).rho
     try:
         return mixture_reference(o, corrector(o))['prediction']
@@ -136,7 +136,7 @@ def mixture_start(o):
 # B arm: fit the event-thinning mixture model; fall back to the simple corrector if the
 # optimiser does not converge.
 def mixture_reference(o, corrector_prediction):
-    fit = mixtures.fit_events(o, *mixture_start(o))
+    fit = thinning_model.fit_events(o, *mixture_start(o))
     prediction = list(fit.prediction); fallback = ''
     if fit.status == 'not_converged':
         prediction = list(corrector_prediction); fallback = 'homogeneous_corrector'

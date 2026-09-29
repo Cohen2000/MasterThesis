@@ -8,7 +8,7 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from main_experiment.evaluation import parse_final
+from study.answer_format import parse_final
 
 base = Path(sys.argv[1] if len(sys.argv) > 1 else '.')
 answers = sys.argv[2] if len(sys.argv) > 2 else 'answers'

@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
-from dataset_census import parse_audited
+from dataset_audit import parse_audited
 from .common import ROOT, W, sha, write_json, read_json
 
 CNS_ORIGINAL_MD5 = '98892459f73e774cf79e7977edfeee3e'   # Figshare article 7267433 v1, file 14000795

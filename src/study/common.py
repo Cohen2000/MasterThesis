@@ -29,20 +29,20 @@ BUILD = RESULTS/'build'               # compiled walk kernel (not an artifact)
 
 # ---------------------------------------------------------------- panel
 # Real test graphs of the base panel (the other real test sources are listed in config/).
-REAL_TEST = ('sp_hospital', 'sp_highschool2013', 'copenhagen_bluetooth', 'sp_workplace',
+STAGE1_REAL = ('sp_hospital', 'sp_highschool2013', 'copenhagen_bluetooth', 'sp_workplace',
              'snap_email_eu', 'snap_collegemsg', 'snap_mathoverflow', 'nr_digg_reply')
 # Each real test graph has one surrogate with the suffix '__pwt' (timestamps shuffled).
-SURROGATES = tuple(key+'__pwt' for key in REAL_TEST)
-SURROGATE_PARENT = dict(zip(SURROGATES, REAL_TEST))
+SURROGATES = tuple(key+'__pwt' for key in STAGE1_REAL)
+SURROGATE_PARENT = dict(zip(SURROGATES, STAGE1_REAL))
 # Eight synthetic graphs with known persistence: DAR = discrete autoregressive activity
 # (a0 = no memory, a08 = strong memory), ad = activity-driven with or without memory;
 # r1/r2 = two random realisations of each generator.
-SYNTH = ('dar_a0_r1', 'dar_a08_r1', 'dar_a0_r2', 'dar_a08_r2',
+SYNTHETIC_GRAPHS = ('dar_a0_r1', 'dar_a08_r1', 'dar_a0_r2', 'dar_a08_r2',
          'ad_memoryless_r1', 'ad_memory_r1', 'ad_memoryless_r2', 'ad_memory_r2')
-MAIN_KEYS = REAL_TEST + SURROGATES + SYNTH
+STAGE1_GRAPHS = STAGE1_REAL + SURROGATES + SYNTHETIC_GRAPHS
 # The 16 real training sources; the eight real test sources are among them and
 # are excluded from their own leave-one-source-out fold.
-TRAIN = ('sp_hospital', 'sp_primaryschool', 'sp_highschool2013', 'sp_workplace',
+TRAINING_SOURCES = ('sp_hospital', 'sp_primaryschool', 'sp_highschool2013', 'sp_workplace',
          'sp_hypertext2009', 'snap_collegemsg', 'snap_email_eu', 'snap_mathoverflow',
          'snap_bitcoin_otc', 'nr_radoslaw_email', 'nr_digg_reply', 'jodie_wikipedia',
          'jodie_reddit', 'jodie_lastfm', 'jodie_mooc', 'copenhagen_bluetooth')
@@ -84,14 +84,14 @@ def parent_source(key):
 # Which block a graph belongs to: real, surrogate or synthetic.
 def graph_stratum(key):
     if key in SURROGATE_PARENT: return 'surrogate'
-    if key in TRAIN: return 'real'
+    if key in TRAINING_SOURCES: return 'real'
     return 'synthetic'
 
 
 def fold_for(key):
     """LOSO fold: a real source and its surrogate use the fold without the parent."""
     parent = parent_source(key)
-    return parent if parent in REAL_TEST else 'synthetic'
+    return parent if parent in STAGE1_REAL else 'synthetic'
 
 
 def draws_for(arm, budget, domain='sample'):
@@ -120,8 +120,8 @@ def observation_id(graph_id, arm, index, fraction=COVERAGE_FRACTION):
 # How many observations and model requests the design implies (used as a consistency check).
 def planned_sizes(budgets):
     """Main/training observation and request counts derived from the calibrated budgets."""
-    main = sum(draws_for(arm, budgets[g]) for g in MAIN_KEYS for arm in ARMS)
-    training = sum(draws_for(arm, budgets[g], 'training') for g in TRAIN for arm in ARMS)
+    main = sum(draws_for(arm, budgets[g]) for g in STAGE1_GRAPHS for arm in ARMS)
+    training = sum(draws_for(arm, budgets[g], 'training') for g in TRAINING_SOURCES for arm in ARMS)
     return {'main_observations': main, 'training_observations': training,
             'planned_calls': main*len(CONFIGS)*LLM_REPEATS,
             'qwen_calls': main*len(QWEN_CONFIGS)*LLM_REPEATS}
@@ -215,8 +215,8 @@ def fresh_directory(path):
 # later check which code produced it.
 def code_hashes():
     """Hashes of the scientific modules, recorded in every stage's inputs."""
-    folder = ROOT/'src/main_experiment'
-    files = sorted([*folder.glob('*.py'), *folder.glob('*.cpp'), *(ROOT/'config/main_experiment').glob('*.txt'),
+    folder = ROOT/'src/study'
+    files = sorted([*folder.glob('*.py'), *folder.glob('*.cpp'), *(ROOT/'config/prompts').glob('*.txt'),
                     ROOT/'config/study.yaml', ROOT/'config/datasets.yaml',
-                    ROOT/'src/census.py', ROOT/'src/dataset_census.py'])
+                    ROOT/'src/dataset_survey.py', ROOT/'src/dataset_audit.py'])
     return {str(p.relative_to(ROOT)): sha(p) for p in files}

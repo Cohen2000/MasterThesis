@@ -5,14 +5,14 @@ from pathlib import Path
 import numpy as np
 from sklearn.ensemble import ExtraTreesRegressor
 
-from main_experiment.common import digest, seed
-from main_experiment.data import Graph, prepare_real
-from main_experiment.observation import features, make, messages, parse, serialize, validate
-from main_experiment.baselines import design_estimate, plugin
-from main_experiment.requests import payload, protocol_version
-from main_experiment.sampling import calibrate, draw
-from main_experiment.shared_mle import fit
-from main_experiment.walk import Walk
+from study.common import digest, seed
+from study.data import Graph, prepare_real
+from study.observation import features, make, messages, parse, serialize, validate
+from study.estimators import design_estimate, plugin
+from study.model_requests import payload, protocol_version
+from study.sampling import calibrate, draw
+from study.mle import fit
+from study.walk import Walk
 
 
 def toy():

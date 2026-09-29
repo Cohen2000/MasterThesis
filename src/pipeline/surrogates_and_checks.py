@@ -1,7 +1,7 @@
 """Panel of 12 real sources, 12 paired surrogates and 8 synthetic graphs (arms R/S/H/B).
 
 In plain words: the stage-2 tasks that complete the panel. Stages:
-  surrogate  P[w,t] surrogate of each stage-2 source (main_experiment.surrogates), its own
+  surrogate  P[w,t] surrogate of each stage-2 source (study.surrogates), its own
              10% calibration and the parent's sampler streams (common random numbers)
   testset_sur / train_sur   ET test rows of the stage-2 surrogates, predicted by the existing
              fits: pickled production models, or refits with the stored choices and seeds
@@ -18,24 +18,24 @@ import sys
 import tempfile
 from pathlib import Path
 import numpy as np
-from main_experiment.common import ROOT, draws_for, read_json, seed, write_csv, write_json
-from main_experiment.data import load_graph
-from main_experiment.observation import make, parse, serialize
-from main_experiment.sampling import calibrate
-from main_experiment.shared_mle import fit as mle_fit, fit_profile_from_counts
-from main_experiment.surrogates import prepare_surrogate
-from main_experiment.walk import AUDIT_ARM_ID, Walk
+from study.common import ROOT, draws_for, read_json, seed, write_csv, write_json
+from study.data import load_graph
+from study.observation import make, parse, serialize
+from study.sampling import calibrate
+from study.mle import fit as mle_fit, fit_profile_from_counts
+from study.surrogates import prepare_surrogate
+from study.walk import AUDIT_ARM_ID, Walk
 from . import core
 from .core import PIPELINE_DIR, STAGE2_FOLD, STAGE2_SOURCES, RADOSLAW, PANEL_RUN, STAGE1
 from .observe import draw_block, et_row, fold_median, observation_record, offline_predictions, training_truths
 
-ARMS4 = ('R', 'S', 'H', 'B')                 # reported arms; S_obs is drawn for reproducibility only
+REPORTED_ARMS = ('R', 'S', 'H', 'B')                 # reported arms; S_obs is drawn for reproducibility only
 SURROGATES = tuple(s+'__pwt' for s in STAGE2_SOURCES)
 QWEN_SUR_DIR = PIPELINE_DIR/'qwen_sur'
 _OWN = ['pipeline/core.py', 'pipeline/observe.py', 'pipeline/surrogates_and_checks.py']
 core.STAGE_CODE.update({
     'surrogate': _OWN, 'testset_sur': _OWN, 'api_freeze': _OWN, 'history': _OWN,
-    'train_sur': _OWN+['pipeline/replicates.py', 'pipeline/et.py', '../scripts/extratrees.py'],
+    'train_sur': _OWN+['pipeline/training_draws.py', 'pipeline/extratrees_fits.py', '../scripts/extratrees.py'],
     'qwen_sur': _OWN+['pipeline/qwen.py', '../scripts/run_qwen_engine.py'],
     'walkdiag': _OWN+['../scripts/check_random_walk.py']})
 
@@ -70,7 +70,7 @@ def surrogate(task, out, inputs):
     fold = STAGE2_FOLD[parent]
     median = fold_median(training_truths(STAGE1), fold)
     offline, rows, X = [], [], {}
-    for arm in ARMS4:
+    for arm in REPORTED_ARMS:
         for index in range(1, draws_for(arm, budget, 'sample')+1):
             hidden, block, counts = draw_block(streams, arm, index, 'sample', budget, walk)
             record = observation_record(g, arm, index, 'sample', budget, hidden, block, counts, 'surrogate')
@@ -87,7 +87,7 @@ def surrogate(task, out, inputs):
     for arm, xs in X.items(): np.save(out/f'X_{arm}.npy', np.asarray(xs, float))
     write_json(out/'summary.json', {'source': g.key, 'parent': parent, 'fold': fold, 'N': g.N, 'D': g.D, 'M': g.M,
                                     'truth': g.truth, 'events_per_window': g.counts.sum(0).tolist(),
-                                    'budget_matched_by_arm': {a: budget['budget_matched_by_arm'][a] for a in ARMS4},
+                                    'budget_matched_by_arm': {a: budget['budget_matched_by_arm'][a] for a in REPORTED_ARMS},
                                     'unmatched_reasons': budget['unmatched_reasons'], 'h_saturated': budget['h_saturated'],
                                     'n_panel': budget['n_panel'], 'n_panel_history': budget['n_panel_history'],
                                     'L': budget['L'], 'p': budget['p'], 'observations': len(rows)})
@@ -96,7 +96,7 @@ def surrogate(task, out, inputs):
 
 # Stage 'testset_sur': ExtraTrees test rows of the stage-2 surrogates.
 def testset_sur(task, out, inputs):
-    for arm in ARMS4:
+    for arm in REPORTED_ARMS:
         rows, X = [], []
         for parent in STAGE2_SOURCES:
             folder = inputs[f'surrogate:{parent}']
@@ -108,7 +108,7 @@ def testset_sur(task, out, inputs):
 
 def train_sur(task, out, inputs):
     """Predict the new surrogate rows of one (replicate, arm, fold) with the existing fit."""
-    from . import et
+    from . import extratrees_fits as et
     k, arm, fold = task.params['k'], task.params['arm'], task.params['fold']
     existing = read_json(inputs[f'train:{k}:{arm}:{fold}']/'predictions.json')
     rows_new = [r for r in read_json(inputs['testset_sur']/f'rows_{arm}.json') if r['fold'] == fold]
@@ -169,12 +169,12 @@ def api_freeze(task, out, inputs):
         for folder in (inputs[f'source:{parent}'], inputs[f'surrogate:{parent}']):
             for p in sorted((folder/'observations').glob('*.json')):
                 r = read_json(p)
-                if r['arm'] in ARMS4: rows.append({k: r[k] for k in API_FIELDS})
+                if r['arm'] in REPORTED_ARMS: rows.append({k: r[k] for k in API_FIELDS})
     if len(rows) != 96 or len({r['id'] for r in rows}) != 96: raise ValueError('expected 96 API observations')
     for r in rows: write_json(out/'observations'/f'{r["id"]}.json', r)
     frozen = [(r['id'], r['block_sha256'], r['prompt_sha256']) for r in sorted(rows, key=lambda r: r['id'])]
     write_json(out/'API_FREEZE_EXT.json', {
-        'observations': 96, 'graphs': sorted({r['graph_id'] for r in rows}), 'arms': list(ARMS4), 'draws': 3,
+        'observations': 96, 'graphs': sorted({r['graph_id'] for r in rows}), 'arms': list(REPORTED_ARMS), 'draws': 3,
         'observation_hash_manifest_sha256': digest_list(frozen),
         'hashes': {i: {'block_sha256': b, 'prompt_sha256': p} for i, b, p in frozen}})
 
@@ -295,8 +295,8 @@ def history_rows(g, h_blocks):
 # Stage 'history': how much of arm H's error comes from seeing only 60% of time, measured
 # on the complete graphs without any node sampling (HISTORY tables).
 def history(task, out, inputs):
-    from main_experiment.common import REAL_TEST
-    keys = [*REAL_TEST, *STAGE2_SOURCES]
+    from study.common import STAGE1_REAL
+    keys = [*STAGE1_REAL, *STAGE2_SOURCES]
     keys += [k+'__pwt' for k in keys]
     blocks = {}
     for p in (PANEL_RUN/'mainexp/run/observations/sample').glob('*__H-*.json'):

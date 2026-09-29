@@ -14,10 +14,10 @@ import zipfile
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from main_experiment.common import SAMPLER_DRAWS, digest, draws_for, sha, write_json
-from main_experiment.data import canonical, load_graph, save_graph
-from main_experiment.sampling import calibrate
-from main_experiment.walk import Walk
+from study.common import SAMPLER_DRAWS, digest, draws_for, sha, write_json
+from study.data import canonical, load_graph, save_graph
+from study.sampling import calibrate
+from study.walk import Walk
 from .core import ARMS, CFG, STAGE2_FOLD, RAW, STAGE1, Cache
 from .observe import (draw_block, et_row, fold_median, observation_record, offline_predictions,
                       training_truths)
@@ -111,7 +111,7 @@ def source_stage(task, out, _inputs):
     build = Path(tempfile.mkdtemp(prefix='v11ext_walk_'))
     if spec.get('reuse_stage1_graph'):
         g = load_graph(STAGE1/'prepared/graphs'/key)
-        from main_experiment.common import read_json
+        from study.common import read_json
         budget = read_json(STAGE1/'prepared/calibration'/f'{key}.json')
         walk = Walk(g, build)
         windows = {'shares': window_shares(g), 'min_share': min(window_shares(g)),

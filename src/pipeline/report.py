@@ -20,12 +20,12 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from statistics import median
 import numpy as np
-from main_experiment.common import ROOT, read_json, write_csv, write_json
-from main_experiment.evaluation import valid_profile
-from main_experiment.observation import parse
-from main_experiment.baselines import design_estimate
+from study.common import ROOT, read_json, write_csv, write_json
+from study.answer_format import valid_profile
+from study.observation import parse
+from study.estimators import design_estimate
 from .core import CFG, MLE_ANCHOR_ARMS, STAGE2_SOURCES, PANEL_RUN, STAGE1, WORK
-from .surrogates_and_checks import ARMS4, QWEN_SUR_DIR, SURROGATES, family
+from .surrogates_and_checks import REPORTED_ARMS, QWEN_SUR_DIR, SURROGATES, family
 from .qwen import QWEN_DIR, answers as qwen_answers
 
 # Inputs of the report task: stage-1 tables (scripts/score_stage1.py --out) and the
@@ -36,7 +36,7 @@ OFFLINE = ('plugin', 'median', 'mle', 'et')
 QWEN = ('qwen_thinking', 'qwen_nonthinking')
 APIM = ('deepseek_flash', 'gpt_6_sol', 'gpt_6_sol_tools')
 METHODS = OFFLINE+QWEN+APIM
-REF_METHOD = {'R': 'plugin', 'S': 'mle', 'H': 'mle', 'B': 'mle'}
+REFERENCE = {'R': 'plugin', 'S': 'mle', 'H': 'mle', 'B': 'mle'}
 GROUPS = ('real', 'surrogate', 'synthetic')
 TITLE = {'real': 'Real networks (main analysis, 12 networks)',
          'surrogate': 'Time-shuffled copies of the real networks (12, separate block)',
@@ -73,7 +73,7 @@ def observations(inputs):
                 r = read_json(p); obs[r['id']] = r
     return {i: {'id': i, 'source': r['graph_id'], 'group': r['stratum'], 'arm': r['arm'],
                 'sample_index': r['sample_index'], 'truth': r['truth']}
-            for i, r in obs.items() if r['arm'] in ARMS4 and
+            for i, r in obs.items() if r['arm'] in REPORTED_ARMS and
             (r['arm'] not in ('R', 'H') or '-panel-release__' in i)}     # R/H: the released draws only
 
 
@@ -150,12 +150,12 @@ def summary(rows):
     sources = {g: sorted({r['source'] for r in rows if r['group'] == g}) for g in GROUPS}
     table = []
     for g in GROUPS:
-        for arm in ARMS4:
+        for arm in REPORTED_ARMS:
             for m in METHODS:
                 sel = [r for r in rows if r['group'] == g and r['arm'] == arm and r['method'] == m]
                 ae = by_source(sel)
                 complete = bool(ae) and set(ae) == set(sources[g])
-                entry = {'group': g, 'arm': arm, 'method': m, 'reference': m == REF_METHOD[arm],
+                entry = {'group': g, 'arm': arm, 'method': m, 'reference': m == REFERENCE[arm],
                          'sources': len(sources[g]), 'sources_with_valid': len(ae),
                          'status': f'{len(ae)}/{len(sources[g])}' if complete else f'pending ({len(ae)}/{len(sources[g])})',
                          'MAE_2': None, 'ProfileMAE': None, 'signed_rho_2': None,
@@ -181,8 +181,8 @@ def paired_methods(rows):
     """Within a block: first minus second source-level MAE_2 (both complete on the same sources)."""
     out = []
     for g in ('real', 'surrogate'):
-        for arm in ARMS4:
-            ref = REF_METHOD[arm]
+        for arm in REPORTED_ARMS:
+            ref = REFERENCE[arm]
             for first, second in dict.fromkeys([('et', ref), ('qwen_thinking', ref), (ref, 'plugin'),
                                                 ('et', 'plugin'), ('qwen_thinking', 'plugin')]):
                 if first == second: continue
@@ -200,7 +200,7 @@ def paired_methods(rows):
 def paired_families(rows):
     """Original minus surrogate source-level MAE_2, one pair per source family."""
     out = []
-    for arm in ARMS4:
+    for arm in REPORTED_ARMS:
         for m in OFFLINE+QWEN:
             real = by_source([r for r in rows if r['group'] == 'real' and r['arm'] == arm and r['method'] == m])
             sur = by_source([r for r in rows if r['group'] == 'surrogate' and r['arm'] == arm and r['method'] == m])
@@ -243,7 +243,7 @@ def variability(rows, replicates):
     training, sampling, response = [], [], []
     for g in GROUPS:
         n_graphs = len({r['source'] for r in rows if r['group'] == g})
-        for arm in ARMS4:
+        for arm in REPORTED_ARMS:
             et = [r for r in rows if r['group'] == g and r['arm'] == arm and r['method'] == 'et']
             maes = [float(np.mean(list(by_source([r for r in et if r['replicate'] == k]).values())))
                     for k in range(replicates+1)]
@@ -275,7 +275,7 @@ def fixed_input_variability(rows):
     """Median observation SD at fixed input, with ET fit count matched to LLM repeats."""
     rng = np.random.default_rng(20260928)
     out = []
-    for arm in ARMS4:
+    for arm in REPORTED_ARMS:
         for method in ('mle', 'et', 'qwen_thinking', 'deepseek_flash', 'gpt_6_sol', 'gpt_6_sol_tools'):
             cells = defaultdict(list)
             for r in rows:
@@ -434,7 +434,7 @@ def main_markdown(table, infer, fam, per_src, s_design=None):
     reals = sorted({r['source'] for r in per_src if r['group'] == 'real'})
     lines += ['## Error per real network (MAE_2)', '']
     lines += md_table(['Network', 'Sampling arm', *(LABEL[m] for m in OFFLINE+QWEN)],
-                      [[s, arm, *(fmt(index.get((s, arm, m))) for m in OFFLINE+QWEN)] for s in reals for arm in ARMS4])
+                      [[s, arm, *(fmt(index.get((s, arm, m))) for m in OFFLINE+QWEN)] for s in reals for arm in REPORTED_ARMS])
     lines += ['', 'All networks, the API models and all measures: `PER_SOURCE.csv`.', '']
     if s_design is not None:
         lines += ['## Appendix: re-weighted walk estimate (arm S)', '',
@@ -603,7 +603,7 @@ def report(task, out, inputs):
     graphs = [read_json(inputs[f'{s}:{p}']/'summary.json') for p in STAGE2_SOURCES for s in ('source', 'surrogate')]
     write_csv(out/'STAGE2_GRAPHS.csv', [{'graph': g['source'], 'N': g['N'], 'D': g['D'], 'M': g['M'],
                                         **{f'rho_{k}': g['truth'][k-2] for k in range(2, 6)},
-                                        'budget_matched_by_arm': json.dumps({a: g['budget_matched_by_arm'][a] for a in ARMS4}),
+                                        'budget_matched_by_arm': json.dumps({a: g['budget_matched_by_arm'][a] for a in REPORTED_ARMS}),
                                         'h_saturated': g['h_saturated'], 'n_panel': g['n_panel'],
                                         'n_panel_history': g['n_panel_history'], 'L': g['L'], 'p': g['p']} for g in graphs])
     freeze = read_json(inputs['api_freeze']/'API_FREEZE_EXT.json')
@@ -611,7 +611,7 @@ def report(task, out, inputs):
     write_csv(out/'WALL_TIMES.csv', wall_times())
     qwen_new = [r for r in rows if r['method'] in QWEN and r['origin'] == 'panel']
     write_json(out/'REPORT.json', {
-        'version': CFG['version'], 'arms': list(ARMS4), 'replicates': replicates,
+        'version': CFG['version'], 'arms': list(REPORTED_ARMS), 'replicates': replicates,
         'blocks': {g: sorted({r['source'] for r in rows if r['group'] == g}) for g in GROUPS},
         'leakage': leak, 'r_h_b_replicate0_equals_v11': True,
         'train_sur_models': Counter(d['check']['model'] for n, d in outputs if n.startswith('train_sur:')),

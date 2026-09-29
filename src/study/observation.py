@@ -13,7 +13,7 @@ from .common import ARMS, ROOT, H_FRACTION, H_SENSITIVITY
 
 PARAMETER_NAME = {'R': 'n_panel', 'S': 'L', 'S_obs': 'L', 'H': 'n_panel_history', 'B': 'p'}
 INTEGER_PARAMETER_ARMS = ('R', 'S', 'S_obs', 'H')
-PROMPTS = ROOT/'config/main_experiment'
+PROMPTS = ROOT/'config/prompts'
 RULE_FILES = {'R': 'rule_R.txt', 'S': 'rule_S.txt', 'S_obs': 'rule_S_obs.txt', 'H': 'rule_H.txt', 'B': 'rule_B.txt'}
 PANEL_RULE_FILES = {'R': 'rule_R_panel.txt', 'H': 'rule_H_panel.txt'}
 HEADER = 'pattern,dyads,events'
@@ -208,7 +208,7 @@ def parse(text):
 # Numeric description of a block for ExtraTrees (pattern shares, sizes, arm parameters, anchors).
 def features(o):
     """Released-evidence features only; hidden calibration fields never enter ET."""
-    from .baselines import anchor_profile
+    from .estimators import anchor_profile
     validate(o)
     table = {r[0].replace('?', '0'): r[1:] for r in o['table']}
     def cell(p): return table.get(p, (0, 0, 0, 0.))

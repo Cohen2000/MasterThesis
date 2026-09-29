@@ -1,7 +1,7 @@
 # Dataset registry for the persistence census.
 # Download each file manually into --data-dir (default: ./data/), keep the
 # filename given under "file". URLs are page links; exact filenames can change,
-# so run `python census.py --peek <key>` after download to verify column layout.
+# so run `python dataset_survey.py --peek <key>` after download to verify column layout.
 #
 # format fields:
 #   delimiter: "whitespace" or ","

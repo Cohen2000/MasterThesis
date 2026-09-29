@@ -15,8 +15,8 @@ assert x['rhb_requests']==2592 and x['new_s_qwen_requests']==864
 assert x['qwen_requests_to_generate']==2160
 PY
 mkdir -p "$EXP/src" "$EXP/config" "$EXP/docs/results" "$EXP/mainexp/run/observations" "$EXP/mainexp/logs"
-cp -a "$SRC/src/main_experiment" "$EXP/src/"
-cp -a "$SRC/config/main_experiment" "$EXP/config/"
+cp -a "$SRC/src/study" "$EXP/src/"
+cp -a "$SRC/config/prompts" "$EXP/config/"
 cp -a "$SRC/config/study.yaml" "$SRC/config/datasets.yaml" "$EXP/config/"
 cp -a "$SRC/results/panel888_v10/REQUEST_FREEZE.json" "$EXP/docs/results/"
 cp -a "$SRC/scripts/run_qwen_engine.py" "$EXP/mainexp/"

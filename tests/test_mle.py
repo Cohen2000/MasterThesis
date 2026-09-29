@@ -6,10 +6,10 @@ import unittest
 from unittest import mock
 import numpy as np
 from helpers import graph, tiny
-from main_experiment import baselines, shared_mle
-from main_experiment.mixtures import cell_probs
-from main_experiment.observation import make
-from main_experiment.sampling import Walk, analytic_parameters, draw
+from study import estimators, mle
+from study.thinning_model import cell_probs
+from study.observation import make
+from study.sampling import Walk, analytic_parameters, draw
 
 
 def rsh_observation(arm='R', seed_offset=0, n=30):
@@ -34,17 +34,17 @@ def rsh_observation(arm='R', seed_offset=0, n=30):
 class InputContractTests(unittest.TestCase):
     def test_r_ignores_n_panel(self):
         o = rsh_observation('R')
-        base = shared_mle.fit(o).rho
+        base = mle.fit(o).rho
         mutated = copy.deepcopy(o); mutated['parameter'] = 999999
-        self.assertEqual(shared_mle.fit(mutated).rho, base)
+        self.assertEqual(mle.fit(mutated).rho, base)
 
     def test_h_ignores_n_panel_history_and_derives_m_from_temporal_access(self):
         o = rsh_observation('H')
-        _, m = shared_mle.visible_counts(o)
+        _, m = mle.visible_counts(o)
         self.assertEqual(m, sum(o['Temporal_access']))
-        base = shared_mle.fit(o).rho
+        base = mle.fit(o).rho
         mutated = copy.deepcopy(o); mutated['parameter'] = 1
-        self.assertEqual(shared_mle.fit(mutated).rho, base)
+        self.assertEqual(mle.fit(mutated).rho, base)
 
 
     def test_b_never_touches_full_event_counts_or_hidden_coverage(self):
@@ -54,19 +54,19 @@ class InputContractTests(unittest.TestCase):
         o = make(g, 'B', b, counts)
         self.assertNotIn('target_coverage', o)
         self.assertNotIn('T', o)
-        result = shared_mle.fit(o)
+        result = mle.fit(o)
         self.assertTrue(math.isfinite(result.objective) or result.fallback_used)
 
     def test_fit_signature_never_receives_ground_truth(self):
         import inspect
-        self.assertEqual(list(inspect.signature(shared_mle.fit).parameters), ['o'])
+        self.assertEqual(list(inspect.signature(mle.fit).parameters), ['o'])
 
 
 class ValidityTests(unittest.TestCase):
 
     def test_deterministic_repeated_fit(self):
         o = rsh_observation('R')
-        self.assertEqual(shared_mle.fit(o).rho, shared_mle.fit(o).rho)
+        self.assertEqual(mle.fit(o).rho, mle.fit(o).rho)
 
 
 class LikelihoodTests(unittest.TestCase):
@@ -77,7 +77,7 @@ class LikelihoodTests(unittest.TestCase):
         r_obs = rsh_observation('R')
         h_obs = {'arm': 'H', 'D_obs': r_obs['D_obs'], 'table': r_obs['table'],
                  'Temporal_access': [1, 1, 1, 1, 1]}
-        rr = shared_mle.fit(r_obs); rh = shared_mle.fit(h_obs)
+        rr = mle.fit(r_obs); rh = mle.fit(h_obs)
         self.assertEqual(rr.rho, rh.rho)
         self.assertEqual(rr.alpha, rh.alpha)
         self.assertEqual(rr.beta, rh.beta)
@@ -90,10 +90,10 @@ class LikelihoodTests(unittest.TestCase):
         counts = [0]*6
         for x in k: counts[x] += 1
         j_counts = [0]+counts[1:]
-        a, b, status, flags, obj = shared_mle.fit_zt_bb(j_counts, 5)
+        a, b, status, flags, obj = mle.fit_zt_bb(j_counts, 5)
         self.assertNotEqual(status, 'not_converged')
         self.assertFalse(flags.get('starts_disagree'))
-        from main_experiment.mixtures import predict_profile
+        from study.thinning_model import predict_profile
         fitted = predict_profile(a, b)
         truth_pk = cell_probs(a_true, b_true, 1., 5)
         truth_den = sum(truth_pk[1:])
@@ -105,10 +105,10 @@ class LikelihoodTests(unittest.TestCase):
         g = tiny(); p = .6
         counts = (g.counts > 0).astype(np.int64)
         o = make(g, 'B', {'p': p}, counts)
-        result = shared_mle.fit(o)
-        from main_experiment import mixtures
-        mu0, lam0 = baselines.mixture_start(o)
-        direct = mixtures.fit_events(o, mu0, lam0)
+        result = mle.fit(o)
+        from study import thinning_model
+        mu0, lam0 = estimators.mixture_start(o)
+        direct = thinning_model.fit_events(o, mu0, lam0)
         if direct.status != 'not_converged':
             self.assertEqual(result.rho, direct.prediction)
             self.assertAlmostEqual(result.lam, direct.lam)
@@ -117,31 +117,31 @@ class LikelihoodTests(unittest.TestCase):
 class FallbackTests(unittest.TestCase):
     def test_fallback_used_and_reported_on_optimizer_failure(self):
         o = rsh_observation('R')
-        with mock.patch.object(shared_mle, '_solve', return_value=(None, [], ['forced'])):
-            result = shared_mle.fit(o)
+        with mock.patch.object(mle, '_solve', return_value=(None, [], ['forced'])):
+            result = mle.fit(o)
         self.assertTrue(result.fallback_used)
         self.assertTrue(math.isnan(result.alpha) and math.isnan(result.beta))
-        counts, m = shared_mle.visible_counts(o)
+        counts, m = mle.visible_counts(o)
         mean = sum(j*counts[j] for j in range(1, m+1))/sum(counts[1:])
-        q = baselines.activity(mean, m)
-        self.assertEqual(result.rho, baselines.profile(q))
+        q = estimators.activity(mean, m)
+        self.assertEqual(result.rho, estimators.profile(q))
 
     def test_b_fallback_uses_homogeneous_corrector(self):
         g = tiny()
         counts = (g.counts > 0).astype(np.int64)
         o = make(g, 'B', {'p': .5}, counts)
-        with mock.patch('main_experiment.mixtures.fit_events') as fit_events:
-            from main_experiment.mixtures import Fit
+        with mock.patch('study.thinning_model.fit_events') as fit_events:
+            from study.thinning_model import Fit
             fit_events.return_value = Fit([float('nan')]*4, 'not_converged', n_starts=3, n_accepted=0)
-            result = shared_mle.fit(o)
+            result = mle.fit(o)
         self.assertTrue(result.fallback_used)
-        self.assertEqual(result.rho, baselines.corrector(o))
+        self.assertEqual(result.rho, estimators.corrector(o))
 
     def test_empty_sample_raises_like_plugin(self):
         g = tiny()
         empty = make(g, 'B', {'p': .5}, np.zeros_like(g.counts))
         with self.assertRaises(ValueError):
-            shared_mle.fit(empty)
+            mle.fit(empty)
 
 
 if __name__ == '__main__':

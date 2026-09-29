@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 import os
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
-from main_experiment.common import ROOT, sha, write_json
+from study.common import ROOT, sha, write_json
 from huggingface_hub import snapshot_download
 
 # One-time setup: the prompts' token counts are measured with the exact tokenizers of

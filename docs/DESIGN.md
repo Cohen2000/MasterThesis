@@ -48,7 +48,7 @@ Five language-model configurations receive the identical prompt: the sample as a
 ## How the results were computed
 
 1. **Preparation** (computing cluster): networks, time-shuffled copies, sampling budgets, samples and prompts; the synthetic training networks; ExtraTrees; the Qwen answers (`scripts/prepare_study.py`, `scripts/build_training_pool.py`, `scripts/extratrees.py`, `cluster/`).
-2. **Pipeline** (computing cluster): the remaining real networks and their copies, ExtraTrees for all networks, the checks of the random walk and of the time cut in arm H, the frozen samples for the API models, and the result table (`scripts/pipeline.py`, `src/pipeline/`).
+2. **Pipeline** (computing cluster): the remaining real networks and their copies, ExtraTrees for all networks, the checks of the random walk and of the time cut in arm H, the frozen samples for the API models, and the result table (`scripts/run_pipeline.py`, `src/pipeline/`).
 3. **API models** (laptop): DeepSeek and GPT answers for the 384 frozen samples (`scripts/api_runner.py`, `scripts/api_cycle.sh`).
 4. **Evaluation** (laptop): scoring and all final tables (`scripts/evaluate_api.py`, `pipeline.report.finalize`).
 

@@ -18,11 +18,11 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from main_experiment.common import MAIN_KEYS, TRAIN, digest, fold_for, read_json, seed, write_json
-from main_experiment.observation import parse, serialize, messages, FEATURE_NAMES
-from main_experiment.baselines import plugin
-from main_experiment.shared_mle import fit as mle_fit
-from main_experiment.requests import planned, payload, protocol_version, validate_request
+from study.common import STAGE1_GRAPHS, TRAINING_SOURCES, digest, fold_for, read_json, seed, write_json
+from study.observation import parse, serialize, messages, FEATURE_NAMES
+from study.estimators import plugin
+from study.mle import fit as mle_fit
+from study.model_requests import planned, payload, protocol_version, validate_request
 import extratrees as et
 
 # Only the two node-panel arms are affected.
@@ -91,14 +91,14 @@ def prepare(old_dir, input_dir, out):
     for row in old_rows:
         if row['arm'] not in ARMS:
             continue
-        if row['graph_id'] not in MAIN_KEYS or row['block_sha256'] != digest(row['block']) or \
+        if row['graph_id'] not in STAGE1_GRAPHS or row['block_sha256'] != digest(row['block']) or \
            row['prompt_sha256'] != digest(row['messages']) or row['messages'] != messages(row['block']):
             raise ValueError('old observation hash/content mismatch')
         fresh = release(row, budget[row['graph_id']][row['arm']])
         rows.append(fresh)
         write_json(out / 'observations/sample' / (fresh['id'] + '.json'), fresh)
     cells = {(r['graph_id'], r['arm'], r['sample_index']) for r in rows}
-    expected = {(graph, arm, draw) for graph in MAIN_KEYS for arm in ARMS for draw in (1, 2, 3)}
+    expected = {(graph, arm, draw) for graph in STAGE1_GRAPHS for arm in ARMS for draw in (1, 2, 3)}
     if len(rows) != 144 or cells != expected:
         raise ValueError('paired 144-observation grid incomplete')
     requests = [r for r in planned(rows) if r['config_id'].startswith('qwen')]
@@ -135,7 +135,7 @@ def freeze_api(old_dir, released_dir, destination):
     released = [read_json(p) for p in released_dir.glob('*.json')]
     selected = [r for r in old if r['arm'] in ('S', 'B')] + released
     cells = {(r['graph_id'], r['arm'], r['sample_index']) for r in selected}
-    expected = {(g, arm, i) for g in MAIN_KEYS for arm in ('R', 'S', 'H', 'B') for i in (1, 2, 3)}
+    expected = {(g, arm, i) for g in STAGE1_GRAPHS for arm in ('R', 'S', 'H', 'B') for i in (1, 2, 3)}
     if len(selected) != 288 or len(cells) != 288 or cells != expected:
         raise ValueError('API observation grid incomplete')
     if destination.exists() and any(destination.iterdir()):
@@ -221,7 +221,7 @@ def training_truths(input_dir):
         if source in truth and truth[source] != row['truth']:
             raise ValueError('training truth mismatch')
         truth[source] = row['truth']
-    if set(truth) != set(TRAIN):
+    if set(truth) != set(TRAINING_SOURCES):
         raise ValueError('incomplete training sources')
     return truth
 
@@ -233,7 +233,7 @@ def offline(input_dir, out):
     rows = []
     for path in sorted((out / 'observations/sample').glob('*.json')):
         row = read_json(path); o = parse(row['block']); fold = fold_for(row['graph_id'])
-        median = np.median([truths[source] for source in TRAIN if source != fold], axis=0).tolist()
+        median = np.median([truths[source] for source in TRAINING_SOURCES if source != fold], axis=0).tolist()
         hidden_block = dict(o); hidden_block.pop('n_panel')
         mle_new = list(map(float, mle_fit(o).rho))
         mle_hidden = list(map(float, mle_fit(hidden_block).rho))
