@@ -12,7 +12,6 @@ import numpy as np
 from .common import ARMS, ROOT, H_FRACTION, H_SENSITIVITY
 
 PARAMETER_NAME = {'R': 'n_panel', 'S': 'L', 'S_obs': 'L', 'H': 'n_panel_history', 'B': 'p'}
-PARAMETERS = ('n_panel', 'L', 'n_panel_history', 'p')          # one feature slot each
 INTEGER_PARAMETER_ARMS = ('R', 'S', 'S_obs', 'H')
 PROMPTS = ROOT/'config/main_experiment'
 RULE_FILES = {'R': 'rule_R.txt', 'S': 'rule_S.txt', 'S_obs': 'rule_S_obs.txt', 'H': 'rule_H.txt', 'B': 'rule_B.txt'}
@@ -36,8 +35,6 @@ FEATURE_NAMES = ([f'arm_{a}' for a in ARMS] +
 assert len(FEATURE_NAMES) == 174 and len(set(FEATURE_NAMES)) == 174
 # Compatibility names for lightweight downstream imports; these are not used as
 # model features and intentionally contain no hidden calibration fields.
-BASE_FEATURE_NAMES = FEATURE_NAMES
-DERIVED_FEATURE_NAMES = []
 
 
 def access_for(arm, h=H_FRACTION):

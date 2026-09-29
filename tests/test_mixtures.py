@@ -244,14 +244,6 @@ class NumericalGuardTests(unittest.TestCase):
         self.assertGreater(err,0.)          # not exact
         self.assertLess(err,1e-5)           # but numerically indistinguishable
 
-    def test_bound_sensitivity_reports_a_stable_fit_as_stable(self):
-        rng=np.random.default_rng(6)
-        obs,ev,_=simulate(rng,4000,2.,3.,5,lam=2.,p=.5)
-        o=make_observation(obs,ev,.5)
-        r=mx.bound_sensitivity(o,*mixture_start(o),decades=2.)
-        self.assertLess(r['max_profile_shift'],1e-3,r)
-        self.assertLess(abs(r['nll_improvement']),1e-6,r)
-
 
 class DiagnosticIndependenceTests(unittest.TestCase):
     """Diagnostic conditions overlap and must not mask one another."""
@@ -264,14 +256,11 @@ class DiagnosticIndependenceTests(unittest.TestCase):
         label, flags = mx.diagnose(z, self.bounds, spread=1.0, flat=99.)
         self.assertEqual(label, 'boundary_homogeneous')
         self.assertTrue(flags['starts_disagree'])
-        self.assertTrue(mx.is_unreliable(label, flags),
-                        'the fallback must fire even though the label says boundary')
 
     def test_interior_agreeing_fit_is_reliable(self):
         label, flags = mx.diagnose([0.0, 0.0], self.bounds, spread=0., flat=99.)
         self.assertEqual(label, 'converged')
         self.assertFalse(any(flags.values()))
-        self.assertFalse(mx.is_unreliable(label, flags))
 
     def test_missing_flatness_is_not_read_as_good_identifiability(self):
         label, flags = mx.diagnose([0.0, 0.0], self.bounds, spread=0., flat=float('nan'))

@@ -153,8 +153,3 @@ def run(out=PREPARED, raw_dir=ROOT/'data/raw', tokenizers=ROOT/'data/tokenizers'
     print(json.dumps(report, indent=2), flush=True)
     if not report['offline_ready']: raise SystemExit('prepared study incomplete')
     return report
-
-
-def prepared_graph(key):
-    """A main graph and its budget as written by this stage."""
-    return load_graph(PREPARED/'graphs'/key), read_json(PREPARED/'calibration'/f'{key}.json')

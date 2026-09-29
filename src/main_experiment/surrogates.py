@@ -10,22 +10,14 @@ uniformly at random. Record i keeps its dyad, so nodes, dyad support, events per
 dyad, the total event count, the timestamp multiset and the archive bounds are
 preserved exactly. Records are never deduplicated after the shuffle: two records
 that now share dyad and timestamp remain two events (relevant for arm B thinning).
-
-Shuffle index 0 is the single productive surrogate. Indices 1..99 are offline
-null-distribution diagnostics only; they are never selected, trained on or sent
-to a model.
 """
 from dataclasses import replace
 import numpy as np
 from .common import DESIGN_VERSION, seed, rng
 from .data import save_graph, window_of, window_counts
 
-NULL_SHUFFLES = 99
-
-
-def shuffle(parent, index=0):
-    domain = 'pwt_productive' if index == 0 else 'pwt_null_diagnostic'
-    t = rng(domain, parent.key, '', index).permutation(parent.t)
+def shuffle(parent):
+    t = rng('pwt_productive', parent.key, '', 0).permutation(parent.t)   # one fixed shuffle per network
     w = window_of(t, parent.horizon)
     return replace(parent, key=parent.key+'__pwt', t=t, w=w, counts=window_counts(parent.pair, w, parent.D))
 

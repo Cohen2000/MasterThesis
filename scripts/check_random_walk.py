@@ -6,7 +6,6 @@ corrected at the 10% budget (the "walk gate"). The seed label and design stamp b
 fixed data and must not be changed.
 """
 import argparse
-import json
 import sys
 from pathlib import Path
 import numpy as np

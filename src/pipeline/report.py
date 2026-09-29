@@ -376,13 +376,6 @@ def history_summary(path):
     return losses, errs
 
 
-WALK_COLUMNS = ('graph_id', 'L', 'stationary_shift_rho2', 'plugin_rho2_bias', 'plugin_rho2_sd', 'design_S_rho2_bias',
-                'design_S_rho2_sd', 'mle_S_rho2_bias', 'mle_S_rho2_sd', 'mle_S_failures', 'gate_applicable', 'gate_pass',
-                'weight_ess_mean', 'ratio_ess_mean', 'revisit_rate_mean', 'distinct_dyads_mean', 'components',
-                'largest_component_cell_share', 'walk_cell_share_of_start_component', 'communities',
-                'communities_touched_share', 'walk_cell_share_of_touched_communities')
-
-
 # ---------------------------------------------------------------- markdown
 # Plain names used in every table (the CSV files keep the short method codes).
 LABEL = {'plugin': 'Observed share (plug-in)', 'median': 'Training median', 'mle': 'Statistical model (MLE)',

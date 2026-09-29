@@ -91,7 +91,8 @@ class LikelihoodTests(unittest.TestCase):
         for x in k: counts[x] += 1
         j_counts = [0]+counts[1:]
         a, b, status, flags, obj = shared_mle.fit_zt_bb(j_counts, 5)
-        self.assertFalse(shared_mle.is_unreliable(status, flags))
+        self.assertNotEqual(status, 'not_converged')
+        self.assertFalse(flags.get('starts_disagree'))
         from main_experiment.mixtures import predict_profile
         fitted = predict_profile(a, b)
         truth_pk = cell_probs(a_true, b_true, 1., 5)
@@ -108,7 +109,7 @@ class LikelihoodTests(unittest.TestCase):
         from main_experiment import mixtures
         mu0, lam0 = baselines.mixture_start(o)
         direct = mixtures.fit_events(o, mu0, lam0)
-        if not mixtures.is_unreliable(direct.status, direct.flags):
+        if direct.status != 'not_converged':
             self.assertEqual(result.rho, direct.prediction)
             self.assertAlmostEqual(result.lam, direct.lam)
 

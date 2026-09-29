@@ -21,7 +21,6 @@ import yaml
 from main_experiment.common import ROOT, digest, read_json, sha, write_json
 
 CFG = yaml.safe_load((ROOT/'config/pipeline.yaml').read_text())
-VERSION = CFG['version']
 STAGE2_SOURCES = tuple(CFG['stage2_sources'])                  # real test sources prepared in stage 2
 STAGE2_FOLD = {k: v['fold'] for k, v in CFG['stage2_sources'].items()}
 RADOSLAW = 'nr_radoslaw_email'

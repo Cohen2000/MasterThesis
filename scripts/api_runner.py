@@ -15,7 +15,7 @@ GPT runs through the Batch API in chunks.
 """
 import argparse
 from collections import Counter
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json

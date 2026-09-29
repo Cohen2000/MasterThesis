@@ -24,8 +24,6 @@ MASTER_SEED = 20260921
 RESULTS = ROOT/'results/panel888_v10'
 PREPARED = RESULTS/'prepared'         # graphs, calibration, observations, requests
 REFERENCES = RESULTS/'references'     # training pool, ExtraTrees folds, baseline predictions
-DIAGNOSTICS = RESULTS/'diagnostics'   # offline sensitivity and diagnostic analyses
-AUDIT = RESULTS/'audit'               # independent audits of the prepared study
 QWEN = RESULTS/'qwen'                 # collected Qwen answers and their evaluation
 BUILD = RESULTS/'build'               # compiled walk kernel (not an artifact)
 
@@ -48,9 +46,6 @@ TRAIN = ('sp_hospital', 'sp_primaryschool', 'sp_highschool2013', 'sp_workplace',
          'sp_hypertext2009', 'snap_collegemsg', 'snap_email_eu', 'snap_mathoverflow',
          'snap_bitcoin_otc', 'nr_radoslaw_email', 'nr_digg_reply', 'jodie_wikipedia',
          'jodie_reddit', 'jodie_lastfm', 'jodie_mooc', 'copenhagen_bluetooth')
-# Reporting blocks: real, surrogate, and the four synthetic generator conditions.
-# Reporting blocks used by the early tables (real, surrogate, one per synthetic generator).
-STRATA = ('real', 'surrogate', 'dar_a0', 'dar_a08', 'ad_memoryless', 'ad_memory')
 
 # ---------------------------------------------------------------- design
 # The time axis of every graph is cut into W = 5 equal windows. rho_k is the share of
@@ -79,10 +74,6 @@ LLM_REPEATS = 3
 # Language-model configurations that get the same prompts.
 CONFIGS = ('sol', 'deepseek', 'qwen_thinking', 'qwen_nonthinking')
 QWEN_CONFIGS = ('qwen_thinking', 'qwen_nonthinking')
-# Budget-sensitivity study (separate from the main study, which is fixed at 0.10).
-# Optional side study with other budgets; not part of the reported results.
-BUDGET_GRID = (0.025, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50)
-BUDGET_SENSITIVITY = ROOT/'results/panel888_budget_sensitivity'
 
 
 def parent_source(key):
@@ -97,14 +88,6 @@ def graph_stratum(key):
     return 'synthetic'
 
 
-def in_stratum(graph_id, stratum):
-    """Reporting block of a main graph: real, surrogate or one synthetic condition."""
-    if stratum in ('real', 'surrogate'): return graph_stratum(graph_id) == stratum
-    return graph_id.startswith(stratum+'_r')
-
-
-# Leave-one-source-out: a model that predicts graph X must not have been trained on X.
-# A surrogate uses the same fold as its parent, because it is built from the parent's data.
 def fold_for(key):
     """LOSO fold: a real source and its surrogate use the fold without the parent."""
     parent = parent_source(key)

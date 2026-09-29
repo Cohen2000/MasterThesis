@@ -104,9 +104,6 @@ FLAT_DECADE_TOL=0.5                 # profile nll rise per decade of kappa below
 START_KAPPAS=(2.,20.,200.)
 PENALTY=1e18                        # objective value returned on the invalid region
 CLAMP_TOL=1e-9                      # a larger clamp is an error, not a repair
-# Diagnostic flags remain independent of the optimizer decision. is_unreliable()
-# below is retained only to calculate the superseded fallback in secondary output.
-UNRELIABLE_STATUSES=('not_converged','starts_disagree')
 COMB=[[math.comb(n,k) for k in range(n+1)] for n in range(6)]
 
 
@@ -234,17 +231,6 @@ def diagnose(z,bounds,spread,flat):
     return label,flags
 
 
-def is_unreliable(status,flags):
-    """Whether the superseded fallback rule would have rejected this fit.
-
-    Reading it off the summary label would reinstate exactly the masking bug:
-    a disagreeing fit that also sits on a bound is labelled boundary_* but is
-    still flagged by the old rule. Current fits fall back only if no start
-    converges.
-    """
-    return status=='not_converged' or bool(flags.get('starts_disagree'))
-
-
 def _solve(nll,starts,bounds):
     """Run every start and accept only results that are genuinely optimiser output.
 
@@ -277,26 +263,6 @@ def _widen(bounds,decades):
         d=decades*math.log(10)
         out.append((lo-d,hi+d) if i else (lo-decades,hi+decades))
     return out
-
-
-def bound_sensitivity(o,mu0,lam0,decades=2.0):
-    """How much does the answer depend on the artificial parameter box?
-
-    Refits with every bound widened by `decades` and reports the movement of the
-    objective and of the predicted persistence. A fit that is pinned by a bound
-    shows up here as a large profile shift, which is a problem to report rather
-    than a result to keep.
-    """
-    base=fit_events(o,mu0,lam0)
-    wide=fit_events(o,mu0,lam0,decades=decades)
-    if base.status=='empty_sample' or wide.status=='empty_sample':
-        return {'status':'empty_sample'}
-    shift=max(abs(x-y) for x,y in zip(base.prediction,wide.prediction))
-    return {'status':base.status,'status_widened':wide.status,
-            'nll':base.nll,'nll_widened':wide.nll,
-            'nll_improvement':float(base.nll-wide.nll),
-            'max_profile_shift':float(shift),
-            'kappa':base.kappa,'kappa_widened':wide.kappa}
 
 
 def fit_events(o,homogeneous_mu,homogeneous_lambda,decades=0.):

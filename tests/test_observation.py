@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 from helpers import complete6, tiny
 from main_experiment.common import ARMS, H_SENSITIVITY
-from main_experiment.observation import (BASE_FEATURE_NAMES, FEATURE_NAMES, features, make, messages,
+from main_experiment.observation import (FEATURE_NAMES, features, make, messages,
                                          parse, serialize, validate)
 from main_experiment.sampling import Walk, analytic_parameters, draw, h_parameters
 
@@ -65,7 +65,7 @@ class FeatureTests(unittest.TestCase):
         o = {'arm': 'B', 'N_obs': 0, 'D_obs': 0, 'M_obs': 0, 'Temporal_access': [1]*5, 'Events_per_window': [0]*5,
              'parameter': .5, 'table': [(f'{p:05b}', 0, 0) for p in range(1, 32)]}
         v = features(o)
-        self.assertTrue(np.isfinite(v).all() and (v[len(BASE_FEATURE_NAMES):] == 0).all())
+        self.assertTrue(np.isfinite(v).all())
 
 
 if __name__ == '__main__':

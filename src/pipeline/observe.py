@@ -109,9 +109,7 @@ def mle(block, cache=None):
         return {'rho': [float(v) for v in r.rho], 'fallback_used': bool(r.fallback_used),
                 'fit_status': r.fit_status,
                 'flags': {k: _finite(v) if not isinstance(v, (bool, np.bool_)) else bool(v)
-                          for k, v in r.flags.items()},
-                'old_rule_rho': [float(v) for v in r.old_rule_rho],
-                'old_rule_fallback_used': bool(r.old_rule_fallback_used)}
+                          for k, v in r.flags.items()}}
     return (cache or Cache('mle')).get(digest(block), compute)
 
 

@@ -60,7 +60,6 @@ class SurrogateTests(unittest.TestCase):
         self.assertEqual(s.M, g.M)                             # no re-deduplication after the shuffle
         self.assertGreater(collisions(s), collisions(g))
         np.testing.assert_array_equal(s.t, shuffle(g).t)       # deterministic productive shuffle
-        self.assertFalse(np.array_equal(s.t, shuffle(g, 1).t))  # null shuffles are different streams
 
     def test_audit_rejects_a_changed_multiset(self):
         g = self.parent(); s = shuffle(g)

@@ -43,9 +43,8 @@ B corrector).
 """
 import math
 from dataclasses import dataclass, field
-import numpy as np
 from . import baselines, mixtures
-from .mixtures import LOG_KAPPA_BOUNDS, LOGIT_BOUND, PENALTY, START_KAPPAS, _pack, _solve, _unpack, cell_probs, diagnose, is_unreliable, predict_profile
+from .mixtures import LOG_KAPPA_BOUNDS, LOGIT_BOUND, PENALTY, START_KAPPAS, _pack, _solve, _unpack, cell_probs, diagnose, predict_profile
 
 BOUNDS = [(-LOGIT_BOUND, LOGIT_BOUND), LOG_KAPPA_BOUNDS]
 
@@ -60,8 +59,6 @@ class Result:
     fallback_used: bool = False
     objective: float = float('nan')
     flags: dict = field(default_factory=dict)
-    old_rule_rho: list = field(default_factory=list)
-    old_rule_fallback_used: bool = False
 
 
 def visible_counts(o):
@@ -123,15 +120,11 @@ def fit_profile_from_counts(counts, n):
     D = sum(counts[1:])
     mean = sum(j*counts[j] for j in range(1, n+1))/D
     q = baselines.activity(mean, n)
-    old_fallback = a is None or is_unreliable(status, flags)
-    old_rho = baselines.profile(q) if old_fallback else predict_profile(a, b)
     if a is None:
         return Result(baselines.profile(q), float('nan'), float('nan'), fit_status=status or 'not_converged',
-                      fallback_used=True, objective=float('nan'), flags=flags or {},
-                      old_rule_rho=old_rho, old_rule_fallback_used=True)
+                      fallback_used=True, objective=float('nan'), flags=flags or {})
     return Result(predict_profile(a, b), a, b, fit_status=status, fallback_used=False,
-                  objective=objective, flags=flags, old_rule_rho=old_rho,
-                  old_rule_fallback_used=old_fallback)
+                  objective=objective, flags=flags)
 
 
 def fit_rsh(o):
@@ -147,15 +140,11 @@ def fit_b(o):
     if o['D_obs'] == 0: raise ValueError('empty sample requires fold median')
     mu0, lam0 = baselines.mixture_start(o)
     fit = mixtures.fit_events(o, mu0, lam0)
-    old_fallback = is_unreliable(fit.status, fit.flags)
-    old_rho = baselines.corrector(o) if old_fallback else fit.prediction
     if fit.status == 'not_converged':
         return Result(baselines.corrector(o), float('nan'), float('nan'), lam=float('nan'),
-                      fit_status=fit.status, fallback_used=True, objective=float('nan'), flags=dict(fit.flags),
-                      old_rule_rho=old_rho, old_rule_fallback_used=True)
+                      fit_status=fit.status, fallback_used=True, objective=float('nan'), flags=dict(fit.flags))
     return Result(fit.prediction, fit.a, fit.b, lam=fit.lam, fit_status=fit.status,
-                  fallback_used=False, objective=fit.nll, flags=dict(fit.flags),
-                  old_rule_rho=old_rho, old_rule_fallback_used=old_fallback)
+                  fallback_used=False, objective=fit.nll, flags=dict(fit.flags))
 
 
 def fit(o):
