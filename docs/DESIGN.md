@@ -79,7 +79,7 @@ The main building blocks follow published methods; the combination and the param
 | Variability | Bouthillier et al. (2021), *Accounting for variance in machine learning benchmarks* | Separate sources of variation |
 | Language models on graphs | Maurya & Liu (2026), *Evaluating LLMs on large-scale graph property estimation via random walks* | Estimating a graph property from compact sample statistics |
 
-Own choices without a standard in the literature: five windows, the 10% budget, the last 60% for arm H, the calibration on active (pair, window) cells, the generator parameters, the ExtraTrees starting estimate and weights, and the exact information released to the methods.
+Own choices without a standard in the literature: five windows (how the truth changes for 2 to 20 windows: [W_SENSITIVITY.md](results/final/W_SENSITIVITY.md)), the 10% budget, the last 60% for arm H, the calibration on active (pair, window) cells, the generator parameters, the ExtraTrees starting estimate and weights, and the exact information released to the methods.
 
 ## Glossary
 

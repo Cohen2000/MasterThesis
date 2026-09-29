@@ -9,7 +9,8 @@ This folder holds every result of the study. The [study design](../../DESIGN.md)
 - [`VARIABILITY.md`](VARIABILITY.md): how much results change between ExtraTrees fits, between the three samples of a network, and between the three answers of a language model.
 - [`HISTORY.md`](HISTORY.md): why seeing only the last 60% of the time span (arm H) biases the estimates.
 - [`WALK.md`](WALK.md): a check of the random walk (arm S) on all 32 networks, with 1000 simulated walks each.
-- `W_SENSITIVITY.csv`: how the true answer changes with 4 or 8 instead of 5 time windows. `S_DESIGN_APPENDIX.csv`: a simple re-weighted estimate for arm S, shown for comparison only.
+- [`W_SENSITIVITY.md`](W_SENSITIVITY.md): how the true answer and the ordering of the networks change with 2 to 20 instead of 5 time windows (`scripts/window_sensitivity.py`; all values in `W_SENSITIVITY.csv` and `W_SENSITIVITY_NETWORKS.csv`).
+- `S_DESIGN_APPENDIX.csv`: a simple re-weighted estimate for arm S, shown for comparison only.
 - `CHECKSUMS.json`: SHA-256 fingerprints of the raw data files, of the 384 frozen samples given to the API models, and of every raw answer file, so anyone can verify they have the same data.
 
 ## When an answer counts
