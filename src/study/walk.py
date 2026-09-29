@@ -19,6 +19,8 @@ VALIDATION_WALKS = 1024
 EXTENDED_VALIDATION_WALKS = 4096
 MAX_RELATIVE_MCSE = .01
 
+# Reference: random walk on a weighted graph, Masuda, Porter & Lambiotte (2017), eqs. (24), (31)-(32).
+# Here the weight of a pair is its number of events; time order does not restrict the steps.
 class Walk:
     """Integer-weighted walk on the dyad support, implemented in walk_kernel.cpp.
 

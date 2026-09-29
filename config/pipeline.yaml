@@ -12,7 +12,7 @@ et_anchor_mle_arms: [S, S_obs]
 
 # ET replicates. Replicate 0 is the production fit; 1..N redraw the real
 # training observations and the pool-graph observations, reseed the forests and
-# rerun the nested selection. Reduced to 5 when the dry run estimates > 12 h wall time.
+# repeat the nested selection. Reduced to 5 when the dry run estimates > 12 h wall time.
 et_replicates: 10
 et_replicates_fallback: 5
 wall_limit_hours: 12

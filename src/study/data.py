@@ -42,6 +42,7 @@ class Graph:
     @property
     def m(self): return self.counts.sum(axis=1)            # events per dyad
     @property
+    # Reference: K is the temporal support of one edge, Lahiri & Berger-Wolf (2007), defs. 2-3.
     def K(self): return (self.counts > 0).sum(axis=1)      # active windows per dyad
     @property
     def cells(self): return int((self.counts > 0).sum())   # sum_e K_e, the matched quantity

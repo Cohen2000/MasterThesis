@@ -72,8 +72,8 @@ class ExactnessTests(unittest.TestCase):
         Fraction(float) is the exact binary value of the float, so any difference
         is genuine floating-point error and not a mismatch of inputs. The grid
         deliberately includes a=1e5, b=1e-3, d=1, where q concentrates at one and
-        Pr{J=0} is about 1e-26; the earlier alternating-moment form returned pure
-        rounding noise there.
+        Pr{J=0} is about 1e-26, where an alternating-moment form would return pure
+        rounding noise.
         """
         def exact(a,b,d,n=5):
             fa,fb,fd=Fraction(a),Fraction(b),Fraction(d)

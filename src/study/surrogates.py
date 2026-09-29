@@ -16,6 +16,7 @@ import numpy as np
 from .common import DESIGN_VERSION, seed, rng
 from .data import save_graph, window_of, window_counts
 
+# Reference: timestamp shuffling P[w,t], Gauvin et al. (2022), Randomized reference models for temporal networks.
 def shuffle(parent):
     t = rng('pwt_productive', parent.key, '', 0).permutation(parent.t)   # one fixed shuffle per network
     w = window_of(t, parent.horizon)

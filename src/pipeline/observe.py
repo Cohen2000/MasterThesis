@@ -136,6 +136,7 @@ def training_truths(stage1):
 
 
 # The 'median' baseline: median true profile of the training sources outside the fold.
+# Reference: the median is the best constant forecast under absolute error, Gneiting (2011).
 def fold_median(truths, fold):
     """Training-median profile of a fold (all 16 sources for the synthetic fold)."""
     from study.common import TRAINING_SOURCES

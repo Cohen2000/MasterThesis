@@ -24,6 +24,7 @@ DAR_DEFAULTS=dict(N=500,E=5000,chi=.2,nu=1.)
 AD_DEFAULTS=dict(N=500,tail=1.8,eps=.01,eta=1.,rounds=1000,c=1.)
 
 
+# Reference: DAR(1) link activity, Williams, Mazzarisi, Lillo & Latora (2022), eq. (1). The event layer 1 + Poisson(nu) is our own.
 def dar_latents(r,N,E,chi,nu):
     """Backbone and per-window latents shared by every alpha of one draw."""
     candidates=np.column_stack(np.triu_indices(N,1))
@@ -48,12 +49,14 @@ def dar_rows(L,alpha):
     return rows,states
 
 
+# Reference: activity-driven networks, Perra, Goncalves, Pastor-Satorras & Vespignani (2012); here one contact per active node.
 def ad_latents(r,N,tail,eps,eta,rounds):
     activities=eta*(eps**(-tail)+r.random(N)*(1-eps**(-tail)))**(-1/tail)
     return dict(activities=activities,activation=r.random((rounds,N)),
                 decision=r.random((rounds,N)),partner=r.random((rounds,N)),N=N,rounds=rounds)
 
 
+# Reference: memory rule P(new contact) = c / (n + c), Karsai, Perra & Vespignani (2014).
 def ad_rows(L,mode,c):
     """Synchronous rounds; one undirected contact per dyad per round."""
     N=L['N']; rounds=L['rounds']
@@ -76,6 +79,7 @@ def ad_rows(L,mode,c):
     return rows,mutual
 
 
+# Reference: common random numbers, Glasserman & Yao (1992).
 def generate_pair(family,replicate):
     """The frozen main-test pairs: two modes sharing every latent quantity."""
     pair_id=f'{family}_pair_r{replicate}'; r=rng('graph',pair_id)

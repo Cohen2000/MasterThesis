@@ -169,6 +169,7 @@ def calibrate(g, build_dir, fraction=COVERAGE_FRACTION):
 
 # ---------------------------------------------------------------- drawing observations
 # Which pairs are observed by a node panel: both endpoints must be among the sampled nodes.
+# Reference: node sampling, Rocha, Masuda & Holme (2017).
 def node_panel_mask(g, r, size):
     """Dyads whose two endpoints are among the first `size` nodes of a uniform permutation.
 

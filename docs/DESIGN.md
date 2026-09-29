@@ -21,7 +21,7 @@ Each network is observed three times in each of four *sampling arms*. Every arm 
 | Arm | How the sample is taken | What the methods are told about the sampling |
 |---|---|---|
 | R | Random nodes; every interaction between two sampled nodes is seen. | The number of sampled nodes. |
-| S | A random walk that moves along interactions; every pair it passes is seen completely. | The walk's log (how often each pair was passed). |
+| S | A random walk on the network of all interactions, choosing the next pair in proportion to its number of events; every pair it passes is seen completely. | The walk's log (how often each pair was passed). |
 | H | Random nodes, but only the last 60% of the time span is visible. | The number of sampled nodes and which windows are visible. |
 | B | Every single interaction is kept with probability p, independently. | The probability p. |
 
@@ -31,7 +31,7 @@ All methods receive exactly the same sample and the same information. The true a
 
 Four methods that need no language model (*offline methods*):
 
-- **Observed share (plug-in)**: the share of observed pairs that are active in at least k observed windows. Correct for arm R, biased for the other arms. It is the *reference* for R.
+- **Observed share (plug-in)**: the share of observed pairs that are active in at least k observed windows. Under arm R every pair is equally likely to be sampled, so it has no selection bias there; the other arms favour some pairs and bias it. It is the *reference* for R.
 - **Training median**: always predicts the median answer of the real training networks; a naive benchmark.
 - **Statistical model (MLE)**: assumes each pair has its own activity probability, fits the distribution of these probabilities to the sample by maximum likelihood, and computes `rho_k` from the fit. Each arm changes only which data enter the fit. It is the *reference* for S, H and B.
 - **ExtraTrees**: a machine-learning model (a random forest of randomised decision trees) that learns to correct a starting estimate from features of the sample. It is trained per arm on samples of 16 real training networks and 400 synthetic training networks, with settings chosen by *leave-one-network-out* validation, so a network is never used to train or tune the model that predicts it. The *production fit* is reported; ten further fits on newly drawn training samples show how much the result depends on the training data. Its output is limited to a *valid profile*.
@@ -55,6 +55,31 @@ Five language-model configurations receive the identical prompt: the sample as a
 Every random number comes from one master seed combined with fixed text labels, for example the arm identities. These labels are data: changing their text would change the samples, so they are kept exactly as recorded.
 
 The [final results](results/final/REPORT.md) contain all tables, the checks and the checksums of the raw data, the samples and the answers.
+
+## Sources
+
+The main building blocks follow published methods; the combination and the parameter choices are this study's own.
+
+| Part of the study | Source | What is taken from it |
+|---|---|---|
+| Time-shuffled copies | Gauvin et al. (2022), *Randomized reference models for temporal networks* | The timestamp shuffle P[w,t] |
+| DAR networks | Williams, Mazzarisi, Lillo & Latora (2022), *Non-Markovian temporal networks with auto- and cross-correlated link dynamics* | The DAR(1) on/off rule; the event counts are added here |
+| Activity-driven networks | Perra et al. (2012), *Activity driven modeling of time varying networks*; Karsai, Perra & Vespignani (2014), *Time varying networks and the weakness of strong ties* | Active nodes contact others; memory rule c/(n + c) |
+| Arms R, H, B | Rocha, Masuda & Holme (2017), *Sampling of temporal networks: Methods and biases* | Node, time and event sampling (H and B are variants) |
+| Arm S | Masuda, Porter & Lambiotte (2017), *Random walks and diffusion on networks* | Random walk on a weighted graph |
+| Active windows K | Lahiri & Berger-Wolf (2007), *Structure prediction in temporal networks using frequent subgraphs* | Temporal support of an edge; `rho_k` summarises it |
+| Statistical model (MLE) | Dorazio & Royle (2003), *Mixture models for estimating the size of a closed population when capture rates vary among individuals* | Beta mixture of individual probabilities; the target and arm layers are new |
+| Arm B model | Zeileis, Kleiber & Jackman (2008), *Regression models for count data in R* | Positive-count layer; the thinning likelihood is derived here |
+| Walk weights | Hansen & Hurwitz (1943); Ribeiro & Towsley (2010); Pfeffermann (1993) | Inverse-probability weights and weighted pseudo-likelihood |
+| ExtraTrees | Geurts, Ernst & Wehenkel (2006), *Extremely randomized trees* | The learning algorithm |
+| Model selection | Cawley & Talbot (2010); Roberts et al. (2017) | Nested selection; folds grouped by network |
+| Training median | Gneiting (2011), *Making and evaluating point forecasts* | Median = best constant forecast under absolute error |
+| Paired generators | Glasserman & Yao (1992), *Some guidelines and guarantees for common random numbers* | Shared random numbers between compared variants |
+| Sign-flip tests | Winkler et al. (2014), *Permutation inference for the general linear model* | Sign-flipping of paired differences |
+| Variability | Bouthillier et al. (2021), *Accounting for variance in machine learning benchmarks* | Separate sources of variation |
+| Language models on graphs | Maurya & Liu (2026), *Evaluating LLMs on large-scale graph property estimation via random walks* | Estimating a graph property from compact sample statistics |
+
+Own choices without a standard in the literature: five windows, the 10% budget, the last 60% for arm H, the calibration on active (pair, window) cells, the generator parameters, the ExtraTrees starting estimate and weights, and the exact information released to the methods.
 
 ## Glossary
 

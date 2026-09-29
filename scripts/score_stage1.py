@@ -216,10 +216,10 @@ def _sealed_prediction_rows(path):
     return rows
 
 
-# Replace the R/H rows of the sealed tables by the re-run R/H arms; every other row is
+# Replace the R/H rows by the rows with the panel size shown; every other row is
 # copied unchanged and checked to be identical.
 def compose_panel_release(old_results, released, out):
-    """Substitute completed R/H answers and ET fits; rerun only table arithmetic."""
+    """Substitute the R/H answers and ExtraTrees fits with the panel size shown."""
     old = _sealed_prediction_rows(old_results / 'PREDICTIONS.csv')
     old_by_slot = {(r['observation_id'], r['method'], r['repeat_index']): r for r in old}
     if len(old) != len(old_by_slot):

@@ -23,13 +23,14 @@ DeepSeek Flash: 1,022 of 1,152 answers are collected so far; the tables are upda
 
 | Path | Contents |
 |---|---|
-| `src/study/` | The building blocks: loading networks (`data.py`), sampling arms (`sampling.py`, `walk.py`), the sample text shown to every method (`observation.py`), the offline estimators (`estimators.py`, `mle.py`, `thinning_model.py`), the answer format check (`answer_format.py`), synthetic networks and time-shuffled copies |
-| `src/pipeline/` | The cluster pipeline: one task per step (`dag.py` plans them), the real networks prepared in the pipeline (`sources.py`), ExtraTrees (`et.py`, `replicates.py`), time-shuffled copies and checks (`surrogates_and_checks.py`), Qwen (`qwen.py`) and all result tables (`report.py`) |
-| `scripts/` | Programs to run: preparation, training networks, ExtraTrees, the API models (`api_runner.py`), evaluation (`evaluate_api.py`) |
+| `src/study/` | Building blocks: networks (`data.py`), sampling arms (`sampling.py`, `walk.py`), the sample text every method sees (`observation.py`), estimators (`estimators.py`, `mle.py`, `thinning_model.py`), the answer check (`answer_format.py`), synthetic networks and time-shuffled copies |
+| `src/pipeline/` | Cluster pipeline: the task plan (`task_graph.py`), real networks (`real_networks.py`), ExtraTrees (`training_draws.py`, `extratrees_fits.py`), time-shuffled copies and checks, Qwen, and the result tables (`report.py`) |
+| `src/dataset_*.py` | Survey of candidate datasets and the audited file readers |
+| `scripts/` | Programs to run: preparation, ExtraTrees, the pipeline, the API models (`api_runner.py`), evaluation (`evaluate_api.py`) |
 | `cluster/` | Job scripts for the computing cluster (SLURM) |
 | `config/` | Prompts, data sources and settings |
 | `tests/` | Automatic tests |
-| `docs/` | Study design with glossary, and the final results |
+| `docs/` | Study design, glossary, sources and final results |
 
 ## Reproduce the evaluation
 

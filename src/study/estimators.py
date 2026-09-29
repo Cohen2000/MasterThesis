@@ -5,8 +5,9 @@ from .observation import validate
 
 
 # In plain words: the simple estimators that need no training.
-# - plugin: count, among the observed pairs, the share active in >= k windows. Unbiased
-#   for the node panel R, biased for the other arms.
+# - plugin: count, among the observed pairs, the share active in >= k windows. Under the
+#   node panel R every pair is equally likely to be observed (no selection bias; as a ratio
+#   it is not exactly unbiased); the other arms favour some pairs and bias it.
 # - design_estimate: the walk (S) visits busy pairs more often; re-weighting each pair by
 #   1/(its number of events) undoes that preference (a ratio estimator).
 # - h_extrapolator / corrector: simple working models for H and B.
@@ -115,6 +116,8 @@ def corrector(o):
 
 
 # Walk arm: weighted share, using the inverse-event weights released in the observation.
+# Reference: inverse-probability weighting, Hansen & Hurwitz (1943), with walk visit weights
+# (Ribeiro & Towsley 2010). Descriptive only; not exactly unbiased for a finite walk.
 def design_estimate(o):
     """S-arm ratio estimate from released per-pattern weights."""
     if o['arm'] not in ('S', 'S_obs'): raise ValueError('S arm required')

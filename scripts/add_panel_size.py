@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Paired R/H panel-size release on the frozen stage-1 draws and ET cache."""
-# Plain-words overview: in the node-panel arms R and H, the observation block originally
-# did not say how many panel nodes were sampled. This script adds that single number
-# (n_panel) to the otherwise identical R/H observations ("released panel"), then reruns
-# only what depends on it: new Qwen requests, ExtraTrees with one extra feature, and the
-# comparison with the old version. Plugin, median and MLE cannot change and are checked
-# to stay identical. It also wrote the frozen observations that the paid API models saw
-# (freeze-api) and the matching training draws for the token pilot (freeze-technical).
+"""Show the panel size in the R/H samples and build everything that depends on it."""
+# In plain words: in arms R and H the sample states how many nodes were sampled (n_panel).
+# This script adds that number to the stage-1 R/H samples and builds what depends on it:
+# the Qwen requests and ExtraTrees with one extra feature. Plugin, median and MLE do not use
+# it and are checked to stay identical. It also writes the frozen samples for the API models
+# (freeze-api) and the training samples of the API token pilot (freeze-technical).
 # Stages are run one at a time: python scripts/add_panel_size.py <stage>.
 import argparse
 import csv
@@ -204,7 +202,7 @@ def et_cache(input_dir, out):
     print('ET_CACHE', len(rows), 'features', old_x.shape[1] + 1)
 
 
-# Sealed predictions of the earlier version, used to prove what did not change.
+# Stored stage-1 predictions (panel size hidden), used to prove what did not change.
 def old_predictions():
     path = Path(__file__).resolve().parents[1] / 'results/stage1_scores/PREDICTIONS.csv'
     with path.open() as f:

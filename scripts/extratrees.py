@@ -82,6 +82,7 @@ def arrays(rows, X, ids, anchor):
 
 
 # 300 fully random trees; the forest predicts the correction truth - anchor.
+# Reference: Extremely randomized trees, Geurts, Ernst & Wehenkel (2006).
 def model(leaf, maxfeat, random_state, jobs):
     return ExtraTreesRegressor(n_estimators=300, criterion='squared_error',
                                min_samples_leaf=leaf, max_features=maxfeat,
@@ -102,6 +103,7 @@ def graph_mae(rows, ids, pred):
 # Step 'select' for one (arm, outer fold). For every setting of the grid, and for every
 # remaining real training source in turn: train on the rest, predict that source, score it.
 # The setting with the lowest mean score wins (ties broken by a fixed order).
+# Reference: nested model selection, Cawley & Talbot (2010); folds by source, Roberts et al. (2017).
 def select_one(index):
     rows, X = load()
     arm = ARMS[index // len(FOLDS)]

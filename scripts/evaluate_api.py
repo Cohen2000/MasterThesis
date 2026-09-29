@@ -42,8 +42,8 @@ API_METHODS = {'deepseek': 'deepseek_flash', 'openai': 'gpt_6_sol', 'openai_tool
 # Methods whose predictions are already in PREDICTIONS.csv (Qwen ran on the cluster, not via API).
 OFFLINE = ('plugin', 'median', 'mle', 'et', 'qwen_thinking', 'qwen_nonthinking')
 METHODS = OFFLINE + tuple(API_METHODS.values())
-# Reference estimator per sampling arm: the plain count (plugin) is unbiased under R,
-# the bias-correcting maximum-likelihood estimator (MLE) is the reference elsewhere.
+# Reference estimator per sampling arm: the plain count (plugin) under R, where every pair is
+# equally likely to be observed; the maximum-likelihood estimator (MLE) elsewhere.
 REFERENCE = {'R': 'plugin', 'S': 'mle', 'H': 'mle', 'B': 'mle'}
 # The three graph blocks. They are always scored separately, never mixed.
 GROUPS = ('real', 'surrogate', 'synthetic')

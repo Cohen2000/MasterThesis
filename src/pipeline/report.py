@@ -169,6 +169,7 @@ def summary(rows):
 
 
 # Exact sign-flip p value of a mean of per-source differences.
+# Reference: sign-flip permutation inference, Winkler et al. (2014).
 def signflip(values):
     a = np.asarray(values, float)
     observed = abs(a.mean())
@@ -238,6 +239,7 @@ def sd(values):
 # - training: how much ExtraTrees' MAE moves across its 11 fits;
 # - sampling: how much a method's rho_2 moves across the 3 observation draws of a graph;
 # - response: how much an LLM's answer moves across its 3 repeats of the same observation.
+# Reference: separating sources of variance, Bouthillier et al. (2021).
 def variability(rows, replicates):
     """Training (ET fits), sampling (sampler draws) and LLM answer variability, kept apart."""
     training, sampling, response = [], [], []

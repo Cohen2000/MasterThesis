@@ -187,6 +187,7 @@ def digest_list(frozen):
 
 # ---------------------------------------------------------------- walk diagnostic
 # Stage 'walkdiag': the walk audit for one graph (see scripts/check_random_walk.py).
+# Communities: Louvain method, Blondel et al. (2008).
 def walkdiag(task, out, inputs):
     """scripts/check_random_walk.audit_graph (1000 walks, unchanged criteria) plus MLE bias/variance,
     effective sample size, revisits and component/community coverage of the same walks."""

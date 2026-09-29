@@ -61,6 +61,7 @@ class Result:
     flags: dict = field(default_factory=dict)
 
 
+# Reference: weighted pseudo-likelihood for the walk arm, Pfeffermann (1993).
 def visible_counts(o):
     """(counts, m): counts[j] = observed dyads with j active windows among the
     m released-visible windows (j=1..m); derived only from o['table'], so an
@@ -91,6 +92,7 @@ def zt_bb_nll(counts, n):
     return nll
 
 
+# Reference: Beta mixture of individual probabilities, Dorazio & Royle (2003); the persistence target is our own.
 def fit_zt_bb(counts, n):
     """Fit alpha,beta by the zero-truncated Beta-Binomial(n) likelihood of `counts`.
 

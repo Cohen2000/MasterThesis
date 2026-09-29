@@ -88,6 +88,7 @@ def graph_stratum(key):
     return 'synthetic'
 
 
+# Reference: grouped (block) cross-validation, Roberts et al. (2017).
 def fold_for(key):
     """LOSO fold: a real source and its surrogate use the fold without the parent."""
     parent = parent_source(key)

@@ -207,10 +207,9 @@ def diagnose(z,bounds,spread,flat):
 
     These conditions are not mutually exclusive and must not be reported as if
     they were: a fit can sit on a parameter bound *and* have disagreeing starts.
-    An earlier version returned the first matching label, so a boundary hit
-    silently hid a disagreement, and the fallback rule -- which keys on the
-    disagreement -- never fired for those fits. The flags are therefore computed
-    independently and the label is only a summary of them.
+    Returning only the first matching label would let a boundary hit hide a
+    disagreement, so the flags are computed independently and the label is only
+    a summary of them.
     """
     hom=abs(z[1]-bounds[1][1])<BOUNDARY_TOL
     at_any=any(abs(z[i]-bounds[i][0])<BOUNDARY_TOL or abs(z[i]-bounds[i][1])<BOUNDARY_TOL
@@ -231,6 +230,7 @@ def diagnose(z,bounds,spread,flat):
     return label,flags
 
 
+# Optimiser: L-BFGS-B, Byrd, Lu, Nocedal & Zhu (1995).
 def _solve(nll,starts,bounds):
     """Run every start and accept only results that are genuinely optimiser output.
 
@@ -265,6 +265,8 @@ def _widen(bounds,decades):
     return out
 
 
+# Reference: positive-count (hurdle) layer as in Zeileis, Kleiber & Jackman (2008); the joint
+# likelihood with event thinning is our own derivation.
 def fit_events(o,homogeneous_mu,homogeneous_lambda,decades=0.):
     """Beta-mixed activity with the ZTP event layer and known retention p."""
     import time; t0=time.perf_counter()
