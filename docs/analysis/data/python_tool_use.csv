@@ -1,5 +1,0 @@
-arm,answers,fits_own_model,median_tool_calls,share_10_or_more_calls,error_under_10_calls,error_10_or_more_calls
-B,108,0.9167,9.0000,0.4722,0.1341,0.1704
-H,108,0.4722,2.0000,0.0093,0.0609,0.1244
-R,108,0.0000,1.0000,0.0000,0.0273,
-S,108,0.1296,2.0000,0.0000,0.0813,
