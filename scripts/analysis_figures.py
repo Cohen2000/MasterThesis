@@ -70,6 +70,7 @@ def build_inputs(external):
         rows.append({'source': key, 'nodes': g.N, 'pairs': g.D, 'events': g.M, 'rho2': g.truth[0],
                      'rho2_shuffled': truth[key+'__pwt'][0], 'events_per_pair': g.M/g.D,
                      'one_off_pairs': float(np.mean(m == 1)),
+                     'only_early_pairs': float(np.mean(g.counts[:, 2:].sum(axis=1) == 0)),
                      'observed_pairs_R': float(np.mean([b['D_obs'] for b in blocks['R']])),
                      'kept_share_B': float(np.mean([b['parameter'] for b in blocks['B']]))})
     walk = pd.read_csv(FINAL/'WALK.csv').set_index('graph_id')
@@ -188,7 +189,7 @@ def fig_answer_types(plt, types, summary):
     ax.set_yticks(y, [METHODS[m] for m in t.index]); ax.set_xlim(0, 100); ax.set_xticks([0, 25, 50, 75, 100])
     ax.set_xlabel('share of answers in arm S (%)'); ax.spines['bottom'].set_visible(False)
     ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
-    save(fig, 'fig2_answer_types_S')
+    save(fig, 'figA1_answer_types_S')
 
 
 def fig_variability(plt, resp, samp):
@@ -211,13 +212,12 @@ def fig_variability(plt, resp, samp):
         ax.set_xticks(range(4), list(ARMS)); ax.set_title(title, pad=24)
         ax.set_yticks(range(len(rows)), [METHODS[m] for m in rows] if k == 0 else ['']*len(rows))
     fig.text(.5, -.02, 'median standard deviation of the ρ₂ estimate (pp)', ha='center', fontsize=10.5, color='#444444')
-    save(fig, 'fig3_variability')
+    save(fig, 'fig2_variability')
 
 
-def fig_networks(plt, per, f):
-    order = f.sort_values('rho2').index.tolist()
-    rows = [f"{NAMES[s]}  ({100*f.loc[s, 'rho2']:.0f} %)" if f.loc[s, 'rho2'] >= .01 else f"{NAMES[s]}  (0.3 %)" for s in order]
-    fig, axes = plt.subplots(1, len(MAIN), figsize=(15.5, 5.4))
+def method_heat(plt, per, order, rows, name, header, breaks=()):
+    """One small heatmap per method: rows = networks, columns = arms, colour = error level."""
+    fig, axes = plt.subplots(1, len(MAIN), figsize=(15.5, .42*len(rows)+.9))
     for k, (ax, m) in enumerate(zip(axes, MAIN)):
         v = per[per.method == m].pivot(index='source', columns='arm', values='MAE_2').loc[order, list(ARMS)].to_numpy()*100
         for i in range(v.shape[0]):
@@ -225,12 +225,28 @@ def fig_networks(plt, per, f):
                 ax.add_patch(plt.Rectangle((j-.46, i-.42), .92, .84, color=band(v[i, j]), lw=0))
                 ax.text(j, i, f'{v[i, j]:.1f}', ha='center', va='center', fontsize=8.5,
                         fontweight='bold' if v[i, j] > 10 else 'normal')
+        for b in breaks: ax.axhline(b, color='#333333', lw=1.1)
         ax.set_xlim(-.5, 3.5); ax.set_ylim(len(rows)-.5, -.5); unframe(ax)
         ax.set_xticks(range(4), list(ARMS)); ax.set_title(METHODS[m], pad=22)
         ax.set_yticks(range(len(rows)), rows if k == 0 else ['']*len(rows))
-    fig.text(.005, .93, 'network (true ρ₂)', fontsize=9.5, color='#666666')
-    legend_bands(fig, plt, -.04)
-    save(fig, 'fig4_networks')
+    fig.text(.005, 1 - .55/fig.get_figheight(), header, fontsize=9.5, color='#666666')
+    legend_bands(fig, plt, -.3/fig.get_figheight())
+    save(fig, name)
+
+
+def fig_networks(plt, per, f):
+    order = f.sort_values('rho2').index.tolist()
+    rows = [f"{NAMES[s]}  ({100*f.loc[s, 'rho2']:.0f} %)" if f.loc[s, 'rho2'] >= .01 else f"{NAMES[s]}  (0.3 %)" for s in order]
+    method_heat(plt, per, order, rows, 'fig3_networks', 'network (true ρ₂)')
+
+
+def fig_synthetic(plt, per):
+    truth = json.loads((FINAL/'TRUTH.json').read_text())
+    variants = (('dar_a0', 'DAR, weak memory (α = 0)'), ('dar_a08', 'DAR, strong memory (α = 0.8)'),
+                ('ad_memoryless', 'Activity-driven, no memory'), ('ad_memory', 'Activity-driven, memory'))
+    order = [f'{v}_r{i}' for v, _ in variants for i in (1, 2)]
+    rows = [f'{label} · {i}  ({100*truth[f"{v}_r{i}"][0]:.0f} %)' for v, label in variants for i in (1, 2)]
+    method_heat(plt, per, order, rows, 'fig4_synthetic', 'variant · instance (true ρ₂)', breaks=(1.5, 3.5, 5.5))
 
 
 def fig_real_vs_shuffled(plt, perall):
@@ -273,28 +289,7 @@ def fig_bias(plt, summary):
     ax.set_xlabel('← estimate too low          mean signed error (pp)          estimate too high →')
     ax.grid(axis='x', color='#eeeeee'); ax.set_axisbelow(True)
     ax.legend(frameon=False, loc='lower right')
-    save(fig, 'figA1_bias_mle')
-
-
-def fig_information(plt, per, f):
-    err = lambda m, arm: per[(per.method == m) & (per.arm == arm)].set_index('source').MAE_2*100
-    panels = (('R', 'observed_pairs_R', 'pairs in the sample', 'R · pairs in the sample'),
-              ('S', 'walk_distinct_pairs', 'distinct pairs the walk sees', 'S · distinct pairs in the walk'),
-              ('B', 'kept_share_B', 'share of events kept', 'B · share of events kept'))
-    labels = {'sp_malawi', 'sp_hospital', 'nr_digg_reply', 'reality_mining'}
-    fig, axes = plt.subplots(1, 3, figsize=(13, 3.7))
-    for ax, (arm, col, xlab, title) in zip(axes, panels):
-        x = f[col]; top = 0
-        for m, c in (('mle', BLUE), ('gpt_6_sol', ORANGE)):
-            y = err(m, arm).loc[f.index]; top = max(top, y.max())
-            ax.scatter(x, y, s=42, color=c, edgecolor='white', lw=.8, zorder=3, label=METHODS[m])
-        y = np.maximum(err('mle', arm).loc[f.index], err('gpt_6_sol', arm).loc[f.index])
-        for s in f.index:
-            if s in labels: ax.annotate(NAMES[s].split(' (')[0], (x[s], y[s]), xytext=(6, 4), textcoords='offset points', fontsize=9)
-        ax.set_xscale('log'); ax.set_xlabel(xlab + ' (log scale)'); ax.set_title(title)
-        ax.set_ylim(0, max(10, top*1.2)); ax.grid(color='#eeeeee'); ax.set_axisbelow(True); ax.spines['left'].set_visible(True)
-    axes[0].set_ylabel('error (pp)'); axes[0].legend(frameon=False, loc='upper right')
-    save(fig, 'figA2_error_vs_information')
+    save(fig, 'figA2_bias_mle')
 
 
 def draw():
@@ -308,8 +303,8 @@ def draw():
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
     fig_error_by_arm(plt, summary); fig_answer_types(plt, types, summary); fig_variability(plt, resp, samp)
-    fig_networks(plt, per, f); fig_real_vs_shuffled(plt, perall[perall.group.isin(['real', 'surrogate'])])
-    fig_bias(plt, summary); fig_information(plt, per, f)
+    fig_networks(plt, per, f); fig_synthetic(plt, perall.query("group == 'synthetic'"))
+    fig_real_vs_shuffled(plt, perall[perall.group.isin(['real', 'surrogate'])]); fig_bias(plt, summary)
 
 
 if __name__ == '__main__':
