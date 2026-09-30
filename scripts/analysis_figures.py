@@ -183,26 +183,48 @@ def fig_sample(plt, summary, per):
     save(fig, 'fig1_sample')
 
 
-# Fig. 2: error per arm; no correction on top, all other methods ranked; dashed line = no correction.
-def fig_error_by_arm(plt, summary):
-    others = ['median', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking', 'qwen_nonthinking']
-    fig, axes = plt.subplots(1, 4, figsize=(15, 4.1))
+# Fig. 2: ranking per arm. Everything above "No correction" improves on doing nothing.
+def fig_ranking(plt, summary):
+    methods = ['plugin', 'median', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking', 'qwen_nonthinking']
+    fig, axes = plt.subplots(1, 4, figsize=(14, 4.4))
     for ax, arm in zip(axes, ARMS):
-        ranked = ['plugin'] + sorted(others, key=lambda m: summary.loc[(arm, m), 'MAE_2'])
-        v = [100*summary.loc[(arm, m), 'MAE_2'] for m in ranked]
-        y = np.arange(len(ranked))[::-1]
-        ax.barh(y, v, color=[colour(m) for m in ranked], height=.7)
-        ax.axvline(v[0], color='#555555', lw=1, ls=(0, (4, 3)), zorder=3)
-        for yi, vi in zip(y, v): ax.text(vi+.8, yi, f'{vi:.1f}', va='center', fontsize=9.5, zorder=4,
-                                         bbox=dict(facecolor='white', edgecolor='none', pad=.6))
-        ax.set_yticks(y, [METHODS[m] for m in ranked]); ax.set_xlim(0, 60); ax.set_xticks([0, 20, 40])
-        ax.set_title(ARMS[arm]); ax.grid(axis='x', color='#eeeeee'); ax.set_axisbelow(True); ax.set_xlabel('error (pp)')
-    fig.subplots_adjust(wspace=.75)
-    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (GREY, LIGHT, BLUE, ORANGE)] + \
-              [plt.Line2D([], [], color='#555555', lw=1, ls=(0, (4, 3)))]
-    fig.legend(handles, ['no correction', 'training median (constant guess)', 'classical method', 'language model',
-                         'error without correction'], loc='lower center', ncol=5, frameon=False, bbox_to_anchor=(.5, .98))
-    save(fig, 'fig2_error_ranked')
+        ranked = sorted(methods, key=lambda m: summary.loc[(arm, m), 'MAE_2'])
+        for i, m in enumerate(ranked):
+            v, c = 100*summary.loc[(arm, m), 'MAE_2'], colour(m)
+            base = m == 'plugin'
+            ax.add_patch(plt.Rectangle((0, i-.42), 1, .84, color=GREY if base else '#f4f3f0', lw=0))
+            ax.add_patch(plt.Rectangle((.03, i+.2), .94*min(v, 55)/55, .14, color='white' if base else c, lw=0))
+            ax.text(.03, i-.08, f'{i+1}  {METHODS[m]}', va='center', fontsize=10,
+                    color='white' if base else '#222222', fontweight='bold' if base else 'normal')
+            ax.text(.97, i-.08, f'{v:.1f}', va='center', ha='right', fontsize=10,
+                    color='white' if base else '#222222', fontweight='bold' if base else 'normal')
+        ax.set_xlim(0, 1); ax.set_ylim(len(ranked)-.5, -.5); ax.axis('off')
+        ax.set_title(ARMS[arm], loc='left')
+    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (GREY, LIGHT, BLUE, ORANGE)]
+    fig.legend(handles, ['no correction', 'constant guess', 'classical method', 'language model'],
+               loc='lower center', ncol=4, frameon=False, bbox_to_anchor=(.5, -.04))
+    fig.text(.5, -.075, 'error in pp · bar length = error (scale 0–55 pp)', ha='center', fontsize=9.5, color='#666666')
+    save(fig, 'fig2_ranking')
+
+
+# Fig. 5: error against the number of pairs in the sample, every arm; dot = median of the six methods.
+def fig_sample_size(plt, per, f):
+    fig, axes = plt.subplots(1, 4, figsize=(14, 3.6), sharey=True)
+    for ax, arm in zip(axes, ARMS):
+        e = per[(per.arm == arm) & per.method.isin(MAIN)].groupby('source').MAE_2
+        mid = e.median()*100
+        x = f.loc[mid.index, f'pairs_seen_{arm}']
+        ax.scatter(x, mid, s=44, color='#333333', zorder=3)
+        for s in ('sp_malawi', 'copenhagen_bluetooth'):
+            ax.annotate(NAMES[s].split(' (')[0], (x[s], mid[s]), xytext=(6, 2), textcoords='offset points', fontsize=9)
+        ax.set_xscale('log'); ax.set_xlim(10, 50000); ax.set_ylim(0, 35); ax.set_title(ARMS[arm])
+        ax.set_xlabel('pairs in the sample (log)'); ax.grid(color='#eeeeee'); ax.set_axisbelow(True)
+        ax.spines['left'].set_visible(True)
+    axes[0].set_ylabel('error (pp)')
+    fig.legend([plt.Line2D([], [], marker='o', ls='', color='#333333', markersize=6)],
+               ['one network: median error of MLE, ExtraTrees, GPT, GPT + Python, DeepSeek, Qwen thinking'],
+               loc='lower center', frameon=False, bbox_to_anchor=(.5, .98))
+    save(fig, 'fig5_sample_size')
 
 
 # Fig. 3: near which simple estimate do the language-model answers lie?
@@ -263,14 +285,14 @@ def method_heat(plt, per, order, rows, name, header, breaks=()):
     save(fig, name)
 
 
-# Fig. 5: error per real network, arm and method.
+# Appendix: error per real network, arm and method.
 def fig_networks(plt, per, f):
     order = f.sort_values('rho2').index.tolist()
     rows = [f"{NAMES[s]}  ({100*f.loc[s, 'rho2']:.0f} %)" if f.loc[s, 'rho2'] >= .01 else f"{NAMES[s]}  (0.3 %)" for s in order]
-    method_heat(plt, per, order, rows, 'fig5_networks', 'network (true ρ₂)')
+    method_heat(plt, per, order, rows, 'figA1_networks', 'network (true ρ₂)')
 
 
-# Fig. 6: every real network against its time-shuffled copy.
+# Appendix: every real network against its time-shuffled copy.
 def fig_real_vs_shuffled(plt, perall):
     methods = ['plugin', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking']
     per = perall.assign(family=perall.source.str.replace('__pwt', '', regex=False))
@@ -292,19 +314,16 @@ def fig_real_vs_shuffled(plt, perall):
          plt.Line2D([], [], marker='o', ls='', markerfacecolor='white', markeredgecolor='#555555', markeredgewidth=1.8, markersize=7)]
     fig.legend(h, ['real networks', 'time-shuffled copies'], loc='lower center', ncol=2, frameon=False, bbox_to_anchor=(.5, 1.0))
     pd.DataFrame(rows).to_csv(DATA/'real_vs_shuffled.csv', index=False, float_format='%.2f')
-    save(fig, 'fig6_real_vs_shuffled')
+    save(fig, 'figA2_real_vs_shuffled')
 
 
-# Fig. 7: arm B, error against true rho_2 over all 32 networks (real, shuffled, synthetic).
+# Fig. 6: arm B, error against true rho_2 over all 32 networks (real, shuffled, synthetic).
 def fig_b_vs_rho(plt, perall):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
     fig, axes = plt.subplots(2, 3, figsize=(12, 6.6), sharex=True, sharey=True)
     for ax, m in zip(axes.flat, MAIN):
         e = perall[(perall.arm == 'B') & (perall.method == m)].set_index('source')
         c = colour(m)
-        for fam in NAMES:
-            ax.plot([100*truth[fam][0], 100*truth[fam+'__pwt'][0]], [100*e.MAE_2[fam], 100*e.MAE_2[fam+'__pwt']],
-                    color='#cccccc', lw=1, zorder=1)
         for group, kw in (('real', dict(color=c)), ('surrogate', dict(facecolor='white', edgecolor=c, lw=1.6)),
                           ('synthetic', dict(color=c, marker='^'))):
             g = e[e.group == group]
@@ -315,11 +334,10 @@ def fig_b_vs_rho(plt, perall):
     for ax in axes[:, 0]: ax.set_ylabel('error in arm B (pp)')
     h = [plt.Line2D([], [], marker='o', ls='', color='#555555', markersize=7),
          plt.Line2D([], [], marker='o', ls='', markerfacecolor='white', markeredgecolor='#555555', markeredgewidth=1.6, markersize=7),
-         plt.Line2D([], [], marker='^', ls='', color='#555555', markersize=7),
-         plt.Line2D([], [], color='#cccccc', lw=1)]
-    fig.legend(h, ['real network', 'time-shuffled copy', 'synthetic network', 'same network, before and after shuffling'],
+         plt.Line2D([], [], marker='^', ls='', color='#555555', markersize=7)]
+    fig.legend(h, ['real network', 'time-shuffled copy', 'synthetic network'],
                loc='lower center', ncol=4, frameon=False, bbox_to_anchor=(.5, .98))
-    save(fig, 'fig7_event_loss_vs_rho')
+    save(fig, 'fig6_event_loss_vs_rho')
 
 
 # Appendix: synthetic networks, all arms and methods.
@@ -327,7 +345,7 @@ def fig_synthetic(plt, per):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
     order = [f'{v}_r{i}' for v, _ in SYNTHETIC for i in (1, 2)]
     rows = [f'{label} · {i}  ({100*truth[f"{v}_r{i}"][0]:.0f} %)' for v, label in SYNTHETIC for i in (1, 2)]
-    method_heat(plt, per, order, rows, 'figA1_synthetic', 'variant · instance (true ρ₂)', breaks=(1.5, 3.5, 5.5))
+    method_heat(plt, per, order, rows, 'figA3_synthetic', 'variant · instance (true ρ₂)', breaks=(1.5, 3.5, 5.5))
 
 
 SYNTHETIC = (('dar_a0', 'DAR, no memory'), ('dar_a08', 'DAR, memory'),
@@ -345,8 +363,8 @@ def draw():
     train = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").set_index('arm')
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
-    fig_sample(plt, summary, per); fig_error_by_arm(plt, summary); fig_answer_types(plt, types)
-    fig_stability(plt, resp, train, samp); fig_networks(plt, per, f)
+    fig_sample(plt, summary, per); fig_ranking(plt, summary); fig_answer_types(plt, types)
+    fig_stability(plt, resp, train, samp); fig_sample_size(plt, per, f); fig_networks(plt, per, f)
     fig_real_vs_shuffled(plt, perall[perall.group.isin(['real', 'surrogate'])]); fig_b_vs_rho(plt, perall)
     fig_synthetic(plt, perall.query("group == 'synthetic'"))
 
