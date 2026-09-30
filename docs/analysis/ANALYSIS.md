@@ -3,11 +3,19 @@
 **Question:** how well can language models estimate how persistent a network is from a biased sample, compared with classical methods?
 
 - **Target ρ₂:** share of interacting pairs that are active in at least 2 of 5 time windows.
-- **Error:** mean absolute error of ρ₂ in percentage points (pp), 12 real networks, every network counts equally. Lower is better.
-- **Sampling arms:** R random nodes (unbiased) · S random walk (favours busy pairs) · H only the last 60 % of the time · B events randomly lost.
-- **Methods:** no correction (observed share) · MLE (statistical model of the sampling) · ExtraTrees (trained model) · GPT, GPT + Python, DeepSeek, Qwen thinking, Qwen no thinking (language models, 3 answers per sample).
+- **Error:** mean absolute error of ρ₂ in percentage points (pp). It is averaged over the 3 samples (and 3 answers) of a network, then over the 12 real networks, which count equally. Lower is better.
+- **Sampling arms:**
+  - R: random nodes (unbiased)
+  - S: random walk (favours busy pairs)
+  - H: only the last 60 % of the time
+  - B: events randomly lost
+- **Methods:**
+  - No correction: the observed share
+  - MLE: a statistical model of the sampling
+  - ExtraTrees: a trained model
+  - Language models: GPT, GPT + Python, DeepSeek, Qwen thinking and Qwen no thinking, each giving 3 answers per sample
 
-Figures are in [`figures/`](figures) as PNG and PDF. They are drawn by `scripts/analysis_figures.py` from the frozen results in [`../results/final`](../results/final).
+The figures are in [`figures/`](figures) as PNG and PDF. `scripts/analysis_figures.py` draws them from the frozen results in [`../results/final`](../results/final).
 
 ---
 
@@ -15,57 +23,64 @@ Figures are in [`figures/`](figures) as PNG and PDF. They are drawn by `scripts/
 
 ![Error by sampling arm and method](figures/fig1_error_by_arm.png)
 
-Without bias (R) all methods tie. With bias, the classical methods are best, GPT is the best language model and Qwen thinking is the weakest. Qwen no thinking (25–53 pp) is left out.
+*Mean error per arm, 12 real networks. Qwen no thinking (25–53 pp) is not shown.*
 
-## 2 · MLE removes the bias of the sample
+**In R**, all methods are within about 1 pp of the observed share, which is already unbiased there. **In S, H and B**, clear differences appear:
+- The classical methods are best.
+- GPT is the best language model, and Qwen thinking the weakest.
+- In B, adding Python raises GPT's error from 10.8 to 15.1 pp.
 
-![Signed error of no correction and MLE](figures/fig2_bias_mle.png)
+## 2 · Language-model estimates lie near simple reference values
 
-MLE knows the sampling rule and reverses it for all pairs at once. It overshoots only where nothing needs correcting (R) or where its model does not fit (H).
+![How close language-model answers in arm S lie to simple reference values](figures/fig2_answer_types_S.png)
 
-## 3 · Language models copy simple formulas (arm S)
+*Arm S, all valid answers. "Near" means within 0.5 pp. The reweighted share weights every observed pair by 1 / its number of events. In R, GPT, GPT + Python and DeepSeek lie near the observed share in 99–100 % of answers, and Qwen thinking in 96 %.*
 
-![How language models answer in arm S](figures/fig3_answer_types_S.png)
+About 90 % of GPT's estimates in S lie near the reweighted share, and the models that are near it more often have lower errors. This describes the numbers only. It does not show how the models arrived at them.
 
-The ranking of the language models in S follows how often they apply the simple reweighting. In R, all models except Qwen no thinking simply return the observed share (96–100 % of answers).
+## 3 · Reliability: new answer versus new sample
 
-## 4 · Answers vary where no simple formula exists
+![Spread of estimates for a new answer and for a new sample](figures/fig3_variability.png)
 
-![Spread of three answers to the same sample](figures/fig4_answer_spread.png)
+*Left: spread of the 3 answers to the identical sample; this does not apply to the deterministic methods. Right: spread across the 3 samples of a network (language models: mean of their answers per sample). Median over samples or networks.*
 
-GPT answers consistently. DeepSeek and Qwen vary strongly in H and B.
+GPT gives almost the same number when asked again, but its estimate still moves with the sample (S: 0.0 against 5.4 pp). DeepSeek and Qwen vary strongly in both. With Python, the spread of GPT's answers in B rises from 5.1 to 12.2 pp.
 
-## 5 · Python does not help GPT
+## 4 · Where each method has difficulties
 
-![GPT with and without Python](figures/fig5_python.png)
+![Error per network, arm and method](figures/fig4_networks.png)
 
-In B, GPT + Python fits its own numerical model in 92 % of answers. 47 % of its B answers use 10 or more tool calls (the limit is 10), and those are the worst (17.0 pp error, against 13.4 pp for the rest).
+*Error per network and arm. Networks are sorted by true ρ₂ (in brackets). Colours mark error levels.*
 
-## 6 · Which networks are easy and which are hard
+Difficulty depends on the method. Copenhagen in B is easy for MLE (0.5 pp) and ExtraTrees (2.9 pp) but hard for every language model (17–26 pp). Networks with a high true ρ₂ tend to have larger errors. Near ρ₂ = 0 (Digg) small errors are easy to reach.
 
-![Typical error per network and arm](figures/fig6_networks.png)
+## 5 · Real networks against time-shuffled copies
 
-Typical error = mean of MLE, ExtraTrees, GPT, GPT + Python, DeepSeek and Qwen thinking. Fleeting networks (large, mostly one-off contacts) are easy. Intense networks (small, many contacts per pair) are hard. The same figure for each method separately is [Figure A1](#appendix).
+![Error on real networks and on their time-shuffled copies](figures/fig5_real_vs_shuffled.png)
 
-## 7 · Hard networks give little information
+*Filled: real network. Open: the same network with shuffled time stamps (same pairs and event counts). Numbers: networks out of 12 where the real network has the lower error.*
 
-![Typical error against network features](figures/fig7_causes.png)
-
-Small intense networks give few pairs in the sample, walks that keep revisiting the same pairs, and extreme thinning in B (Malawi keeps 1 in 1,000 events). For H, no single feature stands out.
+Shuffling changes the result mostly in B. There, every method has a lower mean error on the real networks, and DeepSeek and Qwen thinking are better on all 12. Shuffling also raises the true ρ₂ (mean 35 % → 62 %; +18 to +41 pp, except Digg +0.5 pp), so the difference is not caused by temporal structure alone.
 
 ---
 
-## Other results (not shown)
-
-- **Time-shuffled copies:** the ranking of the methods is similar. The real networks are clearly easier mainly in B.
-- **Synthetic networks:** the ranking is similar. The language models are even weaker in B (GPT 13 pp, ExtraTrees 3.7 pp).
-- **Caution:** there are 12 networks, and their features (true ρ₂, size, contacts per pair) are strongly linked, so Figures 6 and 7 show associations, not causes.
-
 ## Appendix
 
-![Error per network, arm and method](figures/figA1_networks_by_method.png)
+### A1 · Direction of the error: no correction against MLE
 
-*Figure A1.* Error per network and arm for each method. Colours as in Figure 6.
+![Signed error of no correction and MLE](figures/figA1_bias_mle.png)
+
+MLE reduces the mean bias in S and B and overcorrects in H. A mean signed error near 0 can hide large errors on single networks.
+
+### A2 · Error against the information in the sample (exploratory)
+
+![Error against network features](figures/figA2_error_vs_information.png)
+
+With 12 networks this only shows a tendency: errors are larger when the sample holds few pairs, when the walk sees few distinct pairs, or when few events are kept. Size, true ρ₂ and contacts per pair are strongly linked across the networks and cannot be separated.
+
+### A3 · GPT + Python in arm B
+
+The code of 92 % of GPT + Python answers in B calls a numerical optimiser (found by searching for `optimize` or `minimize`). Answers with 10 or more tool calls (the limit is 10) have a higher error: 17.0 pp against 13.4 pp. Harder samples may cause both. Source: [`data/python_tool_use.csv`](data/python_tool_use.csv).
 
 ## Redrawing
 

@@ -31,7 +31,7 @@ ARMS = {'R': 'R · random nodes', 'S': 'S · random walk', 'H': 'H · late time 
 METHODS = {'plugin': 'No correction', 'mle': 'MLE', 'et': 'ExtraTrees', 'gpt_6_sol': 'GPT',
            'gpt_6_sol_tools': 'GPT + Python', 'deepseek_flash': 'DeepSeek', 'qwen_thinking': 'Qwen thinking',
            'qwen_nonthinking': 'Qwen no thinking'}
-MAIN = ['mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking']   # "typical error"
+MAIN = ['mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking']
 LLMS = ['gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking', 'qwen_nonthinking']
 NAMES = {'copenhagen_bluetooth': 'Copenhagen (Bluetooth)', 'lkml_reply': 'Linux mailing list',
          'nr_digg_reply': 'Digg replies', 'nr_radoslaw_email': 'Radoslaw (email)', 'reality_mining': 'Reality Mining',
@@ -145,6 +145,16 @@ def colour(method): return COLOUR.get(method, ORANGE)
 def band(v): return EASY if v < 3 else MEDIUM if v <= 10 else HARD
 
 
+def legend_bands(fig, plt, y=-.02):
+    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (EASY, MEDIUM, HARD)]
+    fig.legend(handles, ['error < 3 pp', 'error 3–10 pp', 'error > 10 pp'], loc='lower center', ncol=3,
+               frameon=False, bbox_to_anchor=(.5, y))
+
+
+def unframe(ax):
+    ax.tick_params(length=0); [s.set_visible(False) for s in ax.spines.values()]; ax.xaxis.tick_top()
+
+
 def fig_error_by_arm(plt, summary):
     methods = ['plugin', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking']
     fig, axes = plt.subplots(1, 4, figsize=(13, 3.6), sharey=True)
@@ -156,9 +166,96 @@ def fig_error_by_arm(plt, summary):
         ax.set_yticks(y, [METHODS[m] for m in methods]); ax.set_xlim(0, 36); ax.set_title(ARMS[arm])
         ax.grid(axis='x', color='#eeeeee'); ax.set_axisbelow(True); ax.set_xlabel('error (pp)')
     handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (GREY, BLUE, ORANGE)]
-    fig.legend(handles, ['no correction', 'classical method', 'language model'], loc='lower center',
+    fig.legend(handles, ['no correction (observed share)', 'classical method', 'language model'], loc='lower center',
                ncol=3, frameon=False, bbox_to_anchor=(.5, 1.0))
     save(fig, 'fig1_error_by_arm')
+
+
+def fig_answer_types(plt, types, summary):
+    t = types.set_index('method').loc[LLMS[::-1]]
+    fig, ax = plt.subplots(figsize=(9.5, 3.1))
+    y = np.arange(len(t)); left = np.zeros(len(t))
+    for col, c, lab in (('reweighting', BLUE, 'near the reweighted share'),
+                        ('uncorrected', GREY, 'near the observed share'), ('other', '#e4e2da', 'neither')):
+        v = 100*t[col].to_numpy()
+        ax.barh(y, v, left=left, color=c, height=.62, label=lab)
+        for yi, l, vi in zip(y, left, v):
+            if vi >= 7: ax.text(l+vi/2, yi, f'{vi:.0f} %', ha='center', va='center', fontsize=9.5,
+                                color='white' if c != '#e4e2da' else '#333333')
+        left += v
+    for yi, m in zip(y, t.index):
+        ax.text(103, yi, f'error {100*summary.loc[("S", m), "MAE_2"]:.1f} pp', va='center', fontsize=9.5)
+    ax.set_yticks(y, [METHODS[m] for m in t.index]); ax.set_xlim(0, 100); ax.set_xticks([0, 25, 50, 75, 100])
+    ax.set_xlabel('share of answers in arm S (%)'); ax.spines['bottom'].set_visible(False)
+    ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
+    save(fig, 'fig2_answer_types_S')
+
+
+def fig_variability(plt, resp, samp):
+    rows = ['plugin', 'mle', 'et'] + LLMS
+    panels = (('Same sample, new answer', lambda a, m: np.nan if m in ('plugin', 'mle', 'et') else
+               100*resp.loc[(a, m), 'median_observation_SD_rho2']),
+              ('New sample of the same network', lambda a, m: 100*samp.loc[(a, m), 'median_graph_SD_rho2_across_draws']))
+    fig, axes = plt.subplots(1, 2, figsize=(11, 3.9))
+    for k, (ax, (title, get)) in enumerate(zip(axes, panels)):
+        v = np.array([[get(a, m) for a in ARMS] for m in rows])
+        for i in range(v.shape[0]):
+            for j in range(4):
+                x = v[i, j]
+                if np.isnan(x):
+                    ax.text(j, i, '–', ha='center', va='center', color='#aaaaaa'); continue
+                a = min(1, x/22)
+                ax.add_patch(plt.Rectangle((j-.47, i-.43), .94, .86, color=plt.cm.Purples(.08 + .8*a), lw=0))
+                ax.text(j, i, f'{x:.1f}', ha='center', va='center', fontsize=10, color='white' if a > .55 else '#222222')
+        ax.set_xlim(-.5, 3.5); ax.set_ylim(len(rows)-.5, -.5); unframe(ax)
+        ax.set_xticks(range(4), list(ARMS)); ax.set_title(title, pad=24)
+        ax.set_yticks(range(len(rows)), [METHODS[m] for m in rows] if k == 0 else ['']*len(rows))
+    fig.text(.5, -.02, 'median standard deviation of the ρ₂ estimate (pp)', ha='center', fontsize=10.5, color='#444444')
+    save(fig, 'fig3_variability')
+
+
+def fig_networks(plt, per, f):
+    order = f.sort_values('rho2').index.tolist()
+    rows = [f"{NAMES[s]}  ({100*f.loc[s, 'rho2']:.0f} %)" if f.loc[s, 'rho2'] >= .01 else f"{NAMES[s]}  (0.3 %)" for s in order]
+    fig, axes = plt.subplots(1, len(MAIN), figsize=(15.5, 5.4))
+    for k, (ax, m) in enumerate(zip(axes, MAIN)):
+        v = per[per.method == m].pivot(index='source', columns='arm', values='MAE_2').loc[order, list(ARMS)].to_numpy()*100
+        for i in range(v.shape[0]):
+            for j in range(4):
+                ax.add_patch(plt.Rectangle((j-.46, i-.42), .92, .84, color=band(v[i, j]), lw=0))
+                ax.text(j, i, f'{v[i, j]:.1f}', ha='center', va='center', fontsize=8.5,
+                        fontweight='bold' if v[i, j] > 10 else 'normal')
+        ax.set_xlim(-.5, 3.5); ax.set_ylim(len(rows)-.5, -.5); unframe(ax)
+        ax.set_xticks(range(4), list(ARMS)); ax.set_title(METHODS[m], pad=22)
+        ax.set_yticks(range(len(rows)), rows if k == 0 else ['']*len(rows))
+    fig.text(.005, .93, 'network (true ρ₂)', fontsize=9.5, color='#666666')
+    legend_bands(fig, plt, -.04)
+    save(fig, 'fig4_networks')
+
+
+def fig_real_vs_shuffled(plt, perall):
+    methods = ['mle', 'et', 'gpt_6_sol', 'deepseek_flash', 'qwen_thinking']
+    per = perall.assign(family=perall.source.str.replace('__pwt', '', regex=False))
+    fig, axes = plt.subplots(1, 4, figsize=(13, 3.2), sharey=True)
+    rows = []
+    for ax, arm in zip(axes, ARMS):
+        y = np.arange(len(methods))[::-1]
+        for yi, m in zip(y, methods):
+            p = per[(per.arm == arm) & (per.method == m)].pivot(index='family', columns='group', values='MAE_2')*100
+            r, s = p.real.mean(), p.surrogate.mean(); better = int((p.real < p.surrogate).sum())
+            rows.append({'arm': arm, 'method': m, 'real': r, 'shuffled': s, 'real_lower': better})
+            c = colour(m)
+            ax.plot([r, s], [yi, yi], color=c, lw=2)
+            ax.scatter([s], [yi], s=52, facecolor='white', edgecolor=c, lw=2, zorder=3)
+            ax.scatter([r], [yi], s=56, color=c, zorder=3)
+            ax.text(45, yi, f'{better}/12', va='center', ha='right', fontsize=9.5, color='#444444')
+        ax.set_yticks(y, [METHODS[m] for m in methods]); ax.set_xlim(0, 45); ax.set_xticks([0, 10, 20, 30]); ax.set_title(ARMS[arm])
+        ax.grid(axis='x', color='#eeeeee'); ax.set_axisbelow(True); ax.set_xlabel('error (pp)')
+    h = [plt.Line2D([], [], marker='o', ls='', color='#555555', markersize=8),
+         plt.Line2D([], [], marker='o', ls='', markerfacecolor='white', markeredgecolor='#555555', markeredgewidth=2, markersize=8)]
+    fig.legend(h, ['real network', 'time-shuffled copy', ], loc='lower center', ncol=2, frameon=False, bbox_to_anchor=(.5, 1.0))
+    pd.DataFrame(rows).to_csv(DATA/'real_vs_shuffled.csv', index=False, float_format='%.2f')
+    save(fig, 'fig5_real_vs_shuffled')
 
 
 def fig_bias(plt, summary):
@@ -173,145 +270,46 @@ def fig_bias(plt, summary):
             ax.text(vi + (.7 if vi >= 0 else -.7), yi, f'{vi:+.1f}', va='center', ha='left' if vi >= 0 else 'right', fontsize=9.5)
     ax.axvline(0, color='#333333', lw=1)
     ax.set_yticks(y, [ARMS[a] for a in arms]); ax.set_xlim(-24, 34)
-    ax.set_xlabel('← estimate too low          signed error (pp)          estimate too high →')
+    ax.set_xlabel('← estimate too low          mean signed error (pp)          estimate too high →')
     ax.grid(axis='x', color='#eeeeee'); ax.set_axisbelow(True)
     ax.legend(frameon=False, loc='lower right')
-    save(fig, 'fig2_bias_mle')
+    save(fig, 'figA1_bias_mle')
 
 
-def fig_answer_types(plt, types, summary):
-    t = types.set_index('method').loc[LLMS[::-1]]
-    fig, ax = plt.subplots(figsize=(9.5, 3.1))
-    y = np.arange(len(t)); left = np.zeros(len(t))
-    for col, c, lab in (('reweighting', BLUE, 'applies the simple reweighting'),
-                        ('uncorrected', GREY, 'leaves the bias uncorrected'), ('other', '#e4e2da', 'other value')):
-        v = 100*t[col].to_numpy()
-        ax.barh(y, v, left=left, color=c, height=.62, label=lab)
-        for yi, l, vi in zip(y, left, v):
-            if vi >= 7: ax.text(l+vi/2, yi, f'{vi:.0f} %', ha='center', va='center', fontsize=9.5,
-                                color='white' if c != '#e4e2da' else '#333333')
-        left += v
-    for yi, m in zip(y, t.index):
-        ax.text(103, yi, f'error {100*summary.loc[("S", m), "MAE_2"]:.1f} pp', va='center', fontsize=9.5)
-    ax.set_yticks(y, [METHODS[m] for m in t.index]); ax.set_xlim(0, 100); ax.set_xticks([0, 25, 50, 75, 100])
-    ax.set_xlabel('share of answers (%)'); ax.spines['bottom'].set_visible(False)
-    ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
-    save(fig, 'fig3_answer_types_S')
-
-
-def fig_stability(plt, resp):
-    rows = LLMS + ['mle_et']
-    labels = [METHODS[m] for m in LLMS] + ['MLE, ExtraTrees']
-    v = np.array([[0.]*4 if m == 'mle_et' else
-                   [100*resp.loc[(a, m), 'median_observation_SD_rho2'] for a in ARMS] for m in rows])
-    fig, ax = plt.subplots(figsize=(6.2, 3.3))
-    ax.imshow(v, cmap='Purples', vmin=0, vmax=25, aspect='auto')
-    for i in range(v.shape[0]):
-        for j in range(4):
-            ax.text(j, i, f'{v[i, j]:.1f}', ha='center', va='center', fontsize=10, color='white' if v[i, j] > 13 else '#222222')
-    ax.set_xticks(range(4), list(ARMS)); ax.set_yticks(range(len(rows)), labels)
-    ax.xaxis.tick_top(); ax.tick_params(length=0); [s.set_visible(False) for s in ax.spines.values()]
-    ax.set_xlabel('spread of 3 answers to the same sample (median SD, pp)'); ax.xaxis.set_label_position('bottom')
-    save(fig, 'fig4_answer_spread')
-
-
-def fig_python(plt, summary, resp):
-    fig, axes = plt.subplots(1, 2, figsize=(10, 3.1), sharey=True)
-    arms = list(ARMS)[::-1]; y = np.arange(4)
-    for ax, (title, get) in zip(axes, (('Error (pp)', lambda a, m: 100*summary.loc[(a, m), 'MAE_2']),
-                                       ('Spread of 3 answers (pp)', lambda a, m: 100*resp.loc[(a, m), 'median_observation_SD_rho2']))):
-        for k, (m, c) in enumerate((('gpt_6_sol', ORANGE), ('gpt_6_sol_tools', VIOLET))):
-            v = [get(a, m) for a in arms]; yy = y + (.19 if k == 0 else -.19)
-            ax.barh(yy, v, height=.36, color=c, label=METHODS[m])
-            for yi, vi in zip(yy, v): ax.text(vi+.25, yi, f'{vi:.1f}', va='center', fontsize=9.5)
-        ax.set_title(title); ax.set_xlim(0, 18); ax.grid(axis='x', color='#eeeeee'); ax.set_axisbelow(True)
-    axes[0].set_yticks(y, [ARMS[a] for a in arms])
-    axes[0].legend(frameon=False, ncol=2, loc='lower left', bbox_to_anchor=(0, 1.08))
-    save(fig, 'fig5_python')
-
-
-def network_order(f):
-    return f.sort_values(['type', 'rho2'], ascending=[True, True]).index.tolist()
-
-
-def heat(ax, v, rows, show_rows=True, fontsize=10):
-    for i in range(v.shape[0]):
-        for j in range(v.shape[1]):
-            ax.add_patch(__import__('matplotlib').patches.FancyBboxPatch((j-.46, i-.42), .92, .84, boxstyle='round,pad=0,rounding_size=.08',
-                                                                           color=band(v[i, j]), lw=0))
-            ax.text(j, i, f'{v[i, j]:.1f}', ha='center', va='center', fontsize=fontsize,
-                    fontweight='bold' if v[i, j] > 10 else 'normal')
-    ax.set_xlim(-.5, v.shape[1]-.5); ax.set_ylim(v.shape[0]-.5, -.5)
-    ax.set_yticks(range(len(rows)), rows if show_rows else [''] * len(rows))
-    ax.tick_params(length=0); [s.set_visible(False) for s in ax.spines.values()]; ax.xaxis.tick_top()
-
-
-def legend_bands(fig, plt, y=-.02):
-    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (EASY, MEDIUM, HARD)]
-    fig.legend(handles, ['easy (< 3 pp)', 'medium (3–10 pp)', 'hard (> 10 pp)'], loc='lower center', ncol=3,
-               frameon=False, bbox_to_anchor=(.5, y))
-
-
-def fig_networks(plt, per, f):
-    order = network_order(f)
-    typical = per[per.method.isin(MAIN)].groupby(['source', 'arm']).MAE_2.mean().unstack()[list(ARMS)]*100
-    v = typical.loc[order].to_numpy(); v = np.c_[v, v.mean(axis=1)]
-    rows = [NAMES[s] for s in order]
-    fig, ax = plt.subplots(figsize=(8.6, 5.6))
-    heat(ax, v, rows)
-    ax.set_xticks(range(5), list(ARMS) + ['mean']); ax.axvline(3.5, color='white', lw=4)
-    split = sum(f.loc[order, 'type'] == 'fleeting') - .5
-    ax.axhline(split, color='#333333', lw=1.2)
-    for i, s in enumerate(order):
-        ax.text(4.75, i, f"{f.loc[s, 'type']:<9} {100*f.loc[s, 'rho2']:5.1f} %  {f.loc[s, 'events_per_pair']:7.1f}",
-                va='center', fontsize=9.5, family='DejaVu Sans Mono', color='#444444')
-    ax.text(4.75, -.75, 'type       true ρ₂  events\n                    per pair', fontsize=9, family='DejaVu Sans Mono',
-            color='#777777', va='bottom')
-    legend_bands(fig, plt, -.03)
-    save(fig, 'fig6_networks')
-
-
-def fig_networks_by_method(plt, per, f):
-    order = network_order(f); rows = [NAMES[s] for s in order]
-    fig, axes = plt.subplots(1, len(MAIN), figsize=(15, 5.4))
-    for k, (ax, m) in enumerate(zip(axes, MAIN)):
-        v = per[per.method == m].pivot(index='source', columns='arm', values='MAE_2').loc[order, list(ARMS)].to_numpy()*100
-        heat(ax, v, rows, show_rows=k == 0, fontsize=8.5)
-        ax.set_xticks(range(4), list(ARMS)); ax.set_title(METHODS[m], pad=22)
-        ax.axhline(sum(f.loc[order, 'type'] == 'fleeting') - .5, color='#333333', lw=1.2)
-    legend_bands(fig, plt, -.04)
-    save(fig, 'figA1_networks_by_method')
-
-
-def fig_causes(plt, per, f):
-    typical = per[per.method.isin(MAIN)].groupby(['source', 'arm']).MAE_2.mean().unstack()*100
-    panels = (('R', 'observed_pairs_R', 'pairs in the sample', 'R · fewer pairs seen'),
-              ('S', 'walk_distinct_pairs', 'distinct pairs the walk sees', 'S · walk sees few distinct pairs'),
-              ('B', 'kept_share_B', 'share of events kept', 'B · stronger thinning'))
+def fig_information(plt, per, f):
+    err = lambda m, arm: per[(per.method == m) & (per.arm == arm)].set_index('source').MAE_2*100
+    panels = (('R', 'observed_pairs_R', 'pairs in the sample', 'R · pairs in the sample'),
+              ('S', 'walk_distinct_pairs', 'distinct pairs the walk sees', 'S · distinct pairs in the walk'),
+              ('B', 'kept_share_B', 'share of events kept', 'B · share of events kept'))
     labels = {'sp_malawi', 'sp_hospital', 'nr_digg_reply', 'reality_mining'}
-    fig, axes = plt.subplots(1, 3, figsize=(13, 3.6))
+    fig, axes = plt.subplots(1, 3, figsize=(13, 3.7))
     for ax, (arm, col, xlab, title) in zip(axes, panels):
-        x, y = f[col], typical.loc[f.index, arm]
-        ax.scatter(x, y, s=46, color=ORANGE, edgecolor='white', lw=.8, zorder=3)
+        x = f[col]; top = 0
+        for m, c in (('mle', BLUE), ('gpt_6_sol', ORANGE)):
+            y = err(m, arm).loc[f.index]; top = max(top, y.max())
+            ax.scatter(x, y, s=42, color=c, edgecolor='white', lw=.8, zorder=3, label=METHODS[m])
+        y = np.maximum(err('mle', arm).loc[f.index], err('gpt_6_sol', arm).loc[f.index])
         for s in f.index:
             if s in labels: ax.annotate(NAMES[s].split(' (')[0], (x[s], y[s]), xytext=(6, 4), textcoords='offset points', fontsize=9)
         ax.set_xscale('log'); ax.set_xlabel(xlab + ' (log scale)'); ax.set_title(title)
-        ax.set_ylim(0, max(10, y.max()*1.2)); ax.grid(color='#eeeeee'); ax.set_axisbelow(True)
-        ax.spines['left'].set_visible(True)
-    axes[0].set_ylabel('typical error (pp)')
-    save(fig, 'fig7_causes')
+        ax.set_ylim(0, max(10, top*1.2)); ax.grid(color='#eeeeee'); ax.set_axisbelow(True); ax.spines['left'].set_visible(True)
+    axes[0].set_ylabel('error (pp)'); axes[0].legend(frameon=False, loc='upper right')
+    save(fig, 'figA2_error_vs_information')
 
 
 def draw():
     plt = setup()
+    for old in FIGS.glob('*'): old.unlink()
     summary = pd.read_csv(FINAL/'SUMMARY.csv').query("group == 'real'").set_index(['arm', 'method'])
-    per = pd.read_csv(FINAL/'PER_SOURCE.csv').query("group == 'real'")
+    perall = pd.read_csv(FINAL/'PER_SOURCE.csv')
+    per = perall.query("group == 'real'")
     resp = pd.read_csv(FINAL/'VARIABILITY_RESPONSE.csv').query("group == 'real'").set_index(['arm', 'method'])
+    samp = pd.read_csv(FINAL/'VARIABILITY_SAMPLING.csv').query("group == 'real'").drop_duplicates().set_index(['arm', 'method'])
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
-    fig_error_by_arm(plt, summary); fig_bias(plt, summary); fig_answer_types(plt, types, summary)
-    fig_stability(plt, resp); fig_python(plt, summary, resp); fig_networks(plt, per, f)
-    fig_networks_by_method(plt, per, f); fig_causes(plt, per, f)
+    fig_error_by_arm(plt, summary); fig_answer_types(plt, types, summary); fig_variability(plt, resp, samp)
+    fig_networks(plt, per, f); fig_real_vs_shuffled(plt, perall[perall.group.isin(['real', 'surrogate'])])
+    fig_bias(plt, summary); fig_information(plt, per, f)
 
 
 if __name__ == '__main__':
