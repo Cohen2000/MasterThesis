@@ -6,7 +6,7 @@
 - Where the sampling has a simple textbook correction, GPT and DeepSeek give it, and do no better than the formula.
 - Where there is none, they improvise. GPT does best; DeepSeek and Qwen rarely get it right and answer differently each time.
 - A Python tool does not help.
-- A network is hard when few pairs share its contacts, and, when contacts are lost, when it is highly persistent. Real timing does not matter.
+- A network is hard when few pairs share its contacts, and, when contacts are lost, when it is highly persistent. Real timing changes persistence, not difficulty.
 
 ## 0 · The task
 
@@ -70,13 +70,24 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 
 </details>
 
-## 1 · Samples distort persistence, except in R
+## 1 · What the networks look like
+
+![Share of pairs by number of active windows](figures/fig0b_portrait.png)
+
+- Meeting often is not the same as being persistent. In every network but Digg, 21–52 % of pairs meet several times, but only within one window.
+- The same ρ₂ can hide different shapes. Malawi and Email EU both have 51 %, but 23 % of Malawi's pairs are active in all 5 windows, against 4 % in Email EU.
+
+## 2 · Samples distort persistence, except in R
 
 ![Naive share minus truth](figures/fig1_sample.png)
 
 - The walk (S) overstates persistence; hiding early time (H) and losing events (B) understate it.
 
-## 2 · Who corrects it
+![Arm H with a node sample and with all nodes](figures/fig1b_h_nodes.png)
+
+- In H, seeing all nodes does not help: the problem is the missing time, not the missing nodes.
+
+## 3 · Who corrects it
 
 ![Error per arm, sorted](figures/fig2_ranking.png)
 
@@ -92,18 +103,22 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 
 </details>
 
-## 3 · Where a textbook answer exists, the models give it
+## 4 · Where a textbook answer exists, the models give it
 
 ![Answers equal to the textbook answer](figures/fig3_textbook.png)
 
 - R: the textbook answer is the naive share. S: it is the simple reweighting. A match means within 0.5 pp.
 - In S, GPT's error (8.4 pp) is the formula's own (8.8 pp): no better, no worse.
 
-## 4 · Elsewhere they improvise, and GPT does it best
+## 5 · Elsewhere they improvise, and GPT does it best
 
 ![Answers that correct by about the right amount](figures/fig4_correction.png)
 
 - "About right" means 50–150 % of the correction the sample needs; only samples off by ≥ 5 pp are counted.
+
+![Arm H: estimates of ρ₂ to ρ₅ against the truth](figures/fig4b_h_profile.png)
+
+- With 3 visible windows, the sample cannot show pairs active in 4 or 5 windows. GPT still estimates them about right (ρ₄: 11.0 % against a true 10.3 %), as do MLE and ExtraTrees. Qwen thinking stays near the sample (3.4 %).
 
 <details>
 <summary>Reasoning length and what DeepSeek writes</summary>
@@ -119,13 +134,13 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 
 </details>
 
-## 5 · Asked again, they answer differently
+## 6 · Asked again, they answer differently
 
 ![Spread of three answers to the same sample](figures/fig5_stability.png)
 
 - MLE always gives the same answer. Two samples of the same network differ by at most 1.3 pp (MLE) in H and B, far less than these spreads.
 
-## 6 · Python does not help
+## 7 · Python does not help
 
 ![Error of GPT with and without Python](figures/fig6_python.png)
 
@@ -138,39 +153,44 @@ Its answers spread more (12.2 against 5.1 pp) and overshoot (+6.4 against +0.5 p
 
 </details>
 
-## 7 · Which networks are hard
+## 8 · Which networks are hard
 
-### 7.1 With random nodes or a random walk, the same networks are hard for every method
+### 8.1 With random nodes or a random walk, the same networks are hard for every method
 
 ![Error of MLE against GPT, one dot per network](figures/fig7_agreement.png)
 
 - **R, S:** the dots sit on the diagonal, so difficulty is a property of the network.
 - **H, B:** the dots scatter, so it depends on the method. Copenhagen in B is easy for MLE (0.5 pp) and hard for GPT (17.5 pp).
 
-### 7.2 Not the number of contacts, but how many pairs share them
+### 8.2 Not the number of contacts, but how many pairs share them
 
 ![Error in S against contacts and against pairs that share them](figures/fig8_spread.png)
 
 - Malawi has 102,293 contacts, but they sit on effectively 55 pairs. That is the hardest case.
 - Random nodes (R) show the same pattern.
 
-### 7.3 With lost events, persistent networks are hard
+![Synthetic networks with and without memory, random walk](figures/fig8b_memory.png)
+
+- A controlled check with the same 500 nodes and about 10,000 contacts: memory concentrates the contacts on fewer pairs, and the walk error rises. Memory also raises persistence.
+
+### 8.3 With lost events, persistent networks are hard
 
 ![Error against true persistence, per arm](figures/fig9_persistence.png)
 
 - Only in B does the error grow with ρ₂. These are all 32 networks: real, real with random contact times, and synthetic.
 
-### 7.4 Real timing does not matter
+### 8.4 Real timing changes persistence, not difficulty
 
 ![Same graphs with real and with random contact times](figures/fig10_timing.png)
 
-- Random contact times leave R, S and H about unchanged. B gets harder only because random times make the networks more persistent (ρ₂ 35 % → 62 %).
+- Random contact times leave R, S and H about unchanged.
+- In B the error rises, but random times also make the networks more persistent (ρ₂ 35 % → 62 %), so the two effects cannot be separated.
 
-### 7.5 DeepSeek and Qwen cannot absorb the extra persistence
+### 8.5 With random times, DeepSeek and Qwen fall further behind in B
 
 ![Extra error in B with random contact times, per method](figures/fig11_timing_b.png)
 
-- DeepSeek and Qwen are worse in 11 of 12 networks; MLE, ExtraTrees and GPT absorb most of the extra distortion.
+- DeepSeek and Qwen get worse in 11 of 12 networks; MLE, ExtraTrees and GPT change much less.
 
 <details>
 <summary>Definitions and all numbers</summary>

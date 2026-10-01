@@ -71,6 +71,10 @@ def build_inputs(external):
         rows.append({'source': key, 'nodes': g.N, 'pairs': g.D, 'events': g.M, 'rho2': g.truth[0],
                      'rho2_shuffled': truth[key+'__pwt'][0], 'events_per_pair': g.M/g.D,
                      'one_off_pairs': float(np.mean(m == 1)),
+                     # what the pairs look like: one contact, several contacts in one window, active in 2..5 windows
+                     'share_one_contact': float(np.mean(m == 1)),
+                     'share_one_window_several': float(np.mean((g.K == 1) & (m > 1))),
+                     **{f'share_{k}_windows': float(np.mean(g.K == k)) for k in range(2, 6)},
                      # contacts spread as if over this many equally busy pairs (inverse Simpson index of contact shares)
                      'effective_pairs': float(1/np.sum((m/m.sum())**2)),
                      'only_early_pairs': float(np.mean(g.counts[:, 2:].sum(axis=1) == 0)),
@@ -405,8 +409,8 @@ def fig_agreement(plt, per):
         ax.plot([0, 35], [0, 35], color='#bbbbbb', lw=1, zorder=1)
         ax.scatter(x, y, s=46, color=ORANGE, edgecolor='white', lw=.7, zorder=3)
         if arm == 'B':
-            ax.annotate('Copenhagen', (x['copenhagen_bluetooth'], y['copenhagen_bluetooth']), xytext=(7, 0),
-                        textcoords='offset points', fontsize=9, va='center')
+            ax.annotate('Copenhagen', (x['copenhagen_bluetooth'], y['copenhagen_bluetooth']), xytext=(4, 34),
+                        textcoords='offset points', fontsize=9, arrowprops=dict(arrowstyle='-', color='#888888', lw=.8))
         ax.set_xlim(0, 35); ax.set_ylim(0, 35); ax.set_aspect('equal'); ax.set_title(ARMS[arm])
         ax.set_xlabel('error of MLE (pp)'); ax.spines['left'].set_visible(True)
     axes[0].set_ylabel('error of GPT (pp)')
@@ -480,6 +484,87 @@ def fig_timing_b(plt, perall):
     save(fig, 'fig11_timing_b')
 
 
+# Fig. 0b: what the pairs of each network look like (share of pairs, %).
+PORTRAIT = (('share_one_contact', '#d9d6cf', 'one contact'), ('share_one_window_several', '#b3afa6', 'several contacts, one window'),
+            ('share_2_windows', '#9ec5f4', '2 windows'), ('share_3_windows', '#5598e7', '3 windows'),
+            ('share_4_windows', '#256abf', '4 windows'), ('share_5_windows', '#104281', '5 windows'))
+
+
+def fig_portrait(plt, f):
+    order = f.sort_values('rho2').index.tolist()
+    fig, ax = plt.subplots(figsize=(10, 4.6))
+    y = np.arange(len(order))
+    left = np.zeros(len(order))
+    for col, c, lab in PORTRAIT:
+        v = 100*f.loc[order, col].to_numpy()
+        ax.barh(y, v, left=left, color=c, height=.72, label=lab)
+        left += v
+    for yi, s in zip(y, order):
+        ax.text(101.5, yi, f"ρ₂ {100*f.loc[s, 'rho2']:.0f} %" if f.loc[s, 'rho2'] >= .01 else 'ρ₂ 0.3 %', va='center', fontsize=9.5)
+    ax.set_yticks(y, [NAMES[s].split(' (')[0] for s in order]); ax.set_xlim(0, 100); ax.set_xticks([0, 25, 50, 75, 100])
+    ax.set_xlabel('share of pairs (%)'); ax.spines['bottom'].set_visible(False); ax.tick_params(axis='y', length=0)
+    ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
+    save(fig, 'fig0b_portrait')
+
+
+# Fig. 1b: arm H with all nodes instead of a node sample (no language models; naive share and MLE).
+def fig_h_nodes(plt):
+    h = pd.read_csv(FINAL/'HISTORY_ERRORS.csv').query("group == 'real' and truncation == 'last60'").set_index(['estimator', 'node_sampling'])
+    fig, ax = plt.subplots(figsize=(6.5, 3.2))
+    w = .38
+    for k, (lab, ns, c) in enumerate((('random nodes (as in H)', True, '#333333'), ('all nodes', False, '#b8b5ad'))):
+        xs = np.arange(2) + (k - .5)*w
+        vs = [100*h.loc[(e, ns), 'MAE_2'] for e in ('plugin', 'mle')]
+        ax.bar(xs, vs, width=w*.92, color=c, label=lab)
+        for x, v in zip(xs, vs): ax.text(x, v + .15, f'{v:.1f}', ha='center', va='bottom', fontsize=9.5)
+    ax.set_xticks(range(2), ['Naive share', 'MLE']); ax.set_ylim(0, 9.5); ax.set_yticks([])
+    ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0)
+    ax.legend(frameon=False, ncol=2, loc='upper left'); ax.set_title('H · late time only: error (pp)', pad=12)
+    save(fig, 'fig1b_h_nodes')
+
+
+# Fig. 4b: arm H, mean estimates of rho_2..rho_5 against the truth (12 real networks).
+def fig_h_profile(plt, pred):
+    truth = json.loads((FINAL/'TRUTH.json').read_text())
+    p = pred[(pred.group == 'real') & (pred.arm == 'H') & pred.prediction.notna() & ((pred.valid == True) | (pred.method == 'plugin'))]
+    prof = pd.DataFrame([json.loads(v) for v in p.prediction], index=p.index, columns=[2, 3, 4, 5])*100
+    mean = prof.groupby([p.method, p.source]).mean().groupby(level=0).mean()
+    t = pd.DataFrame({s: truth[s] for s in p.source.unique()}, index=[2, 3, 4, 5]).T.mean()*100
+    fig, ax = plt.subplots(figsize=(6.5, 3.6))
+    k = np.arange(4)
+    ax.plot(k, t.to_numpy(), color='#333333', lw=2.5, marker='o', label='truth')
+    ax.plot(k, mean.loc['gpt_6_sol'].to_numpy(), color=ORANGE, lw=2.2, marker='o', label='GPT')
+    ax.plot(k, mean.loc['plugin'].to_numpy(), color=GREY, lw=2.2, marker='o', ls=(0, (4, 2)), label='naive share')
+    ax.axvspan(1.5, 3.4, color='#f3f1ec', zorder=0)
+    ax.text(2.45, 25, 'the sample cannot show\nmore than 3 windows', ha='center', fontsize=9, color='#666666')
+    ax.set_xticks(k, ['ρ₂', 'ρ₃', 'ρ₄', 'ρ₅']); ax.set_xlim(-.3, 3.4); ax.set_ylim(0, 48)
+    ax.set_ylabel('share of pairs (%)'); ax.spines['left'].set_visible(True); ax.legend(frameon=False, loc='upper right')
+    ax.set_title('H · late time only: mean over 12 networks', pad=12)
+    save(fig, 'fig4b_h_profile')
+
+
+# Fig. 7b: synthetic networks with and without memory (500 nodes, about 10,000 contacts each): typical error in S.
+def fig_memory(plt, perall):
+    sy = pd.read_csv(DATA/'synthetic_features.csv', index_col=0)
+    t = typical_error(perall)
+    groups = (('DAR', 'dar_a0', 'dar_a08'), ('Activity-driven', 'ad_memoryless', 'ad_memory'))
+    fig, ax = plt.subplots(figsize=(6.5, 3.4))
+    w = .38
+    labels = []
+    for gi, (name, without, with_) in enumerate(groups):
+        for k, (key, c) in enumerate(((without, '#b8b5ad'), (with_, '#333333'))):
+            keys = [f'{key}_r1', f'{key}_r2']
+            v = t.loc[keys, 'S'].mean()
+            ax.bar(gi + (k - .5)*w, v, width=w*.92, color=c, label=('without memory', 'with memory')[k] if gi == 0 else None)
+            ax.text(gi + (k - .5)*w, v + .1, f'{v:.1f}', ha='center', va='bottom', fontsize=9.5)
+        a, b = (sy.loc[[f'{x}_r1', f'{x}_r2'], 'effective_pairs'].mean() for x in (without, with_))
+        labels.append(f'{name}\npairs sharing the contacts:\n{a:,.0f} → {b:,.0f}')
+    ax.set_xticks(range(2), labels); ax.set_ylim(0, 6.5); ax.set_yticks([])
+    ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0)
+    ax.legend(frameon=False, ncol=2, loc='upper left'); ax.set_title('S · random walk: typical error (pp)', pad=12)
+    save(fig, 'fig8b_memory')
+
+
 def draw():
     plt = setup()
     for old in FIGS.glob('*'): old.unlink()
@@ -490,9 +575,9 @@ def draw():
     resp = pd.read_csv(FINAL/'VARIABILITY_RESPONSE.csv').query("group == 'real'").set_index(['arm', 'method'])
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
-    fig_toy(plt); fig_sample(plt, summary, per); fig_ranking(plt, summary); fig_textbook(plt, types)
-    fig_correction(plt, pred); fig_stability(plt, resp); fig_python(plt, summary)
-    fig_agreement(plt, per); fig_spread(plt, perall, f); fig_persistence(plt, perall)
+    fig_toy(plt); fig_portrait(plt, f); fig_sample(plt, summary, per); fig_h_nodes(plt); fig_ranking(plt, summary)
+    fig_textbook(plt, types); fig_correction(plt, pred); fig_h_profile(plt, pred); fig_stability(plt, resp); fig_python(plt, summary)
+    fig_agreement(plt, per); fig_spread(plt, perall, f); fig_memory(plt, perall); fig_persistence(plt, perall)
     fig_timing(plt, perall); fig_timing_b(plt, perall); fig_networks(plt, per, f)
 
 
