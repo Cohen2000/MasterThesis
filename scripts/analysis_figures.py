@@ -163,6 +163,47 @@ def value_grid(plt, ax, v, rows, cols, vmax, show_rows=True, muted=()):
     ax.set_xticks(range(len(cols)), cols); ax.set_yticks(range(len(rows)), rows if show_rows else ['']*len(rows))
 
 
+# Fig. 0: a toy network of six pairs and what each arm shows of it.
+TOY = {'A': [3, 3, 2, 3, 3], 'B': [1, 0, 1, 0, 0], 'C': [0, 0, 0, 1, 1],
+       'D': [1, 0, 0, 0, 0], 'E': [0, 0, 1, 0, 0], 'F': [0, 0, 0, 0, 1]}
+TOY_ARMS = (('R · random nodes', {'B': TOY['B'], 'C': TOY['C'], 'D': TOY['D'], 'E': TOY['E']}, (), 'only pairs between drawn nodes'),
+            ('S · random walk', {'A': TOY['A'], 'B': TOY['B'], 'C': TOY['C'], 'E': TOY['E']}, (), 'the walk mostly meets busy pairs'),
+            ('H · late time only', {k: [0, 0] + v[2:] for k, v in TOY.items() if sum(v[2:])}, (0, 1), 'windows 1–2 are not visible'),
+            ('B · event loss', {'A': [1, 0, 1, 0, 1], 'B': [0, 0, 1, 0, 0], 'E': [0, 0, 1, 0, 0]}, (), 'most events are lost'))
+
+
+def toy_panel(plt, ax, pairs, hidden, title, note):
+    for j in hidden: ax.add_patch(plt.Rectangle((j-.5, -.5), 1, 6, color='#e9e7e1', lw=0))
+    seen = 0; persistent = 0
+    for i, k in enumerate(TOY):
+        row = pairs.get(k)
+        ax.text(-.9, i, f'pair {k}', ha='right', va='center', fontsize=9.5, color='#222222' if row else '#c4c1b8')
+        for j in range(5):
+            ax.scatter(j, i, s=14, color='#dddad2', zorder=1)
+            if row and row[j]: ax.scatter(j, i, s=40 + 35*row[j], color='#333333', zorder=3)
+        if row:
+            seen += 1; persistent += sum(x > 0 for x in row) >= 2
+    ax.set_xlim(-.6, 4.6); ax.set_ylim(5.6, -.6); ax.axis('off')
+    ax.set_title(title, loc='left', fontsize=11, pad=6)
+    ax.text(2, 6.25, note, ha='center', fontsize=9, color='#666666')
+    return seen, persistent
+
+
+def fig_toy(plt):
+    fig = plt.figure(figsize=(13, 6.4))
+    gs = fig.add_gridspec(2, 4, height_ratios=[1, 1], hspace=.75, wspace=.55)
+    top = fig.add_subplot(gs[0, 1:3])
+    toy_panel(plt, top, TOY, (), 'Full network: 6 pairs, 5 time windows', 'dot = active in that window; bigger dot = more events')
+    top.set_title('Full network: 6 pairs, 5 time windows', loc='left', fontsize=11, pad=24)
+    for j in range(5): top.text(j, -.95, f'window {j+1}', ha='center', fontsize=9, color='#666666')
+    top.text(2, 7.0, 'true ρ₂ = 3 of 6 pairs active in ≥ 2 windows = 50 %', ha='center', fontsize=10.5, fontweight='bold')
+    for k, (title, pairs, hidden, note) in enumerate(TOY_ARMS):
+        ax = fig.add_subplot(gs[1, k])
+        seen, persistent = toy_panel(plt, ax, pairs, hidden, title, note)
+        ax.text(2, 7.0, f'naive share = {persistent}/{seen} = {100*persistent/seen:.0f} %', ha='center', fontsize=10.5, fontweight='bold')
+    save(fig, 'fig0_toy')
+
+
 # Fig. 1: how the sample looks. Signed error of the naive share, per arm and per network.
 def fig_sample(plt, summary, per):
     fig, ax = plt.subplots(figsize=(8, 3.3))
@@ -195,7 +236,7 @@ def fig_ranking(plt, summary, per):
             v, c = 100*summary.loc[(arm, m), 'MAE_2'], colour(m)
             base = m == 'plugin'
             e = per[per.arm == arm].pivot(index='source', columns='method', values='MAE_2')
-            wins = '' if base else f'{int((e[m] < e.plugin).sum())}/12'
+            wins = '' if base else f'{int((e[m] < e.plugin - .005).sum())}/12'
             ax.add_patch(plt.Rectangle((0, i-.42), 1, .84, color=GREY if base else '#f4f3f0', lw=0))
             ax.add_patch(plt.Rectangle((.03, i+.2), .94*min(v, 55)/55, .14, color='white' if base else c, lw=0))
             ax.text(.03, i-.08, METHODS[m], va='center', fontsize=10,
@@ -203,14 +244,14 @@ def fig_ranking(plt, summary, per):
             ax.text(.74, i-.08, wins, va='center', ha='right', fontsize=9.5, color='#777777')
             ax.text(.97, i-.08, f'{v:.1f}', va='center', ha='right', fontsize=10,
                     color='white' if base else '#222222', fontweight='bold' if base else 'normal')
-        ax.text(.74, -.75, 'beats naive', ha='right', fontsize=8.5, color='#777777')
+        ax.text(.74, -.75, 'beats naive*', ha='right', fontsize=8.5, color='#777777')
         ax.text(.97, -.75, 'error', ha='right', fontsize=8.5, color='#777777')
         ax.set_xlim(0, 1); ax.set_ylim(len(ranked)-.5, -.5); ax.axis('off')
         ax.set_title(ARMS[arm], loc='left', pad=16)
     handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (GREY, LIGHT, BLUE, AQUA, ORANGE)]
     fig.legend(handles, ['naive share', 'constant guess', 'statistical model', 'trained model', 'language model'],
                loc='lower center', ncol=5, frameon=False, bbox_to_anchor=(.5, -.04))
-    fig.text(.5, -.075, 'sorted by error (pp) · bar length = error · x/12 = networks where the method beats the naive share',
+    fig.text(.5, -.075, 'sorted by error (pp) · bar length = error · *networks (of 12) where the method beats the naive share by more than 0.5 pp',
              ha='center', fontsize=9.5, color='#666666')
     save(fig, 'fig2_ranking')
 
@@ -360,7 +401,7 @@ def draw():
     train = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").set_index('arm')
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
-    fig_sample(plt, summary, per); fig_ranking(plt, summary, per); fig_answer_types(plt, types)
+    fig_toy(plt); fig_sample(plt, summary, per); fig_ranking(plt, summary, per); fig_answer_types(plt, types)
     fig_stability(plt, resp, train, samp); fig_sample_size(plt, per, f); fig_networks(plt, per, f)
     fig_persistence(plt, perall); fig_real_vs_shuffled(plt, perall[perall.group.isin(['real', 'surrogate'])])
 

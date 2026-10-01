@@ -3,21 +3,23 @@
 **Question:** a temporal network is only seen through a sample. Can language models estimate how persistent it is?
 
 **Short answer:**
-- Where a sampling rule has a simple textbook correction (R, S), GPT and DeepSeek apply it. They are as good as the formula, not better.
+- Where a sampling rule has a simple textbook answer (R, S), GPT and DeepSeek give it. They are as good as the formula, and in S the formula is worse than MLE and ExtraTrees.
 - Where there is none (H, B), they improvise. GPT stays close to the statistical model; DeepSeek and Qwen fall far behind.
 - Python does not help, and in B it hurts.
 
-**ρ₂** is the share of pairs that are active in at least 2 of 5 time windows. **Error** is the absolute error of ρ₂ in percentage points (pp), averaged over 12 real networks.
+**ρ₂** is the share of pairs that are active in at least 2 of 5 time windows (ρ₃ to ρ₅: at least 3 to 5). **Error** is the absolute error of ρ₂ in percentage points (pp), averaged over 12 real networks.
 
-## 0 · What a method gets
+## 0 · The task
 
-A shortened sample from the Hospital network, arm R:
+![A toy network and what each arm shows of it](figures/fig0_toy.png)
+
+This is what a method really gets, shortened, for the Hospital network in arm R:
 
 ```
 Sampling rule: 24 random nodes; every contact between two of them is seen.
 Seen: 132 pairs, 3,172 events
 
-pattern (windows 1–5)   pairs   events
+pattern (windows 1–5)   pairs   events      1 = active in that window
 0 0 0 0 1                  12       86
 0 0 1 0 0                  23      332
 0 1 1 1 0                   5      283
@@ -37,7 +39,7 @@ Here 56 of 132 pairs are active in ≥ 2 windows, so the **naive share** is 42 %
 | B · event loss | each event kept with a small probability p | p |
 
 Every sample sees about 10 % of the network's activity, with 3 samples per network and arm.
-\*The visits allow a textbook correction, the **simple reweighting**: each visit counts 1 / the pair's number of events.
+\*The visits allow a textbook answer, the **simple reweighting**: each visit counts 1 / the pair's number of events.
 
 | Method | What it is |
 |---|---|
@@ -64,42 +66,45 @@ Every sample sees about 10 % of the network's activity, with 3 samples per netwo
 | Radoslaw | email | 167 | 3,250 | 25.5 | 55 % |
 | Reality Mining | Bluetooth | 96 | 2,539 | 92.5 | 61 % |
 
-## 2 · The sample distorts persistence
+## 2 · Samples distort persistence, except in R
 
 ![Naive share minus truth](figures/fig1_sample.png)
 
 Only R is unbiased. S overstates persistence, while H and B understate it.
 
-## 3 · Who corrects it
+## 3 · Correction works in S and B, not in H
 
 ![Ranking per arm](figures/fig2_ranking.png)
 
-Clear winners exist only in S. In H, no method beats the naive share reliably on ρ₂, though over ρ₂ to ρ₅ correction does help (naive 7.2 pp, GPT 3.3 pp). Qwen no thinking answers 85–95 % almost regardless of the sample and is worse than the constant guess.
+- **S:** MLE, ExtraTrees and every thinking model beat the naive share in 11 of 12 networks.
+- **B:** MLE, ExtraTrees and GPT do so in 8 or 9 networks.
+- **H:** no method does so reliably on ρ₂. Over ρ₂ to ρ₅ correction does help (naive 7.2 pp, GPT 3.3 pp).
+- **Qwen no thinking:** in R, S and B it answers 85–95 % almost regardless of the sample, and it is worse than the constant guess.
 
-## 4 · What the language models compute
+## 4 · The models recite the textbook
 
 ![Near which simple estimate the answers lie](figures/fig3_answer_types.png)
 
-In S, 90 % of GPT's answers are the simple reweighting, and its error (8.4 pp) is the formula's (8.8 pp). In H and B the models improvise. There DeepSeek and Qwen are worse than GPT in 10–12 of 12 networks.
+In S, 90 % of GPT's answers are the simple reweighting, and GPT's error (8.4 pp) is the formula's own (8.8 pp). In H and B, GPT and DeepSeek improvise, while Qwen thinking often returns the naive share. There, DeepSeek and Qwen are worse than GPT in 10–12 of 12 networks.
 
-## 5 · How stable the estimates are
+## 5 · Asking twice gives different answers
 
 ![Spread for the same sample and for a new sample](figures/fig4_stability.png)
 
-The language models vary most where they improvise (H, B).
+The language models vary most where they improvise (H, B). In B, GPT's answers to the same sample spread by 5.1 pp, while a whole new sample moves MLE by only 0.9 pp.
 
-## 6 · Does Python help?
+## 6 · Python costs 3.4 times as much and does not help
 
-| Arm | GPT | GPT + Python | Python worse in |
+| Arm | GPT | GPT + Python | Python better / worse in |
 |---|---:|---:|---:|
-| R | 2.7 | 2.7 | 7/12 |
-| S | 8.4 | 8.1 | 2/12 |
-| H | 5.4 | 6.1 | 7/12 |
-| B | 10.8 | 15.1 | 8/12 |
+| R | 2.7 | 2.7 | 0 / 1 |
+| S | 8.4 | 8.1 | 2 / 0 |
+| H | 5.4 | 6.1 | 3 / 7 |
+| B | 10.8 | 15.1 | 2 / 8 |
 
-Only B differs reliably (sign-flip p = 0.008). The answers spread more (12.2 against 5.1 pp) and overshoot (+6.4 against +0.5 pp), at 3.4 times the cost.
+The last column counts networks with a difference above 0.5 pp. In B, Python is clearly worse: its answers spread more (12.2 against 5.1 pp) and overshoot (+6.4 against +0.5 pp).
 
-## 7 · Which networks are hard, and why
+## 7 · Small samples are hard, and in B so are persistent networks
 
 ![Error per network, arm and method](figures/fig5_networks.png)
 
@@ -130,7 +135,7 @@ Only in B does the error rise steadily with ρ₂, in all three kinds of network
 
 ![Error on real networks and their shuffled copies](figures/fig8_real_vs_shuffled.png)
 
-Shuffling the contact times changes little in R, S and H, so no method relies on real timing. B gets harder for all methods except GPT + Python, because ρ₂ rises (7.2).
+Shuffling the contact times changes little in R, S and H, so no method relies on real timing. In B, shuffling doubles the distortion of the naive share (16 → 33 pp) because ρ₂ rises (7.2). MLE, ExtraTrees and GPT absorb most of it; DeepSeek and Qwen do not (+12 pp, in all 12 networks).
 
 ---
 
