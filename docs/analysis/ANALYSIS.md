@@ -2,6 +2,11 @@
 
 **Question:** a temporal network is only seen through a sample. Can language models estimate how persistent it is, compared with classical methods?
 
+**Short answer:**
+- Where a sampling rule has a simple textbook correction (R, S), GPT and DeepSeek apply it. They are as good as the formula, not better.
+- Where there is none (H, B), the models improvise. GPT stays close to the classical methods; DeepSeek and Qwen fall far behind.
+- Python does not help, and in B it hurts.
+
 **ρ₂** is the share of pairs that are active in at least 2 of 5 time windows. **Error** is the absolute error of ρ₂ in percentage points (pp), averaged over the 12 real networks.
 
 ## 0 · What a method gets
@@ -24,12 +29,16 @@ Task: estimate ρ₂ … ρ₅ of the full network.
 
 In this sample, 56 of the 132 pairs are active in at least 2 windows, so the observed share is 42 %. The true ρ₂ is 45 %.
 
-| Arm | How the sample is drawn |
-|---|---|
-| R · random nodes | random people and all their mutual contacts |
-| S · random walk | a walk along contacts, so busy pairs are visited more often |
-| H · late time only | random people, but windows 1–2 are hidden |
-| B · event loss | every event is kept only with a small probability p |
+| Arm | How the sample is drawn | The method is also told |
+|---|---|---|
+| R · random nodes | random people and all their mutual contacts | number of people |
+| S · random walk | a walk along contacts, so busy pairs are visited more often | visits per pair* |
+| H · late time only | random people, but windows 1–2 are hidden | number of people, hidden windows |
+| B · event loss | every event is kept only with a small probability p | p |
+
+Each sample sees about 10 % of the network's activity, and every network is sampled 3 times per arm.
+
+*The visit counts allow a textbook correction, the **simple reweighting**: each visit of a pair counts 1 / the pair's number of events.
 
 **Methods:**
 - **Classical:** MLE (a statistical model of the sampling) and ExtraTrees (trained on other networks).
@@ -63,27 +72,40 @@ Only R is honest. The random walk (S) overstates persistence, while H and B unde
 
 ![Ranking of the methods per arm](figures/fig2_ranking.png)
 
-Methods above the grey row beat doing nothing. Classical methods lead in S, H and B. GPT, with or without Python, is the best language model.
+Only S has clear winners: apart from the constant guess and Qwen no thinking, every method beats no correction in 11–12 of 12 networks.
+- **H:** on ρ₂, no method beats no correction reliably (best: ExtraTrees, 8/12). Over ρ₂ to ρ₅, correction does help there: no correction 7.2 pp, GPT 3.3 pp, ExtraTrees 3.2 pp.
+- **Qwen no thinking:** it answers 85–95 % almost regardless of the sample, while the true median is 45 %. It is worse than the constant guess in every arm.
 
 ## 4 · What the language models compute
 
 ![Near which simple estimate the answers lie](figures/fig3_answer_types.png)
 
-Where a textbook estimate exists (R, S), the models return it. Where none exists (H, B), they invent their own, and that is where they fall behind.
+Where a simple formula exists (R, S), GPT and DeepSeek return it. In S, 90 % of GPT's answers are the simple reweighting, whose own error (8.8 pp) is GPT's error (8.4 pp). Where no formula exists (H, B), they improvise. GPT then stays close to MLE and ExtraTrees, while DeepSeek and Qwen fall far behind (worse than GPT in 10–12 of 12 networks).
 
 ## 5 · How stable the estimates are
 
 ![Spread for the same sample and for a new sample](figures/fig4_stability.png)
 
-The language models vary most exactly where they invent their own estimate (H, B).
+The language models vary most exactly where they improvise (H, B).
 
-## 6 · Small samples are hard
+## 6 · Does Python help?
+
+| Arm | GPT | GPT + Python | Python worse in |
+|---|---:|---:|---:|
+| R | 2.7 | 2.7 | 7/12 |
+| S | 8.4 | 8.1 | 2/12 |
+| H | 5.4 | 6.1 | 7/12 |
+| B | 10.8 | 15.1 | 8/12 |
+
+Only B differs reliably (+4.4 pp, sign-flip p = 0.008): with Python the answers spread more (Section 5: 12.2 against 5.1 pp) and overshoot (+6.4 against +0.5 pp). Python cost 3.4 times as much (94.50 against 27.59 USD).
+
+## 7 · Small samples are hard
 
 ![Error against the number of pairs in the sample](figures/fig5_sample_size.png)
 
-In R and S, fewer pairs in the sample means a larger error, with Malawi's 18–36 pairs as the extreme. In H and B the link is weak (see 7).
+In R and S, fewer pairs in the sample means a larger error, with Malawi's 18–36 pairs as the extreme. In H and B the link is weak (see 8). Small samples come from small face-to-face networks, which are also more persistent, so size and ρ₂ cannot be fully separated.
 
-## 7 · Event loss is hard when persistence is high
+## 8 · Event loss is hard when persistence is high
 
 To test this beyond the 12 real networks, two extra sets of networks are used:
 - **Time-shuffled copies:** the same pairs and event counts at random times. Shuffling raises ρ₂.
@@ -91,13 +113,15 @@ To test this beyond the 12 real networks, two extra sets of networks are used:
 
 ![Error in arm B against true persistence, all 32 networks](figures/fig6_event_loss_vs_rho.png)
 
-For the language models, the error in B grows with ρ₂ in every kind of network, for GPT up to about 40 %. ExtraTrees stays flat, but it was trained on networks from the same generators.
+Without correction the error in B grows with ρ₂, because event loss hides more of a persistent network. Every method inherits part of this, MLE and the language models most and ExtraTrees least. ExtraTrees, however, was trained on networks from the same generators.
 
 ---
 
 ## Appendix
 
 ### A1 · Error per network
+
+Pairs in the sample are the mean of the 3 samples per arm.
 
 | Network | True ρ₂ | Pairs in sample R | S | H | B |
 |---|---:|---:|---:|---:|---:|

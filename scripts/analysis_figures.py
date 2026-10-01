@@ -150,11 +150,13 @@ def unframe(ax):
     ax.tick_params(length=0); [s.set_visible(False) for s in ax.spines.values()]; ax.xaxis.tick_top()
 
 
-def value_grid(plt, ax, v, rows, cols, vmax, show_rows=True):
+def value_grid(plt, ax, v, rows, cols, vmax, show_rows=True, muted=()):
     """Table-like heatmap with the value written in every cell."""
     for i in range(v.shape[0]):
         for j in range(v.shape[1]):
             a = min(1, v[i, j]/vmax)
+            if i in muted:
+                ax.text(j, i, f'{v[i, j]:.0f}', ha='center', va='center', fontsize=10, color='#bbbbbb'); continue
             ax.add_patch(plt.Rectangle((j-.47, i-.43), .94, .86, color=plt.cm.Purples(.06 + .8*a), lw=0))
             ax.text(j, i, f'{v[i, j]:.1f}', ha='center', va='center', fontsize=10, color='white' if a > .55 else '#222222')
     ax.set_xlim(-.5, v.shape[1]-.5); ax.set_ylim(v.shape[0]-.5, -.5); unframe(ax)
@@ -184,7 +186,7 @@ def fig_sample(plt, summary, per):
 
 
 # Fig. 2: ranking per arm. Everything above "No correction" improves on doing nothing.
-def fig_ranking(plt, summary):
+def fig_ranking(plt, summary, per):
     methods = ['plugin', 'median', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking', 'qwen_nonthinking']
     fig, axes = plt.subplots(1, 4, figsize=(14, 4.4))
     for ax, arm in zip(axes, ARMS):
@@ -192,18 +194,24 @@ def fig_ranking(plt, summary):
         for i, m in enumerate(ranked):
             v, c = 100*summary.loc[(arm, m), 'MAE_2'], colour(m)
             base = m == 'plugin'
+            e = per[per.arm == arm].pivot(index='source', columns='method', values='MAE_2')
+            wins = '' if base else f'{int((e[m] < e.plugin).sum())}/12'
             ax.add_patch(plt.Rectangle((0, i-.42), 1, .84, color=GREY if base else '#f4f3f0', lw=0))
             ax.add_patch(plt.Rectangle((.03, i+.2), .94*min(v, 55)/55, .14, color='white' if base else c, lw=0))
-            ax.text(.03, i-.08, f'{i+1}  {METHODS[m]}', va='center', fontsize=10,
+            ax.text(.03, i-.08, METHODS[m], va='center', fontsize=10,
                     color='white' if base else '#222222', fontweight='bold' if base else 'normal')
+            ax.text(.74, i-.08, wins, va='center', ha='right', fontsize=9.5, color='#777777')
             ax.text(.97, i-.08, f'{v:.1f}', va='center', ha='right', fontsize=10,
                     color='white' if base else '#222222', fontweight='bold' if base else 'normal')
+        ax.text(.74, -.75, 'beats no corr.', ha='right', fontsize=8.5, color='#777777')
+        ax.text(.97, -.75, 'error', ha='right', fontsize=8.5, color='#777777')
         ax.set_xlim(0, 1); ax.set_ylim(len(ranked)-.5, -.5); ax.axis('off')
-        ax.set_title(ARMS[arm], loc='left')
+        ax.set_title(ARMS[arm], loc='left', pad=16)
     handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (GREY, LIGHT, BLUE, ORANGE)]
     fig.legend(handles, ['no correction', 'constant guess', 'classical method', 'language model'],
                loc='lower center', ncol=4, frameon=False, bbox_to_anchor=(.5, -.04))
-    fig.text(.5, -.075, 'error in pp · bar length = error (scale 0–55 pp)', ha='center', fontsize=9.5, color='#666666')
+    fig.text(.5, -.075, 'sorted by error (pp) · bar length = error · x/12 = networks where the method beats no correction',
+             ha='center', fontsize=9.5, color='#666666')
     save(fig, 'fig2_ranking')
 
 
@@ -254,15 +262,16 @@ def fig_answer_types(plt, types):
 # Fig. 4: stability. Left: the identical sample again. Right: a new sample of the same network.
 def fig_stability(plt, resp, train, samp):
     rows = ['plugin', 'mle', 'et'] + LLMS
-    labels = ['No correction', 'MLE', 'ExtraTrees'] + [METHODS[m] for m in LLMS]
+    labels = ['No correction', 'MLE', 'ExtraTrees*'] + [METHODS[m] for m in LLMS]
     same = np.array([[0.]*4 if m in ('plugin', 'mle') else [100*train.loc[a, 'median_observation_SD_rho2'] for a in ARMS]
                      if m == 'et' else [100*resp.loc[(a, m), 'median_observation_SD_rho2'] for a in ARMS] for m in rows])
     new = np.array([[100*samp.loc[(a, m), 'median_graph_SD_rho2_across_draws'] for a in ARMS] for m in rows])
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
     for k, (ax, v, title) in enumerate(zip(axes, (same, new), ('Same sample, asked again', 'New sample of the same network'))):
-        value_grid(plt, ax, v, labels, list(ARMS), 22, show_rows=k == 0)
+        value_grid(plt, ax, v, labels, list(ARMS), 22, show_rows=k == 0, muted=(0, 1) if k == 0 else ())
         ax.set_title(title, pad=24)
-    fig.text(.5, -.03, 'spread of the ρ₂ estimate (median standard deviation, pp)', ha='center', fontsize=10.5, color='#444444')
+    fig.text(.5, -.03, 'spread of the ρ₂ estimate (median standard deviation, pp) · *left: ExtraTrees retrained on new training data',
+             ha='center', fontsize=10.5, color='#444444')
     save(fig, 'fig4_stability')
 
 
@@ -321,7 +330,7 @@ def fig_real_vs_shuffled(plt, perall):
 def fig_b_vs_rho(plt, perall):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
     fig, axes = plt.subplots(2, 3, figsize=(12, 6.6), sharex=True, sharey=True)
-    for ax, m in zip(axes.flat, MAIN):
+    for ax, m in zip(axes.flat, ['plugin', 'mle', 'et', 'gpt_6_sol', 'deepseek_flash', 'qwen_thinking']):
         e = perall[(perall.arm == 'B') & (perall.method == m)].set_index('source')
         c = colour(m)
         for group, kw in (('real', dict(color=c)), ('surrogate', dict(facecolor='white', edgecolor=c, lw=1.6)),
@@ -363,7 +372,7 @@ def draw():
     train = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").set_index('arm')
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
-    fig_sample(plt, summary, per); fig_ranking(plt, summary); fig_answer_types(plt, types)
+    fig_sample(plt, summary, per); fig_ranking(plt, summary, per); fig_answer_types(plt, types)
     fig_stability(plt, resp, train, samp); fig_sample_size(plt, per, f); fig_networks(plt, per, f)
     fig_real_vs_shuffled(plt, perall[perall.group.isin(['real', 'surrogate'])]); fig_b_vs_rho(plt, perall)
     fig_synthetic(plt, perall.query("group == 'synthetic'"))
