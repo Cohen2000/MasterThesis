@@ -1,20 +1,20 @@
 # Estimating persistence from a sample
 
-**Question:** a temporal network is only seen through a sample. Can language models estimate how persistent it is, compared with classical methods?
+**Question:** a temporal network is only seen through a sample. Can language models estimate how persistent it is?
 
 **Short answer:**
 - Where a sampling rule has a simple textbook correction (R, S), GPT and DeepSeek apply it. They are as good as the formula, not better.
-- Where there is none (H, B), the models improvise. GPT stays close to the classical methods; DeepSeek and Qwen fall far behind.
+- Where there is none (H, B), they improvise. GPT stays close to the statistical model; DeepSeek and Qwen fall far behind.
 - Python does not help, and in B it hurts.
 
-**ρ₂** is the share of pairs that are active in at least 2 of 5 time windows. **Error** is the absolute error of ρ₂ in percentage points (pp), averaged over the 12 real networks.
+**ρ₂** is the share of pairs that are active in at least 2 of 5 time windows. **Error** is the absolute error of ρ₂ in percentage points (pp), averaged over 12 real networks.
 
 ## 0 · What a method gets
 
 A shortened sample from the Hospital network, arm R:
 
 ```
-Sampling rule: 24 random people; every contact between two of them is seen.
+Sampling rule: 24 random nodes; every contact between two of them is seen.
 Seen: 132 pairs, 3,172 events
 
 pattern (windows 1–5)   pairs   events
@@ -27,23 +27,25 @@ pattern (windows 1–5)   pairs   events
 Task: estimate ρ₂ … ρ₅ of the full network.
 ```
 
-In this sample, 56 of the 132 pairs are active in at least 2 windows, so the observed share is 42 %. The true ρ₂ is 45 %.
+Here 56 of 132 pairs are active in ≥ 2 windows, so the **naive share** is 42 %. The true ρ₂ is 45 %.
 
-| Arm | How the sample is drawn | The method is also told |
+| Arm | Sample | Also told |
 |---|---|---|
-| R · random nodes | random people and all their mutual contacts | number of people |
-| S · random walk | a walk along contacts, so busy pairs are visited more often | visits per pair* |
-| H · late time only | random people, but windows 1–2 are hidden | number of people, hidden windows |
-| B · event loss | every event is kept only with a small probability p | p |
+| R · random nodes | random nodes and all contacts among them | number of nodes |
+| S · random walk | a walk along contacts, so busy pairs are seen more often | visits per pair* |
+| H · late time only | random nodes, only the last 60 % of the time visible | number of nodes |
+| B · event loss | each event kept with a small probability p | p |
 
-Each sample sees about 10 % of the network's activity, and every network is sampled 3 times per arm.
+Every sample sees about 10 % of the network's activity, with 3 samples per network and arm.
+\*The visits allow a textbook correction, the **simple reweighting**: each visit counts 1 / the pair's number of events.
 
-*The visit counts allow a textbook correction, the **simple reweighting**: each visit of a pair counts 1 / the pair's number of events.
-
-**Methods:**
-- **Classical:** MLE (a statistical model of the sampling) and ExtraTrees (trained on other networks).
-- **Language models:** GPT, GPT + Python, DeepSeek, Qwen thinking and Qwen no thinking, 3 answers each.
-- **Baselines:** no correction (the observed share) and the training median (a constant guess).
+| Method | What it is |
+|---|---|
+| Naive share | the share in the sample, uncorrected |
+| Training median | a constant guess |
+| MLE | statistical model of the sampling, no training |
+| ExtraTrees | trained on 16 other real and 400 synthetic networks with known answers; a supervised reference, not a fair competitor |
+| GPT, GPT + Python, DeepSeek, Qwen thinking, Qwen no thinking | language models, no training, 3 answers per sample |
 
 ## 1 · The 12 networks
 
@@ -64,29 +66,27 @@ Each sample sees about 10 % of the network's activity, and every network is samp
 
 ## 2 · The sample distorts persistence
 
-![How far the observed share is from the truth](figures/fig1_sample.png)
+![Naive share minus truth](figures/fig1_sample.png)
 
-Only R is honest. The random walk (S) overstates persistence, while H and B understate it.
+Only R is unbiased. S overstates persistence, while H and B understate it.
 
 ## 3 · Who corrects it
 
-![Ranking of the methods per arm](figures/fig2_ranking.png)
+![Ranking per arm](figures/fig2_ranking.png)
 
-Only S has clear winners: apart from the constant guess and Qwen no thinking, every method beats no correction in 11–12 of 12 networks.
-- **H:** on ρ₂, no method beats no correction reliably (best: ExtraTrees, 8/12). Over ρ₂ to ρ₅, correction does help there: no correction 7.2 pp, GPT 3.3 pp, ExtraTrees 3.2 pp.
-- **Qwen no thinking:** it answers 85–95 % almost regardless of the sample, while the true median is 45 %. It is worse than the constant guess in every arm.
+Clear winners exist only in S. In H, no method beats the naive share reliably on ρ₂, though over ρ₂ to ρ₅ correction does help (naive 7.2 pp, GPT 3.3 pp). Qwen no thinking answers 85–95 % almost regardless of the sample and is worse than the constant guess.
 
 ## 4 · What the language models compute
 
 ![Near which simple estimate the answers lie](figures/fig3_answer_types.png)
 
-Where a simple formula exists (R, S), GPT and DeepSeek return it. In S, 90 % of GPT's answers are the simple reweighting, whose own error (8.8 pp) is GPT's error (8.4 pp). Where no formula exists (H, B), they improvise. GPT then stays close to MLE and ExtraTrees, while DeepSeek and Qwen fall far behind (worse than GPT in 10–12 of 12 networks).
+In S, 90 % of GPT's answers are the simple reweighting, and its error (8.4 pp) is the formula's (8.8 pp). In H and B the models improvise. There DeepSeek and Qwen are worse than GPT in 10–12 of 12 networks.
 
 ## 5 · How stable the estimates are
 
 ![Spread for the same sample and for a new sample](figures/fig4_stability.png)
 
-The language models vary most exactly where they improvise (H, B).
+The language models vary most where they improvise (H, B).
 
 ## 6 · Does Python help?
 
@@ -97,73 +97,41 @@ The language models vary most exactly where they improvise (H, B).
 | H | 5.4 | 6.1 | 7/12 |
 | B | 10.8 | 15.1 | 8/12 |
 
-Only B differs reliably (+4.4 pp, sign-flip p = 0.008): with Python the answers spread more (Section 5: 12.2 against 5.1 pp) and overshoot (+6.4 against +0.5 pp). Python cost 3.4 times as much (94.50 against 27.59 USD).
+Only B differs reliably (sign-flip p = 0.008). The answers spread more (12.2 against 5.1 pp) and overshoot (+6.4 against +0.5 pp), at 3.4 times the cost.
 
-## 7 · Small samples are hard
+## 7 · Which networks are hard, and why
 
-![Error against the number of pairs in the sample](figures/fig5_sample_size.png)
+![Error per network, arm and method](figures/fig5_networks.png)
 
-In R and S, fewer pairs in the sample means a larger error, with Malawi's 18–36 pairs as the extreme. In H and B the link is weak (see 8). Small samples come from small face-to-face networks, which are also more persistent, so size and ρ₂ cannot be fully separated.
+Hard cases cluster in the small face-to-face networks and, in B, in the persistent ones. Three possible reasons follow.
 
-## 8 · Event loss is hard when persistence is high
+### 7.1 Few pairs in the sample
 
-To test this beyond the 12 real networks, two extra sets of networks are used:
-- **Time-shuffled copies:** the same pairs and event counts at random times. Shuffling raises ρ₂.
-- **Synthetic networks:** 8 generated networks with and without memory, with ρ₂ from 5 to 80 %.
+![Error against the number of pairs in the sample](figures/fig6_sample_size.png)
 
-![Error in arm B against true persistence, all 32 networks](figures/fig6_event_loss_vs_rho.png)
+Every sample sees 10 % of the activity, so a small network gives few pairs (Malawi 18–51, Digg about 8,500). In R and S, fewer pairs means a larger error.
 
-Without correction the error in B grows with ρ₂, because event loss hides more of a persistent network. Every method inherits part of this, MLE and the language models most and ExtraTrees least. ExtraTrees, however, was trained on networks from the same generators.
+### 7.2 High persistence
+
+In real networks, small and persistent go together. Two extra sets of networks separate them:
+- **Time-shuffled copies:** each real network with its contact times shuffled at random. Nodes, pairs and event counts stay the same, but ρ₂ rises (mean 35 % → 62 %).
+- **Synthetic networks:** 8 generated networks, all with 500 nodes, from two standard generators:
+
+| Generator | How contacts arise | Without memory | With memory |
+|---|---|---:|---:|
+| DAR | each pair switches on or off in every window; with memory it keeps its last state 80 % of the time | ρ₂ 39–40 % | ρ₂ 78 % |
+| Activity-driven | active nodes contact partners; with memory they prefer known ones | ρ₂ 5–6 % | ρ₂ 78–80 % |
+
+![Error against true persistence, all 32 networks](figures/fig7_persistence.png)
+
+Only in B does the error rise steadily with ρ₂, in all three kinds of networks: losing events hides more of a persistent network.
+
+### 7.3 The real timing of contacts
+
+![Error on real networks and their shuffled copies](figures/fig8_real_vs_shuffled.png)
+
+Shuffling the contact times changes little in R, S and H, so no method relies on real timing. B gets harder for all methods except GPT + Python, because ρ₂ rises (7.2).
 
 ---
 
-## Appendix
-
-### A1 · Error per network
-
-Pairs in the sample are the mean of the 3 samples per arm.
-
-| Network | True ρ₂ | Pairs in sample R | S | H | B |
-|---|---:|---:|---:|---:|---:|
-| Digg replies | 0.3 % | 8,434 | 8,597 | 8,577 | 8,515 |
-| MathOverflow | 8 % | 18,154 | 15,261 | 19,280 | 20,155 |
-| College messages | 10 % | 1,445 | 1,168 | 1,382 | 1,516 |
-| Linux mailing list | 15 % | 16,800 | 3,719 | 17,156 | 17,186 |
-| Workplace | 29 % | 436 | 277 | 503 | 525 |
-| Hospital | 45 % | 115 | 74 | 146 | 164 |
-| Copenhagen | 45 % | 7,912 | 4,220 | 9,987 | 10,380 |
-| High school | 49 % | 609 | 331 | 791 | 816 |
-| Email EU | 51 % | 1,512 | 914 | 2,123 | 2,332 |
-| Malawi | 51 % | 36 | 18 | 38 | 51 |
-| Radoslaw | 55 % | 312 | 175 | 404 | 518 |
-| Reality Mining | 61 % | 268 | 158 | 332 | 372 |
-
-![Error per network, arm and method](figures/figA1_networks.png)
-
-### A2 · Real networks against time-shuffled copies
-
-| Network | Digg | MathOverflow | College | Linux | Workplace | Hospital | Copenhagen | High school | Email EU | Malawi | Radoslaw | Reality |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| True ρ₂, real | 0.3 % | 8 % | 10 % | 15 % | 29 % | 45 % | 45 % | 49 % | 51 % | 51 % | 55 % | 61 % |
-| True ρ₂, shuffled | 1 % | 35 % | 51 % | 54 % | 63 % | 84 % | 72 % | 66 % | 69 % | 84 % | 80 % | 80 % |
-
-![Error on real networks and their shuffled copies](figures/figA2_real_vs_shuffled.png)
-
-### A3 · Synthetic networks
-
-| Variant | How it works | Pairs | Events per pair | True ρ₂ |
-|---|---|---:|---:|---:|
-| DAR, no memory | each pair switches on and off at random per window | ≈ 3,300 | 3.0 | 39–40 % |
-| DAR, memory | a pair keeps its last state 80 % of the time | ≈ 1,600 | 6.3 | 78 % |
-| Activity-driven, no memory | active people pick random partners | ≈ 10,200 | 1.1 | 5–6 % |
-| Activity-driven, memory | active people prefer known partners | ≈ 2,050 | 5.3 | 78–80 % |
-
-All have 500 nodes, with 2 networks per variant.
-
-![Error on the synthetic networks](figures/figA3_synthetic.png)
-
-### A4 · More
-
-- **Full results:** [MAIN_RESULTS.md](../results/final/MAIN_RESULTS.md) and [PER_SOURCE.csv](../results/final/PER_SOURCE.csv)
-- **Robustness:** [VARIABILITY.md](../results/final/VARIABILITY.md), [W_SENSITIVITY.md](../results/final/W_SENSITIVITY.md) and [WALK.md](../results/final/WALK.md)
-- **Redraw the figures:** `python scripts/analysis_figures.py`. Add `--inputs` to also rebuild [`data/`](data), which needs `data/raw` and `~/.local/share/masterthesis`.
+**More:** full results are in [MAIN_RESULTS.md](../results/final/MAIN_RESULTS.md), robustness checks in [VARIABILITY.md](../results/final/VARIABILITY.md), [W_SENSITIVITY.md](../results/final/W_SENSITIVITY.md) and [WALK.md](../results/final/WALK.md). Redraw the figures with `python scripts/analysis_figures.py`; `--inputs` also rebuilds [`data/`](data) and needs `data/raw` and `~/.local/share/masterthesis`.
