@@ -264,64 +264,55 @@ def fig_sample(plt, summary, per):
     save(fig, 'fig1_sample')
 
 
-# Fig. 2: ranking per arm. Everything above the naive share improves on doing nothing.
-def fig_ranking(plt, summary, per):
+# Fig. 2: error per arm, methods sorted from best to worst; the naive share is the grey row.
+def fig_ranking(plt, summary):
     methods = ['plugin', 'median', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking', 'qwen_nonthinking']
-    fig, axes = plt.subplots(1, 4, figsize=(14, 4.4))
+    fig, axes = plt.subplots(1, 4, figsize=(15, 4.2))
     for ax, arm in zip(axes, ARMS):
-        ranked = sorted(methods, key=lambda m: summary.loc[(arm, m), 'MAE_2'])
-        for i, m in enumerate(ranked):
-            v, c = 100*summary.loc[(arm, m), 'MAE_2'], colour(m)
-            base = m == 'plugin'
-            e = per[per.arm == arm].pivot(index='source', columns='method', values='MAE_2')
-            wins = '' if base else f'{int((e[m] < e.plugin - .005).sum())}/12'
-            ax.add_patch(plt.Rectangle((0, i-.42), 1, .84, color=GREY if base else '#f4f3f0', lw=0))
-            ax.add_patch(plt.Rectangle((.03, i+.2), .94*min(v, 55)/55, .14, color='white' if base else c, lw=0))
-            ax.text(.03, i-.08, METHODS[m], va='center', fontsize=10,
-                    color='white' if base else '#222222', fontweight='bold' if base else 'normal')
-            ax.text(.74, i-.08, wins, va='center', ha='right', fontsize=9.5, color='#777777')
-            ax.text(.97, i-.08, f'{v:.1f}', va='center', ha='right', fontsize=10,
-                    color='white' if base else '#222222', fontweight='bold' if base else 'normal')
-        ax.text(.74, -.75, 'beats naive*', ha='right', fontsize=8.5, color='#777777')
-        ax.text(.97, -.75, 'error', ha='right', fontsize=8.5, color='#777777')
-        ax.set_xlim(0, 1); ax.set_ylim(len(ranked)-.5, -.5); ax.axis('off')
-        ax.set_title(ARMS[arm], loc='left', pad=16)
+        ranked = sorted(methods, key=lambda m: summary.loc[(arm, m), 'MAE_2'])[::-1]
+        v = [100*summary.loc[(arm, m), 'MAE_2'] for m in ranked]
+        y = np.arange(len(ranked))
+        ax.barh(y, v, color=[colour(m) for m in ranked], height=.7)
+        for yi, vi, m in zip(y, v, ranked):
+            ax.text(vi + .8, yi, f'{vi:.1f}', va='center', fontsize=9.5, fontweight='bold' if m == 'plugin' else 'normal')
+        ax.set_yticks(y, [METHODS[m] for m in ranked])
+        for lab, m in zip(ax.get_yticklabels(), ranked):
+            if m == 'plugin': lab.set_fontweight('bold')
+        ax.set_xlim(0, 60); ax.set_xticks([]); ax.spines['bottom'].set_visible(False); ax.set_title(ARMS[arm])
+    fig.subplots_adjust(wspace=.8)
     handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (GREY, LIGHT, BLUE, AQUA, ORANGE)]
     fig.legend(handles, ['naive share', 'constant guess', 'statistical model', 'trained model', 'language model'],
-               loc='lower center', ncol=5, frameon=False, bbox_to_anchor=(.5, -.04))
-    fig.text(.5, -.075, 'sorted by error (pp) · bar length = error · *networks (of 12) where the method beats the naive share by more than 0.5 pp',
-             ha='center', fontsize=9.5, color='#666666')
+               loc='lower center', ncol=5, frameon=False, bbox_to_anchor=(.5, -.06))
     save(fig, 'fig2_ranking')
 
 
-# Fig. 3: near which simple estimate do the language-model answers lie?
-def fig_answer_types(plt, types):
+# Shared look for the simple grouped bar charts of the language models.
+LM3 = (('gpt_6_sol', ORANGE), ('deepseek_flash', VIOLET), ('qwen_thinking', '#e87ba4'))
+
+
+def grouped_bars(plt, ax, groups, values, ymax, fmt='{:.0f}', title=''):
+    """values[model][group] -> bars; one colour per model, values written on top."""
+    w = .8/len(LM3)
+    for k, (m, c) in enumerate(LM3):
+        xs = np.arange(len(groups)) + (k - (len(LM3)-1)/2)*w
+        vs = [values[m][g] for g in groups]
+        ax.bar(xs, vs, width=w*.92, color=c, label=METHODS[m])
+        for x, v in zip(xs, vs): ax.text(x, v + ymax*.015, fmt.format(v), ha='center', va='bottom', fontsize=9)
+    ax.set_xticks(range(len(groups)), [ARMS[g] for g in groups]); ax.set_ylim(0, ymax); ax.set_yticks([])
+    ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0); ax.set_title(title, pad=12)
+    ax.legend(frameon=False, ncol=3, loc='upper center', bbox_to_anchor=(.5, -.12))
+
+
+# Fig. 3: share of answers that equal the textbook answer (R: the naive share; S: the simple reweighting).
+def fig_textbook(plt, types):
     t = types.set_index(['arm', 'method'])
-    cats = (('observed_share', GREY, 'naive share'), ('reweighting', BLUE, 'simple reweighting (S)'),
-            ('mle', '#86b6ef', 'MLE estimate'), ('other', '#e4e2da', 'none of these'))
-    fig, axes = plt.subplots(1, 4, figsize=(13, 3.2), sharey=True)
-    y = np.arange(len(LLMS))[::-1]
-    for ax, arm in zip(axes, ARMS):
-        left = np.zeros(len(LLMS))
-        for col, c, _ in cats:
-            v = np.array([100*t.loc[(arm, m), col] for m in LLMS])
-            ax.barh(y, v, left=left, color=c, height=.66)
-            for yi, l, vi in zip(y, left, v):
-                if vi >= 12: ax.text(l+vi/2, yi, f'{vi:.0f}', ha='center', va='center', fontsize=9,
-                                     color='white' if c in (GREY, BLUE) else '#333333')
-            left += v
-        ax.set_yticks(y, [METHODS[m] for m in LLMS]); ax.set_xlim(0, 100); ax.set_xticks([0, 50, 100])
-        ax.set_title(ARMS[arm]); ax.set_xlabel('share of answers (%)'); ax.spines['bottom'].set_visible(False)
-    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for _, c, _ in cats]
-    fig.legend(handles, [lab for _, _, lab in cats], loc='lower center', ncol=4, frameon=False,
-               bbox_to_anchor=(.5, 1.0), title='answer lies within 0.5 pp of', title_fontsize=10.5)
-    save(fig, 'fig3_answer_types')
+    vals = {m: {'R': 100*t.loc[('R', m), 'observed_share'], 'S': 100*t.loc[('S', m), 'reweighting']} for m, _ in LM3}
+    fig, ax = plt.subplots(figsize=(6.5, 3.3))
+    grouped_bars(plt, ax, ['R', 'S'], vals, 112, '{:.0f} %', 'Answers equal to the textbook answer')
+    save(fig, 'fig3_textbook')
 
 
-# Fig. 4: how far the language models correct, relative to the correction the sample needs.
-CORRECTION = (('wrong direction', '#d9383a'), ('too little', '#f2b46d'), ('about right', '#1f9d55'), ('too much', '#86b6ef'))
-
-
+# Fig. 4: share of answers that correct by about the right amount (50–150 % of the needed correction).
 def correction_types(pred):
     """Per answer: needed = truth − naive share, done = answer − naive share; samples off by ≥ 5 pp only."""
     p = pred[(pred.group == 'real') & pred.prediction.notna()].copy()
@@ -331,8 +322,8 @@ def correction_types(pred):
     a['need'] = a.truth_rho2 - a.observation_id.map(naive)
     a['done'] = a.r2 - a.observation_id.map(naive)
     a = a[a.need.abs() >= .05]
-    ratio = a.done/a.need
-    a['type'] = pd.cut(ratio, [-np.inf, 0, .5, 1.5, np.inf], right=False, labels=[c for c, _ in CORRECTION])
+    a['type'] = pd.cut(a.done/a.need, [-np.inf, 0, .5, 1.5, np.inf], right=False,
+                       labels=['wrong direction', 'too little', 'about right', 'too much'])
     t = a.groupby(['arm', 'method']).type.value_counts(normalize=True).unstack()
     t.to_csv(DATA/'correction_types.csv', float_format='%.4f')
     return t
@@ -340,44 +331,33 @@ def correction_types(pred):
 
 def fig_correction(plt, pred):
     t = correction_types(pred)
-    fig, axes = plt.subplots(1, 3, figsize=(12, 3.2), sharey=True)
-    y = np.arange(len(LLMS))[::-1]
-    for ax, arm in zip(axes, 'SHB'):
-        left = np.zeros(len(LLMS))
-        for cat, c in CORRECTION:
-            v = np.array([100*t.loc[(arm, m), cat] for m in LLMS])
-            ax.barh(y, v, left=left, color=c, height=.66)
-            for yi, l, vi in zip(y, left, v):
-                if vi >= 12: ax.text(l+vi/2, yi, f'{vi:.0f}', ha='center', va='center', fontsize=9,
-                                     color='white' if cat in ('wrong direction', 'about right') else '#222222')
-            left += v
-        ax.set_yticks(y, [METHODS[m] for m in LLMS]); ax.set_xlim(0, 100); ax.set_xticks([0, 50, 100])
-        ax.set_title(ARMS[arm]); ax.set_xlabel('share of answers (%)'); ax.spines['bottom'].set_visible(False)
-    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for _, c in CORRECTION]
-    fig.legend(handles, ['wrong direction', 'too little (< 50 %)', 'about right (50–150 %)', 'too much (> 150 %)'],
-               loc='lower center', ncol=4, frameon=False, bbox_to_anchor=(.5, 1.0),
-               title='correction made, as a share of the correction needed', title_fontsize=10.5)
+    vals = {m: {a: 100*t.loc[(a, m), 'about right'] for a in 'SHB'} for m, _ in LM3}
+    fig, ax = plt.subplots(figsize=(7.5, 3.3))
+    grouped_bars(plt, ax, ['S', 'H', 'B'], vals, 95, '{:.0f} %', 'Answers that correct by about the right amount')
     save(fig, 'fig4_correction')
 
 
-# Fig. 5: stability. Left: the identical sample again. Right: a new sample (deterministic methods only; with 3 samples x 3 answers
-# the language models' sample effect cannot be separated from their answer noise).
-def fig_stability(plt, resp, train, samp):
-    rows = ['plugin', 'mle', 'et'] + LLMS
-    labels = ['Naive share', 'MLE', 'ExtraTrees*'] + [METHODS[m] for m in LLMS]
-    same = np.array([[0.]*4 if m in ('plugin', 'mle') else [100*train.loc[a, 'median_observation_SD_rho2'] for a in ARMS]
-                     if m == 'et' else [100*resp.loc[(a, m), 'median_observation_SD_rho2'] for a in ARMS] for m in rows])
-    new = np.array([[100*samp.loc[(a, m), 'median_graph_SD_rho2_across_draws'] if m in ('plugin', 'mle', 'et')
-                     else np.nan for a in ARMS] for m in rows])
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
-    titles = ('Same sample, asked again', 'New sample of the same network')
-    for k, (ax, v, title) in enumerate(zip(axes, (same, new), titles)):
-        value_grid(plt, ax, v, labels, list(ARMS), 22, show_rows=k == 0, muted=(0, 1) if k == 0 else ())
-        ax.set_title(title, pad=24)
-    axes[1].text(1.5, 5, 'language models: not separable\nfrom their answer noise', ha='center', va='center', fontsize=10, color='#999999')
-    fig.text(.5, -.03, 'spread of the ρ₂ estimate (median standard deviation, pp) · *left: ExtraTrees retrained on new training data',
-             ha='center', fontsize=10.5, color='#444444')
+# Fig. 5: spread of the three answers to the identical sample (median SD, pp).
+def fig_stability(plt, resp):
+    vals = {m: {a: 100*resp.loc[(a, m), 'median_observation_SD_rho2'] for a in ARMS} for m, _ in LM3}
+    fig, ax = plt.subplots(figsize=(9, 3.3))
+    grouped_bars(plt, ax, list(ARMS), vals, 25, '{:.1f}', 'Spread of 3 answers to the same sample (pp)')
     save(fig, 'fig5_stability')
+
+
+# Fig. 6: GPT with and without Python, error per arm.
+def fig_python(plt, summary):
+    fig, ax = plt.subplots(figsize=(7.5, 3.2))
+    w = .38
+    for k, (m, c) in enumerate((('gpt_6_sol', ORANGE), ('gpt_6_sol_tools', VIOLET))):
+        xs = np.arange(4) + (k - .5)*w
+        vs = [100*summary.loc[(a, m), 'MAE_2'] for a in ARMS]
+        ax.bar(xs, vs, width=w*.92, color=c, label=METHODS[m])
+        for x, v in zip(xs, vs): ax.text(x, v + .3, f'{v:.1f}', ha='center', va='bottom', fontsize=9.5)
+    ax.set_xticks(range(4), [ARMS[a] for a in ARMS]); ax.set_ylim(0, 18); ax.set_yticks([])
+    ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0)
+    ax.legend(frameon=False, ncol=2, loc='upper left'); ax.set_title('Error (pp)', pad=12)
+    save(fig, 'fig6_python')
 
 
 def method_heat(plt, per, order, rows, name, header):
@@ -406,98 +386,98 @@ def fig_networks(plt, per, f):
 
 
 # ---------------------------------------------------------------- network figures
-def network_table(perall):
-    """Effective number of pairs, true rho_2 and kind for all 32 networks (copies share the real graph's pairs)."""
-    truth = json.loads((FINAL/'TRUTH.json').read_text())
-    f = pd.read_csv(DATA/'network_features.csv', index_col=0)
-    sy = pd.read_csv(DATA/'synthetic_features.csv', index_col=0)
-    eff = {**f.effective_pairs.to_dict(), **{k+'__pwt': v for k, v in f.effective_pairs.items()}, **sy.effective_pairs.to_dict()}
-    kind = perall.groupby('source').group.first()
-    return pd.DataFrame({'effective_pairs': pd.Series(eff), 'rho2': pd.Series({s: 100*truth[s][0] for s in kind.index}),
-                         'kind': kind}).dropna()
+def typical_error(perall):
+    """Median error of the six main methods, per network and arm (pp)."""
+    return perall[perall.method.isin(MAIN)].groupby(['source', 'arm']).MAE_2.median().unstack()*100
 
 
-KINDS = (('real', dict(marker='o')), ('surrogate', dict(marker='s')), ('synthetic', dict(marker='^')))
+def log_axis(ax, ticks):
+    ax.set_xscale('log'); ax.set_xticks(ticks, [f'{t:,}' for t in ticks]); ax.minorticks_off()
 
 
-# Fig. 7: every network placed by structure (effective number of pairs) and persistence (true rho_2),
-# coloured by the median error of the six methods in each arm.
-def fig_map(plt, perall):
-    import matplotlib.colors as mc
-    net = network_table(perall)
-    med = perall[perall.method.isin(MAIN)].groupby(['source', 'arm']).MAE_2.median().unstack()*100
-    cmap = mc.LinearSegmentedColormap.from_list('err', ['#f6f1d1', '#f2b46d', '#d9383a', '#5c1a1b'])
-    norm = mc.Normalize(0, 25)
-    fig, axes = plt.subplots(1, 4, figsize=(15, 3.9), sharey=True)
-    for ax, arm in zip(axes, ARMS):
-        for s in NAMES:   # each real network and its copy with random contact times share the same pairs
-            ax.plot([net.loc[s, 'effective_pairs']]*2, [net.loc[s, 'rho2'], net.loc[s+'__pwt', 'rho2']], color='#cccccc', lw=1, zorder=1)
-        for kind, kw in KINDS:
-            idx = net[net.kind == kind].index
-            ax.scatter(net.loc[idx, 'effective_pairs'], net.loc[idx, 'rho2'], c=med.loc[idx, arm], cmap=cmap, norm=norm,
-                       s=70, edgecolor='#555555', lw=.6, zorder=3, **kw)
-        ax.set_xscale('log'); ax.set_xlim(30, 2e5); ax.set_ylim(-3, 92); ax.set_title(ARMS[arm])
-        ax.set_xlabel('pairs that carry the contacts (log)'); ax.grid(color='#eeeeee'); ax.set_axisbelow(True)
-        ax.spines['left'].set_visible(True)
-    axes[0].set_ylabel('true ρ₂ (%)')
-    for ax in axes:
-        for s, txt, dx, dy, ha in (('sp_malawi', 'Malawi', 7, 3, 'left'), ('nr_digg_reply', 'Digg', -6, 8, 'right')):
-            ax.annotate(txt, (net.loc[s, 'effective_pairs'], net.loc[s, 'rho2']), xytext=(dx, dy), textcoords='offset points',
-                        fontsize=8.5, ha=ha, color='#555555')
-    sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
-    cb = fig.colorbar(sm, ax=axes, fraction=.015, pad=.01); cb.set_label('median error of six methods (pp)')
-    h = [plt.Line2D([], [], ls='', markeredgecolor='#555555', markerfacecolor='white', markersize=8, **kw) for _, kw in KINDS]
-    h.append(plt.Line2D([], [], color='#cccccc', lw=1))
-    fig.legend(h, ['real network', 'same graph, random contact times', 'synthetic network (500 nodes)', 'same graph'],
-               loc='lower center', ncol=4, frameon=False, bbox_to_anchor=(.45, .98))
-    save(fig, 'fig7_map')
-
-
-# Fig. 6: does a network that is hard for MLE also trouble the language models? One dot per real network.
+# Fig. 7: is a network hard for every method? MLE against GPT, one dot per real network.
 def fig_agreement(plt, per):
-    fig, axes = plt.subplots(1, 4, figsize=(14, 3.7))
+    fig, axes = plt.subplots(1, 4, figsize=(14, 3.6))
     e = lambda m, arm: per[(per.method == m) & (per.arm == arm)].set_index('source').MAE_2*100
     for ax, arm in zip(axes, ARMS):
-        x = e('mle', arm)
-        top = max(30, float(max(e(m, arm).max() for m in ('mle', 'gpt_6_sol', 'deepseek_flash')))*1.05)
-        ax.plot([0, top], [0, top], color='#bbbbbb', lw=1, ls=(0, (4, 3)), zorder=1)
-        for m, c in (('gpt_6_sol', ORANGE), ('deepseek_flash', VIOLET)):
-            y = e(m, arm).loc[x.index]
-            ax.scatter(x, y, s=40, color=c, edgecolor='white', lw=.7, zorder=3, label=METHODS[m])
+        x, y = e('mle', arm), e('gpt_6_sol', arm)
+        y = y.loc[x.index]
+        ax.plot([0, 35], [0, 35], color='#bbbbbb', lw=1, zorder=1)
+        ax.scatter(x, y, s=46, color=ORANGE, edgecolor='white', lw=.7, zorder=3)
         if arm == 'B':
-            s = 'copenhagen_bluetooth'
-            ax.annotate('Copenhagen', (x[s], e('deepseek_flash', arm)[s]), xytext=(8, 0), textcoords='offset points', fontsize=9, va='center')
-        ax.set_xlim(0, top); ax.set_ylim(0, top); ax.set_aspect('equal'); ax.set_title(ARMS[arm])
-        ax.set_xlabel('error of MLE (pp)'); ax.grid(color='#eeeeee'); ax.set_axisbelow(True); ax.spines['left'].set_visible(True)
-    axes[0].set_ylabel('error of the language model (pp)')
-    h, l = axes[0].get_legend_handles_labels()
-    fig.legend(h + [plt.Line2D([], [], color='#bbbbbb', ls=(0, (4, 3)))], l + ['equally hard for both'],
-               loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .97))
-    save(fig, 'fig6_agreement')
+            ax.annotate('Copenhagen', (x['copenhagen_bluetooth'], y['copenhagen_bluetooth']), xytext=(7, 0),
+                        textcoords='offset points', fontsize=9, va='center')
+        ax.set_xlim(0, 35); ax.set_ylim(0, 35); ax.set_aspect('equal'); ax.set_title(ARMS[arm])
+        ax.set_xlabel('error of MLE (pp)'); ax.spines['left'].set_visible(True)
+    axes[0].set_ylabel('error of GPT (pp)')
+    save(fig, 'fig7_agreement')
 
 
-# Fig. 8: the same static graph with random contact times: change in mean error per method (shuffled minus real).
-def fig_same_graph(plt, perall):
-    methods = ['plugin', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking']
-    p = perall[perall.group.isin(['real', 'surrogate'])].assign(family=lambda d: d.source.str.replace('__pwt', '', regex=False))
-    fig, axes = plt.subplots(1, 4, figsize=(14, 3.6), sharey=True)
-    y = np.arange(len(methods))[::-1]
-    rows = []
+# Fig. 8: random walk. The number of contacts says nothing; the number of pairs they are spread over does.
+def fig_spread(plt, perall, f):
+    t = typical_error(perall).loc[f.index, 'S']
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)
+    for ax, col, xlab, ticks in ((axes[0], 'events', 'contacts in the network', [10**5, 10**6]),
+                                 (axes[1], 'effective_pairs', 'pairs that share the contacts*', [100, 1000, 10000, 100000])):
+        ax.scatter(f[col], t, s=50, color='#333333', zorder=3)
+        for s, txt in (('sp_malawi', 'Malawi'), ('nr_digg_reply', 'Digg')):
+            ax.annotate(txt, (f.loc[s, col], t[s]), xytext=(7, 0), textcoords='offset points', fontsize=9.5, va='center')
+        log_axis(ax, ticks); ax.set_xlabel(xlab); ax.set_ylim(0, 35); ax.spines['left'].set_visible(True)
+    axes[0].set_ylabel('typical error in S (pp)')
+    axes[0].set_title('More contacts: no help'); axes[1].set_title('Contacts spread over more pairs: easier')
+    save(fig, 'fig8_spread')
+
+
+# Fig. 9: error against true rho_2, all 32 networks (real, same graph with random times, synthetic), per arm.
+def fig_persistence(plt, perall):
+    truth = json.loads((FINAL/'TRUTH.json').read_text())
+    t = typical_error(perall)
+    rho = pd.Series({s: 100*truth[s][0] for s in t.index})
+    fig, axes = plt.subplots(1, 4, figsize=(14, 3.3), sharey=True)
     for ax, arm in zip(axes, ARMS):
-        for yi, m in zip(y, methods):
-            x = p[(p.arm == arm) & (p.method == m)].pivot(index='family', columns='group', values='MAE_2')*100
-            d = x.surrogate - x.real
-            worse = int((d > .5).sum())
-            rows.append({'arm': arm, 'method': m, 'change': d.mean(), 'worse_in': worse, 'better_in': int((d < -.5).sum())})
-            ax.barh(yi, d.mean(), color=colour(m), height=.62)
-            ax.text(23, yi, f'{worse}/12', va='center', ha='right', fontsize=9, color='#666666')
-        ax.axvline(0, color='#333333', lw=1); ax.set_xlim(-8, 23); ax.set_xticks([-5, 0, 5, 10, 15]); ax.set_title(ARMS[arm])
-        ax.set_yticks(y, [METHODS[m] for m in methods]); ax.grid(axis='x', color='#eeeeee'); ax.set_axisbelow(True)
-        ax.set_xlabel('change in error (pp)')
-    fig.text(.5, -.06, 'bars: mean change when contact times are randomised (right = worse) · numbers: networks that get worse by > 0.5 pp',
-             ha='center', fontsize=9.5, color='#666666')
-    pd.DataFrame(rows).to_csv(DATA/'same_graph_random_times.csv', index=False, float_format='%.2f')
-    save(fig, 'fig8_same_graph')
+        ax.scatter(rho, t[arm], s=34, color='#333333', zorder=3)
+        ax.set_xlim(0, 90); ax.set_ylim(0, 35); ax.set_title(ARMS[arm]); ax.set_xlabel('true ρ₂ (%)')
+        ax.spines['left'].set_visible(True)
+    axes[0].set_ylabel('typical error (pp)')
+    save(fig, 'fig9_persistence')
+
+
+# Fig. 10: the same static graph with real or random contact times: typical error per arm.
+def fig_timing(plt, perall):
+    t = typical_error(perall)
+    fig, ax = plt.subplots(figsize=(7.5, 3.2))
+    w = .38
+    for k, (lab, keys, c) in enumerate((('real contact times', list(NAMES), '#333333'),
+                                        ('random contact times', [s+'__pwt' for s in NAMES], '#b8b5ad'))):
+        xs = np.arange(4) + (k - .5)*w
+        vs = [t.loc[keys, a].mean() for a in ARMS]
+        ax.bar(xs, vs, width=w*.92, color=c, label=lab)
+        for x, v in zip(xs, vs): ax.text(x, v + .3, f'{v:.1f}', ha='center', va='bottom', fontsize=9.5)
+    ax.set_xticks(range(4), [ARMS[a] for a in ARMS]); ax.set_ylim(0, 19); ax.set_yticks([])
+    ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0)
+    ax.legend(frameon=False, ncol=2, loc='upper left'); ax.set_title('Typical error (pp), same graphs', pad=12)
+    save(fig, 'fig10_timing')
+
+
+# Fig. 11: arm B only. Change in error when contact times are randomised, per method.
+def fig_timing_b(plt, perall):
+    methods = ['plugin', 'mle', 'et', 'gpt_6_sol', 'deepseek_flash', 'qwen_thinking']
+    p = perall[(perall.arm == 'B') & perall.group.isin(['real', 'surrogate'])].assign(
+        family=lambda d: d.source.str.replace('__pwt', '', regex=False))
+    rows = []
+    for m in methods:
+        x = p[p.method == m].pivot(index='family', columns='group', values='MAE_2')*100
+        rows.append({'method': m, 'change': (x.surrogate - x.real).mean(), 'worse_in': int(((x.surrogate - x.real) > .5).sum())})
+    r = pd.DataFrame(rows)
+    r.to_csv(DATA/'timing_B.csv', index=False, float_format='%.2f')
+    fig, ax = plt.subplots(figsize=(7, 3.2))
+    y = np.arange(len(methods))[::-1]
+    ax.barh(y, r.change, color=[colour(m) for m in methods], height=.65)
+    for yi, v in zip(y, r.change): ax.text(v + .3, yi, f'+{v:.1f}', va='center', fontsize=9.5)
+    ax.set_yticks(y, [METHODS[m] for m in methods]); ax.set_xlim(0, 19); ax.set_xticks([])
+    ax.spines['bottom'].set_visible(False); ax.axvline(0, color='#333333', lw=1)
+    ax.set_title('B · event loss: extra error with random contact times (pp)', pad=12)
+    save(fig, 'fig11_timing_b')
 
 
 def draw():
@@ -508,13 +488,12 @@ def draw():
     per = perall.query("group == 'real'")
     pred = pd.read_csv(FINAL/'PREDICTIONS.csv')
     resp = pd.read_csv(FINAL/'VARIABILITY_RESPONSE.csv').query("group == 'real'").set_index(['arm', 'method'])
-    samp = pd.read_csv(FINAL/'VARIABILITY_SAMPLING.csv').query("group == 'real'").drop_duplicates().set_index(['arm', 'method'])
-    train = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").set_index('arm')
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
-    fig_toy(plt); fig_sample(plt, summary, per); fig_ranking(plt, summary, per); fig_answer_types(plt, types)
-    fig_correction(plt, pred); fig_stability(plt, resp, train, samp)
-    fig_map(plt, perall); fig_agreement(plt, per); fig_same_graph(plt, perall); fig_networks(plt, per, f)
+    fig_toy(plt); fig_sample(plt, summary, per); fig_ranking(plt, summary); fig_textbook(plt, types)
+    fig_correction(plt, pred); fig_stability(plt, resp); fig_python(plt, summary)
+    fig_agreement(plt, per); fig_spread(plt, perall, f); fig_persistence(plt, perall)
+    fig_timing(plt, perall); fig_timing_b(plt, perall); fig_networks(plt, per, f)
 
 
 if __name__ == '__main__':
