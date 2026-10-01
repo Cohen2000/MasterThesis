@@ -14,6 +14,7 @@ figures can be redrawn without them.
 """
 import argparse
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -124,6 +125,22 @@ def build_inputs(external):
             rows.append({'method': method, 'arm': obs[oid]['arm'], 'reasoning_tokens': d.get('reasoning_tokens') or 0,
                          'trace_says_guess': 'guess' in (d.get('reasoning_content') or '').lower(),
                          'code_fits_model': 'optimize' in code or 'minimize' in code})
+    # GPT + Python in B: which model ingredients each answer's code uses (by the distributions it names), and
+    # whether the three answers to the same sample use the same set.
+    kinds = {'gamma': r'gamma', 'log-normal': r'hermgauss|lognorm|roots_herm', 'beta': r'\bbeta\b|betaln',
+             'dirichlet': r'dirichlet', 'latent classes': r'classes|latent class|n_classes|multi_mon'}
+    sets = {}
+    for line in (external/'api_runs/openai_tools/responses.jsonl').read_text().splitlines():
+        d = json.loads(line)
+        oid = d['id'].rsplit('__', 2)[0]
+        if d.get('kind') != 'main' or obs[oid]['stratum'] != 'real' or obs[oid]['arm'] != 'B': continue
+        code = '\n'.join(o.get('code', '') for o in (d.get('raw_response') or {}).get('output', [])
+                         if o.get('type') == 'code_interpreter_call')
+        if code: sets.setdefault(oid, []).append(frozenset(k for k, pat in kinds.items() if re.search(pat, code, re.I)))
+    full = [v for v in sets.values() if len(v) == 3]
+    pd.DataFrame([{'samples_with_code_in_all_3_answers': len(full),
+                   'samples_whose_3_answers_differ': sum(len(set(v)) > 1 for v in full)}]
+                 ).to_csv(DATA/'python_models_B.csv', index=False)
     r = pd.DataFrame(rows).groupby(['method', 'arm'])
     pd.DataFrame({'answers': r.size(), 'median_reasoning_tokens': r.reasoning_tokens.median(),
                   'trace_says_guess': r.trace_says_guess.mean(), 'code_fits_model': r.code_fits_model.mean()}
@@ -171,6 +188,7 @@ def value_grid(plt, ax, v, rows, cols, vmax, show_rows=True, muted=()):
     """Table-like heatmap with the value written in every cell."""
     for i in range(v.shape[0]):
         for j in range(v.shape[1]):
+            if np.isnan(v[i, j]): continue
             a = min(1, v[i, j]/vmax)
             if i in muted:
                 ax.text(j, i, f'{v[i, j]:.0f}', ha='center', va='center', fontsize=10, color='#bbbbbb'); continue
@@ -185,7 +203,7 @@ TOY = {'A': [3, 3, 2, 3, 3], 'B': [1, 0, 1, 0, 0], 'C': [0, 0, 0, 1, 1],
        'D': [1, 0, 0, 0, 0], 'E': [0, 0, 1, 0, 0], 'F': [0, 0, 0, 0, 1]}
 TOY_ARMS = (('R · random nodes', {'B': TOY['B'], 'C': TOY['C'], 'D': TOY['D'], 'E': TOY['E']}, (), 'only pairs between drawn nodes'),
             ('S · random walk', {'A': TOY['A'], 'B': TOY['B'], 'C': TOY['C'], 'E': TOY['E']}, (), 'the walk mostly meets busy pairs'),
-            ('H · late time only', {k: [0, 0] + v[2:] for k, v in TOY.items() if sum(v[2:])}, (0, 1), 'windows 1–2 are not visible'),
+            ('H · late time only', {k: [0, 0] + v[2:] for k, v in TOY.items() if sum(v[2:])}, (0, 1), 'windows 1–2 hidden (node sampling not shown)'),
             ('B · event loss', {'A': [1, 0, 1, 0, 1], 'B': [0, 0, 1, 0, 0], 'E': [0, 0, 1, 0, 0]}, (), 'most events are lost'))
 
 
@@ -359,34 +377,21 @@ def fig_correction(plt, pred):
     save(fig, 'fig4_correction')
 
 
-def between_sample_sd(pred, method, arm):
-    """Median over networks of the spread between samples, with the answer noise removed:
-    var(sample means) − mean within-sample variance / answers per sample (one-way random-effects estimate)."""
-    p = pred[(pred.group == 'real') & (pred.method == method) & (pred.arm == arm) & pred.prediction.notna() & (pred.valid == True)]
-    r2 = p.prediction.map(lambda v: json.loads(v)[0])*100
-    out = []
-    for _, g in r2.groupby(p.source):
-        per = g.groupby(p.loc[g.index, 'observation_id'])
-        if per.ngroups < 2: continue
-        within = per.var(ddof=1).dropna()
-        noise = within.mean()/per.size().mean() if len(within) else 0.
-        out.append(np.sqrt(max(0., per.mean().var(ddof=1) - noise)))
-    return float(np.median(out))
-
-
-# Fig. 5: stability. Left: the identical sample again. Right: a new sample, answer noise removed.
-def fig_stability(plt, resp, train, samp, pred):
+# Fig. 5: stability. Left: the identical sample again. Right: a new sample (deterministic methods only; with 3 samples x 3 answers
+# the language models' sample effect cannot be separated from their answer noise).
+def fig_stability(plt, resp, train, samp):
     rows = ['plugin', 'mle', 'et'] + LLMS
     labels = ['Naive share', 'MLE', 'ExtraTrees*'] + [METHODS[m] for m in LLMS]
     same = np.array([[0.]*4 if m in ('plugin', 'mle') else [100*train.loc[a, 'median_observation_SD_rho2'] for a in ARMS]
                      if m == 'et' else [100*resp.loc[(a, m), 'median_observation_SD_rho2'] for a in ARMS] for m in rows])
     new = np.array([[100*samp.loc[(a, m), 'median_graph_SD_rho2_across_draws'] if m in ('plugin', 'mle', 'et')
-                     else between_sample_sd(pred, m, a) for a in ARMS] for m in rows])
+                     else np.nan for a in ARMS] for m in rows])
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
-    titles = ('Same sample, asked again', 'New sample, answer noise removed')
+    titles = ('Same sample, asked again', 'New sample of the same network')
     for k, (ax, v, title) in enumerate(zip(axes, (same, new), titles)):
         value_grid(plt, ax, v, labels, list(ARMS), 22, show_rows=k == 0, muted=(0, 1) if k == 0 else ())
         ax.set_title(title, pad=24)
+    axes[1].text(1.5, 5, 'language models: not separable\nfrom their answer noise', ha='center', va='center', fontsize=10, color='#999999')
     fig.text(.5, -.03, 'spread of the ρ₂ estimate (median standard deviation, pp) · *left: ExtraTrees retrained on new training data',
              ha='center', fontsize=10.5, color='#444444')
     save(fig, 'fig5_stability')
@@ -458,7 +463,7 @@ def draw():
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
     fig_toy(plt); fig_sample(plt, summary, per); fig_ranking(plt, summary, per); fig_answer_types(plt, types)
-    fig_correction(plt, pred); fig_stability(plt, resp, train, samp, pred); fig_sample_size(plt, per, f)
+    fig_correction(plt, pred); fig_stability(plt, resp, train, samp); fig_sample_size(plt, per, f)
     fig_persistence(plt, perall); fig_networks(plt, per, f)
 
 
