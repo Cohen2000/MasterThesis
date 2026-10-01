@@ -3,10 +3,10 @@
 **Question:** a temporal network is only seen through a sample. Can language models estimate how persistent it is?
 
 **Short answer**
-- **Simple textbook answer exists (R, S):** GPT and DeepSeek give it, and do no better. In S, MLE and ExtraTrees beat it.
+- **Simple textbook answer exists (R, S):** GPT's and DeepSeek's answers match it, and are no better. In S, MLE and ExtraTrees beat it.
 - **No textbook answer (H, B):** the models improvise. GPT stays close to MLE; DeepSeek and Qwen rarely get the size of the correction right.
 - **Python** does not help, and in B it hurts.
-- **Hard networks** give few pairs in the sample (R, S) or are highly persistent (B).
+- **Hard networks** give few pairs in the sample (R, S; in S because contacts concentrate on few pairs) or are highly persistent (B).
 
 ## 0 · The task
 
@@ -77,21 +77,24 @@ Naive share 56 / 132 = 42 %; true ρ₂ 45 %.
 ![Naive share minus truth](figures/fig1_sample.png)
 
 - S overstates persistence; H and B understate it.
+- Losing pairs need not distort the share: hiding the early 40 % removes 85 % of College messages' pairs, yet its naive share moves by only 1.9 pp.
 
-## 3 · Correction works in S and B, not in H
+## 3 · Correction clearly helps in S and B, only partly in H
 
 ![Ranking per arm](figures/fig2_ranking.png)
 
 - **S:** MLE, ExtraTrees and all thinking models beat the naive share in 11 of 12 networks.
 - **B:** MLE, ExtraTrees and GPT do so in 8 or 9.
-- **H:** no method does so reliably on ρ₂; over ρ₂ to ρ₅ correction helps (naive 7.2 pp, GPT 3.3 pp).
+- **H:** errors drop on average (ExtraTrees 3.9, GPT 5.4, naive 6.4 pp), but not consistently across networks. Over ρ₂ to ρ₅ correction helps clearly (naive 7.2 pp, GPT 3.3 pp).
+- **Against MLE**, GPT has no consistent edge: it is better in 2, 6 and 4 networks and worse in 6, 4 and 6 (S, H, B).
 - **Qwen no thinking** answers 85–95 % in R, S and B almost regardless of the sample, which is worse than the constant guess.
 
-## 4 · The models recite the textbook, and improvise elsewhere
+## 4 · Where a simple formula exists, the answers match it
 
 ![Near which simple estimate the answers lie](figures/fig3_answer_types.png)
 
-- **S:** 90 % of GPT's answers are the simple reweighting; GPT's error (8.4 pp) is the formula's own (8.8 pp).
+- **S:** 90 % of GPT's answers lie within 0.5 pp of the simple reweighting, and GPT's error (8.4 pp) is the formula's own (8.8 pp).
+- This shows matching numbers, not how the models reasoned.
 
 ![How far the models correct](figures/fig4_correction.png)
 
@@ -99,14 +102,14 @@ Naive share 56 / 132 = 42 %; true ρ₂ 45 %.
 - GPT gets the size right about twice as often as DeepSeek (H: 60 against 22 %, B: 43 against 21 %); Qwen almost never.
 - With a stricter band (75–125 %) all shares drop, but the order stays.
 
-| Median reasoning tokens per answer | R | S | H | B |
+| Median length of the reasoning (tokens) | R | S | H | B |
 |---|---:|---:|---:|---:|
 | GPT | 489 | 3,051 | 4,764 | 8,966 |
 | GPT + Python | 309 | 2,080 | 3,948 | 8,998 |
 | DeepSeek | 9,069 | 35,483 | 50,226 | 57,932 |
 
-- All models think longest where they improvise. DeepSeek thinks 6–19 times longer than GPT and is still worse.
-- DeepSeek's full reasoning says "guess" in 82 % of H and 58 % of B answers (R: 2 %), e.g. *"We have no data on windows 1-2, so any extrapolation is a guess."*
+- All models write the longest reasoning in H and B. DeepSeek writes 6–19 times as much as GPT and is still less accurate.
+- The word "guess" appears in DeepSeek's full reasoning in 82 % of H and 58 % of B answers (R: 2 %), e.g. *"We have no data on windows 1-2, so any extrapolation is a guess."*
 - GPT reveals only short summaries; Qwen's reasoning is not analysed.
 
 ## 5 · Asking twice gives different answers
@@ -127,47 +130,60 @@ Naive share 56 / 132 = 42 %; true ρ₂ 45 %.
 | B | 10.8 | 15.1 | 2 / 8 |
 
 - The last column counts networks with a difference above 0.5 pp.
-- In B, the code builds a new statistical model for each answer: for 31 of 35 samples, the three answers use different model types (gamma, log-normal, latent classes, …).
-- As a result the answers spread more (12.2 against 5.1 pp) and overshoot (+6.4 against +0.5 pp).
+- In B, Python adds 4.4 pp of error (2.7 pp without Malawi).
+- There its answers spread more (12.2 against 5.1 pp) and overshoot (+6.4 against +0.5 pp).
+- Its code names different model types (gamma, log-normal, latent classes, …) in the three answers to the same sample for 31 of 35 samples.
 
-## 7 · What makes a network hard: few pairs and high persistence
+## 7 · What makes a network hard
 
-Real networks differ in size, persistence and timing at once. Two extra sets of networks separate these:
-- **Time-shuffled copies:** each real network with random contact times. Nodes, pairs and event counts stay the same, while ρ₂ rises (mean 35 % → 62 %).
-- **Synthetic networks:** 8 networks of 500 nodes from two standard generators, without and with memory:
-
-| Generator | How contacts arise | Without memory | With memory |
-|---|---|---:|---:|
-| DAR | each pair switches on or off in every window; with memory it keeps its last state 80 % of the time | ρ₂ 39–40 % | ρ₂ 78 % |
-| Activity-driven | active nodes contact partners; with memory they prefer known ones | ρ₂ 5–6 % | ρ₂ 78–80 % |
+The methods only see the compact table, never the network itself. A network's structure therefore matters through what the sample can show.
 
 ### 7.1 Few pairs make R and S hard
 
 ![Error against the number of pairs in the sample](figures/fig6_sample_size.png)
 
 - With 10 % of the activity, small networks give few pairs (Malawi 18–51, Digg about 8,500).
-- In R and S, fewer pairs mean a larger error for every method: the information is not in the sample.
+- In R and S, fewer pairs mean a larger error, for every method.
 
-### 7.2 High persistence makes B hard
+### 7.2 In S, concentrated contacts trap the walk
 
-![Error against true persistence, all 32 networks](figures/fig7_persistence.png)
+![Walk revisits and the error in S](figures/fig7_walk.png)
 
-- Only in B does the error climb with ρ₂, in real, shuffled and synthetic networks alike.
-- Event loss hides more of a persistent network; DeepSeek and Qwen miss the most.
+- **Effective number of pairs:** how many equally busy pairs would hold the contacts. Malawi's 102,293 contacts sit on the equivalent of 55 pairs (of 347), Copenhagen's on 4,590 and Digg's on 82,900.
+- **Left:** the longer the walk compared with this number, the more often it returns to pairs it has already seen (Malawi: 89 % of steps).
+- **Right:** fewer effective pairs mean a larger error in S, for MLE and GPT alike. The Linux mailing list is the one exception.
 
-### 7.3 No sign that real timing matters
+### 7.3 Timing, not the contact graph, sets persistence
 
-| Median error of six methods (pp) | R | S | H | B |
-|---|---:|---:|---:|---:|
-| Real networks | 2.7 | 8.2 | 6.5 | 12.8 |
-| Time-shuffled copies | 1.6 | 9.5 | 6.3 | 16.2 |
+![Persistence of real networks and of their time-shuffled copies](figures/fig8_timing.png)
 
-- In R, S and H the copies are about as hard as the originals; in B they are harder, as their higher ρ₂ predicts (7.2).
-- There is no sign that any method uses real timing patterns such as bursts of contacts.
+- **Time-shuffled copy:** the same pairs with the same number of contacts, each contact at a random time.
+- ρ₂ rises in all 12 networks (mean 35 % → 62 %). Real contacts of a pair cluster in time, so each pair is active in fewer windows.
+- Who meets whom and how often therefore does not fix persistence; when they meet does.
 
-### 7.4 Every network in detail
+### 7.4 High persistence makes B hard, and the methods cope differently
 
-![Error per network, arm and method](figures/fig8_networks.png)
+To vary persistence further, 8 synthetic networks (500 nodes each) come from two standard generators:
+
+| Generator | How contacts arise | Without memory | With memory |
+|---|---|---:|---:|
+| DAR | each pair switches on or off in every window; with memory it keeps its last state 80 % of the time | ρ₂ 39–40 % | ρ₂ 78 % |
+| Activity-driven | active nodes contact partners; with memory they prefer known ones | ρ₂ 5–6 % | ρ₂ 78–80 % |
+
+![Error by true persistence, all 32 networks](figures/fig9_persistence.png)
+
+- Only in B does the error climb steadily with ρ₂: the naive share from 4 to 51 pp, DeepSeek from 6 to 31 pp and Qwen thinking from 12 to 42 pp.
+- GPT and MLE stay at or below about 17 pp, and ExtraTrees at or below 10 pp. ExtraTrees was trained on networks from these generators.
+- The shuffled copies are harder only in B, as their higher ρ₂ predicts. Because shuffling changes ρ₂ as well, this cannot isolate whether a method uses real timing.
+
+### 7.5 Every network in detail
+
+<details>
+<summary>Error per network, arm and method (click to open)</summary>
+
+![Error per network, arm and method](figures/fig10_networks.png)
+
+</details>
 
 ---
 

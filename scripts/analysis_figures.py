@@ -71,6 +71,8 @@ def build_inputs(external):
         rows.append({'source': key, 'nodes': g.N, 'pairs': g.D, 'events': g.M, 'rho2': g.truth[0],
                      'rho2_shuffled': truth[key+'__pwt'][0], 'events_per_pair': g.M/g.D,
                      'one_off_pairs': float(np.mean(m == 1)),
+                     # contacts spread as if over this many equally busy pairs (inverse Simpson index of contact shares)
+                     'effective_pairs': float(1/np.sum((m/m.sum())**2)),
                      'only_early_pairs': float(np.mean(g.counts[:, 2:].sum(axis=1) == 0)),
                      **{f'pairs_seen_{a}': float(np.mean([b['D_obs'] for b in blocks[a]])) for a in ARMS},
                      'kept_share_B': float(np.mean([b['parameter'] for b in blocks['B']]))})
@@ -88,7 +90,8 @@ def build_inputs(external):
             for g, _, _ in generate_pair(family, replicate):
                 if abs(g.truth[0] - truth[g.key][0]) > 1e-12: raise ValueError(f'{g.key}: truth differs')
                 syn.append({'source': g.key, 'nodes': g.N, 'pairs': g.D, 'events': g.M,
-                            'events_per_pair': g.M/g.D, 'rho2': g.truth[0]})
+                            'events_per_pair': g.M/g.D, 'rho2': g.truth[0],
+                            'effective_pairs': float(1/np.sum((g.m/g.M)**2))})
     pd.DataFrame(syn).set_index('source').to_csv(DATA/'synthetic_features.csv', float_format='%.6g')
 
     # Every language-model answer: near which simple reference value does its rho_2 lie (within 0.5 pp)?
@@ -415,39 +418,84 @@ def method_heat(plt, per, order, rows, name, header):
     save(fig, name)
 
 
-# Fig. 8: error per real network, arm and method.
+# Fig. 10: error per real network, arm and method.
 def fig_networks(plt, per, f):
     order = f.sort_values('rho2').index.tolist()
     rows = [f"{NAMES[s]}  ({100*f.loc[s, 'rho2']:.0f} %)" if f.loc[s, 'rho2'] >= .01 else f"{NAMES[s]}  (0.3 %)" for s in order]
-    method_heat(plt, per, order, rows, 'fig8_networks', 'network (true ρ₂)')
+    method_heat(plt, per, order, rows, 'fig10_networks', 'network (true ρ₂)')
 
 
-# Fig. 7: error against true rho_2 for all 32 networks (y = median error of the six methods).
+# Fig. 7: arm S. Left: the walk revisits pairs when it is long compared with the effective number of pairs.
+# Right: the error in S against the effective number of pairs. Real networks only.
+def fig_walk(plt, per, f):
+    walk = pd.read_csv(FINAL/'WALK.csv').set_index('graph_id').loc[f.index]
+    eff = f.effective_pairs
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 3.9))
+    ax = axes[0]
+    ax.scatter(walk.L/eff, 100*walk.revisit_rate_mean, s=46, color='#333333', zorder=3)
+    for s, dx, ha in (('sp_malawi', -8, 'right'), ('sp_hospital', 8, 'left'), ('copenhagen_bluetooth', 8, 'left'), ('nr_digg_reply', 8, 'left')):
+        ax.annotate(NAMES[s].split(' (')[0], (walk.L[s]/eff[s], 100*walk.revisit_rate_mean[s]), xytext=(dx, 4),
+                    textcoords='offset points', fontsize=9.5, ha=ha)
+    ax.set_xscale('log'); ax.set_ylim(0, 100); ax.set_title('Why the walk revisits pairs')
+    ax.set_xticks([.1, .3, 1, 3], ['0.1', '0.3', '1', '3'])
+    ax.set_xlabel('walk steps ÷ effective number of pairs (log)'); ax.set_ylabel('walk steps that revisit a pair (%)')
+    ax = axes[1]
+    for m, c in (('mle', BLUE), ('gpt_6_sol', ORANGE)):
+        e = per[(per.method == m) & (per.arm == 'S')].set_index('source').MAE_2.loc[f.index]*100
+        ax.scatter(eff, e, s=46, color=c, edgecolor='white', lw=.8, zorder=3, label=METHODS[m])
+    top = np.maximum(*(per[(per.method == m) & (per.arm == 'S')].set_index('source').MAE_2.loc[f.index]*100 for m in ('mle', 'gpt_6_sol')))
+    for s, dx, dy, ha in (('sp_malawi', 8, 4, 'left'), ('sp_hospital', 8, 4, 'left'), ('copenhagen_bluetooth', 0, 9, 'center'),
+                          ('nr_digg_reply', -6, 12, 'right')):
+        ax.annotate(NAMES[s].split(' (')[0], (eff[s], top[s]), xytext=(dx, dy), textcoords='offset points', fontsize=9.5, ha=ha)
+    ax.set_xscale('log'); ax.set_ylim(0, 35); ax.set_title('What it does to the error')
+    ax.set_xlabel('effective number of pairs (log)'); ax.set_ylabel('error in arm S (pp)')
+    ax.legend(frameon=False, loc='upper right')
+    for ax in axes: ax.grid(color='#eeeeee'); ax.set_axisbelow(True); ax.spines['left'].set_visible(True)
+    fig.subplots_adjust(wspace=.3)
+    save(fig, 'fig7_walk')
+
+
+# Fig. 8: true rho_2 of each real network and of its time-shuffled copy (same pairs and contact counts).
+def fig_timing(plt, f):
+    order = f.sort_values('rho2').index.tolist()
+    fig, ax = plt.subplots(figsize=(8, 4.4))
+    for i, s in enumerate(order):
+        a, b = 100*f.loc[s, 'rho2'], 100*f.loc[s, 'rho2_shuffled']
+        ax.plot([a, b], [i, i], color='#bbbbbb', lw=2, zorder=1)
+        ax.scatter([a], [i], s=55, color='#333333', zorder=3)
+        ax.scatter([b], [i], s=55, facecolor='white', edgecolor='#333333', lw=1.6, zorder=3)
+    ax.set_yticks(range(len(order)), [NAMES[s].split(' (')[0] for s in order]); ax.set_ylim(-.7, len(order)-.3)
+    ax.set_xlim(0, 90); ax.set_xlabel('true ρ₂ (%)'); ax.grid(axis='x', color='#eeeeee'); ax.set_axisbelow(True)
+    h = [plt.Line2D([], [], marker='o', ls='', color='#333333', markersize=7),
+         plt.Line2D([], [], marker='o', ls='', markerfacecolor='white', markeredgecolor='#333333', markeredgewidth=1.6, markersize=7)]
+    ax.legend(h, ['real network', 'same pairs and contacts, random times'], frameon=False, loc='lower right')
+    save(fig, 'fig8_timing')
+
+
+# Fig. 9: mean error by true rho_2 band over all 32 networks (real, shuffled, synthetic), per method and arm.
+PERSIST_METHODS = (('plugin', GREY), ('mle', BLUE), ('et', AQUA), ('gpt_6_sol', ORANGE), ('deepseek_flash', VIOLET),
+                   ('qwen_thinking', '#e87ba4'))
+
+
 def fig_persistence(plt, perall):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
-    med = perall[perall.method.isin(MAIN)].groupby(['source', 'arm']).MAE_2.median().unstack()*100
-    group = perall.groupby('source').group.first()
-    fig, axes = plt.subplots(1, 4, figsize=(14, 3.6), sharey=True)
+    p = perall.assign(rho2=perall.source.map(lambda s: 100*truth[s][0]))
+    edges, labels = [0, 20, 50, 70, 100], ['< 20 %', '20–50 %', '50–70 %', '≥ 70 %']
+    p['band'] = pd.cut(p.rho2, edges, right=False, labels=labels)
+    counts = p[p.method == 'mle'].groupby('band', observed=False).source.nunique()
+    fig, axes = plt.subplots(1, 4, figsize=(14, 3.8), sharey=True)
+    x = np.arange(len(labels))
     for ax, arm in zip(axes, ARMS):
-        for g, kw in (('real', dict(color='#333333')), ('surrogate', dict(facecolor='white', edgecolor='#333333', lw=1.5)),
-                      ('synthetic', dict(color=ORANGE, marker='^', s=60))):
-            idx = group[group == g].index
-            ax.scatter([100*truth[s][0] for s in idx], med.loc[idx, arm], zorder=3, **{'s': 40, **kw})
-        ax.set_xlim(0, 90); ax.set_ylim(0, 35); ax.set_title(ARMS[arm]); ax.set_xlabel('true ρ₂ (%)')
+        for m, c in PERSIST_METHODS:
+            v = p[(p.arm == arm) & (p.method == m)].groupby('band', observed=False).MAE_2.mean()*100
+            ax.plot(x, v.to_numpy(), color=c, lw=2.2, marker='o', markersize=5, label=METHODS[m])
+        ax.set_xticks(x, labels); ax.set_title(ARMS[arm]); ax.set_ylim(0, 55); ax.set_xlabel('true ρ₂')
         ax.grid(color='#eeeeee'); ax.set_axisbelow(True); ax.spines['left'].set_visible(True)
-    axes[0].set_ylabel('median error of six methods (pp)')
-    h = [plt.Line2D([], [], marker='o', ls='', color='#333333', markersize=7),
-         plt.Line2D([], [], marker='o', ls='', markerfacecolor='white', markeredgecolor='#333333', markeredgewidth=1.5, markersize=7),
-         plt.Line2D([], [], marker='^', ls='', color=ORANGE, markersize=8)]
-    fig.legend(h, ['real network', 'time-shuffled copy', 'synthetic network'],
-               loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .98))
-    save(fig, 'fig7_persistence')
-    # Numbers for the timing table: median error of the six methods, real against shuffled copy.
-    rows = []
-    for arm in ARMS:
-        real = med.loc[list(NAMES), arm]; shuf = med.loc[[s+'__pwt' for s in NAMES], arm].to_numpy()
-        rows.append({'arm': arm, 'real': real.mean(), 'shuffled': shuf.mean(), 'shuffled_harder': int((shuf > real.to_numpy()).sum())})
-    pd.DataFrame(rows).to_csv(DATA/'real_vs_shuffled.csv', index=False, float_format='%.2f')
+    axes[0].set_ylabel('mean error (pp)')
+    fig.legend(*axes[0].get_legend_handles_labels(), loc='lower center', ncol=6, frameon=False, bbox_to_anchor=(.5, .98))
+    fig.text(.5, -.07, 'networks per band: ' + ', '.join(f'{l}: {n}' for l, n in zip(labels, counts)) +
+             ' (real, time-shuffled and synthetic networks together)', ha='center', fontsize=9.5, color='#666666')
+    save(fig, 'fig9_persistence')
 
 
 def draw():
@@ -464,7 +512,7 @@ def draw():
     types = pd.read_csv(DATA/'answer_types.csv')
     fig_toy(plt); fig_sample(plt, summary, per); fig_ranking(plt, summary, per); fig_answer_types(plt, types)
     fig_correction(plt, pred); fig_stability(plt, resp, train, samp); fig_sample_size(plt, per, f)
-    fig_persistence(plt, perall); fig_networks(plt, per, f)
+    fig_walk(plt, per, f); fig_timing(plt, f); fig_persistence(plt, perall); fig_networks(plt, per, f)
 
 
 if __name__ == '__main__':
