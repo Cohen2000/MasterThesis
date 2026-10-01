@@ -112,6 +112,23 @@ def build_inputs(external):
                         'other': 1 - near_rw.mean() - near_obs.mean() - near_mle.mean()})
     pd.DataFrame(out).to_csv(DATA/'answer_types.csv', index=False, float_format='%.4f')
 
+    # Under the hood (real networks): reasoning length, DeepSeek's full traces, GPT + Python's executed code.
+    rows = []
+    for run, method in (('openai', 'gpt_6_sol'), ('openai_tools', 'gpt_6_sol_tools'), ('deepseek', 'deepseek_flash')):
+        for line in (external/'api_runs'/run/'responses.jsonl').read_text().splitlines():
+            d = json.loads(line)
+            oid = d['id'].rsplit('__', 2)[0]
+            if d.get('kind') != 'main' or obs[oid]['stratum'] != 'real': continue
+            code = '\n'.join(o.get('code', '') for o in (d.get('raw_response') or {}).get('output', [])
+                             if o.get('type') == 'code_interpreter_call')
+            rows.append({'method': method, 'arm': obs[oid]['arm'], 'reasoning_tokens': d.get('reasoning_tokens') or 0,
+                         'trace_says_guess': 'guess' in (d.get('reasoning_content') or '').lower(),
+                         'code_fits_model': 'optimize' in code or 'minimize' in code})
+    r = pd.DataFrame(rows).groupby(['method', 'arm'])
+    pd.DataFrame({'answers': r.size(), 'median_reasoning_tokens': r.reasoning_tokens.median(),
+                  'trace_says_guess': r.trace_says_guess.mean(), 'code_fits_model': r.code_fits_model.mean()}
+                 ).to_csv(DATA/'under_the_hood.csv', float_format='%.4f')
+
 
 # ---------------------------------------------------------------- figures
 LIGHT = '#cdc9bf'   # training median, a constant guess
@@ -300,23 +317,82 @@ def fig_answer_types(plt, types):
     save(fig, 'fig3_answer_types')
 
 
-# Fig. 4: stability. Left: the identical sample again. Right: a new sample of the same network.
-def fig_stability(plt, resp, train, samp):
+# Fig. 4: how far the language models correct, relative to the correction the sample needs.
+CORRECTION = (('wrong direction', '#d9383a'), ('too little', '#f2b46d'), ('about right', '#1f9d55'), ('too much', '#86b6ef'))
+
+
+def correction_types(pred):
+    """Per answer: needed = truth − naive share, done = answer − naive share; samples off by ≥ 5 pp only."""
+    p = pred[(pred.group == 'real') & pred.prediction.notna()].copy()
+    p['r2'] = p.prediction.map(lambda v: json.loads(v)[0])
+    naive = p[p.method == 'plugin'].groupby('observation_id').r2.first()
+    a = p[p.method.isin(LLMS) & (p.valid == True)].copy()
+    a['need'] = a.truth_rho2 - a.observation_id.map(naive)
+    a['done'] = a.r2 - a.observation_id.map(naive)
+    a = a[a.need.abs() >= .05]
+    ratio = a.done/a.need
+    a['type'] = pd.cut(ratio, [-np.inf, 0, .5, 1.5, np.inf], right=False, labels=[c for c, _ in CORRECTION])
+    t = a.groupby(['arm', 'method']).type.value_counts(normalize=True).unstack()
+    t.to_csv(DATA/'correction_types.csv', float_format='%.4f')
+    return t
+
+
+def fig_correction(plt, pred):
+    t = correction_types(pred)
+    fig, axes = plt.subplots(1, 3, figsize=(12, 3.2), sharey=True)
+    y = np.arange(len(LLMS))[::-1]
+    for ax, arm in zip(axes, 'SHB'):
+        left = np.zeros(len(LLMS))
+        for cat, c in CORRECTION:
+            v = np.array([100*t.loc[(arm, m), cat] for m in LLMS])
+            ax.barh(y, v, left=left, color=c, height=.66)
+            for yi, l, vi in zip(y, left, v):
+                if vi >= 12: ax.text(l+vi/2, yi, f'{vi:.0f}', ha='center', va='center', fontsize=9,
+                                     color='white' if cat in ('wrong direction', 'about right') else '#222222')
+            left += v
+        ax.set_yticks(y, [METHODS[m] for m in LLMS]); ax.set_xlim(0, 100); ax.set_xticks([0, 50, 100])
+        ax.set_title(ARMS[arm]); ax.set_xlabel('share of answers (%)'); ax.spines['bottom'].set_visible(False)
+    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for _, c in CORRECTION]
+    fig.legend(handles, ['wrong direction', 'too little (< 50 %)', 'about right (50–150 %)', 'too much (> 150 %)'],
+               loc='lower center', ncol=4, frameon=False, bbox_to_anchor=(.5, 1.0),
+               title='correction made, as a share of the correction needed', title_fontsize=10.5)
+    save(fig, 'fig4_correction')
+
+
+def between_sample_sd(pred, method, arm):
+    """Median over networks of the spread between samples, with the answer noise removed:
+    var(sample means) − mean within-sample variance / answers per sample (one-way random-effects estimate)."""
+    p = pred[(pred.group == 'real') & (pred.method == method) & (pred.arm == arm) & pred.prediction.notna() & (pred.valid == True)]
+    r2 = p.prediction.map(lambda v: json.loads(v)[0])*100
+    out = []
+    for _, g in r2.groupby(p.source):
+        per = g.groupby(p.loc[g.index, 'observation_id'])
+        if per.ngroups < 2: continue
+        within = per.var(ddof=1).dropna()
+        noise = within.mean()/per.size().mean() if len(within) else 0.
+        out.append(np.sqrt(max(0., per.mean().var(ddof=1) - noise)))
+    return float(np.median(out))
+
+
+# Fig. 5: stability. Left: the identical sample again. Right: a new sample, answer noise removed.
+def fig_stability(plt, resp, train, samp, pred):
     rows = ['plugin', 'mle', 'et'] + LLMS
     labels = ['Naive share', 'MLE', 'ExtraTrees*'] + [METHODS[m] for m in LLMS]
     same = np.array([[0.]*4 if m in ('plugin', 'mle') else [100*train.loc[a, 'median_observation_SD_rho2'] for a in ARMS]
                      if m == 'et' else [100*resp.loc[(a, m), 'median_observation_SD_rho2'] for a in ARMS] for m in rows])
-    new = np.array([[100*samp.loc[(a, m), 'median_graph_SD_rho2_across_draws'] for a in ARMS] for m in rows])
+    new = np.array([[100*samp.loc[(a, m), 'median_graph_SD_rho2_across_draws'] if m in ('plugin', 'mle', 'et')
+                     else between_sample_sd(pred, m, a) for a in ARMS] for m in rows])
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
-    for k, (ax, v, title) in enumerate(zip(axes, (same, new), ('Same sample, asked again', 'New sample of the same network'))):
+    titles = ('Same sample, asked again', 'New sample, answer noise removed')
+    for k, (ax, v, title) in enumerate(zip(axes, (same, new), titles)):
         value_grid(plt, ax, v, labels, list(ARMS), 22, show_rows=k == 0, muted=(0, 1) if k == 0 else ())
         ax.set_title(title, pad=24)
     fig.text(.5, -.03, 'spread of the ρ₂ estimate (median standard deviation, pp) · *left: ExtraTrees retrained on new training data',
              ha='center', fontsize=10.5, color='#444444')
-    save(fig, 'fig4_stability')
+    save(fig, 'fig5_stability')
 
 
-def method_heat(plt, per, order, rows, name, header, breaks=()):
+def method_heat(plt, per, order, rows, name, header):
     """One small heatmap per method: rows = networks, columns = arms, colour = error level."""
     fig, axes = plt.subplots(1, len(MAIN), figsize=(15.5, .42*len(rows)+.9))
     for k, (ax, m) in enumerate(zip(axes, MAIN)):
@@ -326,7 +402,6 @@ def method_heat(plt, per, order, rows, name, header, breaks=()):
                 ax.add_patch(plt.Rectangle((j-.46, i-.42), .92, .84, color=band(v[i, j]), lw=0))
                 ax.text(j, i, f'{v[i, j]:.1f}', ha='center', va='center', fontsize=8.5,
                         fontweight='bold' if v[i, j] > 10 else 'normal')
-        for b in breaks: ax.axhline(b, color='#333333', lw=1.1)
         ax.set_xlim(-.5, 3.5); ax.set_ylim(len(rows)-.5, -.5); unframe(ax)
         ax.set_xticks(range(4), list(ARMS)); ax.set_title(METHODS[m], pad=22)
         ax.set_yticks(range(len(rows)), rows if k == 0 else ['']*len(rows))
@@ -335,39 +410,14 @@ def method_heat(plt, per, order, rows, name, header, breaks=()):
     save(fig, name)
 
 
-# Fig. 5: error per real network, arm and method.
+# Fig. 8: error per real network, arm and method.
 def fig_networks(plt, per, f):
     order = f.sort_values('rho2').index.tolist()
     rows = [f"{NAMES[s]}  ({100*f.loc[s, 'rho2']:.0f} %)" if f.loc[s, 'rho2'] >= .01 else f"{NAMES[s]}  (0.3 %)" for s in order]
-    method_heat(plt, per, order, rows, 'fig5_networks', 'network (true ρ₂)')
+    method_heat(plt, per, order, rows, 'fig8_networks', 'network (true ρ₂)')
 
 
-# Fig. 8: every real network against its time-shuffled copy.
-def fig_real_vs_shuffled(plt, perall):
-    methods = ['plugin', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking']
-    per = perall.assign(family=perall.source.str.replace('__pwt', '', regex=False))
-    fig, axes = plt.subplots(1, 4, figsize=(13, 3.8), sharey=True)
-    rows = []
-    for ax, arm in zip(axes, ARMS):
-        y = np.arange(len(methods))[::-1]
-        for yi, m in zip(y, methods):
-            p = per[(per.arm == arm) & (per.method == m)].pivot(index='family', columns='group', values='MAE_2')*100
-            r, s = p.real.mean(), p.surrogate.mean()
-            rows.append({'arm': arm, 'method': m, 'real': r, 'shuffled': s, 'real_lower': int((p.real < p.surrogate).sum())})
-            c = colour(m)
-            ax.annotate('', xy=(s, yi), xytext=(r, yi), arrowprops=dict(arrowstyle='->', color=c, lw=1.8, shrinkA=4, shrinkB=4))
-            ax.scatter([r], [yi], s=46, color=c, zorder=3)
-            ax.scatter([s], [yi], s=46, facecolor='white', edgecolor=c, lw=1.8, zorder=3)
-        ax.set_yticks(y, [METHODS[m] for m in methods]); ax.set_xlim(0, 36); ax.set_title(ARMS[arm])
-        ax.grid(axis='x', color='#eeeeee'); ax.set_axisbelow(True); ax.set_xlabel('mean error (pp)')
-    h = [plt.Line2D([], [], marker='o', ls='', color='#555555', markersize=7),
-         plt.Line2D([], [], marker='o', ls='', markerfacecolor='white', markeredgecolor='#555555', markeredgewidth=1.8, markersize=7)]
-    fig.legend(h, ['real networks', 'time-shuffled copies'], loc='lower center', ncol=2, frameon=False, bbox_to_anchor=(.5, 1.0))
-    pd.DataFrame(rows).to_csv(DATA/'real_vs_shuffled.csv', index=False, float_format='%.2f')
-    save(fig, 'fig8_real_vs_shuffled')
-
-
-# Fig. 7: error against true rho_2 for all 32 networks; synthetic networks all have 500 nodes.
+# Fig. 7: error against true rho_2 for all 32 networks (y = median error of the six methods).
 def fig_persistence(plt, perall):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
     med = perall[perall.method.isin(MAIN)].groupby(['source', 'arm']).MAE_2.median().unstack()*100
@@ -384,32 +434,38 @@ def fig_persistence(plt, perall):
     h = [plt.Line2D([], [], marker='o', ls='', color='#333333', markersize=7),
          plt.Line2D([], [], marker='o', ls='', markerfacecolor='white', markeredgecolor='#333333', markeredgewidth=1.5, markersize=7),
          plt.Line2D([], [], marker='^', ls='', color=ORANGE, markersize=8)]
-    fig.legend(h, ['real network', 'time-shuffled copy', 'synthetic network (all 500 nodes)'],
+    fig.legend(h, ['real network', 'time-shuffled copy', 'synthetic network'],
                loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .98))
     save(fig, 'fig7_persistence')
+    # Numbers for the timing table: median error of the six methods, real against shuffled copy.
+    rows = []
+    for arm in ARMS:
+        real = med.loc[list(NAMES), arm]; shuf = med.loc[[s+'__pwt' for s in NAMES], arm].to_numpy()
+        rows.append({'arm': arm, 'real': real.mean(), 'shuffled': shuf.mean(), 'shuffled_harder': int((shuf > real.to_numpy()).sum())})
+    pd.DataFrame(rows).to_csv(DATA/'real_vs_shuffled.csv', index=False, float_format='%.2f')
 
 
 def draw():
-
     plt = setup()
     for old in FIGS.glob('*'): old.unlink()
     summary = pd.read_csv(FINAL/'SUMMARY.csv').query("group == 'real'").set_index(['arm', 'method'])
     perall = pd.read_csv(FINAL/'PER_SOURCE.csv')
     per = perall.query("group == 'real'")
+    pred = pd.read_csv(FINAL/'PREDICTIONS.csv')
     resp = pd.read_csv(FINAL/'VARIABILITY_RESPONSE.csv').query("group == 'real'").set_index(['arm', 'method'])
     samp = pd.read_csv(FINAL/'VARIABILITY_SAMPLING.csv').query("group == 'real'").drop_duplicates().set_index(['arm', 'method'])
     train = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").set_index('arm')
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
     fig_toy(plt); fig_sample(plt, summary, per); fig_ranking(plt, summary, per); fig_answer_types(plt, types)
-    fig_stability(plt, resp, train, samp); fig_sample_size(plt, per, f); fig_networks(plt, per, f)
-    fig_persistence(plt, perall); fig_real_vs_shuffled(plt, perall[perall.group.isin(['real', 'surrogate'])])
+    fig_correction(plt, pred); fig_stability(plt, resp, train, samp, pred); fig_sample_size(plt, per, f)
+    fig_persistence(plt, perall); fig_networks(plt, per, f)
 
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--inputs', action='store_true', help='rebuild docs/analysis/data (needs data outside the repo)')
-    ap.add_argument('--external', type=Path, default=EXTERNAL, help='folder with api_observations')
+    ap.add_argument('--external', type=Path, default=EXTERNAL, help='folder with api_observations and api_runs')
     a = ap.parse_args()
     if a.inputs: build_inputs(a.external)
     draw()
