@@ -5,8 +5,8 @@
 **Short answer**
 - Where the sampling has a simple textbook correction, GPT and DeepSeek give it, and do no better than the formula.
 - Where there is none, they improvise. GPT does best; DeepSeek and Qwen rarely get it right and answer differently each time.
-- A Python tool does not help.
-- A network is hard when few pairs share its contacts, and, when contacts are lost, when it is highly persistent. Real timing changes persistence, not difficulty.
+- A new sample barely moves a good estimate, so the estimates are not chance results. A Python tool does not help.
+- A network is hard when few pairs share its contacts, and, when contacts are lost, when it is highly persistent. All thinking models read the timing of contacts.
 
 ## 0 · The task
 
@@ -83,10 +83,6 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 
 - The walk (S) overstates persistence; hiding early time (H) and losing events (B) understate it.
 
-![Arm H with a node sample and with all nodes](figures/fig1b_h_nodes.png)
-
-- In H, seeing all nodes does not help: the problem is the missing time, not the missing nodes.
-
 ## 3 · Who corrects it
 
 ![Error per arm, sorted](figures/fig2_ranking.png)
@@ -97,7 +93,7 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 <details>
 <summary>Counts behind this</summary>
 
-- **S:** MLE, ExtraTrees and all thinking models beat the naive share by more than 0.5 pp in 11 of 12 networks. **B:** MLE, ExtraTrees and GPT do so in 8 or 9. **H:** at most 8 of 12; over ρ₂ to ρ₅, correction helps clearly (naive 7.2 pp, GPT 3.3 pp).
+- **S:** MLE, ExtraTrees and all thinking models beat the naive share by more than 0.5 pp in 11 of 12 networks. **B:** MLE, ExtraTrees and GPT do so in 8 or 9. **H:** at most 8 of 12.
 - **GPT against MLE:** better in 2, 6, 4 and worse in 6, 4, 6 networks (S, H, B).
 - **Qwen no thinking** answers 85–95 % in R, S and B almost regardless of the sample.
 
@@ -107,18 +103,25 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 
 ![Answers equal to the textbook answer](figures/fig3_textbook.png)
 
-- R: the textbook answer is the naive share. S: it is the simple reweighting. A match means within 0.5 pp.
-- In S, GPT's error (8.4 pp) is the formula's own (8.8 pp): no better, no worse.
+- In R the textbook answer is the naive share, in S the simple reweighting. A match means within 0.5 pp. In S, GPT's error (8.4 pp) is the formula's own (8.8 pp).
+
+![Per network: answers equal to the simple reweighting](figures/fig3b_textbook_networks.png)
+
+- GPT gives the formula on every network except Malawi (44 %). DeepSeek gives it on some networks, Qwen thinking only on a few (Digg, Linux, MathOverflow).
 
 ## 5 · Elsewhere they improvise, and GPT does it best
 
 ![Answers that correct by about the right amount](figures/fig4_correction.png)
 
-- "About right" means 50–150 % of the correction the sample needs; only samples off by ≥ 5 pp are counted.
+- "About right" means 50–150 % of the correction the sample needs.
 
-![Arm H: estimates of ρ₂ to ρ₅ against the truth](figures/fig4b_h_profile.png)
+![Per network: answers that correct by about the right amount](figures/fig4b_correction_networks.png)
 
-- With 3 visible windows, the sample cannot show pairs active in 4 or 5 windows. GPT still estimates them about right (ρ₄: 11.0 % against a true 10.3 %), as do MLE and ExtraTrees. Qwen thinking stays near the sample (3.4 %).
+- GPT is about right on most networks, but not on Malawi, Radoslaw and Workplace. DeepSeek and Qwen rarely are (one exception: DeepSeek on College messages).
+
+![Estimates of ρ₂ to ρ₅ against the truth, per arm](figures/fig4c_profile.png)
+
+- GPT recovers the whole profile in every arm, even ρ₄ and ρ₅ in H, which three visible windows cannot show (the naive share is 0 there).
 
 <details>
 <summary>Reasoning length and what DeepSeek writes</summary>
@@ -130,28 +133,31 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 
 - Both write the longest reasoning in H and B. DeepSeek writes 6–19 times as much as GPT and is still less accurate.
 - "Guess" appears in DeepSeek's full reasoning in 82 % of H and 58 % of B answers (R: 2 %), e.g. *"We have no data on windows 1-2, so any extrapolation is a guess."*
-- With a stricter band (75–125 %) all shares drop, but the order of the models stays.
 
 </details>
 
-## 6 · Asked again, they answer differently
+## 6 · How much the estimates move
 
 ![Spread of three answers to the same sample](figures/fig5_stability.png)
 
-- MLE always gives the same answer. Two samples of the same network differ by at most 1.3 pp (MLE) in H and B, far less than these spreads.
+- Asked again with the same sample, the language models answer differently where they improvise (H, B).
+
+![Per network: spread of three answers](figures/fig5b_noise_networks.png)
+
+- GPT's and DeepSeek's answers vary mostly on persistent networks and hardly at all on Digg and MathOverflow. Qwen varies on almost every network.
+
+![Per network: MLE estimates from three independent samples against the truth](figures/fig5c_sample_noise.png)
+
+- A new sample barely moves the estimate on most networks. It moves more on the smallest networks (Malawi, Hospital) and, under the walk, on Linux, Reality Mining and High school.
+- The gap to the truth is often larger than the spread between samples: the errors are systematic, not chance.
 
 ## 7 · Python does not help
 
 ![Error of GPT with and without Python](figures/fig6_python.png)
 
-- In B, Python costs 4.4 pp (2.7 pp without Malawi), at 3.4 times the price.
+![Per network: change in GPT's error with Python](figures/fig6b_python_networks.png)
 
-<details>
-<summary>What the Python answers look like in B</summary>
-
-Its answers spread more (12.2 against 5.1 pp) and overshoot (+6.4 against +0.5 pp). For 31 of 35 samples, the code of the three answers to the same sample names different model types (gamma, log-normal, latent classes, …).
-
-</details>
+- In R and S, Python changes nothing on any network. In B it makes 8 of 12 networks worse, Malawi by 23 pp.
 
 ## 8 · Which networks are hard
 
@@ -164,41 +170,43 @@ Its answers spread more (12.2 against 5.1 pp) and overshoot (+6.4 against +0.5 p
 
 ### 8.2 Not the number of contacts, but how many pairs share them
 
-![Error in S against contacts and against pairs that share them](figures/fig8_spread.png)
+![Error against contacts and against pairs that share them, per arm](figures/fig8_structure.png)
 
-- Malawi has 102,293 contacts, but they sit on effectively 55 pairs. That is the hardest case.
-- Random nodes (R) show the same pattern.
-
-![Synthetic networks with and without memory, random walk](figures/fig8b_memory.png)
-
-- A controlled check with the same 500 nodes and about 10,000 contacts: memory concentrates the contacts on fewer pairs, and the walk error rises. Memory also raises persistence.
+- The number of contacts shows no clear pattern in any arm.
+- Contacts spread over more pairs make R and S clearly easier, and H and B a little. Malawi's 102,293 contacts sit on effectively 55 pairs.
 
 ### 8.3 With lost events, persistent networks are hard
 
 ![Error against true persistence, per arm](figures/fig9_persistence.png)
 
-- Only in B does the error grow with ρ₂. These are all 32 networks: real, real with random contact times, and synthetic.
+- Only in B does the error grow with ρ₂.
 
-### 8.4 Real timing changes persistence, not difficulty
+### 8.4 Time-shuffled twins: do the methods read the timing?
 
-![Same graphs with real and with random contact times](figures/fig10_timing.png)
+Each real network has a **twin**: the same nodes, pairs and contact counts, but every contact at a random time. A method that used only this static information would give the same answer for both twins. Yet the true ρ₂ of the twin is 27 pp higher.
 
-- Random contact times leave R, S and H about unchanged.
-- In B the error rises, but random times also make the networks more persistent (ρ₂ 35 % → 62 %), so the two effects cannot be separated.
+![Change in the estimate from each network to its twin](figures/fig10_twins.png)
 
-### 8.5 With random times, DeepSeek and Qwen fall further behind in B
+- All methods that read the time patterns raise their estimate, and in R they follow the truth exactly.
+- Only Qwen no thinking does not follow (−12 to +3 pp). It does not read the timing.
+- With lost events (B), every method follows only part of the change; GPT follows best.
 
-![Extra error in B with random contact times, per method](figures/fig11_timing_b.png)
+### 8.5 Every network on its own
 
-- DeepSeek and Qwen get worse in 11 of 12 networks; MLE, ExtraTrees and GPT change much less.
+![Typical error per arm, one panel per network](figures/fig11_cards.png)
+
+- **Digg:** easy everywhere, because almost every pair meets once.
+- **Malawi:** hardest in S and B. Few pairs, and a few household pairs carry most contacts.
+- **Copenhagen:** easy except under event loss.
+- **Linux mailing list:** low persistence, yet hard under the walk (11 pp), because its samples differ strongly (section 6).
+- **College messages:** easy in R and S, harder in H, where 85 % of its pairs are active only in the hidden early time.
 
 <details>
 <summary>Definitions and all numbers</summary>
 
 - **Pairs that share the contacts** (effective number of pairs): how many equally busy pairs would hold the contacts (inverse Simpson index of the contact shares). Malawi 55, Copenhagen 4,590, Digg 82,900.
 - **Typical error:** median error of MLE, ExtraTrees, GPT, GPT + Python, DeepSeek and Qwen thinking.
-- **Random contact times:** each real network with the same pairs and contact counts, each contact at a random time.
-- **Synthetic networks** (500 nodes each): DAR (pairs switch on and off per window; with memory a pair keeps its last state 80 % of the time) and activity-driven (active nodes contact partners; with memory they prefer known ones). ρ₂ ranges from 5 % to 80 %.
+- **Synthetic networks** (in 8.3; 500 nodes each): DAR (pairs switch on and off per window; with memory a pair keeps its last state 80 % of the time) and activity-driven (active nodes contact partners; with memory they prefer known ones). ρ₂ ranges from 5 % to 80 %.
 - All errors per network and method: [figure](figures/fig_networks_detail.png), [MAIN_RESULTS.md](../results/final/MAIN_RESULTS.md). Robustness: [VARIABILITY.md](../results/final/VARIABILITY.md), [W_SENSITIVITY.md](../results/final/W_SENSITIVITY.md), [WALK.md](../results/final/WALK.md).
 - Redraw: `python scripts/analysis_figures.py`; `--inputs` also rebuilds [`data/`](data) (needs `data/raw` and `~/.local/share/masterthesis`).
 
