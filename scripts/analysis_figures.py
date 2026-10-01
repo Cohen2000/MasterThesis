@@ -280,15 +280,42 @@ def num(x):
 def pct(r): return f'{100*r:.1f} %' if r < .01 else f'{100*r:.0f} %'
 
 
-def label(s, f):
-    """Row label of a real network: name · pairs · persistence."""
-    return f"{short(s)} · {num(f.loc[s, 'pairs'])} pairs · ρ₂ {pct(f.loc[s, 'rho2'])}"
+SPEC = '#9a9a9a'   # small grey specs next to a network's name
+TYPES = {'copenhagen_bluetooth': 'Bluetooth', 'lkml_reply': 'mailing list', 'nr_digg_reply': 'online replies',
+         'nr_radoslaw_email': 'email', 'reality_mining': 'Bluetooth', 'snap_collegemsg': 'online messages',
+         'snap_email_eu': 'email', 'snap_mathoverflow': 'Q&A site', 'sp_highschool2013': 'face-to-face',
+         'sp_hospital': 'face-to-face', 'sp_malawi': 'face-to-face', 'sp_workplace': 'face-to-face'}
 
 
-def specs(s, f, sep=' · '):
-    """Central numbers of a network: nodes, pairs, events, persistence."""
-    return (f"{num(f.loc[s, 'nodes'])} nodes · {num(f.loc[s, 'pairs'])} pairs{sep}"
-            f"{num(f.loc[s, 'events'])} events · ρ₂ {pct(f.loc[s, 'rho2'])}")
+def pair_spec(s, f):
+    """The two numbers shown next to a network's name: size in pairs and persistence."""
+    return f"{num(f.loc[s, 'pairs'])} pairs · ρ₂ {pct(f.loc[s, 'rho2'])}"
+
+
+def full_spec(row):
+    """All central numbers of a network (overview figures only)."""
+    return f"{num(row['nodes'])} nodes · {num(row['pairs'])} pairs · {num(row['events'])} events · ρ₂ {pct(row['rho2'])}"
+
+
+def two_tone(ax, x, y, name, spec, transform, ha='right', size=10, small=8.5, weight='normal', dx=0, dy=-3.5):
+    """A name in black followed by small grey specs in parentheses, on one line."""
+    from matplotlib.transforms import offset_copy
+    fig = ax.figure
+    at = lambda off: offset_copy(transform, fig=fig, x=dx + off, y=dy, units='points')
+    width = lambda txt: txt.get_window_extent(fig.canvas.get_renderer()).width*72/fig.dpi
+    kw = dict(va='baseline', clip_on=False)
+    if ha == 'right':
+        s = ax.text(x, y, f'({spec})', transform=at(0), ha='right', fontsize=small, color=SPEC, **kw)
+        ax.text(x, y, name, transform=at(-width(s) - 3), ha='right', fontsize=size, fontweight=weight, **kw)
+    else:
+        n = ax.text(x, y, name, transform=at(0), ha='left', fontsize=size, fontweight=weight, **kw)
+        ax.text(x, y, f'({spec})', transform=at(width(n) + 3), ha='left', fontsize=small, color=SPEC, **kw)
+
+
+def row_names(ax, order, f, x=-.02):
+    """Row labels of the real networks: name (pairs · ρ₂)."""
+    ax.set_yticks(range(len(order)), ['']*len(order))
+    for i, s in enumerate(order): two_tone(ax, x, i, short(s), pair_spec(s, f), ax.get_yaxis_transform())
 
 
 def typical_error(perall):
@@ -309,7 +336,7 @@ def network_dots(plt, ax, order, values, xlab, xlim, f):
     for k, (m, c) in enumerate(LM3):
         v = [values[m].get(s, np.nan) for s in order]
         ax.scatter(v, y + (k - 1)*.2, s=42, color=c, edgecolor='white', lw=.7, zorder=3, label=METHODS[m])
-    ax.set_yticks(y, [label(s, f) for s in order]); ax.set_xlim(*xlim); ax.set_xlabel(xlab)
+    row_names(ax, order, f); ax.set_xlim(*xlim); ax.set_xlabel(xlab)
     ax.tick_params(axis='y', length=0); ax.set_ylim(-.6, len(order)-.4)
 
 
@@ -506,7 +533,7 @@ def fig_sample_noise(plt, pred, f):
             est = p[(p.arm == arm) & (p.source == s)].r2
             ax.scatter(est, [y[s]]*len(est), s=30, color=BLUE, edgecolor='white', lw=.6, zorder=3)
         ax.set_xlim(-2, 95); ax.set_title(ARMS[arm]); ax.set_xlabel('ρ₂ (%)'); ax.tick_params(axis='y', length=0)
-    axes[0].set_yticks(range(len(order)), [label(s, f) for s in order]); axes[0].set_ylim(-.6, len(order)-.4)
+    row_names(axes[0], order, f); axes[0].set_ylim(-.6, len(order)-.4)
     h = [plt.Line2D([], [], color='#333333', lw=2.2), plt.Line2D([], [], marker='o', ls='', color=BLUE, markersize=6)]
     fig.legend(h, ['true ρ₂', 'MLE estimate from one sample'], loc='lower center', ncol=2, frameon=False, bbox_to_anchor=(.5, .97))
     note(fig, '12 real networks · 3 independent samples each · MLE gives the same answer for the same sample', -.04)
@@ -542,7 +569,7 @@ def fig_python_networks(plt, per, f):
         ax.scatter(d, y, s=46, color=['#d9383a' if v > .5 else '#1f9d55' if v < -.5 else '#bbbbbb' for v in d], zorder=3,
                    edgecolor='white', lw=.7)
         ax.set_xlim(-8, 25); ax.set_title(ARMS[arm]); ax.set_xlabel('Python − GPT (pp)'); ax.tick_params(axis='y', length=0)
-    axes[0].set_yticks(y, [label(s, f) for s in order]); axes[0].set_ylim(-.6, len(order)-.4)
+    row_names(axes[0], order, f); axes[0].set_ylim(-.6, len(order)-.4)
     h = [plt.Line2D([], [], marker='o', ls='', color=c, markersize=7) for c in ('#d9383a', '#bbbbbb', '#1f9d55')]
     fig.legend(h, ['worse with Python', 'about the same (±0.5 pp)', 'better with Python'], loc='lower center', ncol=3,
                frameon=False, bbox_to_anchor=(.5, .97))
@@ -560,9 +587,11 @@ def fig_agreement(plt, per, f):
         ax.plot([0, 35], [0, 35], color='#bbbbbb', lw=1, zorder=1)
         ax.scatter(x, y, s=46, color=ORANGE, edgecolor='white', lw=.7, zorder=3)
         if arm == 'B':
-            ax.annotate(f"Copenhagen\n({num(f.loc['copenhagen_bluetooth', 'pairs'])} pairs, ρ₂ {pct(f.loc['copenhagen_bluetooth', 'rho2'])})",
-                        (x['copenhagen_bluetooth'], y['copenhagen_bluetooth']), xytext=(4, 30),
-                        textcoords='offset points', fontsize=9, arrowprops=dict(arrowstyle='-', color='#888888', lw=.8))
+            xy = (x['copenhagen_bluetooth'], y['copenhagen_bluetooth'])
+            ax.annotate('Copenhagen', xy, xytext=(4, 34), textcoords='offset points', fontsize=9,
+                        arrowprops=dict(arrowstyle='-', color='#888888', lw=.8, relpos=(0, 0), shrinkA=0))
+            ax.annotate(f"({pair_spec('copenhagen_bluetooth', f)})", xy, xytext=(12, 23), textcoords='offset points',
+                        fontsize=8, color=SPEC)
         ax.set_xlim(0, 35); ax.set_ylim(0, 35); ax.set_aspect('equal'); ax.set_title(ARMS[arm])
         ax.set_xlabel('error of MLE (pp)'); ax.spines['left'].set_visible(True)
     axes[0].set_ylabel('error of GPT (pp)')
@@ -579,9 +608,9 @@ def fig_structure(plt, perall, f):
     for r, (col, xlab, ticks) in enumerate(rows):
         for ax, arm in zip(axes[r], ARMS):
             ax.scatter(f[col], t[arm], s=40, color='#333333', zorder=3)
-            txt = 'Malawi (102k events)' if col == 'events' else 'Malawi (55 pairs carry them)'
-            ax.annotate(txt, (f.loc['sp_malawi', col], t.loc['sp_malawi', arm]), xytext=(3, 9), textcoords='offset points',
-                        fontsize=8.5, va='bottom')
+            two_tone(ax, f.loc['sp_malawi', col], t.loc['sp_malawi', arm], 'Malawi',
+                     '102k events' if col == 'events' else '55 pairs carry them', ax.transData, ha='left',
+                     size=8.5, small=8, dx=3, dy=9)
             ax.set_xscale('log'); ax.set_xticks(ticks, [f'{x:,}' for x in ticks]); ax.minorticks_off()
             ax.set_xlabel(xlab, fontsize=9.5); ax.set_ylim(0, 36); ax.set_yticks([0, 10, 20, 30]); ax.spines['left'].set_visible(True)
             if r == 0: ax.set_title(ARMS[arm])
@@ -652,15 +681,16 @@ def fig_cards(plt, perall, f):
         for i, x in enumerate(v): ax.text(i, x + .6, f'{x:.0f}', ha='center', fontsize=9)
         ax.set_xticks(range(4), list(ARMS)); ax.set_ylim(0, 36); ax.set_yticks([]); ax.spines['left'].set_visible(False)
         ax.tick_params(axis='x', length=0)
-        ax.set_title(short(s), fontsize=10.5, loc='left', pad=30)
-        ax.text(0, 1.04, specs(s, f, '\n'), transform=ax.transAxes, fontsize=8.5, color='#555555', linespacing=1.3)
-    fig.subplots_adjust(hspace=.95, wspace=.25)
+        ax.text(0, 1.2, short(s), transform=ax.transAxes, fontsize=10.5, fontweight='bold')
+        ax.text(0, 1.06, f'({pair_spec(s, f)})', transform=ax.transAxes, fontsize=8.5, color=SPEC)
+    fig.subplots_adjust(hspace=.8, wspace=.25)
     note(fig, 'typical error (pp, median of six methods) per arm · 3 samples each', -.01)
     save(fig, 'fig11_cards')
 
 
-def method_heat(plt, per, order, rows, name, header):
+def method_heat(plt, per, order, f, name, header):
     """One small heatmap per method: rows = networks, columns = arms, colour = error level."""
+    rows = order
     fig, axes = plt.subplots(1, len(MAIN), figsize=(15.5, .42*len(rows)+.9))
     for k, (ax, m) in enumerate(zip(axes, MAIN)):
         v = per[per.method == m].pivot(index='source', columns='arm', values='MAE_2').loc[order, list(ARMS)].to_numpy()*100
@@ -671,7 +701,8 @@ def method_heat(plt, per, order, rows, name, header):
                         fontweight='bold' if v[i, j] > 10 else 'normal')
         ax.set_xlim(-.5, 3.5); ax.set_ylim(len(rows)-.5, -.5); unframe(ax)
         ax.set_xticks(range(4), list(ARMS)); ax.set_title(METHODS[m], pad=22)
-        ax.set_yticks(range(len(rows)), rows if k == 0 else ['']*len(rows))
+        if k == 0: row_names(ax, order, f, x=-.04)
+        else: ax.set_yticks(range(len(rows)), ['']*len(rows))
     fig.text(.005, 1 - .55/fig.get_figheight(), header, fontsize=9.5, color='#666666')
     legend_bands(fig, plt, -.3/fig.get_figheight())
     save(fig, name)
@@ -680,7 +711,7 @@ def method_heat(plt, per, order, rows, name, header):
 # Detail figure (linked, not embedded): error per real network, arm and method.
 def fig_networks(plt, per, f):
     order = f.sort_values('rho2').index.tolist()
-    method_heat(plt, per, order, [label(s, f) for s in order], 'fig_networks_detail', 'error (pp) per network')
+    method_heat(plt, per, order, f, 'fig_networks_detail', 'error (pp) per network')
 
 
 # Fig. 0b: what the pairs of each network look like (share of pairs, %).
@@ -699,8 +730,9 @@ def fig_portrait(plt, f):
         ax.barh(y, v, left=left, color=c, height=.72, label=lab)
         left += v
     for yi, s in zip(y, order):
-        ax.text(101.5, yi, specs(s, f), va='center', fontsize=9, color='#444444')
-    ax.set_yticks(y, [short(s) for s in order]); ax.set_xlim(0, 100); ax.set_xticks([0, 25, 50, 75, 100])
+        ax.text(101.5, yi, full_spec(f.loc[s]), va='center', fontsize=8.5, color=SPEC)
+        two_tone(ax, -.01, yi, short(s), TYPES[s], ax.get_yaxis_transform())
+    ax.set_yticks(y, ['']*len(order)); ax.set_xlim(0, 100); ax.set_xticks([0, 25, 50, 75, 100])
     ax.set_xlabel('share of pairs (%)'); ax.spines['bottom'].set_visible(False); ax.tick_params(axis='y', length=0)
     ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
     note(fig, '12 real networks, complete (not sampled)', -.06)
@@ -728,8 +760,7 @@ def fig_synthetic_portrait(plt):
         ax.barh(y, v, left=left, color=c, height=.68, label=lab)
         left += v
     for yi, k in zip(y, keys):
-        ax.text(101.5, yi, f"{num(sv.loc[k, 'nodes'])} nodes · {num(sv.loc[k, 'pairs'])} pairs · {num(sv.loc[k, 'events'])} events · "
-                           f"ρ₂ {pct(sv.loc[k, 'rho2'])}", va='center', fontsize=9, color='#444444')
+        ax.text(101.5, yi, full_spec(sv.loc[k]), va='center', fontsize=8.5, color=SPEC)
     ax.set_yticks(y, [dict(VARIANTS)[k] for k in keys]); ax.set_xlim(0, 100); ax.set_xticks([0, 25, 50, 75, 100])
     ax.set_xlabel('share of pairs (%)'); ax.spines['bottom'].set_visible(False); ax.tick_params(axis='y', length=0)
     ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
@@ -740,19 +771,21 @@ def fig_synthetic_portrait(plt):
 # Fig. 13: what memory does to the estimation task: typical error per arm, without and with memory.
 def fig_synthetic_arms(plt, perall):
     t = typical_error(perall)
-    sv = variant_table()
-    fig, axes = plt.subplots(1, 2, figsize=(12, 3.6), sharey=True)
-    w = .38
+    arms = list(ARMS)[::-1]
+    fig, axes = plt.subplots(1, 2, figsize=(11, 3.3), sharey=True)
+    h = .38
     for ax, (name, without, with_) in zip(axes, (('DAR', 'dar_a0', 'dar_a08'), ('Activity-driven', 'ad_memoryless', 'ad_memory'))):
         for k, (key, c, lab) in enumerate(((without, '#b8b5ad', 'no memory'), (with_, '#333333', 'memory'))):
-            v = [t.loc[[f'{key}_r1', f'{key}_r2'], a].mean() for a in ARMS]
-            xs = np.arange(4) + (k - .5)*w
-            ax.bar(xs, v, width=w*.92, color=c, label=f"{lab} · {num(sv.loc[key, 'pairs'])} pairs · ρ₂ {pct(sv.loc[key, 'rho2'])}")
-            for x, vi in zip(xs, v): ax.text(x, vi + .3, f'{vi:.1f}', ha='center', va='bottom', fontsize=9)
-        ax.set_xticks(range(4), [ARMS[a].replace(' · ', '\n') for a in ARMS]); ax.set_ylim(0, 19); ax.set_yticks([])
-        ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0); ax.set_title(name, pad=10)
-        ax.legend(frameon=False, loc='upper left', fontsize=9.5)
-    note(fig, 'typical error (pp, median of six methods) · 500 nodes and about 10k events each · 2 instances per variant · 3 samples each', -.04)
+            v = [t.loc[[f'{key}_r1', f'{key}_r2'], a].mean() for a in arms]
+            ys = np.arange(4) + (.5 - k)*h
+            ax.barh(ys, v, height=h*.9, color=c, label=lab)
+            for yi, vi in zip(ys, v): ax.text(vi + .3, yi, f'{vi:.1f}', va='center', fontsize=9)
+        ax.set_yticks(range(4), [ARMS[a] for a in arms]); ax.set_xlim(0, 19); ax.set_xticks([])
+        ax.spines['bottom'].set_visible(False); ax.tick_params(axis='y', length=0); ax.set_title(name, pad=10)
+    fig.subplots_adjust(wspace=.08)
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc='lower center', ncol=2, frameon=False, bbox_to_anchor=(.55, .98))
+    note(fig, 'typical error (pp, median of six methods) · 2 instances per variant · 3 samples each', -.04)
     save(fig, 'fig13_synthetic_arms')
 
 
@@ -770,6 +803,169 @@ def fig_windows(plt):
     ax.spines['left'].set_visible(True); ax.legend(frameon=False, loc='lower right')
     note(fig, 'one grey line per real network, complete networks (no sampling)', -.06)
     save(fig, 'fig14_windows')
+
+
+# ---------------------------------------------------------------- the two generators as small animations (GIF)
+PERSIST = '#dbe8f9'   # background of pairs active in >= 2 windows
+
+
+def gif(frames, durations, name):
+    """Write matplotlib figures as one looping GIF with a shared palette."""
+    from PIL import Image
+    import matplotlib.pyplot as plt
+    imgs = []
+    for fig in frames:
+        fig.canvas.draw()
+        imgs.append(Image.fromarray(np.asarray(fig.canvas.buffer_rgba())[..., :3].copy()))
+        plt.close(fig)
+    w, h = imgs[0].size
+    strip = Image.new('RGB', (w, h*len(imgs)))
+    for k, im in enumerate(imgs): strip.paste(im, (0, h*k))
+    palette = strip.quantize(colors=128, method=Image.Quantize.MEDIANCUT)
+    colours = palette.getpalette()
+    for c in range(len(colours)//3):   # near-white entries become white, so the background stays exactly white
+        if min(colours[3*c:3*c + 3]) >= 246: colours[3*c:3*c + 3] = [255, 255, 255]
+    palette.putpalette(colours)
+    out = [im.quantize(palette=palette, dither=Image.Dither.NONE) for im in imgs]
+    out[0].save(FIGS/f'{name}.gif', save_all=True, append_images=out[1:], duration=durations, loop=0)
+
+
+def dar_example(seed=35, P=8, chi=.2, alpha=.8):
+    """A small DAR run with and without memory on the same random draws, as in the study.
+    The seed is picked so that this small example shows the effect of memory clearly."""
+    r = np.random.default_rng(seed)
+    first = r.random(P) < chi
+    keep, fresh = r.random((4, P)), r.random((4, P)) < chi
+    events = 1 + r.poisson(1, (5, P))
+    runs = {}
+    for name, a in (('no memory', 0.), ('memory', alpha)):
+        on, kept = np.zeros((5, P), bool), np.zeros((5, P), bool)
+        on[0] = first
+        for j in range(1, 5):
+            kept[j] = keep[j-1] < a
+            on[j] = np.where(kept[j], on[j-1], fresh[j-1])
+        runs[name] = (on, kept)
+    return runs, events
+
+
+def dar_frame(plt, runs, events, step):
+    """step 0: start; 1-5: windows; 6: events; 7: rho_2."""
+    P = events.shape[1]
+    fig = plt.figure(figsize=(9.6, 5.3))
+    fig.text(.03, .93, 'DAR: each pair is on or off in each window', fontsize=13.5, fontweight='bold')
+    caption = {0: 'A small example: 8 possible pairs, 5 time windows. Both sides use the same random draws.',
+               1: 'Window 1: every pair is on with probability 0.2 (the same draw on both sides).',
+               6: 'A pair that is on in a window gets 1 + Poisson(1) events there (bigger dot = more events).',
+               7: 'ρ₂ = pairs active in ≥ 2 windows (blue) among all pairs with events. Grey pairs never had an event.'}
+    fig.text(.03, .05, caption.get(step, f'Window {step}: left, every pair is drawn anew. '
+                                         'Right, a line means the pair kept its last state.'), fontsize=11)
+    for k, (name, sub) in enumerate((('no memory', 'every window: a new draw'),
+                                     ('memory', 'keeps its last state with probability 0.8'))):
+        on, kept = runs[name]
+        ax = fig.add_axes([.1 + .48*k, .2, .37, .58])
+        ax.set_xlim(-.6, 4.6); ax.set_ylim(P + .2, -1.3); ax.axis('off')
+        fig.text(.1 + .48*k, .865, name, fontsize=12, fontweight='bold')
+        fig.text(.1 + .48*k, .825, sub, fontsize=10, color='#666666')
+        shown = min(step, 5)
+        K = on[:shown].sum(0)
+        if 1 <= step <= 5: ax.add_patch(plt.Rectangle((step - 1.45, -.55), .9, P + .1, color='#f3efe6', lw=0))
+        for j in range(5): ax.text(j, -.95, f'window {j+1}', ha='center', fontsize=8.5, color='#666666')
+        for i in range(P):
+            if step == 7 and K[i] >= 2: ax.add_patch(plt.Rectangle((-.55, i - .42), 5.1, .84, color=PERSIST, lw=0))
+            ax.text(-.75, i, f'pair {"ABCDEFGH"[i]}', ha='right', va='center', fontsize=9.5,
+                    color='#c4c1b8' if step == 7 and K[i] == 0 else '#222222')
+            for j in range(5):
+                if j >= shown: ax.scatter(j, i, s=10, color='#efede8', zorder=2); continue
+                if j and kept[j, i]: ax.plot([j-1, j], [i, i], color='#bdb8ad', lw=2.4, zorder=1, solid_capstyle='round')
+                if on[j, i]: ax.scatter(j, i, s=40 + 35*events[j, i] if step >= 6 else 70, color='#333333', zorder=3)
+                else: ax.scatter(j, i, s=14, color='#d9d6cf', zorder=2)
+        if step == 7:
+            a, b = int((K >= 2).sum()), int((K >= 1).sum())
+            ax.text(2, P + .05, f'ρ₂ = {a} of {b} pairs = {100*a/b:.0f} %', ha='center', fontsize=12, fontweight='bold')
+    return fig
+
+
+def gif_dar(plt):
+    runs, events = dar_example()
+    gif([dar_frame(plt, runs, events, s) for s in range(8)], [3000, 2200, 2000, 2000, 2000, 2000, 2600, 6500], 'gif_dar')
+
+
+AD_ACTIVITY = np.array([.6, .35, .25, .15, .1, .1, .05, .05, .05, .05])
+
+
+def ad_example(seed=88, rounds=10):
+    """A small activity-driven run with and without memory on the same random draws, as in the study.
+    The seed is picked so that this small example shows the effect of memory clearly."""
+    r = np.random.default_rng(seed)
+    N = len(AD_ACTIVITY)
+    activation, decision, partner = r.random((rounds, N)), r.random((rounds, N)), r.random((rounds, N))
+    runs = {}
+    for name in ('no memory', 'memory'):
+        known, out = [set() for _ in range(N)], []
+        for t in range(rounds):
+            picks = []
+            for i in np.flatnonzero(activation[t] < AD_ACTIVITY):
+                if name == 'no memory':
+                    k = int(partner[t, i]*(N-1)); j = k if k < i else k+1
+                else:
+                    old = known[i]
+                    new = len(old) == 0 or (len(old) < N-1 and decision[t, i] < 1/(len(old) + 1))
+                    choices = [j for j in range(N) if j != i and j not in old] if new else sorted(old)
+                    j = choices[int(partner[t, i]*len(choices))]
+                picks.append((int(i), int(j)))
+            pairs = sorted({(min(i, j), max(i, j)) for i, j in picks})
+            for i, j in pairs: known[i].add(j); known[j].add(i)
+            out.append((picks, pairs))
+        runs[name] = out
+    return runs
+
+
+def ad_frame(plt, runs, step, rounds=10):
+    """step 0: start; 1-10: rounds (2 per window); 11: rho_2."""
+    N = len(AD_ACTIVITY)
+    angle = np.pi/2 - 2*np.pi*np.arange(N)/N
+    pos = np.c_[np.cos(angle), np.sin(angle)]
+    fig = plt.figure(figsize=(9.6, 5.6))
+    fig.text(.03, .935, 'Activity-driven: active nodes create events with a partner', fontsize=13.5, fontweight='bold')
+    caption = {0: 'Each node has an activity (dot size): its chance to be active in a round. 10 rounds, 2 per time window.',
+               rounds + 1: 'ρ₂ = pairs active in ≥ 2 windows (blue) among all pairs. With memory, events repeat on fewer pairs.'}
+    fig.text(.03, .045, caption.get(step, f'Round {step} of {rounds} (window {(step + 1)//2} of 5): the same nodes are active '
+                                          'on both sides (orange); each creates one event.'), fontsize=11)
+    for k, (name, sub) in enumerate((('no memory', 'an active node picks a random partner'),
+                                     ('memory', 'it picks a known partner, or a new one with\nprobability 1/(n+1), n = partners it knows'))):
+        ax = fig.add_axes([.05 + .49*k, .15, .41, .6])
+        ax.set_xlim(-1.3, 1.3); ax.set_ylim(-1.25, 1.2); ax.set_aspect('equal'); ax.axis('off')
+        fig.text(.05 + .49*k, .86, name, fontsize=12, fontweight='bold')
+        fig.text(.05 + .49*k, .845, sub, fontsize=10, color='#666666', va='top')
+        past = runs[name][:max(step - 1, 0)] if step <= rounds else runs[name]
+        count, windows = {}, {}
+        for t, (_, pairs) in enumerate(past):
+            for p in pairs: count[p] = count.get(p, 0) + 1; windows.setdefault(p, set()).add(t//2)
+        for (i, j), c in count.items():
+            colour = '#bdb8ad'
+            if step == rounds + 1: colour = BLUE if len(windows[(i, j)]) >= 2 else '#d9d6cf'
+            ax.plot(*pos[[i, j]].T, color=colour, lw=1.2 + 1.6*(c - 1), zorder=1, solid_capstyle='round')
+        active = set()
+        if 1 <= step <= rounds:
+            picks, pairs = runs[name][step - 1]
+            active = {i for i, _ in picks}
+            for i, j in pairs: ax.plot(*pos[[i, j]].T, color=ORANGE, lw=3, zorder=2)
+        ax.scatter(*pos.T, s=60 + 900*AD_ACTIVITY, zorder=3, edgecolor='white', lw=1,
+                   color=[ORANGE if i in active else '#7d7a73' for i in range(N)])
+        if 1 <= step <= rounds:
+            done = runs[name][:step]
+            n_pairs = len({p for _, pairs in done for p in pairs})
+            n_events = sum(len(pairs) for _, pairs in done)
+            ax.text(0, -1.22, f'{n_events} events on {n_pairs} pairs so far', ha='center', fontsize=10.5, color='#444444')
+        if step == rounds + 1:
+            a, b = sum(len(w) >= 2 for w in windows.values()), len(windows)
+            ax.text(0, -1.22, f'ρ₂ = {a} of {b} pairs = {100*a/b:.0f} %', ha='center', fontsize=12, fontweight='bold')
+    return fig
+
+
+def gif_activity(plt):
+    runs = ad_example()
+    gif([ad_frame(plt, runs, s) for s in range(12)], [3500] + [1600]*10 + [6500], 'gif_activity')
 
 
 def draw():
@@ -790,6 +986,7 @@ def draw():
     fig_agreement(plt, per, f); fig_structure(plt, perall, f); fig_persistence(plt, perall); fig_twins(plt, pred)
     fig_cards(plt, perall, f); fig_networks(plt, per, f)
     fig_synthetic_portrait(plt); fig_synthetic_arms(plt, perall); fig_windows(plt)
+    gif_dar(plt); gif_activity(plt)
 
 
 if __name__ == '__main__':

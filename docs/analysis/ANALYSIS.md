@@ -69,16 +69,6 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 - The same ρ₂ can hide different shapes. Malawi and Email EU both have 51 %, but 23 % of Malawi's pairs are active in all 5 windows, against 4 % in Email EU.
 
 <details>
-<summary><h3>What kind of networks these are</h3></summary>
-
-- **Face-to-face (proximity sensors):** Hospital, High school, Workplace, Malawi (a village)
-- **Bluetooth (phones near each other):** Copenhagen, Reality Mining
-- **Email and mailing list:** Email EU, Radoslaw, Linux mailing list
-- **Online messages and replies:** College messages, MathOverflow, Digg replies
-
-</details>
-
-<details>
 <summary><h3>Does the number of time windows matter?</h3></summary>
 
 ![True ρ₂ for other numbers of time windows](figures/fig14_windows.png)
@@ -206,6 +196,27 @@ Real networks differ in many things at once. The synthetic networks change only 
 - **DAR:** each pair is on or off in each window. Without memory, every window is a new draw; with memory, a pair keeps its last state 80 % of the time.
 - **Activity-driven:** active nodes create events with a partner. Without memory, the partner is random; with memory, mostly a known one.
 
+<details>
+<summary><h3>DAR step by step (animation)</h3></summary>
+
+![DAR on a small example, without and with memory](figures/gif_dar.gif)
+
+- **What it models** (Williams et al. 2022): links that switch on and off over time and remember their own past. The authors fit it to public transport, online messages, email, Bluetooth contacts and football players; in the Bluetooth contacts, links copy their past state almost always.
+- **In this study:** 5,000 possible pairs among 500 nodes, 5 windows, on with probability 0.2, last state kept with probability 0 or 0.8, and 1 + Poisson(1) events per window in which a pair is on.
+
+</details>
+
+<details>
+<summary><h3>Activity-driven step by step (animation)</h3></summary>
+
+![Activity-driven on a small example, without and with memory](figures/gif_activity.gif)
+
+- **What it models** (Perra et al. 2012): social networks in which people differ strongly in how often they start an interaction. The activity is heavy-tailed and stable over time in co-authorships, Twitter messages and film casts; the network itself changes all the time.
+- **Memory** (Karsai et al. 2014): in the phone calls of more than six million people, the chance that the next call goes to someone new falls with the number of people called before. People mostly repeat contacts, which creates strong and weak ties.
+- **In this study:** 500 nodes with heavy-tailed activities (exponent 2.8, as in Karsai et al.), 1,000 rounds, one event per active node; with memory, a new partner with probability 1 / (n + 1).
+
+</details>
+
 ![Share of pairs by number of active windows, synthetic networks](figures/fig12_synthetic_portrait.png)
 
 - Memory puts about the same number of events on fewer pairs and makes them persistent: ρ₂ rises from 39 % to 78 % (DAR) and from 6 % to 79 % (activity-driven).
@@ -216,10 +227,8 @@ Real networks differ in many things at once. The synthetic networks change only 
 - These are the two properties that make real networks hard: few pairs carrying the events (S, 8.2) and high persistence (B, 8.5).
 
 <details>
-<summary><h3>How the synthetic networks are made</h3></summary>
+<summary><h3>Instances, and why ExtraTrees is so good here</h3></summary>
 
-- **DAR** (discrete autoregressive; Williams et al. 2022): 5,000 random pairs among 500 nodes. In window 1 a pair is on with probability 0.2. In each later window it keeps its last state with probability α (0 without, 0.8 with memory); otherwise it is on with probability 0.2. A pair that is on has 1 + Poisson(1) events at random times in that window.
-- **Activity-driven** (Perra et al. 2012; memory rule: Karsai et al. 2014): each node has a fixed activity (a few very active nodes, many quiet ones). In each of 1,000 rounds, a node is active with this probability and creates one event with a partner. With memory, a node that knows n partners picks a new one with probability 1 / (n + 1), otherwise a known one.
 - 2 instances per generator. Within an instance, both variants share all random numbers, so only memory differs.
 - ExtraTrees was trained on other networks from the same two generators and is very good here (B with memory: 2–3 pp, against 8–18 pp for MLE and GPT). Without it, the values in the figure change by at most 2.4 pp, and the picture stays the same.
 
@@ -264,6 +273,7 @@ Real networks differ in many things at once. The synthetic networks change only 
 - **Typical error:** median error of the six methods MLE, ExtraTrees, GPT, GPT + Python, DeepSeek and Qwen thinking.
 - **Pairs that carry the events** (effective number of pairs): 1 / Σ (events of a pair / all events)², the inverse Simpson index. Malawi 55, Copenhagen 4,590, Digg 82,900.
 - **Time-shuffled twin:** the same pairs with the same numbers of events; the event times are shuffled.
+- **Generators:** Williams, Mazzarisi, Lillo & Latora, *Phys. Rev. E* 105, 034301 (2022); Perra, Gonçalves, Pastor-Satorras & Vespignani, *Sci. Rep.* 2, 469 (2012); Karsai, Perra & Vespignani, *Sci. Rep.* 4, 4001 (2014).
 - All errors per network and method: [figure](figures/fig_networks_detail.png), [MAIN_RESULTS.md](../results/final/MAIN_RESULTS.md). Robustness: [VARIABILITY.md](../results/final/VARIABILITY.md), [W_SENSITIVITY.md](../results/final/W_SENSITIVITY.md), [WALK.md](../results/final/WALK.md).
 - Redraw: `python scripts/analysis_figures.py`; `--inputs` also rebuilds [`data/`](data) (needs `data/raw` and `~/.local/share/masterthesis`).
 
