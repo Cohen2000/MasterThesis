@@ -212,7 +212,7 @@ Real networks differ in many things at once. The synthetic networks change only 
 
 ![Typical error without and with memory, per arm](figures/fig13_synthetic_arms.png)
 
-- With memory, the walk (S) and event loss (B) get harder in both generators; R does not.
+- With memory, the walk (S) and event loss (B) get harder in both generators. R does not; H only with activity-driven.
 - These are the two properties that make real networks hard: few pairs carrying the events (S, 8.2) and high persistence (B, 8.5).
 
 <details>
