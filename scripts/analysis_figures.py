@@ -281,10 +281,6 @@ def pct(r): return f'{100*r:.1f} %' if r < .01 else f'{100*r:.0f} %'
 
 
 SPEC = '#9a9a9a'   # small grey specs next to a network's name
-TYPES = {'copenhagen_bluetooth': 'Bluetooth', 'lkml_reply': 'mailing list', 'nr_digg_reply': 'online replies',
-         'nr_radoslaw_email': 'email', 'reality_mining': 'Bluetooth', 'snap_collegemsg': 'online messages',
-         'snap_email_eu': 'email', 'snap_mathoverflow': 'Q&A site', 'sp_highschool2013': 'face-to-face',
-         'sp_hospital': 'face-to-face', 'sp_malawi': 'face-to-face', 'sp_workplace': 'face-to-face'}
 
 
 def pair_spec(s, f):
@@ -731,8 +727,7 @@ def fig_portrait(plt, f):
         left += v
     for yi, s in zip(y, order):
         ax.text(101.5, yi, full_spec(f.loc[s]), va='center', fontsize=8.5, color=SPEC)
-        two_tone(ax, -.01, yi, short(s), TYPES[s], ax.get_yaxis_transform())
-    ax.set_yticks(y, ['']*len(order)); ax.set_xlim(0, 100); ax.set_xticks([0, 25, 50, 75, 100])
+    ax.set_yticks(y, [short(s) for s in order]); ax.set_xlim(0, 100); ax.set_xticks([0, 25, 50, 75, 100])
     ax.set_xlabel('share of pairs (%)'); ax.spines['bottom'].set_visible(False); ax.tick_params(axis='y', length=0)
     ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
     note(fig, '12 real networks, complete (not sampled)', -.06)
@@ -848,46 +843,72 @@ def dar_example(seed=35, P=8, chi=.2, alpha=.8):
     return runs, events
 
 
+def callout(ax, text, xy, xytext):
+    """A short orange label with an arrow, pointing at what happens right now."""
+    ax.annotate(text, xy, xytext=xytext, fontsize=10, color=ORANGE, va='center', ha='left', zorder=6,
+                annotation_clip=False, arrowprops=dict(arrowstyle='-|>', color=ORANGE, lw=1.1, shrinkA=3, shrinkB=7,
+                                                       mutation_scale=9))
+
+
 def dar_frame(plt, runs, events, step):
     """step 0: start; 1-5: windows; 6: events; 7: rho_2."""
     P = events.shape[1]
-    fig = plt.figure(figsize=(9.6, 5.3))
-    fig.text(.03, .93, 'DAR: each pair is on or off in each window', fontsize=13.5, fontweight='bold')
-    caption = {0: 'A small example: 8 possible pairs, 5 time windows. Both sides use the same random draws.',
-               1: 'Window 1: every pair is on with probability 0.2 (the same draw on both sides).',
-               6: 'A pair that is on in a window gets 1 + Poisson(1) events there (bigger dot = more events).',
-               7: 'ρ₂ = pairs active in ≥ 2 windows (blue) among all pairs with events. Grey pairs never had an event.'}
-    fig.text(.03, .05, caption.get(step, f'Window {step}: left, every pair is drawn anew. '
-                                         'Right, a line means the pair kept its last state.'), fontsize=11)
-    for k, (name, sub) in enumerate((('no memory', 'every window: a new draw'),
-                                     ('memory', 'keeps its last state with probability 0.8'))):
+    fig = plt.figure(figsize=(10.8, 5.0))
+    fig.text(.03, .92, 'DAR: every pair is on or off in each window', fontsize=13.5, fontweight='bold')
+    where = {0: 'same random draws on both sides', 6: 'events', 7: 'result'}.get(step, f'window {step} of 5')
+    fig.text(.97, .92, where, fontsize=12, color=ORANGE, ha='right', fontweight='bold')
+    j = step - 1 if 1 <= step <= 5 else None
+    for k, name in enumerate(('no memory', 'memory')):
         on, kept = runs[name]
-        ax = fig.add_axes([.1 + .48*k, .2, .37, .58])
-        ax.set_xlim(-.6, 4.6); ax.set_ylim(P + .2, -1.3); ax.axis('off')
-        fig.text(.1 + .48*k, .865, name, fontsize=12, fontweight='bold')
-        fig.text(.1 + .48*k, .825, sub, fontsize=10, color='#666666')
+        ax = fig.add_axes([.08 + .5*k, .04, .41, .76])
+        ax.set_xlim(-.6, 7.6); ax.set_ylim(P + .7, -1.6); ax.axis('off')
+        ax.text(-1.5, -1.45, name, fontsize=12, fontweight='bold')
         shown = min(step, 5)
         K = on[:shown].sum(0)
-        if 1 <= step <= 5: ax.add_patch(plt.Rectangle((step - 1.45, -.55), .9, P + .1, color='#f3efe6', lw=0))
-        for j in range(5): ax.text(j, -.95, f'window {j+1}', ha='center', fontsize=8.5, color='#666666')
+        if j is not None: ax.add_patch(plt.Rectangle((j - .45, -.55), .9, P + .1, color='#f3efe6', lw=0))
+        ax.text(-.75, -.95, 'window', ha='right', fontsize=9, color='#999999')
+        for c in range(5):
+            ax.text(c, -.95, c + 1, ha='center', fontsize=10, color='#222222' if c == j else '#999999',
+                    fontweight='bold' if c == j else 'normal')
+        new = []
         for i in range(P):
             if step == 7 and K[i] >= 2: ax.add_patch(plt.Rectangle((-.55, i - .42), 5.1, .84, color=PERSIST, lw=0))
             ax.text(-.75, i, f'pair {"ABCDEFGH"[i]}', ha='right', va='center', fontsize=9.5,
                     color='#c4c1b8' if step == 7 and K[i] == 0 else '#222222')
-            for j in range(5):
-                if j >= shown: ax.scatter(j, i, s=10, color='#efede8', zorder=2); continue
-                if j and kept[j, i]: ax.plot([j-1, j], [i, i], color='#bdb8ad', lw=2.4, zorder=1, solid_capstyle='round')
-                if on[j, i]: ax.scatter(j, i, s=40 + 35*events[j, i] if step >= 6 else 70, color='#333333', zorder=3)
-                else: ax.scatter(j, i, s=14, color='#d9d6cf', zorder=2)
-        if step == 7:
+            for c in range(5):
+                if c >= shown: ax.scatter(c, i, s=10, color='#efede8', zorder=2); continue
+                if c and kept[c, i]:
+                    ax.plot([c-1, c], [i, i], color=ORANGE if c == j else '#bdb8ad', lw=2.4, zorder=1, solid_capstyle='round')
+                if on[c, i]: ax.scatter(c, i, s=40 + 35*events[c, i] if step >= 6 else 70, color='#333333', zorder=3)
+                else: ax.scatter(c, i, s=14, color='#d9d6cf', zorder=2)
+                if c == j and not kept[c, i]:
+                    ax.scatter(c, i, s=230, facecolor='none', edgecolor=ORANGE, lw=1.4, zorder=4); new.append(i)
+        rows = range(P)
+        if step == 1:
+            i = next(i for i in rows if on[0, i]); callout(ax, 'on: chance 0.2', (0, i), (5.1, i))
+        elif j is not None:
+            stay = [i for i in rows if kept[j, i]]
+            target = [i for i in new if on[j, i]] or new
+            if target: callout(ax, 'new draw', (j, target[0]), (5.1, target[0]))
+            if stay:
+                i = ([i for i in stay if on[j, i]] or stay)[0]
+                y = i if not target or abs(i - target[0]) > 1 else target[0] + (2 if target[0] < P - 2 else -2)
+                callout(ax, 'kept: chance 0.8', (j, i), (5.1, y))
+        elif step == 6:
+            c, i = np.unravel_index(np.argmax(np.where(on, events, 0)), on.shape)
+            callout(ax, f'{events[c, i]} events', (c, i), (5.1, i))
+        elif step == 7:
+            i = int(np.argmax(K >= 2)); callout(ax, '≥ 2 windows', (4.5, i), (5.1, i))
+            if (K == 0).any():
+                i = int(np.argmax(K == 0)); callout(ax, 'never on: no pair', (4.5, i), (5.1, i))
             a, b = int((K >= 2).sum()), int((K >= 1).sum())
-            ax.text(2, P + .05, f'ρ₂ = {a} of {b} pairs = {100*a/b:.0f} %', ha='center', fontsize=12, fontweight='bold')
+            ax.text(2, P + .25, f'ρ₂ = {a} of {b} pairs = {100*a/b:.0f} %', ha='center', fontsize=12, fontweight='bold')
     return fig
 
 
 def gif_dar(plt):
     runs, events = dar_example()
-    gif([dar_frame(plt, runs, events, s) for s in range(8)], [3000, 2200, 2000, 2000, 2000, 2000, 2600, 6500], 'gif_dar')
+    gif([dar_frame(plt, runs, events, s) for s in range(8)], [3000, 2600, 2800, 2800, 2800, 2800, 2800, 6500], 'gif_dar')
 
 
 AD_ACTIVITY = np.array([.6, .35, .25, .15, .1, .1, .05, .05, .05, .05])
@@ -925,47 +946,51 @@ def ad_frame(plt, runs, step, rounds=10):
     N = len(AD_ACTIVITY)
     angle = np.pi/2 - 2*np.pi*np.arange(N)/N
     pos = np.c_[np.cos(angle), np.sin(angle)]
-    fig = plt.figure(figsize=(9.6, 5.6))
-    fig.text(.03, .935, 'Activity-driven: active nodes create events with a partner', fontsize=13.5, fontweight='bold')
-    caption = {0: 'Each node has an activity (dot size): its chance to be active in a round. 10 rounds, 2 per time window.',
-               rounds + 1: 'ρ₂ = pairs active in ≥ 2 windows (blue) among all pairs. With memory, events repeat on fewer pairs.'}
-    fig.text(.03, .045, caption.get(step, f'Round {step} of {rounds} (window {(step + 1)//2} of 5): the same nodes are active '
-                                          'on both sides (orange); each creates one event.'), fontsize=11)
-    for k, (name, sub) in enumerate((('no memory', 'an active node picks a random partner'),
-                                     ('memory', 'it picks a known partner, or a new one with\nprobability 1/(n+1), n = partners it knows'))):
-        ax = fig.add_axes([.05 + .49*k, .15, .41, .6])
-        ax.set_xlim(-1.3, 1.3); ax.set_ylim(-1.25, 1.2); ax.set_aspect('equal'); ax.axis('off')
-        fig.text(.05 + .49*k, .86, name, fontsize=12, fontweight='bold')
-        fig.text(.05 + .49*k, .845, sub, fontsize=10, color='#666666', va='top')
+    fig = plt.figure(figsize=(10.8, 5.4))
+    fig.text(.03, .925, 'Activity-driven: active nodes create events with a partner', fontsize=13.5, fontweight='bold')
+    where = {0: 'dot size = activity', rounds + 1: 'result'}.get(step, f'round {step} of {rounds} · window {(step + 1)//2}')
+    fig.text(.97, .925, where, fontsize=12, color=ORANGE, ha='right', fontweight='bold')
+    for k, name in enumerate(('no memory', 'memory')):
+        ax = fig.add_axes([.03 + .5*k, .03, .44, .8])
+        ax.set_xlim(-1.75, 1.75); ax.set_ylim(-1.45, 1.35); ax.set_aspect('equal'); ax.axis('off')
+        ax.text(-1.75, 1.3, name, fontsize=12, fontweight='bold')
         past = runs[name][:max(step - 1, 0)] if step <= rounds else runs[name]
         count, windows = {}, {}
         for t, (_, pairs) in enumerate(past):
             for p in pairs: count[p] = count.get(p, 0) + 1; windows.setdefault(p, set()).add(t//2)
         for (i, j), c in count.items():
-            colour = '#bdb8ad'
-            if step == rounds + 1: colour = BLUE if len(windows[(i, j)]) >= 2 else '#d9d6cf'
+            colour = '#bdb8ad' if step <= rounds else BLUE if len(windows[(i, j)]) >= 2 else '#d9d6cf'
             ax.plot(*pos[[i, j]].T, color=colour, lw=1.2 + 1.6*(c - 1), zorder=1, solid_capstyle='round')
         active = set()
         if 1 <= step <= rounds:
             picks, pairs = runs[name][step - 1]
             active = {i for i, _ in picks}
-            for i, j in pairs: ax.plot(*pos[[i, j]].T, color=ORANGE, lw=3, zorder=2)
+            for i, j in pairs:
+                ax.plot(*pos[[i, j]].T, color=ORANGE, lw=3, zorder=2)
+                tag = 'random' if name == 'no memory' else 'known' if (i, j) in count else 'new'
+                ax.text(*pos[[i, j]].mean(0), tag, fontsize=9.5, color=ORANGE, ha='center', va='center', zorder=5,
+                        bbox=dict(facecolor='white', edgecolor='none', pad=1))
         ax.scatter(*pos.T, s=60 + 900*AD_ACTIVITY, zorder=3, edgecolor='white', lw=1,
                    color=[ORANGE if i in active else '#7d7a73' for i in range(N)])
+        if step == 0 and k == 0:
+            callout(ax, 'often active', pos[0], (.35, 1.22))
+            callout(ax, 'rarely active', pos[6], (-1.75, -1.3))
         if 1 <= step <= rounds:
             done = runs[name][:step]
-            n_pairs = len({p for _, pairs in done for p in pairs})
-            n_events = sum(len(pairs) for _, pairs in done)
-            ax.text(0, -1.22, f'{n_events} events on {n_pairs} pairs so far', ha='center', fontsize=10.5, color='#444444')
+            n_pairs, n_events = len({p for _, prs in done for p in prs}), sum(len(prs) for _, prs in done)
+            ax.text(0, -1.35, f'{n_events} events on {n_pairs} pairs', ha='center', fontsize=10.5, color='#444444')
         if step == rounds + 1:
             a, b = sum(len(w) >= 2 for w in windows.values()), len(windows)
-            ax.text(0, -1.22, f'ρ₂ = {a} of {b} pairs = {100*a/b:.0f} %', ha='center', fontsize=12, fontweight='bold')
+            ax.text(0, -1.35, f'ρ₂ = {a} of {b} pairs = {100*a/b:.0f} %', ha='center', fontsize=12, fontweight='bold')
+            (i, j) = max((p for p in windows if len(windows[p]) >= 2), key=lambda p: count[p])
+            ax.text(*pos[[i, j]].mean(0), '≥ 2 windows', fontsize=9.5, color=BLUE, ha='center', va='center', zorder=5,
+                    bbox=dict(facecolor='white', edgecolor='none', pad=1))
     return fig
 
 
 def gif_activity(plt):
     runs = ad_example()
-    gif([ad_frame(plt, runs, s) for s in range(12)], [3500] + [1600]*10 + [6500], 'gif_activity')
+    gif([ad_frame(plt, runs, s) for s in range(12)], [3500] + [2000]*10 + [6500], 'gif_activity')
 
 
 def draw():
