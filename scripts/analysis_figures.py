@@ -46,30 +46,12 @@ COLOUR = {'plugin': GREY, 'mle': BLUE, 'et': AQUA}
 
 
 # ---------------------------------------------------------------- inputs (needs data outside the repo)
-TIMELINE_PAIRS, TIMELINE_BINS = 100, 16   # pairs drawn per network; time bins per window
-
-
-def timeline_rows(g):
-    """When the pairs of one network have events: 100 randomly drawn pairs, 16 time bins per window.
-
-    The pairs are drawn in proportion to the six kinds of the portrait figure (one event ... active in
-    5 windows) and come in the order of the figure: most windows first, then by first and last event."""
-    K, m = g.K, g.m
-    kind = np.where(m == 1, 0, np.where(K == 1, 1, K))
-    share = np.bincount(kind, minlength=6)/g.D
-    rows = np.floor(share*TIMELINE_PAIRS).astype(int)          # rounded so that the rows add up to 100
-    rows[np.argsort(-(share*TIMELINE_PAIRS - rows), kind='stable')[:TIMELINE_PAIRS - rows.sum()]] += 1
-    r = np.random.default_rng(0)
-    chosen = np.concatenate([r.choice(np.flatnonzero(kind == k), rows[k], replace=False) for k in range(6)])
-    width = (g.horizon[1] - g.horizon[0])/5
-    inside = np.clip(((g.t - g.horizon[0] - width*g.w)/width*TIMELINE_BINS).astype(int), 0, TIMELINE_BINS - 1)
-    row = np.full(g.D, -1); row[chosen] = np.arange(len(chosen))
-    seen = row[g.pair] >= 0
-    on = np.zeros((len(chosen), 5*TIMELINE_BINS), bool)
-    on[row[g.pair[seen]], (g.w*TIMELINE_BINS + inside)[seen]] = True
-    first, last = on.argmax(1), on.shape[1] - 1 - on[:, ::-1].argmax(1)
-    return [{'source': g.key, 'windows': int(K[chosen[i]]), 'events': int(m[chosen[i]]),
-             'timeline': ''.join(map(str, on[i].astype(int)))} for i in np.lexsort((last, first, -kind[chosen]))]
+def activity_rows(g):
+    """When the pairs of one network are active: for pairs active in 1, 2, ... 5 windows, the share of all
+    pairs of the network that are of this kind and active in window 1, ... 5."""
+    on, K = g.counts > 0, g.K
+    return [{'source': g.key, 'windows_of_pair': k, **{f'window_{j + 1}': float(on[K == k][:, j].sum()/g.D) for j in range(5)}}
+            for k in range(1, 6)]
 
 
 def build_inputs(external):
@@ -85,7 +67,7 @@ def build_inputs(external):
     obs = {p.stem: json.loads(p.read_text()) for p in sorted((external/'api_observations').glob('*.json'))}
 
     # Network features from the raw data; the rebuilt truth must equal TRUTH.json exactly.
-    rows, timelines = [], []
+    rows, activity = [], []
     tmp = tempfile.TemporaryDirectory()
     for key in NAMES:
         spec = CFG['stage2_sources'].get(key, {})
@@ -96,7 +78,7 @@ def build_inputs(external):
         if abs(g.truth[0] - truth[key][0]) > 1e-12: raise ValueError(f'{key}: rebuilt truth differs from TRUTH.json')
         twin = shuffle(g)   # the time-shuffled twin, rebuilt from its fixed seed
         if abs(twin.truth[0] - truth[twin.key][0]) > 1e-12: raise ValueError(f'{twin.key}: rebuilt truth differs from TRUTH.json')
-        timelines += timeline_rows(g) + timeline_rows(twin)
+        activity += activity_rows(g) + activity_rows(twin)
         m = g.m
         blocks = {a: [parse(o['block']) for o in obs.values() if o['graph_id'] == key and o['arm'] == a] for a in ARMS}
         rows.append({'source': key, 'nodes': g.N, 'pairs': g.D, 'events': g.M, 'rho2': g.truth[0],
@@ -124,7 +106,7 @@ def build_inputs(external):
         for replicate in (1, 2):
             for g, _, _ in generate_pair(family, replicate):
                 if abs(g.truth[0] - truth[g.key][0]) > 1e-12: raise ValueError(f'{g.key}: truth differs')
-                if replicate == 1: timelines += timeline_rows(g)
+                activity += activity_rows(g)
                 syn.append({'source': g.key, 'nodes': g.N, 'pairs': g.D, 'events': g.M,
                             'events_per_pair': g.M/g.D, 'rho2': g.truth[0],
                             'effective_pairs': float(1/np.sum((g.m/g.M)**2)),
@@ -132,8 +114,8 @@ def build_inputs(external):
                             'share_one_window_several': float(np.mean((g.K == 1) & (g.m > 1))),
                             **{f'share_{k}_windows': float(np.mean(g.K == k)) for k in range(2, 6)}})
     pd.DataFrame(syn).set_index('source').to_csv(DATA/'synthetic_features.csv', float_format='%.6g')
-    # Timelines of the 12 real networks, their 12 twins and the first instance of each synthetic variant.
-    pd.DataFrame(timelines).to_csv(DATA/'timelines.csv', index=False)
+    # Per-window activity of the 12 real networks, their 12 twins and the 8 synthetic networks.
+    pd.DataFrame(activity).to_csv(DATA/'window_activity.csv', index=False, float_format='%.6g')
 
     # Every language-model answer: near which simple reference value does its rho_2 lie (within 0.5 pp)?
     # Checked in this order: the S reweighting (each walk traversal counts 1 / events of its pair),
@@ -291,6 +273,8 @@ def fig_toy(plt):
 # ---------------------------------------------------------------- shared pieces
 REAL_NOTE = '12 real networks · 3 samples each'
 LM3 = (('gpt_6_sol', ORANGE), ('deepseek_flash', VIOLET), ('qwen_thinking', '#e87ba4'))
+MLE_LM3 = (('mle', BLUE),) + LM3
+LEVELS = ['ρ₂', 'ρ₃', 'ρ₄', 'ρ₅']
 
 
 def note(fig, text, y=-.04):
@@ -359,13 +343,21 @@ def r2_answers(pred, group='real'):
     return p
 
 
-def network_dots(plt, ax, order, values, xlab, xlim, f):
-    """One row per network; one coloured dot per language model."""
+def level_errors(pred):
+    """Error of every level of the profile (pp), per group, network, arm and method (mean over samples and answers)."""
+    truth = json.loads((FINAL/'TRUTH.json').read_text())
+    p = pred[pred.prediction.notna() & (pred.valid == True) & (pred.replicate.isna() | (pred.replicate == 0))]
+    e = 100*np.abs(np.array([json.loads(v) for v in p.prediction]) - np.array([truth[s] for s in p.source]))
+    return pd.DataFrame(e, index=p.index, columns=LEVELS).groupby([p.group, p.source, p.arm, p.method]).mean()
+
+
+def network_dots(plt, ax, order, values, xlab, xlim, f, models=LM3):
+    """One row per network; one coloured dot per model."""
     y = np.arange(len(order))
     for yi in y: ax.axhline(yi, color='#f0efeb', lw=6, zorder=0)
-    for k, (m, c) in enumerate(LM3):
+    for k, (m, c) in enumerate(models):
         v = [values[m].get(s, np.nan) for s in order]
-        ax.scatter(v, y + (k - 1)*.2, s=42, color=c, edgecolor='white', lw=.7, zorder=3, label=METHODS[m])
+        ax.scatter(v, y + (k - (len(models) - 1)/2)*.6/len(models), s=42, color=c, edgecolor='white', lw=.7, zorder=3, label=METHODS[m])
     row_names(ax, order, f); ax.set_xlim(*xlim); ax.set_xlabel(xlab)
     ax.tick_params(axis='y', length=0); ax.set_ylim(-.6, len(order)-.4)
 
@@ -445,17 +437,33 @@ def fig_amount(plt, pred, summary):
     save(fig, 'fig2b_amount')
 
 
-def grouped_bars(plt, ax, groups, values, ymax, fmt='{:.0f}', title=''):
+# Fig. 2c: the error at every level of the profile, per arm (12 real networks).
+def fig_levels(plt, pred):
+    e = level_errors(pred).loc['real'].groupby(['arm', 'method']).mean()
+    fig, axes = plt.subplots(1, 4, figsize=(14, 3.4), sharey=True)
+    for ax, arm in zip(axes, ARMS):
+        for m, c in (('plugin', GREY), ('mle', BLUE), ('et', AQUA)) + LM3:
+            ax.plot(range(4), e.loc[(arm, m)], color=c, lw=2, marker='o', markersize=5, ls=(0, (4, 2)) if m == 'plugin' else '-',
+                    label=METHODS[m])
+        ax.set_xticks(range(4), LEVELS); ax.set_title(ARMS[arm]); ax.set_ylim(0, 32); ax.spines['left'].set_visible(True)
+    axes[0].set_ylabel('error (pp)')
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc='lower center', ncol=6, frameon=False, bbox_to_anchor=(.5, .98))
+    note(fig, REAL_NOTE + ' (language models: 3 answers per sample)', -.06)
+    save(fig, 'fig2c_levels')
+
+
+def grouped_bars(plt, ax, groups, values, ymax, fmt='{:.0f}', title='', models=LM3):
     """values[model][group] -> bars; one colour per model, values written on top."""
-    w = .8/len(LM3)
-    for k, (m, c) in enumerate(LM3):
-        xs = np.arange(len(groups)) + (k - (len(LM3)-1)/2)*w
+    w = .8/len(models)
+    for k, (m, c) in enumerate(models):
+        xs = np.arange(len(groups)) + (k - (len(models)-1)/2)*w
         vs = [values[m][g] for g in groups]
         ax.bar(xs, vs, width=w*.92, color=c, label=METHODS[m])
         for x, v in zip(xs, vs): ax.text(x, v + ymax*.015, fmt.format(v), ha='center', va='bottom', fontsize=9)
     ax.set_xticks(range(len(groups)), [ARMS[g] for g in groups]); ax.set_ylim(0, ymax); ax.set_yticks([])
     ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0); ax.set_title(title, pad=12)
-    ax.legend(frameon=False, ncol=3, loc='upper center', bbox_to_anchor=(.5, -.12))
+    ax.legend(frameon=False, ncol=len(models), loc='upper center', bbox_to_anchor=(.5, -.12))
 
 
 # Fig. 3: share of answers that equal the textbook answer (R: the naive share; S: the simple reweighting).
@@ -496,7 +504,7 @@ def correction_table(pred):
     """Per answer: needed = truth − naive share, done = answer − naive share; samples off by ≥ 5 pp only."""
     p = r2_answers(pred)
     naive = p[p.method == 'plugin'].groupby('observation_id').r2.first()
-    a = p[p.method.isin(LLMS) & (p.valid == True)].copy()
+    a = p[p.method.isin(LLMS + ['mle']) & (p.valid == True)].copy()
     a['need'] = 100*a.truth_rho2 - a.observation_id.map(naive)
     a['done'] = a.r2 - a.observation_id.map(naive)
     a = a[a.need.abs() >= 5]
@@ -509,10 +517,10 @@ def correction_table(pred):
 def fig_correction(plt, pred):
     a = correction_table(pred)
     t = a.groupby(['arm', 'method']).type.value_counts(normalize=True).unstack()
-    vals = {m: {arm: 100*t.loc[(arm, m), 'about right'] for arm in 'HB'} for m, _ in LM3}
-    fig, ax = plt.subplots(figsize=(6.5, 3.3))
-    grouped_bars(plt, ax, ['H', 'B'], vals, 75, '{:.0f} %', 'Answers that correct by about the right amount')
-    note(fig, REAL_NOTE + ' × 3 answers · only samples off by ≥ 5 pp', -.2)
+    vals = {m: {arm: 100*t.loc[(arm, m), 'about right'] for arm in 'HB'} for m, _ in MLE_LM3}
+    fig, ax = plt.subplots(figsize=(7.5, 3.3))
+    grouped_bars(plt, ax, ['H', 'B'], vals, 92, '{:.0f} %', 'Answers that correct by about the right amount', MLE_LM3)
+    note(fig, REAL_NOTE + ' × 3 answers (MLE: 1) · only samples off by ≥ 5 pp', -.2)
     save(fig, 'fig4_correction')
 
 
@@ -523,11 +531,11 @@ def fig_correction_networks(plt, pred, f):
     share = a.groupby(['method', 'source']).type.apply(lambda s: 100*(s == 'about right').mean())
     count = a.groupby(['method', 'source']).size()
     order = network_order(f)
-    vals = {m: {s: share[(m, s)] for s in order if (m, s) in share.index and count[(m, s)] >= 3} for m, _ in LM3}
+    vals = {m: {s: share[(m, s)] for s in order if (m, s) in share.index and count[(m, s)] >= 3} for m, _ in MLE_LM3}
     fig, ax = plt.subplots(figsize=(7.5, 4.4))
-    network_dots(plt, ax, order, vals, 'answers that correct by about the right amount (%)', (-5, 105), f)
+    network_dots(plt, ax, order, vals, 'answers that correct by about the right amount (%)', (-5, 105), f, MLE_LM3)
     ax.set_title('H and B together, per network', pad=12)
-    ax.legend(frameon=False, ncol=3, loc='upper center', bbox_to_anchor=(.45, -.14))
+    ax.legend(frameon=False, ncol=4, loc='upper center', bbox_to_anchor=(.4, -.14), columnspacing=1.2)
     note(fig, 'networks sorted by true ρ₂ · only samples off by ≥ 5 pp (Digg and Linux: none)', -.18)
     save(fig, 'fig4b_correction_networks')
 
@@ -535,21 +543,22 @@ def fig_correction_networks(plt, pred, f):
 # Fig. 4c: mean estimates of rho_2..rho_5 against the truth, per arm (12 real networks).
 def fig_profile(plt, pred):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
-    p = pred[(pred.group == 'real') & pred.prediction.notna() & ((pred.valid == True) | (pred.method == 'plugin'))]
-    p = p[p.method.isin(['plugin', 'gpt_6_sol'])]
+    p = pred[(pred.group == 'real') & pred.prediction.notna() & (pred.valid == True)]
     prof = pd.DataFrame([json.loads(v) for v in p.prediction], index=p.index, columns=[2, 3, 4, 5])*100
     mean = prof.groupby([p.arm, p.method, p.source]).mean().groupby(level=[0, 1]).mean()
     t = pd.DataFrame({s: truth[s] for s in p.source.unique()}, index=[2, 3, 4, 5]).T.mean()*100
     fig, axes = plt.subplots(1, 4, figsize=(14, 3.4), sharey=True)
     k = np.arange(4)
     for ax, arm in zip(axes, ARMS):
-        ax.plot(k, t.to_numpy(), color='#333333', lw=2.5, marker='o', label='truth')
-        ax.plot(k, mean.loc[(arm, 'gpt_6_sol')].to_numpy(), color=ORANGE, lw=2.2, marker='o', label='GPT')
-        ax.plot(k, mean.loc[(arm, 'plugin')].to_numpy(), color=GREY, lw=2.2, marker='o', ls=(0, (4, 2)), label='naive share')
-        ax.set_xticks(k, ['ρ₂', 'ρ₃', 'ρ₄', 'ρ₅']); ax.set_title(ARMS[arm]); ax.set_ylim(0, 75)
+        ax.plot(k, t.to_numpy(), color='#333333', lw=3, marker='o', label='truth', zorder=5)
+        for m, c in (('plugin', GREY),) + MLE_LM3:
+            ax.plot(k, mean.loc[(arm, m)].to_numpy(), color=c, lw=1.8, marker='o', markersize=4.5,
+                    ls=(0, (4, 2)) if m == 'plugin' else '-', label=METHODS[m])
+        ax.set_xticks(k, LEVELS); ax.set_title(ARMS[arm]); ax.set_ylim(0, 75)
         ax.spines['left'].set_visible(True)
     axes[0].set_ylabel('share of pairs (%)')
-    axes[0].legend(frameon=False, loc='upper right')
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc='lower center', ncol=6, frameon=False, bbox_to_anchor=(.5, .98))
     note(fig, 'mean over 12 real networks · 3 samples (× 3 answers) each', -.06)
     save(fig, 'fig4c_profile')
 
@@ -576,27 +585,6 @@ def fig_noise_networks(plt, pred, f):
     ax.legend(frameon=False, ncol=3, loc='upper center', bbox_to_anchor=(.45, -.14))
     note(fig, 'networks sorted by true ρ₂ · median over samples, mean of H and B', -.18)
     save(fig, 'fig5b_noise_networks')
-
-
-# Fig. 5d: do the three answers agree? Error of the samples whose answers agree and of those whose answers differ.
-def fig_agree(plt, pred):
-    p = r2_answers(pred)
-    p = p[p.method.isin([m for m, _ in LM3]) & (p.valid == True) & p.arm.isin(['H', 'B'])]
-    s = p.groupby(['method', 'observation_id']).agg(spread=('r2', 'std'), answers=('r2', 'size'), error=('AE2', 'mean'))
-    s = s[s.answers == 3].reset_index()
-    v = 100*s.groupby(['method', s.spread > 5]).error.mean()
-    fig, ax = plt.subplots(figsize=(7.5, 3.2))
-    w = .38
-    for k, (differ, c, lab) in enumerate(((False, '#b8b5ad', 'the three answers agree (spread ≤ 5 pp)'), (True, '#333333', 'they differ (spread > 5 pp)'))):
-        xs = np.arange(len(LM3)) + (k - .5)*w
-        vs = [v[(m, differ)] for m, _ in LM3]
-        ax.bar(xs, vs, width=w*.92, color=c, label=lab)
-        for x, y in zip(xs, vs): ax.text(x, y + .4, f'{y:.1f}', ha='center', va='bottom', fontsize=9.5)
-    ax.set_xticks(range(len(LM3)), [METHODS[m] for m, _ in LM3]); ax.set_ylim(0, 26); ax.set_yticks([])
-    ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0)
-    ax.legend(frameon=False, ncol=2, loc='upper center', bbox_to_anchor=(.5, -.12)); ax.set_title('Error (pp)', pad=12)
-    note(fig, '12 real networks · H and B together · 72 samples per model', -.2)
-    save(fig, 'fig5d_agree')
 
 
 # Fig. 5c: a new sample of the same network: MLE's estimate from each of the 3 samples against the truth.
@@ -715,23 +703,29 @@ def fig_structure(plt, perall, f):
         save(fig, name)
 
 
-# Fig. 9: typical error against true rho_2, all 32 networks, per arm.
-def fig_persistence(plt, perall):
+# Fig. 9: typical error of every level of the profile against its true value, all 32 networks, per arm.
+def fig_persistence(plt, pred):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
-    t = typical_error(perall)
-    rho = pd.Series({s: 100*truth[s][0] for s in t.index})
-    groups = (('real', [s for s in t.index if s in NAMES], dict(color='#333333')),
-              ('time-shuffled twin', [s for s in t.index if s.endswith('__pwt')], dict(color='white', edgecolor='#333333', lw=1.1)),
-              ('synthetic', [s for s in t.index if s not in NAMES and not s.endswith('__pwt')], dict(color=BLUE)))
-    fig, axes = plt.subplots(1, 4, figsize=(14, 3.3), sharey=True)
-    for ax, arm in zip(axes, ARMS):
-        for lab, keys, style in groups: ax.scatter(rho[keys], t.loc[keys, arm], s=34, zorder=3, label=lab, **style)
-        ax.set_xlim(0, 90); ax.set_ylim(0, 35); ax.set_title(ARMS[arm]); ax.set_xlabel('true ρ₂ (%)')
-        ax.spines['left'].set_visible(True)
-    axes[0].set_ylabel('typical error (pp)')
-    h, l = axes[0].get_legend_handles_labels()
-    fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .98))
-    note(fig, '32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic · typical error = median of six methods', -.06)
+    e = level_errors(pred)
+    t = e[e.index.get_level_values('method').isin(MAIN)].groupby(['source', 'arm']).median()
+    sources = t.index.get_level_values('source').unique()
+    groups = (('real', [s for s in sources if s in NAMES], dict(color='#333333')),
+              ('time-shuffled twin', [s for s in sources if s.endswith('__pwt')], dict(color='white', edgecolor='#333333', lw=1.1)),
+              ('synthetic', [s for s in sources if s not in NAMES and not s.endswith('__pwt')], dict(color=BLUE)))
+    fig, axes = plt.subplots(4, 4, figsize=(14, 9.4), sharex=True, sharey=True)
+    for r, level in enumerate(LEVELS):
+        for ax, arm in zip(axes[r], ARMS):
+            for lab, keys, style in groups:
+                ax.scatter([100*truth[s][r] for s in keys], t.loc[[(s, arm) for s in keys], level], s=30, zorder=3, label=lab, **style)
+            ax.set_xlim(0, 90); ax.set_ylim(0, 36); ax.spines['left'].set_visible(True)
+            if r == 0: ax.set_title(ARMS[arm])
+            if r == 3: ax.set_xlabel('true value (%)')
+        axes[r][0].set_ylabel(f'{level}: typical error (pp)')
+    fig.subplots_adjust(hspace=.16, wspace=.08)
+    h, l = axes[0][0].get_legend_handles_labels()
+    fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .915))
+    note(fig, '32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic · typical error = median of six methods · '
+         'each row: one level of the profile against its own true value', axes[3][0].get_position().y0 - .75/fig.get_figheight())
     save(fig, 'fig9_persistence')
 
 
@@ -859,52 +853,47 @@ def fig_synthetic_portrait(plt):
     save(fig, 'fig12_synthetic_portrait')
 
 
-# Timelines (fig. 0c, 10b, 12b): 100 randomly drawn pairs per network, one row per pair, coloured where the pair
-# has events. Colours as in the portrait; the bar on the left shows what kind of pair each row is.
-def timeline_panel(plt, ax, rows):
-    from matplotlib.colors import to_rgb
-    kind = np.where(rows.events == 1, 0, np.where(rows.windows == 1, 1, rows.windows))
-    on = np.array([[c == '1' for c in s] for s in rows.timeline])
-    image = np.ones(on.shape + (3,))
-    for k, (_, c, _) in enumerate(PORTRAIT):
-        image[(kind == k)[:, None] & on] = to_rgb(c)
-        r = np.flatnonzero(kind == k)
-        if len(r): ax.add_patch(plt.Rectangle((-.2, r[0] + .2), .1, len(r) - .4, color=c, lw=0, clip_on=False))
-    ax.imshow(image, aspect='auto', interpolation='nearest', extent=(0, 5, len(on), 0))
-    for j in range(1, 5): ax.axvline(j, color='#dcd9d1', lw=.7)
-    ax.set_xticks(np.arange(5) + .5, range(1, 6)); ax.set_yticks([]); ax.spines['bottom'].set_visible(False)
-    ax.tick_params(axis='x', length=0, labelsize=8.5, colors='#888888', pad=2)
+# Fig. 0c, 10b, 12b: when the pairs are active. Per time window, the share of the network's pairs that are active,
+# split by how persistent the pair is. Colours: the portrait's, merged into three kinds.
+ACTIVE = (('pairs active in 1 window', [1], '#c6c3bb'), ('in 2–3 windows', [2, 3], '#7aafee'), ('in 4–5 windows', [4, 5], '#1b56a0'))
 
 
-def fig_timeline(plt, name, panels, text):
-    """panels: (key in timelines.csv, title, grey specs), one per network."""
-    lines = pd.read_csv(DATA/'timelines.csv', dtype={'timeline': str})
+def fig_active(plt, name, panels, text):
+    """panels: (keys in window_activity.csv to average, title, grey specs), one per network."""
+    w = pd.read_csv(DATA/'window_activity.csv').set_index(['source', 'windows_of_pair'])
     n = -(-len(panels)//4)
-    fig, axes = plt.subplots(n, 4, figsize=(13, 3.15*n + .3), squeeze=False)
-    for ax, (key, title, spec) in zip(axes.flat, panels):
-        timeline_panel(plt, ax, lines[lines.source == key])
+    fig, axes = plt.subplots(n, 4, figsize=(13, 2.45*n + .5), sharey=True, squeeze=False)
+    for ax, (keys, title, spec) in zip(axes.flat, panels):
+        share = 100*sum(w.loc[k] for k in keys)/len(keys)   # rows: windows of the pair; columns: the five time windows
+        bottom = np.zeros(5)
+        for lab, kinds, c in ACTIVE[::-1]:                  # the most persistent pairs at the bottom
+            v = share.loc[kinds].sum().to_numpy()
+            ax.bar(range(5), v, bottom=bottom, color=c, width=.78, label=lab); bottom += v
+        ax.set_xticks(range(5), range(1, 6)); ax.set_ylim(0, 100); ax.set_yticks([0, 50, 100])
+        ax.tick_params(axis='x', length=0, labelsize=8.5, colors='#888888', pad=2); ax.tick_params(axis='y', labelsize=8.5, colors='#888888')
+        ax.grid(axis='y', color='#eeeeee'); ax.set_axisbelow(True)
         above = dict(xy=(0, 1), xycoords='axes fraction', textcoords='offset points')
-        ax.annotate(title, xytext=(0, 22), fontsize=10.5, fontweight='bold', **above)
-        ax.annotate(f'({spec})', xytext=(0, 7), fontsize=8.5, color=SPEC, **above)
+        ax.annotate(title, xytext=(0, 20), fontsize=10.5, fontweight='bold', **above)
+        ax.annotate(f'({spec})', xytext=(0, 6), fontsize=8.5, color=SPEC, **above)
+    for ax in axes[:, 0]: ax.set_ylabel('pairs active (%)', fontsize=9)
     for ax in axes[-1]: ax.set_xlabel('time window', fontsize=9, color='#888888')
-    fig.subplots_adjust(hspace=.42, wspace=.16)
+    fig.subplots_adjust(hspace=.62, wspace=.1)
     top, bottom, inch = axes[0, 0].get_position(), axes[-1, 0].get_position(), 1/fig.get_figheight()
-    fig.legend([plt.Rectangle((0, 0), 1, 1, color=c) for _, c, _ in PORTRAIT], [lab for _, _, lab in PORTRAIT],
-               loc='lower center', ncol=6, frameon=False, bbox_to_anchor=(.5, top.y1 + .6*inch))
-    note(fig, text + ' · 100 pairs each, drawn at random with the kinds in their true shares · one row per pair, '
-         'coloured where it has events · bar on the left: its kind', bottom.y0 - .5*inch)
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles[::-1], labels[::-1], loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, top.y1 + .55*inch))
+    note(fig, text + ' · share of all pairs of the network that are active in the window', bottom.y0 - .55*inch)
     save(fig, name)
 
 
-def fig_timelines(plt, f):
+def fig_actives(plt, f):
     order = network_order(f)[::-1]
-    fig_timeline(plt, 'fig0c_timeline', [(s, short(s), pair_spec(s, f)) for s in order], '12 real networks')
+    fig_active(plt, 'fig0c_active', [([s], short(s), pair_spec(s, f)) for s in order], '12 real networks, complete (not sampled)')
     twin = lambda s: f"{num(f.loc[s, 'pairs'])} pairs · ρ₂ {pct(f.loc[s, 'rho2'])[:-2]} → {pct(f.loc[s, 'rho2_shuffled'])}"
-    fig_timeline(plt, 'fig10b_twin_timeline', [(s + '__pwt', short(s), twin(s)) for s in order], 'the 12 time-shuffled twins')
-    sy = pd.read_csv(DATA/'synthetic_features.csv', index_col=0)
-    fig_timeline(plt, 'fig12b_synthetic_timeline',
-                 [(f'{v}_r1', lab, f"{num(sy.loc[f'{v}_r1', 'pairs'])} pairs · ρ₂ {pct(sy.loc[f'{v}_r1', 'rho2'])}") for v, lab in VARIANTS],
-                 'first of the 2 instances per variant')
+    fig_active(plt, 'fig10b_twin_active', [([s + '__pwt'], short(s), twin(s)) for s in order], 'the 12 time-shuffled twins, complete')
+    sv = variant_table()
+    fig_active(plt, 'fig12b_synthetic_active',
+               [([f'{v}_r1', f'{v}_r2'], lab, f"{num(sv.loc[v, 'pairs'])} pairs · ρ₂ {pct(sv.loc[v, 'rho2'])}") for v, lab in VARIANTS],
+               'mean of the 2 instances per variant, complete networks')
 
 
 # Fig. 13: what memory does to the estimation task: typical error per arm, without and with memory.
@@ -1147,13 +1136,13 @@ def draw():
     resp = pd.read_csv(FINAL/'VARIABILITY_RESPONSE.csv').query("group == 'real'").set_index(['arm', 'method'])
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
-    fig_toy(plt); fig_portrait(plt, f); fig_timelines(plt, f); fig_sample(plt, summary, per)
-    fig_ranking(plt, summary); fig_amount(plt, pred, summary)
+    fig_toy(plt); fig_portrait(plt, f); fig_actives(plt, f); fig_sample(plt, summary, per)
+    fig_ranking(plt, summary); fig_amount(plt, pred, summary); fig_levels(plt, pred)
     fig_textbook(plt, types); fig_textbook_networks(plt, pred, f)
     fig_correction(plt, pred); fig_correction_networks(plt, pred, f); fig_profile(plt, pred)
-    fig_stability(plt, resp); fig_noise_networks(plt, pred, f); fig_agree(plt, pred); fig_sample_noise(plt, pred, f)
+    fig_stability(plt, resp); fig_noise_networks(plt, pred, f); fig_sample_noise(plt, pred, f)
     fig_python(plt, summary); fig_python_networks(plt, per, f); fig_python_groups(plt)
-    fig_agreement(plt, per, f); fig_structure(plt, perall, f); fig_persistence(plt, perall); fig_twins(plt, pred)
+    fig_agreement(plt, per, f); fig_structure(plt, perall, f); fig_persistence(plt, pred); fig_twins(plt, pred)
     fig_cards(plt, perall, f); fig_networks(plt, per, f)
     fig_synthetic_portrait(plt); fig_synthetic_arms(plt, perall); fig_windows(plt)
     gif_dar(plt); gif_activity(plt)

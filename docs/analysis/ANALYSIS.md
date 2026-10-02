@@ -68,10 +68,10 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 - Many events do not make a pair persistent: in all networks but Digg, 21–52 % of pairs have several events, all in one window.
 - The same ρ₂ can hide different shapes: Malawi and Email EU both have 51 %, but 23 % against 4 % of their pairs are active in all 5 windows.
 
-![When the pairs are active: 100 random pairs per network, one row each](figures/fig0c_timeline.png)
+![When the pairs are active: share of pairs active in each time window, per network](figures/fig0c_active.png)
 
-- High school, Hospital and Workplace pulse with the days. Workplace is empty in window 3, so none of its pairs can be active in all 5 windows.
-- College messages, Reality Mining and Email EU fade out towards the end.
+- Radoslaw and Malawi rest on very persistent pairs (28–29 % are active in 4–5 windows). In Linux, College messages, MathOverflow and Digg, 85–100 % of the pairs are active in one window only.
+- College messages, Reality Mining and Email EU fade out. Workplace is empty in window 3, so none of its pairs can be active in all 5 windows.
 
 <details>
 <summary><h3>Does the number of time windows matter?</h3></summary>
@@ -101,6 +101,11 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 - In H, every method corrects too much: the sample needs +5 pp, they add +7 to +15.
 - In S and B the amount is about right on average; Qwen thinking makes only half of it in S.
 
+![Error at every level of the profile, per arm](figures/fig2c_levels.png)
+
+- The ranking hardly changes along the profile.
+- In S and H, correction helps even more at the higher levels. In B, only MLE and ExtraTrees stay clearly ahead of the naive share up to ρ₅.
+
 <details>
 <summary><h3>Counted per network: who beats the naive share, GPT against MLE</h3></summary>
 
@@ -125,14 +130,15 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 ![Answers that correct by about the right amount](figures/fig4_correction.png)
 
 - "About right" means 50–150 % of the correction the sample needs.
+- GPT is the best language model; MLE is about right more often in B (76 %).
 
 ![Per network: answers that correct by about the right amount](figures/fig4b_correction_networks.png)
 
-- GPT is about right on most networks, but not on Malawi, Radoslaw and Workplace. DeepSeek and Qwen rarely are (one exception: DeepSeek on College messages).
+- MLE and GPT are about right on most networks but miss different ones: MLE on Malawi, Hospital and MathOverflow, GPT on Malawi, Radoslaw and Workplace. DeepSeek and Qwen rarely are (one exception: DeepSeek on College messages).
 
 ![Estimates of ρ₂ to ρ₅ against the truth, per arm](figures/fig4c_profile.png)
 
-- GPT recovers the whole profile in every arm, even ρ₄ and ρ₅ in H, which three visible windows cannot show (the naive share is 0 there).
+- MLE, GPT and DeepSeek recover the whole profile on average, even ρ₄ and ρ₅ in H, which three visible windows cannot show (the naive share is 0 there). Qwen thinking does not.
 
 <details>
 <summary><h3>How long the models think, and what DeepSeek writes</h3></summary>
@@ -156,10 +162,6 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 ![Per network: spread of three answers, H and B together](figures/fig5b_noise_networks.png)
 
 - GPT's and DeepSeek's answers vary mostly on persistent networks and hardly at all on Digg and MathOverflow. Qwen varies on almost every network.
-
-![Error when the three answers agree and when they differ](figures/fig5d_agree.png)
-
-- Where the three answers differ, the error is two to three times as large.
 
 ![Per network: MLE estimates from three independent samples against the truth](figures/fig5c_sample_noise.png)
 
@@ -215,9 +217,9 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 
 Each real network has a **twin**: the same pairs and events per pair, but the times shuffled among all events. Its true ρ₂ is 27 pp higher. A method that ignores timing would give both the same answer.
 
-![When the pairs of the twins are active: 100 random pairs per twin, one row each](figures/fig10b_twin_timeline.png)
+![When the pairs of the twins are active: share of pairs active in each time window](figures/fig10b_twin_active.png)
 
-- A twin keeps the rhythm of its network but spreads each pair's events over the whole time: pairs with several events in one window drop from 21–52 % to 1–11 % of all pairs (Digg aside).
+- A twin keeps the rhythm of its network, but its pairs are active in more windows: those active in 4–5 windows rise from 10 % to 34 % of all pairs on average.
 
 ![Change in the estimate from each network to its twin](figures/fig10_twins.png)
 
@@ -256,7 +258,7 @@ The synthetic networks change one thing only, **memory**: each generator runs wi
 
 - Memory puts about the same number of events on fewer pairs and makes them persistent: ρ₂ 39 → 78 % (DAR), 6 → 79 % (activity-driven).
 
-![When the pairs of the synthetic networks are active: 100 random pairs per variant, one row each](figures/fig12b_synthetic_timeline.png)
+![When the pairs of the synthetic networks are active: share of pairs active in each time window](figures/fig12b_synthetic_active.png)
 
 - With memory, the same pairs return in window after window.
 
@@ -275,23 +277,24 @@ The synthetic networks change one thing only, **memory**: each generator runs wi
 
 ### 8.6 All 32 networks: under event loss, persistent networks are hard
 
-![Typical error against true persistence, per arm, all 32 networks](figures/fig9_persistence.png)
+![Typical error of ρ₂ to ρ₅ against the true value, per arm, all 32 networks](figures/fig9_persistence.png)
 
-- Under event loss (B), every network with ρ₂ above 30 % is hard (10–24 pp): real networks, twins and synthetic networks alike.
+- Under event loss (B), the error grows with the true value at every level, at ρ₅ almost on a line. Every network with ρ₂ above 30 % is hard (10–24 pp): real networks, twins and synthetic networks alike.
 - Under the walk (S), only some of them are (1–33 pp).
+- Among the real networks, the same ones are hard at every level in R, S and B; in H they change (rank correlation between the errors at ρ₂ and ρ₅: 0.77, 0.76 and 0.93 against 0.35).
 
 <details>
 <summary><h2>Key findings</h2></summary>
 
 1. **Samples distort persistence:** the walk overstates it, late time only and event loss understate it, random nodes do not. (2)
 2. **Where a textbook answer exists, the language models give it** (R: naive share; S: simple reweighting, mostly GPT and DeepSeek), and are as good as the formula, not better. (4)
-3. **Where none exists, they improvise:** GPT corrects about right most often; DeepSeek and Qwen rarely, and differently each time. (5, 6)
-4. **Disagreement warns:** where the three answers to one sample differ, the error is two to three times as large. (6)
-5. **No language model beats MLE consistently;** Qwen no thinking is worse than a constant guess. (3)
-6. **In H, every method corrects too much;** in S and B the amount is about right on average. (3)
+3. **Where none exists, they improvise:** GPT corrects about right most often of the language models; DeepSeek and Qwen rarely, and differently each time. (5, 6)
+4. **No language model beats MLE consistently;** Qwen no thinking is worse than a constant guess. (3)
+5. **In H, every method corrects too much;** in S and B the amount is about right on average. (3)
+6. **The whole profile behaves like ρ₂:** the ranking hardly changes from ρ₂ to ρ₅. (3, 5)
 7. **The errors are systematic, not chance:** a new sample barely moves a good estimate. (6)
 8. **Python does not help GPT;** under event loss it makes 8 of 12 real networks worse, but not the twins or the synthetic networks. (7)
-9. **What makes a network hard:** with random nodes and the walk, few pairs carrying the events; under event loss, high persistence. Memory in synthetic networks produces both. (8.1, 8.2, 8.5, 8.6)
+9. **What makes a network hard:** with random nodes and the walk, few pairs carrying the events; under event loss, high persistence, at every level of the profile. Memory in synthetic networks produces both. (8.1, 8.2, 8.5, 8.6)
 10. **All thinking models read the timing;** Qwen no thinking does not. (8.4)
 11. **Five windows are not a special choice:** other numbers shift ρ₂ a little and keep the order of the networks. (1)
 
