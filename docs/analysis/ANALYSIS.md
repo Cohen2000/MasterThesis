@@ -102,17 +102,14 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 - In H, every method corrects too much: the sample needs +5 pp, they add +7 to +15.
 - In S and B the amount is about right on average; Qwen thinking makes only half of it in S.
 
-![Mean error where the sample is close to the truth and where it is far off](figures/fig2d_far_off.png)
+<details>
+<summary><h3>Per network: correction helps where the sample is far off</h3></summary>
 
-- Correction helps most where the sample is far off. This is a check against known truth; for an unknown network, the sample's error is unknown too.
-- Where the naive share is off by less than 10 pp, no method improves on it on average; where it is off by more, all five do.
-- Counted per case: off by 10 pp or more, MLE, ExtraTrees and GPT beat the naive share in 21 of 22; off by less than 5 pp, no method does in more than 1 of 18.
+- Where the naive share is off by 10 pp or more, MLE, ExtraTrees and GPT beat it in 21 of 22 cases (a case is one network under one arm); where it is off by less than 5 pp, no method does in more than 1 of 18. This is a check against known truth; for an unknown network, the sample's error is unknown too.
+- Of an error of 10 pp or more (26 pp on average), MLE and ExtraTrees leave about a quarter (7 and 6 pp), GPT and DeepSeek about half (11 and 14 pp), Qwen thinking most (22 pp).
+- For most of the five methods (MLE, ExtraTrees, GPT, DeepSeek, Qwen thinking), correction helps in S on every network but Digg, in H only on the four networks where the sample is off most (Reality Mining, Email EU, High school, Copenhagen), in B on 8 networks (it hurts on Malawi, Linux and MathOverflow).
 
-![Per network and arm: does correction help?](figures/fig2e_networks.png)
-
-- **S:** correction helps on every network but Digg, where there is nothing to correct.
-- **H:** it helps only on the four networks where the sample is off most (Reality Mining, Email EU, High school, Copenhagen) and hurts on six.
-- **B:** it helps on 8 networks and hurts on Malawi, Linux and MathOverflow.
+</details>
 
 ## 4 · Answers often match a simple formula
 

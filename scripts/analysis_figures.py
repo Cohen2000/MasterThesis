@@ -254,7 +254,6 @@ REAL_NOTE = '12 real networks · 3 samples each'
 LM3 = tuple((m, COLOUR[m]) for m in ('gpt_6_sol', 'deepseek_flash', 'qwen_thinking'))
 MLE_LM3 = (('mle', BLUE),) + LM3
 LEVELS = ['ρ₂', 'ρ₃', 'ρ₄', 'ρ₅']
-FIVE = ['mle', 'et', 'gpt_6_sol', 'deepseek_flash', 'qwen_thinking']   # the methods shown side by side
 
 
 def note(fig, text, y=-.04):
@@ -429,56 +428,6 @@ def fig_amount(plt, pred, summary):
                loc='lower center', frameon=False, bbox_to_anchor=(.5, .97))
     note(fig, REAL_NOTE + ' (× 3 answers) · mean over the networks', -.07)
     save(fig, 'fig2c_amount')
-
-
-# Fig. 2d: when correction pays: mean error of each method where the naive share is close to the truth (off by less
-# than 10 pp) and where it is far off. A case is one network under one arm.
-def fig_far_off(plt, per):
-    e = per.pivot_table(index=['source', 'arm'], columns='method', values='MAE_2')*100
-    groups = (('sample close to the truth\n(naive share off by less than 10 pp)', e.plugin < 10),
-              ('sample far off\n(10 pp or more)', e.plugin >= 10))
-    methods = ['plugin'] + FIVE
-    fig, ax = plt.subplots(figsize=(9, 3.6))
-    w = .84/len(methods)
-    for k, m in enumerate(methods):
-        xs = np.arange(len(groups)) + (k - (len(methods) - 1)/2)*w
-        v = [e[m][cases].mean() for _, cases in groups]
-        ax.bar(xs, v, width=w*.92, color=colour(m), label=METHODS[m])
-        for x, y in zip(xs, v):
-            ax.text(x, y + .4, f'{y:.1f}', ha='center', va='bottom', fontsize=9.5, fontweight='bold' if m == 'plugin' else 'normal')
-    ax.set_xticks(range(len(groups)), [lab for lab, _ in groups]); ax.set_ylim(0, 30); ax.set_yticks([])
-    ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0)
-    ax.set_title('Mean error (pp)', pad=12)
-    ax.legend(frameon=False, ncol=len(methods), loc='upper center', bbox_to_anchor=(.5, -.22), columnspacing=1.1, handlelength=1.4)
-    close, far = (int(cases.sum()) for _, cases in groups)
-    note(fig, f'12 real networks × 4 arms = 48 cases: {close} close, {far} far off · 3 samples each', -.3)
-    save(fig, 'fig2d_far_off')
-
-
-# Fig. 2e: on which networks correction helps: one cell per network and arm. It helps where at least 3 of the 5 methods
-# are better than the naive share by more than 0.5 pp, and hurts where at least 3 are worse.
-def fig_gain(plt, per, f):
-    e = per.pivot_table(index='source', columns=['arm', 'method'], values='MAE_2')*100
-    order = network_order(f)[::-1]
-    flat = '#e6e4de'
-    fig, ax = plt.subplots(figsize=(8.6, 4.6))
-    for j, arm in enumerate(ARMS):
-        gain = e[arm][FIVE].sub(e[(arm, 'plugin')], axis=0)
-        for i, s in enumerate(order):
-            better, worse = int((gain.loc[s] < -.5).sum()), int((gain.loc[s] > .5).sum())
-            c, mark, ink = (BETTER, '✓', 'white') if better >= 3 else (WORSE, '✗', 'white') if worse >= 3 else (flat, '–', '#888888')
-            ax.add_patch(plt.Rectangle((j + .04, i + .08), .92, .84, color=c, lw=0))
-            ax.text(j + .5, i + .5, mark, ha='center', va='center', color=ink, fontsize=11)
-    ax.set_xlim(0, 4); ax.set_ylim(len(order), 0); unframe(ax)
-    ax.set_xticks(np.arange(4) + .5, [ARMS[a] for a in ARMS], fontsize=10, fontweight='bold', color='#111111')
-    ax.set_yticks(np.arange(len(order)) + .5, ['']*len(order))
-    for i, s in enumerate(order): two_tone(ax, -.02, i + .5, short(s), pair_spec(s, f), ax.get_yaxis_transform())
-    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (BETTER, WORSE, flat)]
-    fig.legend(handles, ['correction helps', 'correction hurts', 'mixed or no change'], loc='lower center', ncol=3, frameon=False,
-               bbox_to_anchor=(.6, .93))
-    note(fig, 'helps / hurts: at least 3 of the 5 methods (MLE, ExtraTrees, GPT, DeepSeek, Qwen thinking) are better / worse '
-         'than the naive share by more than 0.5 pp', .04)
-    save(fig, 'fig2e_networks')
 
 
 # Fig. 2b: the error at every level of the profile, per arm (12 real networks).
@@ -1156,7 +1105,7 @@ def draw():
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
     fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per)
-    fig_ranking(plt, summary); fig_levels(plt, pred); fig_amount(plt, pred, summary); fig_far_off(plt, per); fig_gain(plt, per, f)
+    fig_ranking(plt, summary); fig_levels(plt, pred); fig_amount(plt, pred, summary)
     fig_textbook(plt, types); fig_textbook_networks(plt, pred, f)
     fig_correction(plt, pred); fig_correction_networks(plt, pred, f); fig_profile(plt, pred); fig_thinking(plt, summary)
     fig_stability(plt, resp); fig_noise_networks(plt, pred, f); fig_sample_noise(plt, pred, f)
