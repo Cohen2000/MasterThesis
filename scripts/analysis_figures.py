@@ -39,10 +39,16 @@ NAMES = {'copenhagen_bluetooth': 'Copenhagen (Bluetooth)', 'lkml_reply': 'Linux 
          'snap_collegemsg': 'College messages', 'snap_email_eu': 'Email EU', 'snap_mathoverflow': 'MathOverflow',
          'sp_highschool2013': 'High school', 'sp_hospital': 'Hospital', 'sp_malawi': 'Malawi (village)',
          'sp_workplace': 'Workplace'}
-GREY, BLUE, ORANGE, VIOLET, AQUA = '#9c9b95', '#2a78d6', '#eb6834', '#4a3aa7', '#1baf7a'
-RUST = '#8f3410'   # GPT + Python: a darker step of GPT's orange
+GREY, BLUE, ORANGE, VIOLET, AQUA, PINK = '#9c9b95', '#2a78d6', '#eb6834', '#4a3aa7', '#1baf7a', '#e87ba4'
+RUST, PLUM = '#8f3410', '#9e3562'   # GPT + Python and Qwen no thinking: a darker step of GPT's orange and of Qwen's pink
+LIGHT = '#cdc9bf'                   # training median, a constant guess
 EASY, MEDIUM, HARD = '#bfe5c9', '#f7dc8a', '#f08a86'
-COLOUR = {'plugin': GREY, 'mle': BLUE, 'et': AQUA}
+BETTER, SAME, WORSE = '#1f9d55', '#bbbbbb', '#d9383a'   # a change for the better, none (within 0.5 pp), for the worse
+# One colour per method, the same in every figure.
+COLOUR = {'plugin': GREY, 'median': LIGHT, 'mle': BLUE, 'et': AQUA, 'gpt_6_sol': ORANGE, 'gpt_6_sol_tools': RUST,
+          'deepseek_flash': VIOLET, 'qwen_thinking': PINK, 'qwen_nonthinking': PLUM}
+# How persistent a pair is: active in 1, in 2–3 or in 4–5 of the five time windows.
+KINDS = (('pairs active in 1 window', [1], '#c6c3bb'), ('in 2–3 windows', [2, 3], '#7aafee'), ('in 4–5 windows', [4, 5], '#1b56a0'))
 
 
 # ---------------------------------------------------------------- inputs (needs data outside the repo)
@@ -142,44 +148,22 @@ def build_inputs(external):
     near = (s.r2 - s.observation_id.map(design)).abs() <= .005
     near.groupby([s.method, s.source]).mean().rename('share').to_csv(DATA/'textbook_by_network.csv', float_format='%.4f')
 
-    # Under the hood (real networks): reasoning length, DeepSeek's full traces, GPT + Python's executed code.
+    # Under the hood (real networks): reasoning length and DeepSeek's full traces.
     rows = []
     for run, method in (('openai', 'gpt_6_sol'), ('openai_tools', 'gpt_6_sol_tools'), ('deepseek', 'deepseek_flash')):
         for line in (external/'api_runs'/run/'responses.jsonl').read_text().splitlines():
             d = json.loads(line)
             oid = d['id'].rsplit('__', 2)[0]
             if d.get('kind') != 'main' or obs[oid]['stratum'] != 'real': continue
-            code = '\n'.join(o.get('code', '') for o in (d.get('raw_response') or {}).get('output', [])
-                             if o.get('type') == 'code_interpreter_call')
             rows.append({'method': method, 'arm': obs[oid]['arm'], 'reasoning_tokens': d.get('reasoning_tokens') or 0,
-                         'trace_says_guess': 'guess' in (d.get('reasoning_content') or '').lower(),
-                         'code_fits_model': 'optimize' in code or 'minimize' in code})
-    # GPT + Python in B: which model ingredients each answer's code uses (by the distributions it names), and
-    # whether the three answers to the same sample use the same set.
-    kinds = {'gamma': r'gamma', 'log-normal': r'hermgauss|lognorm|roots_herm', 'beta': r'\bbeta\b|betaln',
-             'dirichlet': r'dirichlet', 'latent classes': r'classes|latent class|n_classes|multi_mon'}
-    sets = {}
-    for line in (external/'api_runs/openai_tools/responses.jsonl').read_text().splitlines():
-        d = json.loads(line)
-        oid = d['id'].rsplit('__', 2)[0]
-        if d.get('kind') != 'main' or obs[oid]['stratum'] != 'real' or obs[oid]['arm'] != 'B': continue
-        code = '\n'.join(o.get('code', '') for o in (d.get('raw_response') or {}).get('output', [])
-                         if o.get('type') == 'code_interpreter_call')
-        if code: sets.setdefault(oid, []).append(frozenset(k for k, pat in kinds.items() if re.search(pat, code, re.I)))
-    full = [v for v in sets.values() if len(v) == 3]
-    pd.DataFrame([{'samples_with_code_in_all_3_answers': len(full),
-                   'samples_whose_3_answers_differ': sum(len(set(v)) > 1 for v in full)}]
-                 ).to_csv(DATA/'python_models_B.csv', index=False)
+                         'trace_says_guess': 'guess' in (d.get('reasoning_content') or '').lower()})
     r = pd.DataFrame(rows).groupby(['method', 'arm'])
     pd.DataFrame({'answers': r.size(), 'median_reasoning_tokens': r.reasoning_tokens.median(),
-                  'trace_says_guess': r.trace_says_guess.mean(), 'code_fits_model': r.code_fits_model.mean()}
+                  'trace_says_guess': r.trace_says_guess.mean()}
                  ).to_csv(DATA/'under_the_hood.csv', float_format='%.4f')
 
 
 # ---------------------------------------------------------------- figures
-LIGHT = '#cdc9bf'   # training median, a constant guess
-
-
 def setup():
     import matplotlib
     matplotlib.use('Agg')
@@ -199,7 +183,7 @@ def save(fig, name):
     plt.close(fig)
 
 
-def colour(method): return {'median': LIGHT}.get(method, COLOUR.get(method, ORANGE))
+def colour(method): return COLOUR[method]
 
 
 def band(v): return EASY if v < 3 else MEDIUM if v <= 10 else HARD
@@ -215,64 +199,49 @@ def unframe(ax):
     ax.tick_params(length=0); [s.set_visible(False) for s in ax.spines.values()]; ax.xaxis.tick_top()
 
 
-def value_grid(plt, ax, v, rows, cols, vmax, show_rows=True, muted=()):
-    """Table-like heatmap with the value written in every cell."""
-    for i in range(v.shape[0]):
-        for j in range(v.shape[1]):
-            if np.isnan(v[i, j]): continue
-            a = min(1, v[i, j]/vmax)
-            if i in muted:
-                ax.text(j, i, f'{v[i, j]:.0f}', ha='center', va='center', fontsize=10, color='#bbbbbb'); continue
-            ax.add_patch(plt.Rectangle((j-.47, i-.43), .94, .86, color=plt.cm.Purples(.06 + .8*a), lw=0))
-            ax.text(j, i, f'{v[i, j]:.1f}', ha='center', va='center', fontsize=10, color='white' if a > .55 else '#222222')
-    ax.set_xlim(-.5, v.shape[1]-.5); ax.set_ylim(v.shape[0]-.5, -.5); unframe(ax)
-    ax.set_xticks(range(len(cols)), cols); ax.set_yticks(range(len(rows)), rows if show_rows else ['']*len(rows))
-
-
-# Fig. 0: a toy network of six pairs and what each arm shows of it.
+# Fig. 0: a toy network of six pairs and what each arm shows of it (events per pair and window).
 TOY = {'A': [3, 3, 2, 3, 3], 'B': [1, 0, 1, 0, 0], 'C': [0, 0, 0, 1, 1],
        'D': [1, 0, 0, 0, 0], 'E': [0, 0, 1, 0, 0], 'F': [0, 0, 0, 0, 1]}
-TOY_ARMS = (('R · random nodes', {'B': TOY['B'], 'C': TOY['C'], 'D': TOY['D'], 'E': TOY['E']}, (), 'only pairs between drawn nodes'),
-            ('S · random walk', {'A': TOY['A'], 'B': TOY['B'], 'C': TOY['C'], 'E': TOY['E']}, (), 'the walk mostly meets busy pairs'),
-            ('H · late time only', {k: [0, 0] + v[2:] for k, v in TOY.items() if sum(v[2:])}, (0, 1), 'windows 1–2 hidden (node sampling not shown)'),
-            ('B · event loss', {'A': [1, 0, 1, 0, 1], 'B': [0, 0, 1, 0, 0], 'E': [0, 0, 1, 0, 0]}, (), 'most events are lost'))
-
-
-def toy_panel(plt, ax, pairs, hidden, title, note):
-    for j in hidden: ax.add_patch(plt.Rectangle((j-.5, -.5), 1, 6, color='#e9e7e1', lw=0))
-    seen = 0; persistent = 0
-    for i, k in enumerate(TOY):
-        row = pairs.get(k)
-        ax.text(-.9, i, f'pair {k}', ha='right', va='center', fontsize=9.5, color='#222222' if row else '#c4c1b8')
-        for j in range(5):
-            ax.scatter(j, i, s=14, color='#dddad2', zorder=1)
-            if row and row[j]: ax.scatter(j, i, s=40 + 35*row[j], color='#333333', zorder=3)
-        if row:
-            seen += 1; persistent += sum(x > 0 for x in row) >= 2
-    ax.set_xlim(-.6, 4.6); ax.set_ylim(5.6, -.6); ax.axis('off')
-    ax.set_title(title, loc='left', fontsize=11, pad=6)
-    ax.text(2, 6.25, note, ha='center', fontsize=9, color='#666666')
-    return seen, persistent
+TOY_NODES = 'BCDE'   # the pairs between the drawn nodes (R and H)
+TOY_PANELS = (('Full network', TOY, (), 'true ρ₂', ''),
+              ('R · random nodes', {k: TOY[k] for k in TOY_NODES}, (), 'naive share', 'only pairs between drawn nodes'),
+              ('S · random walk', {k: TOY[k] for k in 'ABCE'}, (), 'naive share', 'busy pairs are met more often'),
+              ('H · late time only', {k: [0, 0] + TOY[k][2:] for k in TOY_NODES if sum(TOY[k][2:])}, (0, 1), 'naive share',
+               'same nodes, windows 1–2 hidden'),
+              ('B · event loss', {'A': [1, 0, 1, 0, 1], 'B': [0, 0, 1, 0, 0], 'E': [0, 0, 1, 0, 0]}, (), 'naive share', 'most events are lost'))
 
 
 def fig_toy(plt):
-    fig = plt.figure(figsize=(13, 6.4))
-    gs = fig.add_gridspec(2, 4, height_ratios=[1, 1], hspace=.75, wspace=.55)
-    top = fig.add_subplot(gs[0, 1:3])
-    toy_panel(plt, top, TOY, (), 'Full network: 6 pairs, 5 time windows', 'dot = active in that window; bigger dot = more events')
-    top.set_title('Full network: 6 pairs, 5 time windows', loc='left', fontsize=11, pad=24)
-    for j in range(5): top.text(j, -.95, f'window {j+1}', ha='center', fontsize=9, color='#666666')
-    top.text(2, 7.0, 'true ρ₂ = 3 of 6 pairs active in ≥ 2 windows = 50 %', ha='center', fontsize=10.5, fontweight='bold')
-    for k, (title, pairs, hidden, note) in enumerate(TOY_ARMS):
-        ax = fig.add_subplot(gs[1, k])
-        seen, persistent = toy_panel(plt, ax, pairs, hidden, title, note)
-        ax.text(2, 7.0, f'naive share = {persistent}/{seen} = {100*persistent/seen:.0f} %', ha='center', fontsize=10.5, fontweight='bold')
+    kind = {k: c for _, ks, c in KINDS for k in ks}
+    fig, axes = plt.subplots(1, 5, figsize=(14, 3.1), gridspec_kw=dict(width_ratios=[1.12, 1, 1, 1, 1], wspace=.32))
+    for ax, (title, pairs, hidden, what, caption) in zip(axes, TOY_PANELS):
+        for j in hidden: ax.add_patch(plt.Rectangle((j - .5, -.5), 1, 6, color='#efede8', lw=0))
+        seen = persistent = 0
+        for i, k in enumerate(TOY):
+            row = pairs.get(k)
+            ax.text(-.95, i, k, ha='center', va='center', fontsize=9.5, color='#222222' if row else '#c9c6bd')
+            ax.plot([-.35, 4.35], [i, i], color='#eeece7', lw=1, zorder=0)
+            if not row: continue
+            windows = sum(x > 0 for x in row); seen += 1; persistent += windows >= 2
+            for j in range(5):
+                if row[j]: ax.scatter(j, i, s=40 + 35*row[j], color=kind[windows], zorder=3)
+        ax.set_xlim(-1.3, 4.6); ax.set_ylim(5.6, -1.0); ax.axis('off')
+        for j in range(5): ax.text(j, -.85, j + 1, ha='center', fontsize=8.5, color='#999999')
+        ax.set_title(title, loc='left', fontsize=11, pad=8)
+        ax.text(1.65, 6.35, f'{what} = {persistent}/{seen} = {100*persistent/seen:.0f} %', ha='center', fontsize=10.5, fontweight='bold')
+        ax.text(1.65, 7.15, caption, ha='center', fontsize=9, color='#666666')
+    axes[0].text(-.95, -.85, 'pair', ha='center', fontsize=8.5, color='#999999')
+    fig.add_artist(plt.Line2D([.2755, .2755], [.02, .95], color='#dddad2', lw=1))
+    handles = [plt.Line2D([], [], marker='o', ls='', color=c, markersize=8) for _, _, c in KINDS]
+    fig.legend(handles, [lab.replace('pairs', 'pair') for lab, _, _ in KINDS], loc='lower center', ncol=3, frameon=False,
+               bbox_to_anchor=(.5, 1.0), fontsize=9.5)
+    note(fig, 'columns: the five time windows · bigger dot = more events', -.16)
     save(fig, 'fig0_toy')
 
 
 # ---------------------------------------------------------------- shared pieces
 REAL_NOTE = '12 real networks · 3 samples each'
-LM3 = (('gpt_6_sol', ORANGE), ('deepseek_flash', VIOLET), ('qwen_thinking', '#e87ba4'))
+LM3 = tuple((m, COLOUR[m]) for m in ('gpt_6_sol', 'deepseek_flash', 'qwen_thinking'))
 MLE_LM3 = (('mle', BLUE),) + LM3
 LEVELS = ['ρ₂', 'ρ₃', 'ρ₄', 'ρ₅']
 
@@ -306,6 +275,11 @@ def pair_spec(s, f):
     return f"{num(f.loc[s, 'pairs'])} pairs · ρ₂ {pct(f.loc[s, 'rho2'])}"
 
 
+def twin_spec(s, f):
+    """The same for a time-shuffled twin: its persistence next to the real network's."""
+    return f"{num(f.loc[s, 'pairs'])} pairs · ρ₂ {pct(f.loc[s, 'rho2'])[:-2]} → {pct(f.loc[s, 'rho2_shuffled'])}"
+
+
 def full_spec(row):
     """All central numbers of a network (overview figures only)."""
     return f"{num(row['nodes'])} nodes · {num(row['pairs'])} pairs · {num(row['events'])} events · ρ₂ {pct(row['rho2'])}"
@@ -326,10 +300,35 @@ def two_tone(ax, x, y, name, spec, transform, ha='right', size=10, small=8.5, we
         ax.text(x, y, f'({spec})', transform=at(width(n) + 3), ha='left', fontsize=small, color=SPEC, **kw)
 
 
-def row_names(ax, order, f, x=-.02):
+def row_names(ax, order, f, x=-.02, spec=pair_spec):
     """Row labels of the real networks: name (pairs · ρ₂)."""
     ax.set_yticks(range(len(order)), ['']*len(order))
-    for i, s in enumerate(order): two_tone(ax, x, i, short(s), pair_spec(s, f), ax.get_yaxis_transform())
+    for i, s in enumerate(order): two_tone(ax, x, i, short(s), spec(s, f), ax.get_yaxis_transform())
+
+
+def network_rows(plt, f, spec=pair_spec):
+    """Four panels, one per arm, that share one row per real network (the most persistent on top)."""
+    order = network_order(f)
+    fig, axes = plt.subplots(1, 4, figsize=(14, 4.4), sharey=True)
+    for ax, arm in zip(axes, ARMS):
+        for y in range(len(order)): ax.axhline(y, color='#f0efeb', lw=6, zorder=0)
+        ax.set_title(ARMS[arm]); ax.tick_params(axis='y', length=0)
+    row_names(axes[0], order, f, spec=spec); axes[0].set_ylim(-.6, len(order) - .4)
+    return fig, axes, order
+
+
+def before_after(plt, fig, axes, before, after, styles, labels):
+    """Per network and arm two values joined by a line: green where the second is lower by more than 0.5 pp, red
+    where it is higher. before, after: one column per arm, rows in the order of the figure."""
+    y = np.arange(len(before))
+    for ax, arm in zip(axes, ARMS):
+        for yi, b, a in zip(y, before[arm], after[arm]):
+            ax.plot([b, a], [yi, yi], color=BETTER if a < b - .5 else WORSE if a > b + .5 else SAME, lw=2.6, zorder=2,
+                    solid_capstyle='round')
+        for values, style in zip((before[arm], after[arm]), styles): ax.scatter(values, y, s=44, zorder=3, **style)
+    handles = [plt.Line2D([], [], marker='o', ls='', markersize=7, markerfacecolor=st['color'], markeredgecolor=st.get('edgecolor', st['color']))
+               for st in styles] + [plt.Line2D([], [], color=c, lw=2.6) for c in (BETTER, WORSE)]
+    fig.legend(handles, labels, loc='lower center', ncol=4, frameon=False, bbox_to_anchor=(.5, .97))
 
 
 def typical_error(perall):
@@ -401,10 +400,7 @@ def fig_ranking(plt, summary):
             if m == 'plugin': lab.set_fontweight('bold')
         ax.set_xlim(0, 60); ax.set_xticks([]); ax.spines['bottom'].set_visible(False); ax.set_title(ARMS[arm])
     fig.subplots_adjust(wspace=.8)
-    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (GREY, LIGHT, BLUE, AQUA, ORANGE)]
-    fig.legend(handles, ['naive share', 'constant guess', 'statistical model', 'trained model', 'language model'],
-               loc='lower center', ncol=5, frameon=False, bbox_to_anchor=(.5, -.06))
-    note(fig, 'error (pp) · ' + REAL_NOTE + ' (language models: 3 answers per sample)', -.1)
+    note(fig, 'error (pp) · ' + REAL_NOTE + ' (language models: 3 answers per sample)', -.02)
     save(fig, 'fig2_ranking')
 
 
@@ -413,7 +409,7 @@ def value_column(ax, y, v, x):
     for yi, vi in zip(y, v): ax.text(x, yi, f'{round(vi):+d}' if round(vi) else '0', va='center', ha='right', fontsize=9)
 
 
-# Fig. 2b: how much each method corrects: its estimate minus the naive share; dashed line: what the sample needs.
+# Fig. 2c: how much each method corrects: its estimate minus the naive share; dashed line: what the sample needs.
 def fig_amount(plt, pred, summary):
     methods = ['mle', 'et', 'gpt_6_sol', 'deepseek_flash', 'qwen_thinking']
     p = r2_answers(pred)
@@ -434,10 +430,22 @@ def fig_amount(plt, pred, summary):
     fig.legend([plt.Line2D([], [], color='#333333', lw=1.5, ls=(0, (4, 2)))], ['correction the sample needs (truth − naive share)'],
                loc='lower center', frameon=False, bbox_to_anchor=(.5, .97))
     note(fig, REAL_NOTE + ' (× 3 answers) · mean over the networks', -.07)
-    save(fig, 'fig2b_amount')
+    save(fig, 'fig2c_amount')
 
 
-# Fig. 2c: the error at every level of the profile, per arm (12 real networks).
+# Fig. 2d: on which networks correction works: the error of the naive share and the typical error after correction.
+def fig_gain(plt, perall, f):
+    naive = perall[(perall.group == 'real') & (perall.method == 'plugin')].pivot(index='source', columns='arm', values='MAE_2')*100
+    fig, axes, order = network_rows(plt, f)
+    before_after(plt, fig, axes, naive.loc[order], typical_error(perall).loc[order],
+                 (dict(color=GREY, edgecolor='white', lw=.7), dict(color='#333333', edgecolor='white', lw=.7)),
+                 ['naive share', 'after correction (typical error)', 'correction helps', 'correction hurts'])
+    for ax in axes: ax.set_xlim(-2, 46); ax.set_xlabel('error (pp)')
+    note(fig, 'networks sorted by true ρ₂ · ' + REAL_NOTE + ' · typical error = median of six methods', -.04)
+    save(fig, 'fig2d_networks')
+
+
+# Fig. 2b: the error at every level of the profile, per arm (12 real networks).
 def fig_levels(plt, pred):
     e = level_errors(pred).loc['real'].groupby(['arm', 'method']).mean()
     fig, axes = plt.subplots(1, 4, figsize=(14, 3.4), sharey=True)
@@ -450,7 +458,7 @@ def fig_levels(plt, pred):
     h, l = axes[0].get_legend_handles_labels()
     fig.legend(h, l, loc='lower center', ncol=6, frameon=False, bbox_to_anchor=(.5, .98))
     note(fig, REAL_NOTE + ' (language models: 3 answers per sample)', -.06)
-    save(fig, 'fig2c_levels')
+    save(fig, 'fig2b_levels')
 
 
 def grouped_bars(plt, ax, groups, values, ymax, fmt='{:.0f}', title='', models=LM3):
@@ -474,16 +482,6 @@ def fig_textbook(plt, types):
     grouped_bars(plt, ax, ['R', 'S'], vals, 112, '{:.0f} %', 'Answers equal to the textbook answer')
     note(fig, REAL_NOTE + ' × 3 answers', -.2)
     save(fig, 'fig3_textbook')
-
-
-def design_values(external):
-    from study.observation import parse
-    from study.estimators import design_estimate
-    out = {}
-    for path in (external/'api_observations').glob('*__S-*.json'):
-        o = json.loads(path.read_text())
-        out[o['id']] = 100*design_estimate(parse(o['block']))[0]
-    return out
 
 
 # Fig. 3b: arm S per network: share of answers equal to the simple reweighting.
@@ -611,10 +609,10 @@ def fig_sample_noise(plt, pred, f):
 def python_bars(ax, summary, title):
     """GPT with and without Python: error per arm (pp)."""
     w = .38
-    for k, (m, c) in enumerate((('gpt_6_sol', ORANGE), ('gpt_6_sol_tools', RUST))):
+    for k, m in enumerate(('gpt_6_sol', 'gpt_6_sol_tools')):
         xs = np.arange(4) + (k - .5)*w
         vs = [100*summary.loc[(a, m), 'MAE_2'] for a in ARMS]
-        ax.bar(xs, vs, width=w*.92, color=c, label=METHODS[m])
+        ax.bar(xs, vs, width=w*.92, color=colour(m), label=METHODS[m])
         for x, v in zip(xs, vs): ax.text(x, v + .3, f'{v:.1f}', ha='center', va='bottom', fontsize=9.5)
     ax.set_xticks(range(4), [ARMS[a] for a in ARMS]); ax.set_ylim(0, 18); ax.set_yticks([])
     ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0)
@@ -639,11 +637,11 @@ def fig_python_networks(plt, per, f):
         d = (e[(arm, 'gpt_6_sol_tools')] - e[(arm, 'gpt_6_sol')]).loc[order]
         for yi in y: ax.axhline(yi, color='#f0efeb', lw=6, zorder=0)
         ax.axvline(0, color='#333333', lw=1)
-        ax.scatter(d, y, s=46, color=['#d9383a' if v > .5 else '#1f9d55' if v < -.5 else '#bbbbbb' for v in d], zorder=3,
+        ax.scatter(d, y, s=46, color=[WORSE if v > .5 else BETTER if v < -.5 else SAME for v in d], zorder=3,
                    edgecolor='white', lw=.7)
         ax.set_xlim(-8, 25); ax.set_title(ARMS[arm]); ax.set_xlabel('Python − GPT (pp)'); ax.tick_params(axis='y', length=0)
     row_names(axes[0], order, f); axes[0].set_ylim(-.6, len(order)-.4)
-    h = [plt.Line2D([], [], marker='o', ls='', color=c, markersize=7) for c in ('#d9383a', '#bbbbbb', '#1f9d55')]
+    h = [plt.Line2D([], [], marker='o', ls='', color=c, markersize=7) for c in (WORSE, SAME, BETTER)]
     fig.legend(h, ['worse with Python', 'about the same (±0.5 pp)', 'better with Python'], loc='lower center', ncol=3,
                frameon=False, bbox_to_anchor=(.5, .97))
     note(fig, 'networks sorted by true ρ₂ · ' + REAL_NOTE + ' × 3 answers', -.04)
@@ -669,7 +667,7 @@ def fig_agreement(plt, per, f):
         x, y = e('mle', arm), e('gpt_6_sol', arm)
         y = y.loc[x.index]
         ax.plot([0, 35], [0, 35], color='#bbbbbb', lw=1, zorder=1)
-        ax.scatter(x, y, s=46, color=ORANGE, edgecolor='white', lw=.7, zorder=3)
+        ax.scatter(x, y, s=46, color='#333333', edgecolor='white', lw=.7, zorder=3)
         if arm == 'B':
             xy = (x['copenhagen_bluetooth'], y['copenhagen_bluetooth'])
             ax.annotate('Copenhagen', xy, xytext=(4, 34), textcoords='offset points', fontsize=9,
@@ -703,30 +701,50 @@ def fig_structure(plt, perall, f):
         save(fig, name)
 
 
-# Fig. 9: typical error of every level of the profile against its true value, all 32 networks, per arm.
-def fig_persistence(plt, pred):
+# Fig. 9: typical error against true rho_2, all 32 networks, per arm.
+def fig_persistence(plt, perall):
+    truth = json.loads((FINAL/'TRUTH.json').read_text())
+    t = typical_error(perall)
+    rho = pd.Series({s: 100*truth[s][0] for s in t.index})
+    groups = (('real', [s for s in t.index if s in NAMES], dict(color='#333333')),
+              ('time-shuffled twin', [s for s in t.index if s.endswith('__pwt')], dict(color='white', edgecolor='#333333', lw=1.1)),
+              ('synthetic', [s for s in t.index if s not in NAMES and not s.endswith('__pwt')], dict(color='#333333', marker='s')))
+    fig, axes = plt.subplots(1, 4, figsize=(14, 3.3), sharey=True)
+    for ax, arm in zip(axes, ARMS):
+        for lab, keys, style in groups: ax.scatter(rho[keys], t.loc[keys, arm], s=34, zorder=3, label=lab, **style)
+        ax.set_xlim(0, 90); ax.set_ylim(0, 35); ax.set_title(ARMS[arm]); ax.set_xlabel('true ρ₂ (%)')
+        ax.spines['left'].set_visible(True)
+    axes[0].set_ylabel('typical error (pp)')
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .98))
+    note(fig, '32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic · typical error = median of six methods', -.06)
+    save(fig, 'fig9_persistence')
+
+
+# Fig. 9b: the same for the higher levels of the profile: typical error of rho_3, rho_4, rho_5 against their true values.
+def fig_persistence_levels(plt, pred):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
     e = level_errors(pred)
     t = e[e.index.get_level_values('method').isin(MAIN)].groupby(['source', 'arm']).median()
     sources = t.index.get_level_values('source').unique()
     groups = (('real', [s for s in sources if s in NAMES], dict(color='#333333')),
               ('time-shuffled twin', [s for s in sources if s.endswith('__pwt')], dict(color='white', edgecolor='#333333', lw=1.1)),
-              ('synthetic', [s for s in sources if s not in NAMES and not s.endswith('__pwt')], dict(color=BLUE)))
-    fig, axes = plt.subplots(4, 4, figsize=(14, 9.4), sharex=True, sharey=True)
-    for r, level in enumerate(LEVELS):
+              ('synthetic', [s for s in sources if s not in NAMES and not s.endswith('__pwt')], dict(color='#333333', marker='s')))
+    fig, axes = plt.subplots(3, 4, figsize=(14, 7.4), sharex=True, sharey=True)
+    for r, k in enumerate((1, 2, 3)):
         for ax, arm in zip(axes[r], ARMS):
             for lab, keys, style in groups:
-                ax.scatter([100*truth[s][r] for s in keys], t.loc[[(s, arm) for s in keys], level], s=30, zorder=3, label=lab, **style)
-            ax.set_xlim(0, 90); ax.set_ylim(0, 36); ax.spines['left'].set_visible(True)
+                ax.scatter([100*truth[s][k] for s in keys], t.loc[[(s, arm) for s in keys], LEVELS[k]], s=30, zorder=3, label=lab, **style)
+            ax.set_xlim(0, 90); ax.set_ylim(0, 35); ax.spines['left'].set_visible(True)
             if r == 0: ax.set_title(ARMS[arm])
-            if r == 3: ax.set_xlabel('true value (%)')
-        axes[r][0].set_ylabel(f'{level}: typical error (pp)')
+            if r == 2: ax.set_xlabel('true value (%)')
+        axes[r][0].set_ylabel(f'{LEVELS[k]}: typical error (pp)')
     fig.subplots_adjust(hspace=.16, wspace=.08)
     h, l = axes[0][0].get_legend_handles_labels()
-    fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .915))
+    fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .93))
     note(fig, '32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic · typical error = median of six methods · '
-         'each row: one level of the profile against its own true value', axes[3][0].get_position().y0 - .75/fig.get_figheight())
-    save(fig, 'fig9_persistence')
+         'each row: one level against its own true value', axes[2][0].get_position().y0 - .75/fig.get_figheight())
+    save(fig, 'fig9b_levels')
 
 
 # Fig. 10: time-shuffled twins. How much each method raises its estimate from a network to its twin (truth: +27 pp).
@@ -756,6 +774,34 @@ def fig_twins(plt, pred):
     save(fig, 'fig10_twins')
 
 
+# Fig. 10c: which twins are harder than their network: the typical error on the network and on its twin.
+def fig_twin_networks(plt, perall, f):
+    t = typical_error(perall)
+    fig, axes, order = network_rows(plt, f, twin_spec)
+    before_after(plt, fig, axes, t.loc[order], t.loc[[s + '__pwt' for s in order]],
+                 (dict(color='#333333', edgecolor='white', lw=.7), dict(color='white', edgecolor='#333333', lw=1.1)),
+                 ['network', 'its time-shuffled twin', 'twin easier', 'twin harder'])
+    for ax in axes: ax.set_xlim(-2, 36); ax.set_xlabel('typical error (pp)')
+    note(fig, 'networks sorted by true ρ₂ · 3 samples each · typical error = median of six methods', -.04)
+    save(fig, 'fig10c_twin_networks')
+
+
+# Fig. 10d: which methods work on which twin: error of the naive share (tick), of MLE and of the language models (dots).
+def fig_twin_models(plt, perall, f):
+    e = perall[perall.group == 'surrogate'].pivot(index='source', columns=['arm', 'method'], values='MAE_2')*100
+    fig, axes, order = network_rows(plt, f, twin_spec)
+    twins, y = [s + '__pwt' for s in order], np.arange(len(order))
+    for ax, arm in zip(axes, ARMS):
+        ax.scatter(e.loc[twins, (arm, 'plugin')], y, marker='|', s=170, color=GREY, lw=2.4, zorder=2, label=METHODS['plugin'])
+        for k, (m, c) in enumerate(MLE_LM3):
+            ax.scatter(e.loc[twins, (arm, m)], y + (k - 1.5)*.15, s=38, color=c, edgecolor='white', lw=.7, zorder=3, label=METHODS[m])
+        ax.set_xlim(-2, 54); ax.set_xlabel('error on the twin (pp)')
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc='lower center', ncol=5, frameon=False, bbox_to_anchor=(.5, .97))
+    note(fig, 'the 12 time-shuffled twins, sorted by the true ρ₂ of their network · 3 samples each (language models: × 3 answers)', -.04)
+    save(fig, 'fig10d_twin_models')
+
+
 # Fig. 11: every real network on its own: typical error per arm.
 def fig_cards(plt, perall, f):
     t = typical_error(perall)
@@ -763,7 +809,7 @@ def fig_cards(plt, perall, f):
     fig, axes = plt.subplots(3, 4, figsize=(13, 7.2), sharey=True)
     for ax, s in zip(axes.flat, order):
         v = [t.loc[s, a] for a in ARMS]
-        ax.bar(range(4), v, color=['#7d7c76', '#5598e7', '#e0a100', '#d9383a'], width=.7)
+        ax.bar(range(4), v, color='#333333', width=.7)
         for i, x in enumerate(v): ax.text(i, x + .6, f'{x:.0f}', ha='center', fontsize=9)
         ax.set_xticks(range(4), list(ARMS)); ax.set_ylim(0, 36); ax.set_yticks([]); ax.spines['left'].set_visible(False)
         ax.tick_params(axis='x', length=0)
@@ -800,30 +846,6 @@ def fig_networks(plt, per, f):
     method_heat(plt, per, order, f, 'fig_networks_detail', 'error (pp) per network')
 
 
-# Fig. 0b: what the pairs of each network look like (share of pairs, %).
-PORTRAIT = (('share_one_event', '#d9d6cf', 'one event'), ('share_one_window_several', '#b3afa6', 'several events, one window'),
-            ('share_2_windows', '#9ec5f4', '2 windows'), ('share_3_windows', '#5598e7', '3 windows'),
-            ('share_4_windows', '#256abf', '4 windows'), ('share_5_windows', '#104281', '5 windows'))
-
-
-def fig_portrait(plt, f):
-    order = f.sort_values('rho2').index.tolist()
-    fig, ax = plt.subplots(figsize=(10, 4.6))
-    y = np.arange(len(order))
-    left = np.zeros(len(order))
-    for col, c, lab in PORTRAIT:
-        v = 100*f.loc[order, col].to_numpy()
-        ax.barh(y, v, left=left, color=c, height=.72, label=lab)
-        left += v
-    for yi, s in zip(y, order):
-        ax.text(101.5, yi, full_spec(f.loc[s]), va='center', fontsize=8.5, color=SPEC)
-    ax.set_yticks(y, [short(s) for s in order]); ax.set_xlim(0, 100); ax.set_xticks([0, 25, 50, 75, 100])
-    ax.set_xlabel('share of pairs (%)'); ax.spines['bottom'].set_visible(False); ax.tick_params(axis='y', length=0)
-    ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
-    note(fig, '12 real networks, complete (not sampled)', -.06)
-    save(fig, 'fig0b_portrait')
-
-
 # Synthetic networks: four variants (two generators, without and with memory), two instances each.
 VARIANTS = (('dar_a0', 'DAR, no memory'), ('dar_a08', 'DAR, memory'),
             ('ad_memoryless', 'Activity-driven, no memory'), ('ad_memory', 'Activity-driven, memory'))
@@ -834,39 +856,17 @@ def variant_table():
     return pd.DataFrame({v: sy.loc[[f'{v}_r1', f'{v}_r2']].mean() for v, _ in VARIANTS}).T
 
 
-# Fig. 12: what the pairs of the synthetic variants look like (same layout as fig. 1).
-def fig_synthetic_portrait(plt):
-    sv = variant_table()
-    keys = [v for v, _ in VARIANTS][::-1]
-    fig, ax = plt.subplots(figsize=(10, 2.6))
-    y = np.arange(len(keys)); left = np.zeros(len(keys))
-    for col, c, lab in PORTRAIT:
-        v = 100*sv.loc[keys, col].to_numpy()
-        ax.barh(y, v, left=left, color=c, height=.68, label=lab)
-        left += v
-    for yi, k in zip(y, keys):
-        ax.text(101.5, yi, full_spec(sv.loc[k]), va='center', fontsize=8.5, color=SPEC)
-    ax.set_yticks(y, [dict(VARIANTS)[k] for k in keys]); ax.set_xlim(0, 100); ax.set_xticks([0, 25, 50, 75, 100])
-    ax.set_xlabel('share of pairs (%)'); ax.spines['bottom'].set_visible(False); ax.tick_params(axis='y', length=0)
-    ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
-    note(fig, 'mean of the 2 instances per variant, complete networks (not sampled)', -.16)
-    save(fig, 'fig12_synthetic_portrait')
-
-
-# Fig. 0c, 10b, 12b: when the pairs are active. Per time window, the share of the network's pairs that are active,
-# split by how persistent the pair is. Colours: the portrait's, merged into three kinds.
-ACTIVE = (('pairs active in 1 window', [1], '#c6c3bb'), ('in 2–3 windows', [2, 3], '#7aafee'), ('in 4–5 windows', [4, 5], '#1b56a0'))
-
-
+# Fig. 0b, 10b, 12: what the networks look like. Per time window, the share of the network's pairs that are active,
+# split by how persistent the pair is.
 def fig_active(plt, name, panels, text):
     """panels: (keys in window_activity.csv to average, title, grey specs), one per network."""
     w = pd.read_csv(DATA/'window_activity.csv').set_index(['source', 'windows_of_pair'])
     n = -(-len(panels)//4)
-    fig, axes = plt.subplots(n, 4, figsize=(13, 2.45*n + .5), sharey=True, squeeze=False)
+    fig, axes = plt.subplots(n, 4, figsize=(15, 2.45*n + .5), sharey=True, squeeze=False)
     for ax, (keys, title, spec) in zip(axes.flat, panels):
         share = 100*sum(w.loc[k] for k in keys)/len(keys)   # rows: windows of the pair; columns: the five time windows
         bottom = np.zeros(5)
-        for lab, kinds, c in ACTIVE[::-1]:                  # the most persistent pairs at the bottom
+        for lab, kinds, c in KINDS[::-1]:                   # the most persistent pairs at the bottom
             v = share.loc[kinds].sum().to_numpy()
             ax.bar(range(5), v, bottom=bottom, color=c, width=.78, label=lab); bottom += v
         ax.set_xticks(range(5), range(1, 6)); ax.set_ylim(0, 100); ax.set_yticks([0, 50, 100])
@@ -874,7 +874,7 @@ def fig_active(plt, name, panels, text):
         ax.grid(axis='y', color='#eeeeee'); ax.set_axisbelow(True)
         above = dict(xy=(0, 1), xycoords='axes fraction', textcoords='offset points')
         ax.annotate(title, xytext=(0, 20), fontsize=10.5, fontweight='bold', **above)
-        ax.annotate(f'({spec})', xytext=(0, 6), fontsize=8.5, color=SPEC, **above)
+        ax.annotate(f'({spec})', xytext=(0, 6), fontsize=8.2, color=SPEC, **above)
     for ax in axes[:, 0]: ax.set_ylabel('pairs active (%)', fontsize=9)
     for ax in axes[-1]: ax.set_xlabel('time window', fontsize=9, color='#888888')
     fig.subplots_adjust(hspace=.62, wspace=.1)
@@ -887,12 +887,10 @@ def fig_active(plt, name, panels, text):
 
 def fig_actives(plt, f):
     order = network_order(f)[::-1]
-    fig_active(plt, 'fig0c_active', [([s], short(s), pair_spec(s, f)) for s in order], '12 real networks, complete (not sampled)')
-    twin = lambda s: f"{num(f.loc[s, 'pairs'])} pairs · ρ₂ {pct(f.loc[s, 'rho2'])[:-2]} → {pct(f.loc[s, 'rho2_shuffled'])}"
-    fig_active(plt, 'fig10b_twin_active', [([s + '__pwt'], short(s), twin(s)) for s in order], 'the 12 time-shuffled twins, complete')
+    fig_active(plt, 'fig0b_active', [([s], short(s), full_spec(f.loc[s])) for s in order], '12 real networks, complete (not sampled)')
+    fig_active(plt, 'fig10b_twin_active', [([s + '__pwt'], short(s), twin_spec(s, f)) for s in order], 'the 12 time-shuffled twins, complete')
     sv = variant_table()
-    fig_active(plt, 'fig12b_synthetic_active',
-               [([f'{v}_r1', f'{v}_r2'], lab, f"{num(sv.loc[v, 'pairs'])} pairs · ρ₂ {pct(sv.loc[v, 'rho2'])}") for v, lab in VARIANTS],
+    fig_active(plt, 'fig12_synthetic_active', [([f'{v}_r1', f'{v}_r2'], lab, full_spec(sv.loc[v])) for v, lab in VARIANTS],
                'mean of the 2 instances per variant, complete networks')
 
 
@@ -926,7 +924,7 @@ def fig_windows(plt):
         ax.plot(g.W, 100*g.rho_2, color='#9c9b95', lw=1.4, marker='o', markersize=3)
     mean = w.groupby('W').rho_2.mean()*100
     ax.plot(mean.index, mean.to_numpy(), color='#333333', lw=2.6, label='mean of 12 networks')
-    ax.axvline(5, color=ORANGE, lw=1.2, ls=(0, (4, 2))); ax.text(5.3, 88, 'used: 5 windows', color=ORANGE, fontsize=9)
+    ax.axvline(5, color='#555555', lw=1.2, ls=(0, (4, 2))); ax.text(5.3, 88, 'used: 5 windows', color='#555555', fontsize=9)
     ax.set_xlabel('number of time windows'); ax.set_ylabel('true ρ₂ (%)'); ax.set_ylim(0, 95); ax.set_xticks([2, 5, 10, 15, 20])
     ax.spines['left'].set_visible(True); ax.legend(frameon=False, loc='lower right')
     note(fig, 'one grey line per real network, complete networks (no sampling)', -.06)
@@ -1136,15 +1134,15 @@ def draw():
     resp = pd.read_csv(FINAL/'VARIABILITY_RESPONSE.csv').query("group == 'real'").set_index(['arm', 'method'])
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
-    fig_toy(plt); fig_portrait(plt, f); fig_actives(plt, f); fig_sample(plt, summary, per)
-    fig_ranking(plt, summary); fig_amount(plt, pred, summary); fig_levels(plt, pred)
+    fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per)
+    fig_ranking(plt, summary); fig_levels(plt, pred); fig_amount(plt, pred, summary); fig_gain(plt, perall, f)
     fig_textbook(plt, types); fig_textbook_networks(plt, pred, f)
     fig_correction(plt, pred); fig_correction_networks(plt, pred, f); fig_profile(plt, pred)
     fig_stability(plt, resp); fig_noise_networks(plt, pred, f); fig_sample_noise(plt, pred, f)
     fig_python(plt, summary); fig_python_networks(plt, per, f); fig_python_groups(plt)
-    fig_agreement(plt, per, f); fig_structure(plt, perall, f); fig_persistence(plt, pred); fig_twins(plt, pred)
-    fig_cards(plt, perall, f); fig_networks(plt, per, f)
-    fig_synthetic_portrait(plt); fig_synthetic_arms(plt, perall); fig_windows(plt)
+    fig_agreement(plt, per, f); fig_structure(plt, perall, f); fig_cards(plt, perall, f); fig_networks(plt, per, f)
+    fig_twins(plt, pred); fig_twin_networks(plt, perall, f); fig_twin_models(plt, perall, f)
+    fig_synthetic_arms(plt, perall); fig_persistence(plt, perall); fig_persistence_levels(plt, pred); fig_windows(plt)
     gif_dar(plt); gif_activity(plt)
 
 
