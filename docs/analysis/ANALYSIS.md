@@ -83,11 +83,11 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 
 - The walk (S) overstates persistence; hiding the early time (H) and losing events (B) understate it.
 
-## 3 · Who corrects it
+## 3 · Correction pays where the sample is far off
 
 ![Error per arm, methods sorted](figures/fig2_ranking.png)
 
-- Correction pays off clearly in S and B, only partly in H. In R there is nothing to correct.
+- Correction pays off clearly in S and B, only partly in H; in R there is nothing to correct. No method brings S, H or B down to R's 2.7 pp (best: 5.0, 3.9 and 7.6 pp).
 - GPT is the best language model but has no consistent edge over MLE.
 - Qwen no thinking is worse than a constant guess: in R, S and B it answers 85–95 % almost regardless of the sample.
 
@@ -101,13 +101,17 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 - In H, every method corrects too much: the sample needs +5 pp, they add +7 to +15.
 - In S and B the amount is about right on average; Qwen thinking makes only half of it in S.
 
-![Per network: error of the naive share and after correction](figures/fig2d_networks.png)
+![Error of each method against the error of the naive share, one dot per network and arm](figures/fig2d_breakeven.png)
 
-*Typical error:* median error of MLE, ExtraTrees, GPT, GPT + Python, DeepSeek and Qwen thinking.
+- Every method leaves part of the sample's error and adds some of its own, so correction pays only where the sample is far off.
+- Naive share off by 10 pp or more (22 cases): MLE, ExtraTrees and GPT are better in 21, DeepSeek in 17, Qwen thinking in 13. Off by less than 5 pp (18 cases): no method is better in more than 1.
+- Of a large error, MLE and ExtraTrees leave about a fifth, GPT and DeepSeek half, Qwen thinking most (median 23, 17, 47, 51 and 85 %).
 
-- **S:** correction pays on every network (Digg has nothing to correct); Malawi, Hospital, Reality Mining and Linux keep 11–31 pp.
-- **H:** it pays only where the sample is far off (Reality Mining, Email EU, High school, Copenhagen) and makes 7 networks worse.
-- **B:** it pays on 8 networks; Malawi, Linux and MathOverflow get worse.
+![Per network and method: better or worse than the naive share](figures/fig2e_networks.png)
+
+- **S:** every method gains on every network but Digg, where there is nothing to correct.
+- **H:** MLE, ExtraTrees and GPT gain on the four networks where the sample is off most (Reality Mining, Email EU, High school, Copenhagen). On Radoslaw, Linux and College messages every method loses; Qwen thinking gains nowhere.
+- **B:** MLE, ExtraTrees and GPT gain on 8 or 9 networks, DeepSeek on 4, Qwen thinking on 2. On Malawi every method loses.
 
 ## 4 · Where a textbook answer exists, the models give it
 
@@ -135,24 +139,29 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 
 - MLE, GPT and DeepSeek recover the whole profile on average, even ρ₄ and ρ₅ in H, which three visible windows cannot show (the naive share is 0 there). Qwen thinking does not.
 
+![Reasoning length against error, one dot per model and arm](figures/fig4d_thinking.png)
+
+- Every model thinks longest under event loss, but longer thinking does not make a model better: DeepSeek writes 6–19 times as much as GPT and is more accurate in no arm.
+- Qwen thinking writes as little in H as in R: in 70 % of its H answers it returns the naive share.
+
 <details>
-<summary><h3>How long the models think, and what DeepSeek writes</h3></summary>
+<summary><h3>Reasoning tokens, and what the models write</h3></summary>
 
 | Median reasoning tokens | R | S | H | B |
 |---|---:|---:|---:|---:|
 | GPT | 489 | 3,051 | 4,764 | 8,966 |
 | DeepSeek | 9,069 | 35,483 | 50,226 | 57,932 |
+| Qwen thinking | 6,068 | 9,589 | 6,402 | 13,173 |
 
-- Both write the longest reasoning in H and B. DeepSeek writes 6–19 times as much as GPT and is still less accurate.
-- "Guess" appears in DeepSeek's full reasoning in 82 % of H and 58 % of B answers (R: 2 %), e.g. *"We have no data on windows 1-2, so any extrapolation is a guess."*
+- The two models whose reasoning is visible say when they improvise: "guess" appears in DeepSeek's reasoning in 82 % of H and 58 % of B answers (R: 2 %), in Qwen's in 40 % and 54 % (R: 4 %). DeepSeek, for example: *"We have no data on windows 1-2, so any extrapolation is a guess."*
 
 </details>
 
-## 6 · How much the estimates move
+## 6 · Improvised answers vary; the errors are systematic
 
 ![Spread of three answers to the same sample](figures/fig5_stability.png)
 
-- Asked again with the same sample, the language models answer differently where they improvise (H, B).
+- Asked again with the same sample, a model repeats itself where it gives a textbook answer (R; in S GPT and DeepSeek) and answers differently where it improvises (H, B; in S Qwen thinking).
 
 ![Per network: spread of three answers, H and B together](figures/fig5b_noise_networks.png)
 
@@ -174,8 +183,9 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 ![Error of GPT with and without Python, twins and synthetic networks](figures/fig6c_python_groups.png)
 
 - Python hurts only on real networks: on the twins B stays the same (13.3 → 12.8 pp), on synthetic networks it improves a little (12.9 → 10.7 pp).
+- Arithmetic was not what GPT lacked: without Python it already matches the textbook answers to 0.5 pp (section 4).
 
-## 8 · Which networks are hard
+## 8 · What makes a network hard
 
 ### 8.1 With random nodes or a random walk, the same networks are hard for every method
 
@@ -183,6 +193,9 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 
 - **R, S:** the dots sit on the diagonal, so difficulty is a property of the network.
 - **H, B:** the dots scatter, so it depends on the method. Copenhagen in B is easy for MLE (0.5 pp) and hard for GPT (17.5 pp).
+- All six methods together rank the networks alike in R and S (mean rank correlation 0.93 and 0.89), not in H and B (0.42 and 0.38).
+
+*Typical error* (used below): median error of MLE, ExtraTrees, GPT, GPT + Python, DeepSeek and Qwen thinking. It sums up R and S well, H and B only roughly.
 
 ### 8.2 Not the number of events, but how many pairs carry them
 
@@ -200,13 +213,14 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 
 ![Typical error per arm, one panel per network](figures/fig11_cards.png)
 
+- No arm is the hardest everywhere: event loss on 5 networks, the walk on 4, late time on 2.
 - **Digg:** easy everywhere; almost every pair has only one event.
 - **Malawi:** hardest in S and B; effectively 55 of its 347 pairs carry the events.
 - **Copenhagen:** easy except under event loss.
 - **Linux mailing list:** low persistence, yet hard under the walk (11 pp): its samples differ strongly (section 6).
 - **College messages:** easy in R and S, harder in H: 85 % of its pairs are active only in the hidden early time.
 
-### 8.4 Time-shuffled twins: do the methods read the timing?
+### 8.4 Time-shuffled twins: the thinking models read the timing; event loss gets harder
 
 Each real network has a **twin**: the same pairs and events per pair, but the times shuffled among all events. Its true ρ₂ is 27 pp higher. A method that ignores timing would give both the same answer.
 
@@ -220,17 +234,17 @@ Each real network has a **twin**: the same pairs and events per pair, but the ti
 - Qwen no thinking does not (−12 to +3 pp): it ignores the timing.
 - Under event loss (B), all follow only part of the change; GPT the most.
 
-![Per network: typical error on the network and on its twin](figures/fig10c_twin_networks.png)
+![Error on the real networks and on their twins, per method](figures/fig10c_twin_methods.png)
 
-- **B:** a twin gets harder where shuffling makes a network persistent: College messages, MathOverflow, Workplace and Hospital gain 8–14 pp (the rule of 8.6).
-- **S:** only the Linux twin gets much harder (11 → 33 pp). **R:** the twins of the smallest networks (Malawi, Hospital) get easier.
+- Under event loss the twins are harder for every method: shuffling makes the networks more persistent, and persistence is what event loss hides (8.6). The naive share's error doubles (16 → 33 pp); DeepSeek and Qwen thinking lose 12 pp, MLE, ExtraTrees and GPT 3–6 pp.
+- In R, S and H the errors of the five correcting methods change by less than 4 pp.
 
-![Per twin: error of the naive share, MLE and the language models](figures/fig10d_twin_models.png)
+![Per network and method: twin harder or easier than its network](figures/fig10d_twin_networks.png)
 
-- **B:** MLE and GPT remove about half of the naive share's error on almost every twin; DeepSeek and Qwen thinking stay close to it.
-- **S:** on the twins of Reality Mining, Malawi and Hospital the models correct little or nothing; the Linux twin is hard for all (29–35 pp).
+- **B:** the naive share loses most where shuffling raises ρ₂ most (rank correlation 0.90), and DeepSeek follows it (0.73). Malawi's twin is easier for MLE, ExtraTrees and GPT.
+- **S:** the Linux twin is the only one that gets much harder for every method (17–22 pp); Malawi's gets easier for all.
 
-### 8.5 Synthetic networks: what memory changes
+### 8.5 Synthetic networks: memory makes event loss harder
 
 The synthetic networks change one thing only, **memory**: each generator runs without and with it on the same random numbers (500 nodes, about 10k events).
 
@@ -261,16 +275,17 @@ The synthetic networks change one thing only, **memory**: each generator runs wi
 
 - Memory puts about the same number of events on fewer pairs, which return in window after window: ρ₂ 39 → 78 % (DAR), 6 → 79 % (activity-driven).
 
-![Typical error without and with memory, per arm](figures/fig13_synthetic_arms.png)
+![Error without and with memory, per method](figures/fig13_synthetic_arms.png)
 
-- With memory, S and B get harder in both generators; R does not, H only in activity-driven.
+- Under event loss, memory costs the naive share 30–60 pp and the language models up to 43 pp (activity-driven); MLE loses 3–6 pp. Under the walk it costs MLE, ExtraTrees, GPT and DeepSeek 1–5 pp.
+- DAR is persistent even without memory (ρ₂ 39 %) and already hard under event loss (GPT 16 pp); memory adds less there.
 - These are the two drivers seen in the real networks: few pairs carrying the events (S, 8.2) and high persistence (B, 8.6).
 
 <details>
 <summary><h3>Instances, and why ExtraTrees is so good here</h3></summary>
 
 - 2 instances per generator; within an instance, both variants share all random numbers, so only memory differs.
-- ExtraTrees was trained on other networks from the same two generators (B with memory: 2–3 pp, against 7–19 pp for MLE and GPT). Without it, the values in the figure change by at most 2.4 pp; the picture stays the same.
+- ExtraTrees was trained on other networks from the same two generators (B with memory: 2–3 pp, against 7–19 pp for MLE and GPT).
 
 </details>
 
@@ -281,10 +296,15 @@ The synthetic networks change one thing only, **memory**: each generator runs wi
 - Under event loss (B), every network with ρ₂ above 30 % is hard (10–24 pp): real networks, twins and synthetic networks alike.
 - Under the walk (S), only some of them are (1–33 pp).
 
+![Error on networks with ρ₂ below and above 30 %, per method](figures/fig9b_methods.png)
+
+- The same for every method: persistent networks are harder in S and B, most under event loss, where the error grows by a factor of 2 to 5 (naive share: 5 → 37 pp).
+- A persistent network has more to lose: under event loss a pair must be seen in two windows to count.
+
 <details>
 <summary><h3>The same for ρ₃, ρ₄ and ρ₅</h3></summary>
 
-![Typical error of ρ₃ to ρ₅ against the true value, per arm, all 32 networks](figures/fig9b_levels.png)
+![Typical error of ρ₃ to ρ₅ against the true value, per arm, all 32 networks](figures/fig9c_levels.png)
 
 - Under event loss the error grows with the true value at every level, at ρ₅ almost on a line.
 - Among the real networks, the same ones are hard at every level in R, S and B; in H they change (rank correlation between the errors at ρ₂ and ρ₅: 0.77, 0.76 and 0.93 against 0.35).
@@ -294,17 +314,18 @@ The synthetic networks change one thing only, **memory**: each generator runs wi
 <details>
 <summary><h2>Key findings</h2></summary>
 
-1. **Samples distort persistence:** the walk overstates it, late time only and event loss understate it, random nodes do not. (2)
-2. **Where a textbook answer exists, the language models give it** (R: naive share; S: simple reweighting, mostly GPT and DeepSeek), and are as good as the formula, not better. (4)
-3. **Where none exists, they improvise:** GPT corrects about right most often of the language models; DeepSeek and Qwen rarely, and differently each time. (5, 6)
-4. **No language model beats MLE consistently;** Qwen no thinking is worse than a constant guess. (3)
-5. **In H, every method corrects too much,** so correction pays only where the sample is far off; in S and B the amount is about right on average. (3)
-6. **The whole profile behaves like ρ₂:** the ranking hardly changes from ρ₂ to ρ₅. (3, 5, 8.6)
-7. **The errors are systematic, not chance:** a new sample barely moves a good estimate. (6)
-8. **Python does not help GPT;** under event loss it makes 8 of 12 real networks worse, but not the twins or the synthetic networks. (7)
-9. **What makes a network hard:** with random nodes and the walk, few pairs carrying the events; under event loss, high persistence, at every level of the profile. Memory in synthetic networks produces both; time-shuffling produces the second. (8.1, 8.2, 8.4, 8.5, 8.6)
+**In one sentence:** how a sample is drawn decides how wrong it is; language models correct it as well as the textbook answer they recall, and not consistently better than a statistical model of the sampling.
+
+1. **The sampling design decides how wrong the sample is.** Random nodes keep persistence (naive share off by 3 pp), the walk overstates it (30 pp), late time and event loss understate it (6 and 16 pp). No method brings S, H or B back to R's accuracy. (2, 3)
+2. **Correction pays where the sample is far off.** Every method leaves part of the sample's error and adds some of its own: off by 10 pp or more, MLE, ExtraTrees and GPT beat the naive share in 21 of 22 cases; off by less than 5 pp, in at most 1 of 18. (3)
+3. **Language models are as good as the textbook answer they recall.** Where one exists (R: naive share; S: simple reweighting), GPT and DeepSeek give it and inherit its error. (4)
+4. **Where none exists (H, B), they improvise.** Only GPT is about right in half of its answers; the answers vary from run to run, while the errors are systematic. (5, 6)
+5. **No language model beats MLE consistently.** MLE and ExtraTrees leave about a fifth of a large error, GPT and DeepSeek half, Qwen thinking most; Qwen no thinking does not read the sample. (3)
+6. **More thinking and more tools do not help.** DeepSeek thinks 6–19 times as long as GPT and is more accurate in no arm; Python makes GPT worse under event loss on real networks. (5, 7)
+7. **In R and S, difficulty is a property of the network** (few pairs carrying the events); in H and B, of the method. (8.1, 8.2)
+8. **Persistence makes event loss hard,** however it arises: across the real networks, through time-shuffling (twins) and through memory (synthetic networks). (8.4, 8.5, 8.6)
+9. **The whole profile behaves like ρ₂, and five windows are not a special choice.** (1, 3, 8.6)
 10. **All thinking models read the timing;** Qwen no thinking does not. (8.4)
-11. **Five windows are not a special choice:** other numbers shift ρ₂ a little and keep the order of the networks. (1)
 
 </details>
 
@@ -315,6 +336,7 @@ The synthetic networks change one thing only, **memory**: each generator runs wi
 - **Error:** |estimate − true ρ₂| in pp, averaged per network over samples and answers, then over networks.
 - **Typical error:** median error of MLE, ExtraTrees, GPT, GPT + Python, DeepSeek and Qwen thinking.
 - **Spread:** standard deviation of the three answers to the same sample.
+- **Reasoning tokens:** as reported by the provider (GPT, DeepSeek); for Qwen all output tokens, that is the thinking plus an answer of about 55 tokens. The tokenizers differ, so only the order of magnitude compares across models.
 - **Pairs that carry the events** (effective number of pairs): 1 / Σ (events of a pair / all events)², the inverse Simpson index. Malawi 55, Copenhagen 4,590, Digg 82,900.
 - **Generators:** Williams, Mazzarisi, Lillo & Latora, *Phys. Rev. E* 105, 034301 (2022); Perra, Gonçalves, Pastor-Satorras & Vespignani, *Sci. Rep.* 2, 469 (2012); Karsai, Perra & Vespignani, *Sci. Rep.* 4, 4001 (2014).
 - All errors per network and method: [figure](figures/fig_networks_detail.png), [MAIN_RESULTS.md](../results/final/MAIN_RESULTS.md). Robustness: [VARIABILITY.md](../results/final/VARIABILITY.md), [W_SENSITIVITY.md](../results/final/W_SENSITIVITY.md), [WALK.md](../results/final/WALK.md).
