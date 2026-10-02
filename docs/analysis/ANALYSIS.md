@@ -102,17 +102,17 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 - In H, every method corrects too much: the sample needs +5 pp, they add +7 to +15.
 - In S and B the amount is about right on average; Qwen thinking makes only half of it in S.
 
-![Error of each method against the error of the naive share, one dot per network and arm](figures/fig2d_breakeven.png)
+![How often each method beats the naive share, by how far the naive share is off](figures/fig2d_wins.png)
 
 - Correction helps most where the sample is far off. This is a check against known truth; for an unknown network, the sample's error is unknown too.
-- Naive share off by 10 pp or more (22 cases): MLE, ExtraTrees and GPT are better in 21, DeepSeek in 17, Qwen thinking in 13. Off by less than 5 pp (18 cases): no method is better in more than 1.
+- Off by 10 pp or more, MLE, ExtraTrees and GPT beat the naive share in 21 of 22 cases; off by less than 5 pp, no method does in more than 1 of 18.
 - Of a large error, MLE and ExtraTrees leave about a fifth, GPT and DeepSeek half, Qwen thinking most (median 23, 17, 47, 51 and 85 %).
 
-![Per network and method: better or worse than the naive share](figures/fig2e_networks.png)
+![Per network: for how many of the five methods correction pays](figures/fig2e_networks.png)
 
-- **S:** every method gains on every network but Digg, where there is nothing to correct.
-- **H:** MLE, ExtraTrees and GPT gain on the four networks where the sample is off most (Reality Mining, Email EU, High school, Copenhagen). On Radoslaw, Linux and College messages every method loses; Qwen thinking gains nowhere.
-- **B:** MLE, ExtraTrees and GPT gain on 8 or 9 networks, DeepSeek on 4, Qwen thinking on 2. On Malawi every method loses.
+- **S:** all five methods gain on every network but Digg, where there is nothing to correct.
+- **H:** most methods gain only on the four networks where the sample is off most (Reality Mining, Email EU, High school, Copenhagen); on Radoslaw, Linux and College messages all five lose.
+- **B:** most methods gain on 8 networks; on Malawi and Linux all five lose.
 
 ## 4 · Answers often match a simple formula
 
@@ -237,15 +237,15 @@ Each real network has a **twin**: the same pairs and events per pair, but the ti
 - Qwen no thinking does not (−12 to +3 pp): it ignores the timing.
 - Under event loss (B), all follow only part of the change; GPT the most.
 
-![Error on the real networks and on their twins, per method](figures/fig10c_twin_methods.png)
+![Change in each method's error from the real networks to their twins](figures/fig10c_twin_methods.png)
 
-- Under event loss the twins are harder for every method: shuffling makes the networks more persistent, and persistence is what event loss hides (8.6). The naive share's error doubles (16 → 33 pp); DeepSeek and Qwen thinking lose 12 pp, MLE, ExtraTrees and GPT 3–6 pp.
-- In R, S and H the errors of the five correcting methods change by less than 4 pp.
+- Under event loss the twins are harder for every method: shuffling makes the networks more persistent, and persistence is what event loss hides (8.6). The naive share loses 16 pp, DeepSeek and Qwen thinking 12 pp, MLE, ExtraTrees and GPT 3–6 pp.
+- In R, S and H the errors of the five correcting methods change by at most 4 pp.
 
-![Per network and method: twin harder or easier than its network](figures/fig10d_twin_networks.png)
+![Per network: for how many of the five methods the twin is harder or easier](figures/fig10d_twin_networks.png)
 
-- **B:** the naive share loses most where shuffling raises ρ₂ most (rank correlation 0.90), and DeepSeek follows it (0.73). Malawi's twin is easier for MLE, ExtraTrees and GPT.
-- **S:** the Linux twin is the only one that gets much harder for every method (17–22 pp); Malawi's gets easier for all.
+- **B:** almost every twin is harder for most of the five methods; the sample loses most where shuffling raises ρ₂ most (rank correlation 0.90 for the naive share). Only Malawi's twin is easier for three of them.
+- **S:** the Linux twin gets much harder for all five (17–22 pp), Malawi's easier for all five.
 
 ### 8.5 Synthetic networks: memory makes event loss harder
 
@@ -278,10 +278,14 @@ The synthetic networks change one thing only, **memory**: each generator runs wi
 
 - Memory puts about the same number of events on fewer pairs, which return in window after window: ρ₂ 39 → 78 % (DAR), 6 → 79 % (activity-driven).
 
-![Error without and with memory, per method](figures/fig13_synthetic_arms.png)
+![DAR: change in each method's error with memory](figures/fig13_memory_dar.png)
 
-- Under event loss, memory costs the naive share 30–60 pp and the language models up to 43 pp (activity-driven); MLE loses 3–6 pp. Under the walk it costs MLE, ExtraTrees, GPT and DeepSeek 1–5 pp.
-- DAR is persistent even without memory (ρ₂ 39 %) and already hard under event loss (GPT 16 pp); memory adds less there.
+- DAR is persistent even without memory (ρ₂ 39 %). Under event loss, memory costs the sample 30 pp, but the methods at most 8 pp.
+
+![Activity-driven: change in each method's error with memory](figures/fig13b_memory_activity.png)
+
+- Activity-driven goes from almost no persistence to much (ρ₂ 6 → 79 %). Under event loss the sample loses 60 pp, the language models 16–43 pp, MLE 6 pp.
+- Under the walk, memory costs MLE, ExtraTrees, GPT and DeepSeek 1–5 pp in both generators.
 - These are the two drivers seen in the real networks: few pairs carrying the events (S, 8.2) and high persistence (B, 8.6).
 
 <details>
@@ -298,16 +302,12 @@ The synthetic networks change one thing only, **memory**: each generator runs wi
 
 - Under event loss (B), every network with ρ₂ above 30 % is hard (10–24 pp): real networks, twins and synthetic networks alike.
 - Under the walk (S), only some of them are (1–33 pp).
-
-![Error on networks with ρ₂ below and above 30 %, per method](figures/fig9b_methods.png)
-
-- The same for every method: persistent networks are harder in S and B, most under event loss, where the error grows by a factor of 2 to 5 (naive share: 5 → 37 pp).
 - A persistent network has more to lose: under event loss a pair must be seen in two windows to count.
 
 <details>
 <summary><h3>The same for ρ₃, ρ₄ and ρ₅</h3></summary>
 
-![Typical error of ρ₃ to ρ₅ against the true value, per arm, all 32 networks](figures/fig9c_levels.png)
+![Typical error of ρ₃ to ρ₅ against the true value, per arm, all 32 networks](figures/fig9b_levels.png)
 
 - Under event loss the error grows with the true value at every level, at ρ₅ almost on a line.
 - Among the real networks, the same ones are hard at every level in R, S and B; in H they change (rank correlation between the errors at ρ₂ and ρ₅: 0.77, 0.76 and 0.93 against 0.35).

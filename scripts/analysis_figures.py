@@ -327,42 +327,36 @@ def network_rows(plt, f, spec=pair_spec):
     return fig, axes, order
 
 
-def change_dots(plt, f, change, methods, labels, spec=pair_spec):
-    """One dot per network (row), method (column) and arm (panel): green where the error falls by more than 0.5 pp,
-    red where it rises, the area grows with the size of the change. change: columns (arm, method), rows networks."""
+def outcome_boxes(plt, f, change, methods, labels, spec=pair_spec):
+    """Per network (row) and arm (panel) one box per method, sorted by outcome: green where the method's error falls by
+    more than 0.5 pp, red where it rises, grey in between. change: columns (arm, method), rows networks."""
     fig, axes, order = network_rows(plt, f, spec)
-    scale = 14
     for ax, arm in zip(axes, ARMS):
-        for x, m in enumerate(methods):
-            v = change[(arm, m)].loc[order].to_numpy()
-            ax.scatter([x]*len(order), range(len(order)), s=np.clip(np.abs(v), .5, 40)*scale, zorder=3, edgecolor='white', lw=.5,
-                       color=[BETTER if c < -.5 else WORSE if c > .5 else SAME for c in v])
-        ax.set_xticks(range(len(methods)), [METHODS[m] for m in methods], rotation=35, ha='right', fontsize=9)
-        ax.set_xlim(-.6, len(methods) - .4); ax.tick_params(axis='x', length=0); ax.spines['bottom'].set_visible(False)
-    handles = [plt.Line2D([], [], marker='o', ls='', color=c, markersize=7) for c in (BETTER, WORSE)] + \
-              [plt.Line2D([], [], marker='o', ls='', color='#999999', markersize=np.sqrt(v*scale)) for v in (5, 20)]
-    fig.legend(handles, labels + ['by 5 pp', 'by 20 pp'], loc='lower center', ncol=4, frameon=False, bbox_to_anchor=(.5, .97))
+        for line in list(ax.lines): line.remove()   # the boxes need no row background
+        for y, s in enumerate(order):
+            v = np.array([change.loc[s, (arm, m)] for m in methods])
+            boxes = [BETTER]*int((v < -.5).sum()) + [SAME]*int((np.abs(v) <= .5).sum()) + [WORSE]*int((v > .5).sum())
+            for x, c in enumerate(boxes): ax.add_patch(plt.Rectangle((x + .06, y - .3), .88, .6, color=c, lw=0))
+        ax.set_xlim(-.2, len(methods) + .2); ax.set_xticks([]); ax.spines['bottom'].set_visible(False)
+    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (BETTER, SAME, WORSE)]
+    fig.legend(handles, labels, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .97))
     return fig
 
 
-def method_pairs(plt, axes, before, after, methods, xlim):
-    """One row per method and one panel per arm: two errors joined by a line, red where the second is higher by
-    more than 0.5 pp, green where it is lower. The first dot is filled, the second hollow."""
+def change_bars(plt, change, methods, xlim, hint, title=''):
+    """One bar per method and arm: how much its error changes (pp); to the right means a larger error."""
+    fig, axes = plt.subplots(1, 4, figsize=(15, 3.1), sharey=True)
     y = np.arange(len(methods))[::-1]
     for ax, arm in zip(axes, ARMS):
-        for yi, m in zip(y, methods):
-            b, a = before[(arm, m)], after[(arm, m)]
-            ax.plot([b, a], [yi, yi], color=BETTER if a < b - .5 else WORSE if a > b + .5 else SAME, lw=2.6, zorder=2, solid_capstyle='round')
-            ax.scatter(b, yi, s=44, color=colour(m), edgecolor='white', lw=.7, zorder=3)
-            ax.scatter(a, yi, s=44, color='white', edgecolor=colour(m), lw=1.4, zorder=3)
-        ax.set_yticks(y, [METHODS[m] for m in methods]); ax.set_xlim(*xlim); ax.tick_params(axis='y', length=0)
-
-
-def pair_legend(plt, fig, labels, y):
-    handles = [plt.Line2D([], [], marker='o', ls='', markersize=7, color='#555555'),
-               plt.Line2D([], [], marker='o', ls='', markersize=7, markerfacecolor='white', markeredgecolor='#555555', markeredgewidth=1.4),
-               plt.Line2D([], [], color=WORSE, lw=2.6), plt.Line2D([], [], color=BETTER, lw=2.6)]
-    fig.legend(handles, labels, loc='lower center', ncol=4, frameon=False, bbox_to_anchor=(.5, y))
+        v = [change[(arm, m)] for m in methods]
+        ax.barh(y, v, color=[colour(m) for m in methods], height=.65)
+        ax.axvline(0, color='#333333', lw=1)
+        value_column(ax, y, v, xlim[1] - .5)
+        ax.set_xlim(*xlim); ax.set_title(ARMS[arm]); ax.set_yticks(y, [METHODS[m] for m in methods])
+        ax.set_xlabel('change in error (pp)')
+    fig.text(.5, 1.0, hint, ha='center', fontsize=10, color='#444444')
+    if title: fig.text(.01, 1.0, title, fontsize=12, fontweight='bold')
+    return fig
 
 
 def typical_error(perall):
@@ -467,32 +461,34 @@ def fig_amount(plt, pred, summary):
     save(fig, 'fig2c_amount')
 
 
-# Fig. 2d: when correction pays. Error of each method against the error of the naive share, one dot per network and arm.
-def fig_breakeven(plt, per):
+# Fig. 2d: when correction pays: how often each method beats the naive share, by how far the naive share is off.
+def fig_wins(plt, per):
     e = per.pivot_table(index=['source', 'arm'], columns='method', values='MAE_2')*100
-    fig, axes = plt.subplots(1, 5, figsize=(15, 3.5), sharey=True)
-    for ax, m in zip(axes, FIVE):
-        ax.fill([0, 46, 46], [0, 0, 46], color='#eaf5ee', lw=0, zorder=0); ax.fill([0, 0, 46], [0, 46, 46], color='#fbecec', lw=0, zorder=0)
-        ax.plot([0, 46], [0, 46], color='#bbbbbb', lw=1, zorder=1)
-        ax.scatter(e.plugin, e[m], s=26, color=colour(m), edgecolor='white', lw=.5, zorder=3)
-        ax.set_xlim(0, 46); ax.set_ylim(0, 46); ax.set_aspect('equal'); ax.set_title(METHODS[m])
-        ax.set_xlabel('error of the naive share (pp)'); ax.spines['left'].set_visible(True)
-    axes[0].set_ylabel('error of the method (pp)')
-    fig.canvas.draw()   # the square panels are placed now
-    box, inch = axes[0].get_position(), 1/fig.get_figheight()
-    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in ('#eaf5ee', '#fbecec')]
-    fig.legend(handles, ['correction pays: the method is better than the naive share', 'correction hurts'], loc='lower center', ncol=2,
-               frameon=False, bbox_to_anchor=(.5, box.y1 + .35*inch))
-    note(fig, REAL_NOTE + ' · one dot per network and arm (48 per method)', box.y0 - .65*inch)
-    save(fig, 'fig2d_breakeven')
+    groups = (('naive share off by less than 5 pp', e.plugin < 5), ('5–10 pp', (e.plugin >= 5) & (e.plugin < 10)),
+              ('10 pp or more', e.plugin >= 10))
+    fig, ax = plt.subplots(figsize=(9, 3.4))
+    w = .8/len(FIVE)
+    for k, m in enumerate(FIVE):
+        xs = np.arange(len(groups)) + (k - (len(FIVE) - 1)/2)*w
+        wins = [int(((e.plugin - e[m]) > .5)[cases].sum()) for _, cases in groups]
+        total = [int(cases.sum()) for _, cases in groups]
+        ax.bar(xs, [100*a/b for a, b in zip(wins, total)], width=w*.92, color=colour(m), label=METHODS[m])
+        for x, a, b in zip(xs, wins, total): ax.text(x, 100*a/b + 2, f'{a}/{b}', ha='center', va='bottom', fontsize=8.5)
+    ax.set_xticks(range(len(groups)), [lab for lab, _ in groups]); ax.set_ylim(0, 112); ax.set_yticks([])
+    ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0)
+    ax.set_title('Cases in which the method beats the naive share', pad=12)
+    ax.legend(frameon=False, ncol=len(FIVE), loc='upper center', bbox_to_anchor=(.5, -.12), columnspacing=1.2)
+    note(fig, '12 real networks × 4 arms = 48 cases per method · beats: better by more than 0.5 pp', -.2)
+    save(fig, 'fig2d_wins')
 
 
-# Fig. 2e: on which networks correction pays, per method: error of the method minus error of the naive share.
+# Fig. 2e: on which networks correction pays: for how many of the five methods the error is below the naive share's.
 def fig_gain(plt, per, f):
     e = per.pivot_table(index='source', columns=['arm', 'method'], values='MAE_2')*100
     gain = pd.DataFrame({(a, m): e[(a, m)] - e[(a, 'plugin')] for a in ARMS for m in FIVE})
-    fig = change_dots(plt, f, gain, FIVE, ['better than the naive share', 'worse'])
-    note(fig, 'networks sorted by true ρ₂ · ' + REAL_NOTE + ' · error of the method minus error of the naive share', -.12)
+    fig = outcome_boxes(plt, f, gain, FIVE, ['better than the naive share', 'about the same (±0.5 pp)', 'worse'])
+    note(fig, 'one box per method (MLE, ExtraTrees, GPT, DeepSeek, Qwen thinking), sorted by outcome · networks sorted by true ρ₂ · '
+         + REAL_NOTE, -.0)
     save(fig, 'fig2e_networks')
 
 
@@ -790,20 +786,7 @@ def fig_persistence(plt, perall):
     save(fig, 'fig9_persistence')
 
 
-# Fig. 9b: the same per method: mean error on the networks with rho_2 below and above 30 %.
-def fig_persistence_methods(plt, perall):
-    truth = json.loads((FINAL/'TRUTH.json').read_text())
-    e = perall.pivot_table(index='source', columns=['arm', 'method'], values='MAE_2')*100
-    high = np.array([truth[s][0] >= .3 for s in e.index])
-    fig, axes = plt.subplots(1, 4, figsize=(14, 2.9), sharey=True)
-    method_pairs(plt, axes, e[~high].mean(), e[high].mean(), ['plugin'] + FIVE, (-2, 40))
-    for ax, arm in zip(axes, ARMS): ax.set_title(ARMS[arm]); ax.set_xlabel('error (pp)')
-    pair_legend(plt, fig, [f'ρ₂ below 30 % ({(~high).sum()} networks)', f'ρ₂ above 30 % ({high.sum()} networks)', 'harder', 'easier'], .98)
-    note(fig, '32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic · 3 samples (× 3 answers) each', -.1)
-    save(fig, 'fig9b_methods')
-
-
-# Fig. 9c: the same for the higher levels of the profile: typical error of rho_3, rho_4, rho_5 against their true values.
+# Fig. 9b: the same for the higher levels of the profile: typical error of rho_3, rho_4, rho_5 against their true values.
 def fig_persistence_levels(plt, pred):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
     e = level_errors(pred)
@@ -826,7 +809,7 @@ def fig_persistence_levels(plt, pred):
     fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .93))
     note(fig, '32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic · typical error = median of six methods · '
          'each row: one level against its own true value', axes[2][0].get_position().y0 - .75/fig.get_figheight())
-    save(fig, 'fig9c_levels')
+    save(fig, 'fig9b_levels')
 
 
 # Fig. 10: time-shuffled twins. How much each method raises its estimate from a network to its twin (truth: +27 pp).
@@ -856,25 +839,23 @@ def fig_twins(plt, pred):
     save(fig, 'fig10_twins')
 
 
-# Fig. 10c: the twins per method: mean error on the 12 real networks and on their twins.
+# Fig. 10c: the twins per method: change in the mean error from the 12 real networks to their twins.
 def fig_twin_methods(plt):
     e = pd.read_csv(FINAL/'SUMMARY.csv').set_index(['group', 'arm', 'method']).MAE_2*100
-    fig, axes = plt.subplots(1, 4, figsize=(14, 2.9), sharey=True)
-    method_pairs(plt, axes, e.loc['real'], e.loc['surrogate'], ['plugin'] + FIVE, (-2, 36))
-    for ax, arm in zip(axes, ARMS): ax.set_title(ARMS[arm]); ax.set_xlabel('error (pp)')
-    pair_legend(plt, fig, ['real networks', 'their time-shuffled twins', 'twins harder', 'twins easier'], .98)
-    note(fig, '12 real networks and their time-shuffled twins · 3 samples (× 3 answers) each', -.1)
+    fig = change_bars(plt, e.loc['surrogate'] - e.loc['real'], ['plugin'] + FIVE, (-9, 23),
+                      'bar to the right: the twins are harder than the real networks')
+    note(fig, '12 real networks and their time-shuffled twins · 3 samples (× 3 answers) each', -.07)
     save(fig, 'fig10c_twin_methods')
 
 
-# Fig. 10d: the twins per network and method: error on the twin minus error on its network.
+# Fig. 10d: the twins per network: for how many of the five methods the twin is harder or easier than its network.
 def fig_twin_networks(plt, perall, f):
     e = perall[perall.group.isin(['real', 'surrogate'])].pivot_table(index='source', columns=['arm', 'method'], values='MAE_2')*100
-    methods = ['plugin'] + FIVE
     change = pd.DataFrame({(a, m): e.loc[[s + '__pwt' for s in f.index], (a, m)].to_numpy() - e.loc[f.index, (a, m)].to_numpy()
-                           for a in ARMS for m in methods}, index=f.index)
-    fig = change_dots(plt, f, change, methods, ['twin easier than its network', 'twin harder'], twin_spec)
-    note(fig, 'networks sorted by true ρ₂ · 3 samples each · error on the twin minus error on its network', -.12)
+                           for a in ARMS for m in FIVE}, index=f.index)
+    fig = outcome_boxes(plt, f, change, FIVE, ['twin easier than its network', 'about the same (±0.5 pp)', 'twin harder'], twin_spec)
+    note(fig, 'one box per method (MLE, ExtraTrees, GPT, DeepSeek, Qwen thinking), sorted by outcome · networks sorted by true ρ₂ · '
+         '3 samples each', -.0)
     save(fig, 'fig10d_twin_networks')
 
 
@@ -970,20 +951,16 @@ def fig_actives(plt, f):
                'mean of the 2 instances per variant, complete networks')
 
 
-# Fig. 13: what memory does to the estimation task, per method: mean error without and with memory.
-def fig_synthetic_arms(plt, perall):
+# Fig. 13, 13b: what memory does to the estimation task: change in each method's error from no memory to memory,
+# one figure per generator (mean of its 2 instances).
+def fig_memory(plt, perall):
     e = perall[perall.group == 'synthetic'].pivot_table(index='source', columns=['arm', 'method'], values='MAE_2')*100
-    fig, axes = plt.subplots(2, 4, figsize=(14, 5.4), sharex=True, sharey=True)
-    for row, (name, without, with_) in zip(axes, (('DAR', 'dar_a0', 'dar_a08'), ('Activity-driven', 'ad_memoryless', 'ad_memory'))):
-        mean = lambda key: e.loc[[f'{key}_r1', f'{key}_r2']].mean()
-        method_pairs(plt, row, mean(without), mean(with_), ['plugin'] + FIVE, (-2, 68))
-        row[0].set_ylabel(name, fontsize=11, fontweight='bold', labelpad=12)
-    for ax, arm in zip(axes[0], ARMS): ax.set_title(ARMS[arm])
-    for ax in axes[1]: ax.set_xlabel('error (pp)')
-    fig.subplots_adjust(hspace=.12)
-    pair_legend(plt, fig, ['no memory', 'memory', 'harder with memory', 'easier'], .93)
-    note(fig, '8 synthetic networks (2 instances per variant) · 3 samples (× 3 answers) each', .0)
-    save(fig, 'fig13_synthetic_arms')
+    mean = lambda key: e.loc[[f'{key}_r1', f'{key}_r2']].mean()
+    for name, title, without, with_ in (('fig13_memory_dar', 'DAR', 'dar_a0', 'dar_a08'),
+                                        ('fig13b_memory_activity', 'Activity-driven', 'ad_memoryless', 'ad_memory')):
+        fig = change_bars(plt, mean(with_) - mean(without), ['plugin'] + FIVE, (-17, 72), 'bar to the right: harder with memory', title)
+        note(fig, f'{title}: 2 instances without and with memory · 3 samples (× 3 answers) each', -.07)
+        save(fig, name)
 
 
 # Fig. 14: true rho_2 of each real network for other numbers of time windows (pairs active in ≥ 2 windows).
@@ -1206,15 +1183,14 @@ def draw():
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
     fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per)
-    fig_ranking(plt, summary); fig_levels(plt, pred); fig_amount(plt, pred, summary); fig_breakeven(plt, per); fig_gain(plt, per, f)
+    fig_ranking(plt, summary); fig_levels(plt, pred); fig_amount(plt, pred, summary); fig_wins(plt, per); fig_gain(plt, per, f)
     fig_textbook(plt, types); fig_textbook_networks(plt, pred, f)
     fig_correction(plt, pred); fig_correction_networks(plt, pred, f); fig_profile(plt, pred); fig_thinking(plt, summary)
     fig_stability(plt, resp); fig_noise_networks(plt, pred, f); fig_sample_noise(plt, pred, f)
     fig_python(plt, summary); fig_python_networks(plt, per, f); fig_python_groups(plt)
     fig_agreement(plt, per, f); fig_structure(plt, perall, f); fig_cards(plt, perall, f); fig_networks(plt, per, f)
     fig_twins(plt, pred); fig_twin_methods(plt); fig_twin_networks(plt, perall, f)
-    fig_synthetic_arms(plt, perall); fig_persistence(plt, perall); fig_persistence_methods(plt, perall)
-    fig_persistence_levels(plt, pred); fig_windows(plt)
+    fig_memory(plt, perall); fig_persistence(plt, perall); fig_persistence_levels(plt, pred); fig_windows(plt)
     gif_dar(plt); gif_activity(plt)
 
 
