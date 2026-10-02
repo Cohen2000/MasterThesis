@@ -82,6 +82,7 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 ![Naive share minus truth, per arm](figures/fig1_sample.png)
 
 - The walk (S) overstates persistence; hiding the early time (H) and losing events (B) understate it.
+- In H, pairs lose active windows, but whole pairs also disappear; the effects can cancel. In College messages, the time cut alone hides 85 % of pairs, yet the naive share is only 2 pp too high. A nearly correct share can hide a large loss of information.
 
 ## 3 · Correction pays where the sample is far off
 
@@ -179,6 +180,7 @@ Task: estimate ρ₂ … ρ₅ of the full network.        Naive share 56 / 132 
 ![Per network: change in GPT's error with Python](figures/fig6b_python_networks.png)
 
 - In R and S, Python changes at most 2 pp on any network. In B it makes 8 of 12 networks worse, Malawi by 23 pp.
+- In B on real networks, Python also makes repeated answers less stable: their median spread rises from 5.1 to 12.2 pp.
 
 ![Error of GPT with and without Python, twins and synthetic networks](figures/fig6c_python_groups.png)
 
