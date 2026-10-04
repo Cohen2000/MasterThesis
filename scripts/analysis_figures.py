@@ -244,9 +244,11 @@ TOY_PANELS = (('Full network', TOY, (), 'true ρ₂', ''),
 
 
 def fig_toy(plt):
-    fig, axes = plt.subplots(1, 5, figsize=(14, 3.7), gridspec_kw=dict(wspace=.4))
-    fig.suptitle('One network → four samples → different apparent persistence', x=.04, ha='left',
-                 fontsize=15, fontweight='bold', y=1.12)
+    fig, axes = plt.subplots(1, 5, figsize=(15, 3.5), gridspec_kw=dict(wspace=.36))
+    fig.suptitle('Same graph, different samples: which share reflects the full graph?', x=.04, ha='left',
+                 fontsize=14, fontweight='bold', y=1.13)
+    fig.text(.04, 1.02, 'ρ₂: count each pair once if active in ≥ 2 windows · 5 windows or 2 windows both count as 1',
+             fontsize=11, color='#444444')
     for ax, (title, pairs, hidden, what, caption) in zip(axes, TOY_PANELS):
         for j in hidden: ax.add_patch(plt.Rectangle((j - .5, -.5), 1, 6, color='#efede8', lw=0))
         seen = persistent = 0
@@ -254,31 +256,25 @@ def fig_toy(plt):
             row = pairs.get(k)
             ax.text(-.95, i, k, ha='center', va='center', fontsize=9.5, color='#222222' if row else '#c9c6bd')
             ax.plot([-.35, 4.35], [i, i], color='#eeece7', lw=1, zorder=0)
-            if not row: continue
+            if not row:
+                ax.text(5.05, i, '–', ha='center', va='center', fontsize=10, color='#c9c6bd')
+                continue
             windows = sum(x > 0 for x in row); seen += 1; persistent += windows >= 2
+            ax.text(5.05, i, '1' if windows >= 2 else '0', ha='center', va='center', fontsize=12,
+                    fontweight='bold', color=BLUE if windows >= 2 else GREY)
             for j in range(5):
                 if row[j]: ax.scatter(j, i, s=40 + 35*row[j], color=BLUE if windows >= 2 else GREY, zorder=3)
-        ax.set_xlim(-1.3, 4.6); ax.set_ylim(5.6, -1.0); ax.axis('off')
+        ax.set_xlim(-1.3, 5.6); ax.set_ylim(5.6, -1.0); ax.axis('off')
         for j in range(5): ax.text(j, -.85, j + 1, ha='center', fontsize=8.5, color='#999999')
+        ax.text(5.05, -.85, 'count', ha='center', fontsize=8.5, color='#666666')
         ax.set_title(title, loc='left', fontsize=11, pad=8)
         share = persistent/seen
-        ax.text(1.65, 6.35, f'{100*share:.0f} %', ha='center', fontsize=19, fontweight='bold')
+        ax.text(2.1, 6.35, f'{persistent}/{seen} = {100*share:.0f} %', ha='center', fontsize=15, fontweight='bold')
         delta = 100*(share - .5)
         label = 'true persistence' if what == 'true ρ₂' else f'sample: {delta:+.0f} pp' if delta else 'sample: same share'
-        ax.text(1.65, 7.05, label, ha='center', fontsize=10, color='#444444')
-        # The same reference in every panel makes the distortion visible at a glance.
-        ax.add_patch(plt.Rectangle((-.35, 7.55), 4, .25, color='#eeece7', lw=0, clip_on=False))
-        ax.add_patch(plt.Rectangle((-.35, 7.55), 4*share, .25, color=BLUE, lw=0, clip_on=False))
-        ax.plot([1.65, 1.65], [7.4, 7.95], color='#333333', lw=1.4, ls='--', clip_on=False)
-        captions = {'Full network': '3 of 6 pairs return', 'R · random nodes': 'random nodes',
-                    'S · random walk': 'busy pairs favoured', 'H · late time only': 'early windows hidden',
-                    'B · event loss': 'events missing'}
-        ax.text(1.65, 8.55, captions[title], ha='center', fontsize=9.5, color='#666666')
+        ax.text(2.1, 7.05, label, ha='center', fontsize=10, color='#444444')
     axes[0].text(-.95, -.85, 'pair', ha='center', fontsize=8.5, color='#999999')
-    handles = [plt.Line2D([], [], marker='o', ls='', color=c, markersize=8) for c in (BLUE, GREY)]
-    fig.legend(handles, ['pair active in ≥ 2 visible windows', 'in 1 visible window'], loc='lower center', ncol=2,
-               frameon=False, bbox_to_anchor=(.5, 1.0), fontsize=9.5)
-    note(fig, 'toy example · columns: 5 time windows · bigger dot: more events · dashed mark: full network’s 50 %', -.37)
+    note(fig, 'share = sum of counts / pairs seen · –: unseen, excluded · columns: time windows · bigger dot: more events', -.2)
     save(fig, 'fig0_toy')
 
 
@@ -344,7 +340,7 @@ def two_tone(ax, x, y, name, spec, transform, ha='right', size=10, small=8.5, we
 
 
 def row_names(ax, order, f, x=-.02):
-    """Row labels of the real networks: name (pairs · ρ₂)."""
+    """Row labels of the real networks: name (true ρ₂)."""
     ax.set_yticks(range(len(order)), ['']*len(order))
     for i, s in enumerate(order): two_tone(ax, x, i, short(s), pair_spec(s, f), ax.get_yaxis_transform())
 
@@ -499,17 +495,9 @@ def grouped_bars(plt, ax, groups, values, ymax, fmt='{:.0f}', title='', models=L
 def fig_textbook(plt, types):
     t = types.set_index(['arm', 'method'])
     vals = {m: {'R': 100*t.loc[('R', m), 'observed_share'], 'S': 100*t.loc[('S', m), 'reweighting']} for m, _ in LM3}
-    # MLE matches use the identical reference and tolerance as the language models.
-    # They are computed from the released inputs rather than inferring a formula from its output.
-    # The compact reference table is frozen locally for portable redraws.
-    refs = pd.read_csv(DATA/'formula_references.csv').set_index('observation_id')
-    p = primary_predictions(pd.read_csv(FINAL/'PREDICTIONS.csv'))
-    mle = p[p.method.eq('mle')]
-    vals['mle'] = {arm: 100*((b.rho2 - b.observation_id.map(refs.reference)).abs() <= .5).mean()
-                   for arm in 'RS' for b in [mle[mle.arm.eq(arm)]]}
-    fig, ax = plt.subplots(figsize=(7.5, 3.3))
-    grouped_bars(plt, ax, ['R', 'S'], vals, 112, '{:.0f} %', 'Estimates matching the simple formula', MLE_LM3)
-    note(fig, REAL_NOTE + ' · within 0.5 pp · MLE: 3 estimates/network; language models: 9', -.2)
+    fig, ax = plt.subplots(figsize=(7, 3.1))
+    grouped_bars(plt, ax, ['R', 'S'], vals, 112, '{:.0f} %', 'R/S: LLM answers often match the formula', LM3)
+    note(fig, 'match: within 0.5 pp · 12 networks × 3 samples × 3 answers', -.2)
     save(fig, 'fig3_textbook')
 
 
@@ -517,18 +505,13 @@ def fig_textbook(plt, types):
 def fig_textbook_networks(plt, pred, f):
     m = pd.read_csv(DATA/'textbook_by_network.csv').set_index(['method', 'source']).share
     order = network_order(f)
-    refs = pd.read_csv(DATA/'formula_references.csv').set_index('observation_id').reference
-    p = primary_predictions(pred)
-    a = p[p.method.eq('mle') & p.arm.eq('S')]
-    matches = ((a.rho2 - a.observation_id.map(refs)).abs() <= .5).groupby(a.source).mean()*100
     vals = {mm: {s: 100*m[(mm, s)] for s in order} for mm, _ in LM3}
-    vals['mle'] = matches.to_dict()
     fig, ax = plt.subplots(figsize=(7.5, 4.4))
     network_dots(plt, ax, order, vals,
-                 'estimates matching the simple reweighting (%)', (-5, 105), f, MLE_LM3)
+                 'answers matching the simple reweighting (%)', (-5, 105), f, LM3)
     ax.set_title('S · random walk, per network', pad=12)
-    ax.legend(frameon=False, ncol=4, loc='upper center', bbox_to_anchor=(.45, -.14))
-    note(fig, 'networks sorted by true ρ₂ · MLE: 3 estimates/network; language models: 9', -.18)
+    ax.legend(frameon=False, ncol=3, loc='upper center', bbox_to_anchor=(.45, -.14))
+    note(fig, '9 answers per network · match: within 0.5 pp', -.18)
     save(fig, 'fig3b_textbook_networks')
 
 
@@ -615,7 +598,25 @@ def fig_thinking(plt, summary):
     save(fig, 'fig4d_thinking')
 
 
-# Fig. 5: between-sample spread and same-input answer spread (median SD, pp).
+# Fig. 5a/b: simple bars, one controlled contrast per figure, on the same scale.
+def noise_bars(plt, values, name, title, footer):
+    fig, axes = plt.subplots(1, 4, figsize=(14, 3.6), sharey=True)
+    y = np.arange(len(NOISE_METHODS))[::-1]
+    for ax, arm in zip(axes, ARMS):
+        v = [values.get((arm, m), 0.) for m in NOISE_METHODS]
+        ax.barh(y, v, height=.58, color=[colour(m) for m in NOISE_METHODS])
+        for yi, x in zip(y, v):
+            ax.text(x + .35, yi, f'{x:.1f}', fontsize=10, va='center')
+        ax.set_yticks(y, [METHODS[m] for m in NOISE_METHODS])
+        ax.set_xlim(0, 25); ax.set_xticks([0, 5, 10, 15, 20, 25])
+        ax.set_xlabel('spread (SD, pp)'); ax.set_title(ARMS[arm])
+        ax.tick_params(axis='y', length=0)
+        ax.grid(axis='x', color='#f0efeb'); ax.set_axisbelow(True)
+    fig.suptitle(title, fontsize=13, fontweight='bold', y=1.05)
+    note(fig, footer, -.08)
+    save(fig, name)
+
+
 def fig_stability(plt, pred):
     """Two controlled contrasts, directly measured, with one fixed ExtraTrees fit."""
     cases = noise_cases(pred)
@@ -628,23 +629,10 @@ def fig_stability(plt, pred):
     p = primary_predictions(pred)
     a = p[p.method.isin(LLMS)].groupby(['arm', 'method', 'observation_id']).rho2.agg(['count', 'std'])
     response = a[a['count'].eq(3)].groupby(['arm', 'method'])['std'].median()
-    fig, axes = plt.subplots(1, 4, figsize=(14, 4.2), sharey=True)
-    y = np.arange(len(NOISE_METHODS))[::-1]
-    for ax, arm in zip(axes, ARMS):
-        for yi, m in zip(y, NOISE_METHODS):
-            b, r = between[(arm, m)], response.get((arm, m), 0.)
-            ax.plot([r, b], [yi, yi], color='#dddddd', lw=1.5)
-            ax.scatter(b, yi + .1, s=52, facecolor='white', edgecolor=colour(m), lw=1.6, zorder=3)
-            ax.scatter(r, yi - .1, s=44, color=colour(m), edgecolor='white', lw=.5, zorder=3)
-        ax.set_yticks(y, [METHODS[m] for m in NOISE_METHODS]); ax.set_xlim(-.8, 25)
-        ax.set_xticks([0, 5, 10, 15, 20]); ax.set_xlabel('spread (SD, pp)'); ax.set_title(ARMS[arm])
-        ax.grid(axis='x', color='#f0efeb'); ax.set_axisbelow(True)
-    handles = [plt.Line2D([], [], marker='o', ls='', markerfacecolor='white', markeredgecolor='#555555', markersize=7),
-               plt.Line2D([], [], marker='o', ls='', color='#555555', markersize=7)]
-    fig.legend(handles, ['new sample (mean of answers)', 'same sample (3 answers)'], frameon=False,
-               ncol=2, loc='lower center', bbox_to_anchor=(.5, .99))
-    note(fig, '12 real networks · median SD · new-sample spread still includes answer noise · ExtraTrees: fixed fit 0', -.06)
-    save(fig, 'fig5_stability')
+    noise_bars(plt, between, 'fig5_sample_variation', 'New samples · variation remains for every method',
+               'median across 12 networks · 3 samples each · LLMs: mean of valid answers')
+    noise_bars(plt, response, 'fig5_stability', 'Same sample · answers vary most in H/B',
+               'median across complete 3-answer samples · MLE / ExtraTrees: deterministic, fixed fit')
 
 
 # Fig. 5b: per network, the spread of 3 answers to the same sample, H and B together (R and S hardly vary).
@@ -1053,8 +1041,8 @@ def dar_frame(plt, runs, events, step):
     """One binary state per pair/window; copying OFF is as explicit as copying ON."""
     P = events.shape[1]
     fig = plt.figure(figsize=(10.8, 5.1))
-    fig.text(.035, .95, 'DAR · do links stay ON or OFF?', fontsize=15, fontweight='bold')
-    fig.text(.035, .895, 'Motivation: lasting transport/contact links · here: a controlled memory test', fontsize=10, color='#555555')
+    fig.text(.035, .95, 'DAR · copy the last ON or OFF state', fontsize=15, fontweight='bold')
+    fig.text(.035, .875, 'Fresh draw: 20 % ON', fontsize=11, color='#555555')
     where = {0: 'start', 6: 'events', 7: 'result'}.get(step, f'window {step} / 5')
     fig.text(.965, .95, where, fontsize=12, color=ORANGE, ha='right', fontweight='bold')
     j = step - 1 if 1 <= step <= 5 else None
@@ -1062,9 +1050,8 @@ def dar_frame(plt, runs, events, step):
         on, kept = runs[name]
         ax = fig.add_axes([.06 + .49*k, .22, .41, .49])
         ax.set_xlim(-1.2, 4.7); ax.set_ylim(P - .4, -1.0); ax.axis('off')
-        fig.text(.045 + .49*k, .81, name, fontsize=13, fontweight='bold')
-        rule = 'Redraw: 20 % ON, 80 % OFF' if k == 0 else '80 % copy ON or OFF · 20 % redraw'
-        fig.text(.045 + .49*k, .765, rule, fontsize=10.5)
+        rule = 'No memory · redraw' if k == 0 else 'Memory · 80 % copy, 20 % redraw'
+        fig.text(.045 + .49*k, .78, rule, fontsize=12, fontweight='bold')
         shown = min(step, 5)
         K = on[:shown].sum(0)
         if j is not None: ax.add_patch(plt.Rectangle((j - .45, -.55), .9, P + .1, color='#f3efe6', lw=0))
@@ -1082,7 +1069,6 @@ def dar_frame(plt, runs, events, step):
                                 arrowprops=dict(arrowstyle='->', lw=1.4, color=ORANGE if c == j else '#bbbbbb'))
                 if on[c, i]: ax.scatter(c, i, s=90, color=BLUE, zorder=3)
                 else: ax.scatter(c, i, s=42, marker='x', color=GREY, lw=1.7, zorder=3)
-        explanation = 'Same initial draw on both sides' if step <= 1 else 'Every pair gets a fresh draw'
         if k and j is not None and j > 0:
             # Show one copied OFF state explicitly; arrows in the grid show all copies.
             copied_off = np.flatnonzero(kept[j] & ~on[j])
@@ -1095,20 +1081,18 @@ def dar_frame(plt, runs, events, step):
                 i = copied_on[0]
                 ax.text((j - .5), i - .22, 'copy ON', fontsize=8, color=ORANGE, ha='center',
                         bbox=dict(facecolor='white', edgecolor='none', pad=1))
-            explanation = 'Arrows copy the previous state; other cells redraw'
         if step == 7:
             a, b = int((K >= 2).sum()), int((K >= 1).sum())
-            explanation = f'ρ₂ = {a} returning / {b} ever ON = {100*a/b:.0f} %'
-        fig.text(.045 + .49*k, .155, explanation, fontsize=10.5, fontweight='bold' if step == 7 else 'normal')
-    fig.text(.045, .065, '● ON: one or more events     × OFF: no event     blank: future window', fontsize=10, color='#555555')
-    fig.text(.045, .025, 'Small illustration · same random draws · never-ON pairs excluded from ρ₂', fontsize=9, color='#888888')
+            fig.text(.045 + .49*k, .155, f'ρ₂ = {a}/{b} = {100*a/b:.0f} %', fontsize=13, fontweight='bold')
+    key = 'Blue rows: ≥ 2 windows · never-ON pairs excluded' if step == 7 else '● ON    × OFF    → copy previous state'
+    fig.text(.045, .065, key, fontsize=11, color='#555555')
     return fig
 
 
 def gif_dar(plt):
     runs, events = dar_example()
-    steps = [0, 1, 2, 3, 4, 5, 7]
-    gif([dar_frame(plt, runs, events, s) for s in steps], [3500, 3000, 3500, 3500, 3500, 3500, 7000], 'gif_dar')
+    steps = [1, 2, 3, 4, 5, 7]
+    gif([dar_frame(plt, runs, events, s) for s in steps], [3500]*5 + [7000], 'gif_dar')
 
 
 AD_ACTIVITY = np.array([.6, .35, .25, .15, .1, .1, .05, .05, .05, .05])
@@ -1147,16 +1131,14 @@ def ad_frame(plt, runs, step, rounds=10):
     angle = np.pi/2 - 2*np.pi*np.arange(N)/N
     pos = np.c_[np.cos(angle), np.sin(angle)]
     fig = plt.figure(figsize=(10.8, 6.1))
-    fig.text(.03, .955, 'Activity-driven · people contact other people', fontsize=15, fontweight='bold')
-    fig.text(.03, .91, 'Motivation: mobile calls and information spreading', fontsize=10.5, color='#555555')
-    fig.text(.03, .862, 'No memory: random partner', fontsize=10.5)
-    fig.text(.52, .862, 'Memory: known partner with chance n / (n + 1)', fontsize=10.5)
+    fig.text(.03, .955, 'Activity-driven · repeat a known contact', fontsize=15, fontweight='bold')
     where = {0: 'dot size = activity', rounds + 1: 'result'}.get(step, f'round {step} of {rounds} · window {(step + 1)//2}')
-    fig.text(.97, .91, where, fontsize=11, color=ORANGE, ha='right', fontweight='bold')
+    fig.text(.97, .90, where, fontsize=11, color=ORANGE, ha='right', fontweight='bold')
     for k, name in enumerate(('no memory', 'memory')):
         ax = fig.add_axes([.03 + .5*k, .15, .44, .67])
         ax.set_xlim(-1.75, 1.75); ax.set_ylim(-1.45, 1.35); ax.set_aspect('equal'); ax.axis('off')
-        ax.text(-1.75, 1.3, name, fontsize=12, fontweight='bold')
+        rule = 'No memory · random partner' if k == 0 else 'Memory · known: n/(n+1)'
+        ax.text(-1.75, 1.3, rule, fontsize=12, fontweight='bold')
         past = runs[name][:max(step - 1, 0)] if step <= rounds else runs[name]
         count, windows = {}, {}
         for t, (_, pairs) in enumerate(past):
@@ -1178,21 +1160,16 @@ def ad_frame(plt, runs, step, rounds=10):
         if step == 0 and k == 0:
             callout(ax, 'often active', pos[0], (.35, 1.22))
             callout(ax, 'rarely active', pos[6], (-1.75, -1.3))
-        if 1 <= step <= rounds:
-            done = runs[name][:step]
-            n_pairs, n_events = len({p for _, prs in done for p in prs}), sum(len(prs) for _, prs in done)
-            ax.text(0, -1.35, f'{n_events} events on {n_pairs} pairs', ha='center', fontsize=10.5, color='#444444')
         if step == rounds + 1:
             a, b = sum(len(w) >= 2 for w in windows.values()), len(windows)
-            ax.text(0, -1.35, f'ρ₂ = {a} of {b} pairs = {100*a/b:.0f} %', ha='center', fontsize=12, fontweight='bold')
+            ax.text(0, -1.35, f'ρ₂ = {a}/{b} = {100*a/b:.0f} %', ha='center', fontsize=13, fontweight='bold')
             (i, j) = max((p for p in windows if len(windows[p]) >= 2), key=lambda p: count[p])
             ax.text(*pos[[i, j]].mean(0), '≥ 2 windows', fontsize=9.5, color=BLUE, ha='center', va='center', zorder=5,
                     bbox=dict(facecolor='white', edgecolor='none', pad=1))
-    key = ('Blue: pair active in ≥ 2 windows · grey: in 1 window' if step == rounds + 1 else
-           'Orange node: initiator · orange line: current contact · grey lines: history, no longer active')
+    key = ('Blue: ≥ 2 windows · grey: 1 window' if step == rounds + 1 else
+           'Orange: active now · grey lines: past contacts')
     fig.text(.03, .09, key, fontsize=10, color='#555555')
-    fig.text(.03, .047, 'n = partners already known · e.g. n = 3 → 75 % known, 25 % new · first contact: always new', fontsize=10, color='#555555')
-    fig.text(.03, .012, 'Small illustration: 10 rounds, 2 per window · study: 1,000 rounds, 200 per window', fontsize=9, color='#888888')
+    fig.text(.03, .047, 'n = known partners · first contact: always new', fontsize=10, color='#555555')
     return fig
 
 
@@ -1213,7 +1190,7 @@ def draw():
     fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per)
     fig_ranking(plt, summary); fig_levels(plt, pred); fig_amount(plt, pred)
     fig_textbook(plt, types); fig_textbook_networks(plt, pred, f)
-    fig_correction(plt, pred); fig_correction_networks(plt, pred, f); fig_profile(plt, pred)
+    fig_correction(plt, pred); fig_correction_networks(plt, pred, f)
     fig_stability(plt, pred); fig_sample_noise(plt, pred, f)
     fig_python(plt, summary); fig_python_networks(plt, per, f); fig_python_groups(plt)
     fig_agreement(plt, per, f); fig_structure(plt, perall, f); fig_cards(plt, perall, f); fig_networks(plt, per, f)
