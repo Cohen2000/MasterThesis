@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
-from analysis_metrics import correction_residuals, noise_cases, noise_components
+from analysis_metrics import correction_residuals, noise_cases, noise_components, performance_spread
 
 
 def predictions(method, samples, source='example'):
@@ -72,3 +72,21 @@ def test_derived_errors_and_sampling_spreads_match_frozen_reports():
     c = noise_cases(p).query('target == 2').groupby(['arm', 'method']).between_sd.median()
     expected = pd.read_csv(final/'VARIABILITY_SAMPLING.csv').query("group == 'real'").set_index(['arm', 'method']).median_graph_SD_rho2_across_draws*100
     np.testing.assert_allclose(c, expected.loc[c.index], atol=1e-10)
+
+
+def test_performance_sd_measures_network_differences_with_equal_weights():
+    per = pd.DataFrame([
+        dict(group='real', arm='R', method='mle', source='small', MAE_2=.1, answers=3),
+        dict(group='real', arm='R', method='mle', source='large', MAE_2=.3, answers=900),
+        dict(group='real', arm='R', method='mle', source='invalid', MAE_2=np.nan, answers=0)])
+    a = performance_spread(per).iloc[0]
+    assert a['mean'] == pytest.approx(20)
+    assert a.sd == pytest.approx(np.sqrt(200))
+    assert a.networks == 2
+
+
+def test_performance_means_match_frozen_real_twin_and_synthetic_scores():
+    final = Path(__file__).resolve().parents[1]/'docs/results/final'
+    a = performance_spread(pd.read_csv(final/'PER_SOURCE.csv'))
+    expected = pd.read_csv(final/'SUMMARY.csv').set_index(['group','arm','method']).MAE_2*100
+    np.testing.assert_allclose(a['mean'], expected.loc[a.index], atol=1e-10)

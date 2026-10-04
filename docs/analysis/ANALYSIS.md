@@ -4,6 +4,9 @@
 
 ## 0 · The challenge: sampling changes apparent persistence
 
+<details>
+<summary>Definitions</summary>
+
 | Term | Meaning |
 |---|---|
 | Node | Person or account |
@@ -17,6 +20,12 @@
 | Spread · SD | Standard deviation: how much estimates vary |
 | Typical error | Median error across six main methods; excludes Qwen no thinking |
 
+</details>
+
+### 0a · One graph, four samples: different shares of returning pairs
+
+![Each returning pair counts once; the four samples produce different persistence shares](figures/fig0_toy.png)
+
 | Sampler | What it shows | What can go wrong |
 |---|---|---|
 | **R · random nodes** | Full histories between sampled nodes | Equal pair inclusion, but samples vary |
@@ -24,20 +33,11 @@
 | **H · late time** | Sampled nodes; windows 3–5 only | Early returns are hidden |
 | **B · event loss** | Each event retained with probability p | Returns—and whole pairs—disappear |
 
-### 0a · One graph, four samples: different shares of returning pairs
-
-![Each returning pair counts once; the four samples produce different persistence shares](figures/fig0_toy.png)
-
-- Pair A returns in 5 windows, B in 2: **each contributes 1** to ρ₂.
-- **Goal:** estimate the full graph's share from a biased sample.
-
 ### 0b · Real samples: walks overstate persistence; missing time and events usually understate it
 
 ![Naive persistence errors across the four samplers and 12 real networks](figures/fig1_sample.png)
 
-- R has no systematic pair-inclusion bias; an individual sample can still miss truth.
-
-## 1 · The networks: similar persistence, different timing
+## 1 · Twelve networks: persistence from 0.3 % to 61 %
 
 ### 1a · Twelve real networks, ordered by true ρ₂
 
@@ -58,20 +58,15 @@
 | Digg replies | Online replies | 30,360 | 85,155 | 86,203 | 1.0 | 0.3 % |
 <!-- /table:network_specs -->
 
-- Counts describe the cleaned, undirected networks used here.
-
 ### 1b · When pairs return: the same ρ₂ can hide different activity patterns
 
 ![Pair activity per window, split by the number of windows each pair is active in](figures/fig0b_active.png)
 
-- Malawi and Email EU: both ρ₂ ≈ 51 %; 28 % vs 16 % of pairs return in 4–5 windows.
-
-### 1c · Why five windows? More windows change values, barely the network ordering
+### 1c · 3–20 windows: values change modestly, ordering even less
 
 ![Persistence for other time resolutions; the networks retain nearly the same order](figures/fig14_windows.png)
 
-- Rank correlation with 5 windows: **≥ 0.97** for 3–20 windows.
-- All method comparisons below use **5 windows**.
+- Mean ρ₂ stays within **6 pp** of the five-window value; rank correlation **≥ 0.97**.
 
 ## 2 · The comparison: the same sample for every method
 
@@ -80,16 +75,14 @@
 | Coverage | About 10 % of active pair–window cells |
 | Samples | 3 seeds per network and sampler |
 | LLM answers | 3 independent repeats per sample |
-| Shared input | Sampling rule, sizes, time-pattern counts; S also has weights |
-| Hidden | Truth, network name, node IDs and adjacency |
 | Scoring | Mean absolute error; each network counts equally |
 | **LLMs** | GPT (`gpt-6-sol`), GPT + Python, DeepSeek (`deepseek-flash`), Qwen3.6 thinking / no thinking |
 | **Statistical estimators** | Naive share; MLE (fits a distribution; no training) |
 | **Supervised models** | ExtraTrees (16 other real + 400 synthetic training graphs); training-median baseline |
-| ExtraTrees check | Test network and twin excluded from training/tuning; fixed fit for comparison |
-| Invalid answers | Excluded; no repair or retry |
 
 ### Example input · Hospital, random nodes
+
+- Sampling rule, sizes and time patterns; S also has weights. No truth, names or node IDs.
 
 ```text
 Rule: 24 random nodes; all events between them are seen.
@@ -108,23 +101,19 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ![Mean absolute error by method and sampler](figures/fig2_ranking.png)
 
-- Best errors: **R 2.7 · S 5.0 · H 3.9 · B 7.6 pp**. GPT is the strongest LLM overall.
-- Qwen no thinking often gives 85–95 %, almost regardless of input.
+- GPT is the strongest LLM; B is hardest overall. [Network-specific difficulty → 8b](#network-difficulty).
 
 ### 3b · Persistence profile: the broad method ranking changes little
 
 ![Errors at rho2 through rho5; broad method performance remains similar](figures/fig2b_levels.png)
 
-- Close methods swap places; the broad performance pattern persists.
 - H: MLE improves at higher levels; the visible 3 windows cannot directly reveal ρ₄ or ρ₅.
 
 ### 3c · Corrected estimates: H/S tend above truth; B's errors cancel
 
 ![Mean signed error and middle 80 percent of individual estimates](figures/fig2c_amount.png)
 
-- **H/S:** estimates tend to overstate persistence. **B:** both over- and underestimates.
 - DeepSeek in B: mean −2.6 pp, absolute error **17.2 pp**—a good mean hides large errors.
-- Lines show individual spread, not confidence intervals.
 
 ## 4 · Correction: formulas help where information survives
 
@@ -135,11 +124,29 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 - R: count returning pairs. S: undo the walk's preference for busy pairs with weights.
 - MLE also reweights S **before fitting**; its fitted estimate need not equal the direct formula.
 
-### 4b · H/B: GPT corrects best among LLMs, MLE remains competitive
+<details>
+<summary>4a detail · Formula matches on individual networks</summary>
 
-![Share of answers making about the required correction in H and B](figures/fig4_correction.png)
+### Walk estimates · formula matches vary by network
 
-- “About right”: 50–150 % of the required correction; samples ≥ 5 pp off truth only.
+![Language-model estimates matching walk reweighting on each network](figures/fig3b_textbook_networks.png)
+
+</details>
+
+### 4b · H/B estimates: GPT comes closest among LLMs; MLE remains competitive
+
+![Share of estimates within the target band in H and B](figures/fig4_correction.png)
+
+- Target band: 50–150 % of the needed adjustment; samples ≥ 5 pp off truth only.
+
+<details>
+<summary>4b detail · Estimation performance on individual networks</summary>
+
+### H/B estimates · reaching the target band depends on the network
+
+![MLE and language-model estimates making about the needed adjustment on each network](figures/fig4b_correction_networks.png)
+
+</details>
 
 ## 5 · Reasoning: more tokens do not guarantee lower error
 
@@ -161,24 +168,39 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 <!-- /table:reasoning -->
 
 - DeepSeek uses **6–19×** GPT's reasoning tokens, with no accuracy gain.
-- B uses the most tokens for every listed LLM. Qwen counts total output as a reasoning proxy.
+- Qwen counts total output as a reasoning proxy.
 
 ## 6 · Noise: new samples and repeated answers
 
-### 6a · New sample: estimates vary even without answer randomness
+### 6a · Noise from 3 sample redraws: highest in S
 
-![Median variation between three independently drawn samples, for every method and sampler](figures/fig5_sample_variation.png)
+![Sample-redraw noise for MLE and fixed-fit ExtraTrees across the four samplers](figures/fig5_sample_variation.png)
 
-- SD of **3 sample estimates**; LLM estimate = mean of valid answers.
-- Includes some answer noise; repeated answers below measure that separately.
+- LLMs excluded: their redraw variation also contains model noise; pure sample noise is not directly separable.
 
-### 6b · Same sample: H/B trigger more answer variation
+<details>
+<summary>6a detail · Which networks generate redraw noise?</summary>
 
-![Median variation of three answers to the identical sample, for every method and sampler](figures/fig5_stability.png)
+### Per-network redraw noise · MLE and ExtraTrees, averaged over samplers
 
-- Input fixed, **3 answers**: this isolates response variation.
-- MLE and fixed-fit ExtraTrees always repeat the same estimate: **0 pp**.
+![Mean redraw SD per network for MLE and ExtraTrees](figures/fig5_redraw_networks.png)
+
+</details>
+
+### 6b · Noise from 3 LLM answers to the same sample: H/B dominate
+
+![LLM answer-repeat noise across the four samplers](figures/fig5_stability.png)
+
 - Low spread can still mean consistently wrong estimates.
+
+<details>
+<summary>6b detail · Which networks generate answer-repeat noise?</summary>
+
+### Per-network answer noise · averaged over LLMs and samplers
+
+![Mean answer-repeat SD per network across five LLM configurations and four samplers](figures/fig5_answers_networks.png)
+
+</details>
 
 ### 6c · ExtraTrees: retraining adds little variation
 
@@ -188,16 +210,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 | Spread (SD, pp) | 0.4 | 0.6 | 0.6 | 0.5 |
 <!-- /table:training -->
 
-- 11 training fits; same samples. Chart 6a/6b uses one fixed fit.
-
-<details>
-<summary>6d · MLE per network: stable estimates can still miss truth</summary>
-
-### Three sample estimates versus true ρ₂
-
-![MLE estimates for three samples per network and sampler, compared with truth](figures/fig5c_sample_noise.png)
-
-</details>
+- 11 fits on the same samples; redraw comparisons use one fixed fit.
 
 ## 7 · Python: no consistent accuracy gain
 
@@ -207,13 +220,30 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 - B: worse with Python on **8 of 12** networks; R/S change little.
 
+<details>
+<summary>Python · Gains and losses on individual networks</summary>
+
+### Python versus GPT · effects vary by network
+
+![Change in GPT error with Python on individual networks](figures/fig6b_python_networks.png)
+
+</details>
+
 ## 8 · Individual networks: average difficulty hides exceptions
 
-### 8a · MLE versus GPT: shared difficulty in R/S, different winners in H/B
+### 8a · Difficulty: network-dependent in R/S, method-dependent in H/B
 
 ![MLE and GPT errors for each real network and sampler](figures/fig7_agreement.png)
 
-- A sampler's average error does not predict every network's difficulty.
+- **TODO:** explain which graph features make MLE and LLMs struggle or succeed in a dedicated figure.
+
+### Event concentration · fewer effective pairs make R/S harder
+
+![Typical error versus the effective number of pairs carrying the events](figures/fig8b_pairs.png)
+
+- Effective pairs = equally busy pairs with the same event concentration. Malawi: **347 actual, 55 effective**.
+
+<a id="network-difficulty"></a>
 
 ### 8b · Per-network error: B is hardest often, not always
 
@@ -221,49 +251,26 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 - Hardest sampler: **B on 6 networks · S on 4 · H on 2**.
 
-### 8c · H/B examples: the size of the correction decides who wins
-
-![Four examples showing MLE and GPT each winning in H and B](figures/fig7b_method_examples.png)
-
-- H, College messages: activity fades; MLE extrapolates too much. High school: MLE is accurate.
-- B: GPT wins on MathOverflow; MLE wins on Copenhagen, where GPT often overshoots.
-- MLE's sampling assumptions can miss real timing patterns; these examples do not establish GPT's reasoning.
-
-### 8d · Event concentration: fewer effective pairs make R/S harder
-
-![Typical error versus the effective number of pairs carrying the events](figures/fig8b_pairs.png)
-
-- Effective pairs = equally busy pairs with the same event concentration. Malawi: **347 actual, 55 effective**.
-
-<details>
-<summary>Per-network details: formula matches, H/B correction and Python</summary>
-
-### 8e · Walk correction: formula matches vary by network
-
-![Language-model estimates matching walk reweighting on each network](figures/fig3b_textbook_networks.png)
-
-### 8f · H/B correction: success varies by network
-
-![MLE and language-model corrections in the target band on each network](figures/fig4b_correction_networks.png)
-
-### 8g · Python: gains and losses on each network
-
-![Change in GPT error with Python on individual networks](figures/fig6b_python_networks.png)
-
-</details>
-
 ## 9 · Controlled tests: do methods use timing and memory?
 
-### 9.1 · Time-shuffled twins: same connections, different return times
+### 9.1 · Twins: timing sensitivity in LLMs—except Qwen no thinking
 
 | Kept | Changed | Test |
 |---|---|---|
-| Nodes, pairs, events per pair, global event times | Times reassigned to pairs; mean ρ₂ **+27 pp** | Do estimates follow timing beyond static size/density cues? |
+| Nodes, pairs, events per pair, global event times | Times reassigned to pairs; mean ρ₂ **+27 pp** | Timing sensitivity beyond node/pair/event totals |
 
 ![Change in estimated persistence after shuffling event times](figures/fig10_twins.png)
 
-- R tracks the true change closely; B recovers only part. GPT recovers most among LLMs in B.
-- Samples are redrawn and recalibrated: this is a timing-sensitivity test, with sample sizes also changing.
+- Evidence of timing sensitivity; resampling also changes input sizes.
+
+<details>
+<summary>Twins · Which methods estimate persistence best?</summary>
+
+### Twin estimates · mean error and SD by method and sampler
+
+![Mean error and between-network SD of each method on the twelve time-shuffled twins](figures/fig2_twins_ranking.png)
+
+</details>
 
 ### 9.2 · Synthetic networks: two memory rules with real-world motivations
 
@@ -273,31 +280,39 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 | **Activity-driven · partners** | Mobile calls and information spreading ([Karsai et al.](https://www.nature.com/articles/srep04001)); original model: epidemics ([Perra et al.](https://arxiv.org/abs/1203.5351)) | Known partner with probability **n/(n+1)**; n = partners known |
 
 - **500 nodes · ≈ 10k events · 2 paired instances per generator**, with shared random draws.
-- DAR: simplified DAR(1) control; event multiplicity added here. ExtraTrees has seen these generator families in training.
+- DAR: simplified DAR(1) control; event multiplicity added here.
 - GIFs show small examples, not benchmark results.
 
 ### DAR · copying the last state makes links persist
+
+- **Copy:** ON stays ON, OFF stays OFF. **New draw:** choose ON (20 %) or OFF again.
 
 ![DAR animation showing both ON and OFF states being copied](figures/gif_dar.gif)
 
 ### Activity-driven · remembered partners make contacts return
 
-![Activity-driven animation showing random versus remembered partner choices](figures/gif_activity.gif)
+- Active nodes make one contact, lasting one round. With 3 known partners: **75 % known, 25 % new**.
 
-- Contacts last one round; grey lines record history. With 3 known partners: **75 % known, 25 % new**.
+![Activity-driven animation showing random versus remembered partner choices](figures/gif_activity.gif)
 
 ### 9.3 · Memory: similar event counts, much more persistence
 
 ![Pair activity in the synthetic networks with and without memory](figures/fig12_synthetic_active.png)
 
-- True ρ₂: **DAR 39 → 78 % · activity-driven 6 → 79 %**.
-
 ### 9.4 · Memory especially hurts event-loss estimates
 
 ![Typical error with and without memory in the two generators](figures/fig13_memory.png)
 
-- Activity-driven, B: **1.9 → 16.1 pp**. S: **+3–5 pp** in both generators.
 - Two paired instances per generator: a mechanism check, not a broad synthetic benchmark.
+
+<details>
+<summary>Synthetic networks · Which methods estimate persistence best?</summary>
+
+### Synthetic estimates · mean error and SD by method and sampler
+
+![Mean error and between-network SD of each method on the eight synthetic networks](figures/fig2_synthetic_ranking.png)
+
+</details>
 
 ### 9.5 · All 32 networks: persistence makes event loss hard; walks remain network-dependent
 
@@ -311,7 +326,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 <summary>Sources and all numbers</summary>
 
 - Design, method settings and literature: [DESIGN.md](../DESIGN.md).
-- Scores: [MAIN_RESULTS.md](../results/final/MAIN_RESULTS.md), [all network/method errors](figures/fig_networks_detail.png), [PREDICTIONS.csv](../results/final/PREDICTIONS.csv).
+- Scores: [MAIN_RESULTS.md](../results/final/MAIN_RESULTS.md), [all network/method errors](figures/fig_networks_detail.png), [PREDICTIONS.csv](../results/final/PREDICTIONS.csv), [between-network error SDs](data/performance_spread.csv).
 - Noise: [VARIABILITY.md](../results/final/VARIABILITY.md), [per-network SDs and persistence profile](data/noise_by_network.csv), [estimated variance components](data/noise_components.csv).
 - Correction: [mean residuals and absolute errors](data/correction_reliability.csv).
 - Controls: [twin activity](figures/fig10b_twin_active.png), [twin errors](figures/fig10c_twin_error.png), [Python on controls](figures/fig6c_python_groups.png), [higher persistence levels](figures/fig9b_levels.png).

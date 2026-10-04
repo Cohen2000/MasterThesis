@@ -15,6 +15,17 @@ LLMS = METHODS[2:]
 KEY = ['source', 'arm', 'method']
 
 
+def performance_spread(per_source):
+    """Mean and SD of network MAEs, in pp; every network has equal weight.
+
+    This measures variation across networks, not sampling or answer noise.
+    PER_SOURCE already averages the valid production estimates per network.
+    """
+    p = per_source.assign(error_pp=100*per_source.MAE_2)
+    return p.groupby(['group', 'arm', 'method']).error_pp.agg(
+        mean='mean', sd='std', networks='count')
+
+
 def primary_predictions(pred, group='real'):
     p = pred[(pred.group == group) & pred.valid & pred.prediction.notna()
              & (pred.replicate.isna() | pred.replicate.eq(0))].copy()
