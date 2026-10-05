@@ -153,7 +153,8 @@ def build_inputs(external):
     near = (s.r2 - s.observation_id.map(design)).abs() <= .005
     near.groupby([s.method, s.source]).mean().rename('share').to_csv(DATA/'textbook_by_network.csv', float_format='%.4f')
 
-    # Under the hood (real networks): reasoning length, and whether the full trace says "guess" (GPT shows no trace).
+    # Under the hood (real networks): reasoning length, whether the full trace says "guess" (GPT releases no full
+    # trace), and what GPT + Python does with its code runs.
     rows = []
     for run, method in (('openai', 'gpt_6_sol'), ('openai_tools', 'gpt_6_sol_tools'), ('deepseek', 'deepseek_flash')):
         for line in (external/'api_runs'/run/'responses.jsonl').read_text().splitlines():
@@ -161,9 +162,13 @@ def build_inputs(external):
             oid = d['id'].rsplit('__', 2)[0]
             if d.get('kind') != 'main' or obs[oid]['stratum'] != 'real': continue
             trace = d.get('reasoning_content')
-            rows.append({'method': method, 'arm': obs[oid]['arm'], 'reasoning_tokens': d.get('reasoning_tokens') or 0,
-                         'trace_says_guess': 'guess' in trace.lower() if trace else np.nan,
-                         'code_runs': d['tool_calls'] if run == 'openai_tools' else np.nan})
+            row = {'method': method, 'arm': obs[oid]['arm'], 'sample': oid, 'reasoning_tokens': d.get('reasoning_tokens') or 0,
+                   'trace_says_guess': 'guess' in trace.lower() if trace else np.nan}
+            if run == 'openai_tools':
+                code = '\n'.join(x.get('code') or '' for x in d['raw_response']['output'] if x['type'] == 'code_interpreter_call')
+                row.update(code_runs=d['tool_calls'], fits_numerically=bool(re.search(OPTIMISER, code)),
+                           models='+'.join(k for k, pattern in MODEL_FAMILIES.items() if re.search(pattern, code)))
+            rows.append(row)
     # Qwen ran on the cluster; a copy of its answer files (one JSON per answer) lies in qwen_runs. Its output tokens
     # are the thinking plus the answer of about 55 tokens.
     for path in sorted((external/'qwen_runs').glob('**/answers/thinking_r*/*.json')):
@@ -171,10 +176,24 @@ def build_inputs(external):
         if obs.get(d['observation_id'], {}).get('stratum') != 'real': continue
         rows.append({'method': 'qwen_thinking', 'arm': d['arm'], 'reasoning_tokens': d['output_tokens'],
                      'trace_says_guess': 'guess' in d['reasoning_text'].lower()})
-    r = pd.DataFrame(rows).astype({'trace_says_guess': float}).groupby(['method', 'arm'])
+    t = pd.DataFrame(rows).astype({'trace_says_guess': float, 'fits_numerically': float})
+    r = t.groupby(['method', 'arm'])
+    # Share of samples whose three GPT + Python answers do not all fit the same model families.
+    differ = t.dropna(subset='models').groupby(['method', 'arm', 'sample']).models.nunique().gt(1).groupby(['method', 'arm']).mean()
     pd.DataFrame({'answers': r.size(), 'median_reasoning_tokens': r.reasoning_tokens.median(),
-                  'trace_says_guess': r.trace_says_guess.mean(), 'mean_code_runs': r.code_runs.mean()}
+                  'trace_says_guess': r.trace_says_guess.mean(), 'mean_code_runs': r.code_runs.mean(),
+                  'fits_numerically': r.fits_numerically.mean(), 'samples_with_different_models': differ}
                  ).to_csv(DATA/'under_the_hood.csv', float_format='%.4f')
+
+
+# What the code of GPT + Python does, found by keywords: does it call a numerical optimiser, and which
+# distribution of pair activity does it fit (gamma, log-normal, beta, a few latent classes). A rough reading of code.
+OPTIMISER = (r'scipy\.optimize|minimize\(|least_squares\(|curve_fit\(|fsolve\(|brentq\(|root\(|differential_evolution|'
+             r'nnls\(|lsq_linear|linprog')
+MODEL_FAMILIES = {'gamma': r'stats\.gamma|import gamma|\bgamma\.(?:pdf|cdf|ppf|rvs)|laguerre|nbinom|\.gamma\(',
+                  'lognormal': r'lognorm|hermite',
+                  'beta': r'stats\.beta|import beta\b|\bbeta\.(?:pdf|cdf|ppf|rvs)|betaln|betabinom|\.beta\(',
+                  'classes': r'nnls\(|lsq_linear|linprog|dirichlet|n_components|\bJ\s*=\s*\d|for J in|ncomp|n_class|classes'}
 
 
 def build_formula_references(external):
@@ -564,7 +583,7 @@ def fig_correction_networks(plt, pred, f):
 
 
 # Fig. 5a/b: simple bars, one controlled contrast per figure, on the same scale.
-def noise_bars(plt, values, name, title, footer, methods, xmax, labels=METHODS):
+def noise_bars(plt, values, name, title, footer, methods, xmax):
     fig, axes = plt.subplots(1, 4, figsize=(14, max(3., .45*len(methods) + 1.2)), sharey=True)
     y = np.arange(len(methods))[::-1]
     for ax, arm in zip(axes, ARMS):
@@ -572,7 +591,7 @@ def noise_bars(plt, values, name, title, footer, methods, xmax, labels=METHODS):
         ax.barh(y, v, height=.58, color=[colour(m) for m in methods])
         for yi, x in zip(y, v):
             ax.text(x + .015*xmax, yi, f'{x:.1f}', fontsize=10, va='center')
-        ax.set_yticks(y, [labels[m] for m in methods])
+        ax.set_yticks(y, [METHODS[m] for m in methods])
         ax.set_xlim(0, xmax); ax.set_xticks(np.linspace(0, xmax, 6))
         ax.set_xlabel('spread (SD, pp)'); ax.set_title(ARMS[arm])
         ax.tick_params(axis='y', length=0)
@@ -596,12 +615,12 @@ def fig_stability(plt, pred):
     response = a[a['count'].eq(3)].groupby(['arm', 'method'])['std'].median()
     noise_bars(plt, between, 'fig5_sample_variation', 'Sample-redraw noise · 3 draws · MLE / ExtraTrees',
                'median across 12 networks · fixed estimators', ('mle', 'et'), 5)
-    # ExtraTrees gives one answer per sample; its counterpart is a new training fit on the same sample.
-    training = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").set_index('arm')
-    for arm in ARMS: response[(arm, 'et')] = 100*training.loc[arm, 'median_observation_SD_rho2']
-    noise_bars(plt, response, 'fig5_stability', 'Answer-repeat noise · 3 LLM answers to the same sample',
-               'median SD across samples · LLMs: 3 valid answers · ExtraTrees: 11 training fits instead', LLMS + ['et'], 25,
-               {**METHODS, 'et': 'ExtraTrees, retrained'})
+    # ExtraTrees gives one answer per sample. Retraining it is a different source of variation, so it is
+    # named in the note and not drawn as a bar next to the answers of the language models.
+    training = 100*pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").median_observation_SD_rho2
+    noise_bars(plt, response, 'fig5_stability', 'LLM answer-repeat noise · 3 answers to the same sample',
+               'median across samples with 3 valid answers · a different source of variation: ExtraTrees retrained 11× '
+               f'moves {training.min():.1f}–{training.max():.1f} pp', LLMS, 25)
 
 
 def fig_noise_by_graph(plt, pred, f):

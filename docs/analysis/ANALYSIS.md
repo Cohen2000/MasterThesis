@@ -89,7 +89,7 @@
 | Time patterns · events | 31 | Share of seen events per pattern |
 | Events per window | 5 | Share of seen events in each window |
 | Size and density | 4 | Nodes, pairs and events seen (log); events per pair |
-| Starting estimate | 4 | Simple ρ₂ … ρ₅: naive share (R), reweighting (S), MLE (H), thinning model (B) |
+| Starting estimate | 4 | Simple ρ₂ … ρ₅: naive share (R), MLE (S, H), thinning model (B) |
 | Sampler | 6 | Sampler flags; B's keep rate p |
 | Walk weights · S only | 93 | The 31 pattern shares, weighted three ways by walk visits |
 
@@ -121,7 +121,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 ![Mean absolute error by method and sampler](figures/fig2_ranking.png)
 
 - GPT is the strongest LLM; B is hardest overall. [Network-specific difficulty → 8b](#network-difficulty).
-- **R:** nothing to correct—the naive share is unbiased; MLE's model fit costs 1 pp.
+- **R:** nothing to correct—random nodes cause no selection bias; MLE's model fit costs 1 pp.
 - **H:** no method reliably beats the naive share (6.4 pp); ExtraTrees comes closest (better on 8 of 12 networks). The time cut makes 51 % of returning pairs look non-returning but also hides 40 % of all pairs—the two nearly cancel ([HISTORY.md](../results/final/HISTORY.md)).
 
 ### 3b · Persistence profile: the broad method ranking changes little
@@ -192,6 +192,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 - DeepSeek uses **6–19×** GPT's reasoning tokens, with no accuracy gain.
 - Qwen counts total output as a reasoning proxy.
 - Qwen without thinking: 25–53 pp error, worse than the constant training median (23 pp); its answers barely track the truth (Spearman 0.25).
+- H/B: the word "guess" appears in DeepSeek's reasoning in 81 % / 58 % of answers (R: 2 %); Qwen thinking: 40 % / 54 %.
 
 ## 6 · Noise: new samples and repeated answers
 
@@ -200,7 +201,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 ![Sample-redraw noise for MLE and fixed-fit ExtraTrees across the four samplers](figures/fig5_sample_variation.png)
 
 - LLMs excluded: their redraw variation also contains model noise; pure sample noise is not directly separable.
-- H/B: MLE's redraw SD is ≈ 1 pp, its error 7–8 pp—bias, not noise. More samples would not help.
+- H/B: MLE's redraw SD is ≈ 1 pp, its error 7–8 pp—bias, not noise. Averaging more redraws would not help.
 
 <details>
 <summary>6a detail · Which networks generate redraw noise?</summary>
@@ -215,10 +216,11 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ### 6b · Noise from 3 LLM answers to the same sample: H/B dominate
 
-![LLM answer-repeat noise across the four samplers, with retrained ExtraTrees for comparison](figures/fig5_stability.png)
+![LLM answer-repeat noise across the four samplers](figures/fig5_stability.png)
 
 - Low spread can still mean consistently wrong estimates.
 - ExtraTrees gives one answer per sample; retrained 11× on new training samples, its estimates move ≤ 0.6 pp.
+- The reported ExtraTrees fit is the best of the 11 in S and H (5.0 vs 5.5 pp on average; 3.9 vs 4.2); its rank in S/H/B holds for every fit.
 
 <details>
 <summary>6b detail · Which networks generate answer-repeat noise?</summary>
@@ -235,8 +237,8 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ![Mean error of GPT and GPT with Python on the real networks](figures/fig6_python.png)
 
-- B: worse with Python on **8 of 12** networks; R/S change little.
-- **Why no gain:** R/S need only arithmetic that GPT already does unaided. In B, GPT uses Python to fit its own statistical models (**8 code runs per answer**; R: 1). Its model choice varies between answers, so answer spread doubles (5.1 → 12.2 pp, [6b](#answer-noise)).
+- **B:** worse with Python on **8 of 12** networks, and no longer reliably better than the naive share (15.1 vs 16.4 pp). R/S change little.
+- **Why no gain:** R/S need only arithmetic that GPT already does unaided. In B, GPT uses Python to fit its own statistical models (**8 code runs per answer**; R: 1). In 31 of 36 samples its three answers fit different model families; answer spread doubles (5.1 → 12.2 pp, [6b](#answer-noise)).
 - Twins and synthetic networks: no B penalty ([figure](figures/fig6c_python_groups.png)). Cost: **3.4×** (USD 94.50 vs 27.59).
 
 <details>
@@ -254,14 +256,14 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ![MLE and GPT errors for each real network and sampler](figures/fig7_agreement.png)
 
-- **H:** MLE assumes steady pair activity and adds 9–19 pp on 10 of 12 networks. Right where the sample is far too low (High school, Reality Mining); too much where it is already close (Linux, College messages)—there GPT adds only 2–3 pp.
-- **B:** GPT wins on sparse networks (Linux, MathOverflow), where MLE overshoots by 9–10 pp. On dense networks GPT's answers scatter: Copenhagen 31–80 %, truth 45 %.
-- Does MLE's assumption fail because of timing? [Twins → 9.1](#twins).
+- **H:** MLE assumes steady pair activity and adds ≈ 12 pp; the sample is only ≈ 5 pp too low. Right where the sample is far off (High school, Reality Mining), too much where it is already close (Linux, College messages)—there GPT adds only 2–3 pp.
+- **B:** GPT wins clearly only on Linux and MathOverflow, where MLE overshoots by 9–10 pp. Elsewhere GPT's answers scatter: Copenhagen 31–80 %, truth 45 %.
+- With shuffled timing the same correction fits: [twins → 9.1](#twins).
 
 <details>
 <summary>8a detail · On which networks does MLE win, on which GPT?</summary>
 
-### H/B · GPT wins mostly on the sparse networks (bottom rows)
+### H/B · error of MLE and GPT on each network
 
 ![MLE and GPT errors on each real network in H and B](figures/fig7b_method_networks.png)
 
@@ -294,7 +296,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 ![Change in estimated persistence after shuffling event times](figures/fig10_twins.png)
 
 - Twins are resampled: in R/S/H the naive share itself rises by 18–28 pp, so following it proves little. **B** is the cleaner test: naive +11, MLE +17, GPT +24 of +27 pp.
-- **H:** with timing shuffled, MLE's steady-activity assumption holds: 4.9 pp vs naive 9.4 (real networks: 7.1 vs 6.4).
+- **H:** MLE adds about as much on twins (≈ 11 pp) as on real networks (≈ 12), but twins need ≈ 9 pp, real networks ≈ 5. It fits the twins far better: 4.9 pp vs naive 9.4.
 
 <details>
 <summary>Twins · Which methods estimate persistence best?</summary>
@@ -303,7 +305,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ![Mean error and between-network SD of each method on the twelve time-shuffled twins](figures/fig2_twins_ranking.png)
 
-- vs [real networks (3a)](#ranking-real): R/S unchanged. H: MLE moves ahead of the naive share. B: all errors rise; the same three lead (ExtraTrees, MLE, GPT: 12–13 pp).
+- vs [real networks (3a)](#ranking-real): R/S unchanged. H: MLE moves ahead of the naive share. B: all errors rise; ExtraTrees, GPT (with or without Python) and MLE stay ahead, within 1.5 pp.
 
 </details>
 
@@ -334,11 +336,11 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ![Pair activity in the synthetic networks with and without memory](figures/fig12_synthetic_active.png)
 
-### 9.4 · Memory especially hurts event-loss estimates
+### 9.4 · Memory raises event-loss error—mostly where persistence starts low
 
 ![Typical error with and without memory in the two generators](figures/fig13_memory.png)
 
-- The jump is largest where persistence starts low. Activity-driven: ρ₂ 6 → 79 %, B error 2 → 16 pp. DAR: 39 → 78 %, 13 → 16 pp.
+- Activity-driven: ρ₂ 6 → 79 %, B error 2 → 16 pp. DAR: 39 → 78 %, 13 → 16 pp.
 - Two paired instances per generator: a mechanism check, not a broad synthetic benchmark.
 
 <details>
@@ -352,11 +354,11 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 </details>
 
-### 9.5 · All 32 networks: persistence makes event loss hard; walks remain network-dependent
+### 9.5 · All 32 networks: event loss leaves 10–24 pp error above ρ₂ ≈ 30 %; walks remain network-dependent
 
 ![Typical error versus true persistence across real, twin and synthetic networks](figures/fig9_persistence.png)
 
-- **B:** all tested networks above ρ₂ = 30 % have **10–24 pp** typical error; hidden returns remain hard to recover.
+- **B:** holds for all 24 networks above ρ₂ = 30 % (typical error); hidden returns remain hard to recover.
 - **S:** the same persistence range spans **1–33 pp** error; persistence alone does not determine difficulty.
 - Twins and memory tests reproduce the B pattern. They also change pair histories or concentration: **30 % is not a universal threshold**.
 - In pp only: a low ρ₂ leaves little room for error. Relative to ρ₂, B error shrinks as persistence rises (Spearman −0.72).
@@ -366,7 +368,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 1. **Sampling bias shifts apparent persistence.** Walks overstate it (+28 pp); missing time and events understate it (−5, −16 pp); random nodes do not.
 2. **Correction helps in S and B, not reliably in H**—and never reaches R's accuracy (2.7 pp). The remaining H/B error is bias, not noise.
-3. **No LLM consistently beats the conventional methods.** MLE and ExtraTrees lead; GPT is the strongest LLM and on par with MLE in H. More reasoning or Python gives no consistent gain.
+3. **No LLM consistently beats the conventional methods.** ExtraTrees is among the two best in S, H and B; MLE in S and B. GPT is the strongest LLM. More reasoning or Python gives no consistent gain.
 4. **Sampler, network and method interact.** R/S: a network is hard for all methods alike. H/B: the method's assumptions decide.
 5. **Event loss on persistent networks stays hard.** Above ρ₂ ≈ 30 %, 10–24 pp error remain—on real, twin and synthetic networks.
 
