@@ -8,7 +8,8 @@ import pandas as pd
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
-from analysis_metrics import correction_residuals, noise_cases, noise_components, paired_comparisons, performance_spread
+from analysis_metrics import (answer_averaging, correction_residuals, noise_cases, noise_components, paired_comparisons,
+                              performance_spread)
 
 
 def predictions(method, samples, source='example'):
@@ -101,3 +102,13 @@ def test_paired_comparisons_match_the_frozen_sign_flip_tests():
         assert mine.networks == row.sources and mine.first_better == row.first_better
         assert mine.mean_difference_pp == pytest.approx(100*row.mean_difference)
         assert mine.exact_signflip_p == pytest.approx(row.exact_signflip_p)
+
+
+def test_averaging_three_answers_scores_their_mean_and_never_exceeds_the_single_error():
+    a = answer_averaging(predictions('gpt_6_sol', [[10, 20, 60]])).iloc[0]   # truth 20
+    assert a.one_answer == pytest.approx(50/3)
+    assert a.mean_of_3 == pytest.approx(10)
+    final = Path(__file__).resolve().parents[1]/'docs/results/final'
+    frozen = answer_averaging(pd.read_csv(final/'PREDICTIONS.csv'))
+    assert (frozen.mean_of_3 <= frozen.one_answer + 1e-12).all()
+    assert frozen.samples.between(35, 36).all()

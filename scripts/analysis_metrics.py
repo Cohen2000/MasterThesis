@@ -54,6 +54,23 @@ def primary_predictions(pred, group='real'):
     return p
 
 
+def answer_averaging(pred, group='real'):
+    """Error of one LLM answer and of the mean of the three answers to the same sample, in pp.
+
+    Only samples with three valid answers; every network has equal weight. The error of
+    the mean can never exceed the mean error of the single answers (triangle inequality).
+    """
+    p = primary_predictions(pred, group)
+    a = p[p.method.isin(LLMS)].assign(error=lambda d: (d.rho2 - 100*d.truth_rho2).abs())
+    o = a.groupby(['method', 'arm', 'source', 'observation_id']).agg(
+        answers=('rho2', 'size'), mean=('rho2', 'mean'), truth=('truth_rho2', 'first'), one_answer=('error', 'mean'))
+    o = o[o.answers.eq(3)]
+    o['mean_of_3'] = (o['mean'] - 100*o.truth).abs()
+    out = o.groupby(['method', 'arm', 'source'])[['one_answer', 'mean_of_3']].mean().groupby(['method', 'arm']).mean()
+    out['samples'] = o.groupby(['method', 'arm']).size()
+    return out
+
+
 def noise_cases(pred):
     """Per network, sampler, method and target: controlled contrasts.
 

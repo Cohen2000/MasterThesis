@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from analysis_metrics import (primary_predictions, correction_residuals, noise_cases, noise_components, performance_spread,
-                              paired_comparisons)
+                              paired_comparisons, answer_averaging)
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'src'))
@@ -623,6 +623,22 @@ def fig_stability(plt, pred):
                f'moves {training.min():.1f}–{training.max():.1f} pp', LLMS, 25)
 
 
+# Fig. 5c: does asking three times help? Error of one answer and of the mean of the three answers to the same sample.
+def fig_averaging(plt, pred):
+    from matplotlib.colors import to_rgba
+    a = answer_averaging(pred)
+    a.to_csv(DATA/'answer_averaging.csv', float_format='%.4g')
+    fig, axes = plt.subplots(1, 3, figsize=(15, 3.2))
+    for ax, (m, c) in zip(axes, LM3):
+        pair_bars(ax, a.loc[m].one_answer[list(ARMS)], a.loc[m].mean_of_3[list(ARMS)], ['one answer', 'mean of 3 answers'],
+                  [to_rgba(c, .4), c], METHODS[m] + ': error (pp)', 27)
+        ax.set_xticks(range(4), list(ARMS))   # three panels side by side: the letters only
+    fig.subplots_adjust(wspace=.08)
+    note(fig, REAL_NOTE + ' × 3 answers · the 3 answers to the same sample are averaged, then scored · '
+         + ' · '.join(ARMS.values()), -.1)
+    save(fig, 'fig5_averaging')
+
+
 def fig_noise_by_graph(plt, pred, f):
     """Two compact details: pure redraw SDs, then pooled LLM answer SDs."""
     c = noise_cases(pred).query('target == 2')
@@ -758,14 +774,19 @@ def fig_structure(plt, perall, f):
     save(fig, 'fig8b_pairs')
 
 
+def network_groups(sources, c='#333333'):
+    """The three groups of networks with their marker: real filled, time-shuffled twin hollow, synthetic square."""
+    return (('real', [s for s in sources if s in NAMES], dict(color=c)),
+            ('time-shuffled twin', [s for s in sources if s.endswith('__pwt')], dict(color='white', edgecolor=c, lw=1.1)),
+            ('synthetic', [s for s in sources if s not in NAMES and not s.endswith('__pwt')], dict(color=c, marker='s')))
+
+
 # Fig. 9: typical error against true rho_2, all 32 networks, per arm.
 def fig_persistence(plt, perall):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
     t = typical_error(perall)
     rho = pd.Series({s: 100*truth[s][0] for s in t.index})
-    groups = (('real', [s for s in t.index if s in NAMES], dict(color='#333333')),
-              ('time-shuffled twin', [s for s in t.index if s.endswith('__pwt')], dict(color='white', edgecolor='#333333', lw=1.1)),
-              ('synthetic', [s for s in t.index if s not in NAMES and not s.endswith('__pwt')], dict(color='#333333', marker='s')))
+    groups = network_groups(t.index)
     fig, axes = plt.subplots(1, 4, figsize=(14, 3.3), sharey=True)
     for ax, arm in zip(axes, ARMS):
         for lab, keys, style in groups: ax.scatter(rho[keys], t.loc[keys, arm], s=34, zorder=3, label=lab, **style)
@@ -778,15 +799,37 @@ def fig_persistence(plt, perall):
     save(fig, 'fig9_persistence')
 
 
+# Fig. 9c: arm B per method. The typical error hides that the methods differ most on persistent networks.
+def fig_event_loss_methods(plt, perall):
+    truth = json.loads((FINAL/'TRUTH.json').read_text())
+    e = perall[perall.arm == 'B'].pivot(index='source', columns='method', values='MAE_2')*100
+    rho = pd.Series({s: 100*truth[s][0] for s in e.index})
+    high = rho > 30
+    fig, axes = plt.subplots(1, 3, figsize=(11, 3.3), sharey=True)
+    for ax, m in zip(axes, ('mle', 'et', 'gpt_6_sol')):
+        for lab, keys, style in network_groups(e.index, '#333333'):
+            ax.scatter(rho[keys], e.loc[keys, m], s=34, zorder=3, label=lab, **{**style, 'color': colour(m) if lab != 'time-shuffled twin' else 'white',
+                                                                               'edgecolor': colour(m), 'lw': 1.1})
+        ax.axhline(10, color='#999999', lw=1, ls=(0, (4, 2)), zorder=1)
+        ax.axvline(30, color='#dddddd', lw=1, zorder=0)
+        ax.text(89, 32.5, f'{int((e.loc[high, m] < 10).sum())} of {int(high.sum())} below 10 pp', ha='right', va='top', fontsize=10, fontweight='bold')
+        ax.set_xlim(0, 90); ax.set_ylim(0, 35); ax.set_title(METHODS[m]); ax.set_xlabel('true ρ₂ (%)')
+        ax.spines['left'].set_visible(True)
+    axes[0].set_ylabel('error in B (pp)')
+    h = [plt.Line2D([], [], marker=mk, ls='', color='#555555', markerfacecolor=fc, markersize=6)
+         for mk, fc in (('o', '#555555'), ('o', 'white'), ('s', '#555555'))]
+    fig.legend(h, ['real', 'time-shuffled twin', 'synthetic'], loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .98))
+    note(fig, 'B · event loss, 32 networks · counts: the 24 networks right of the grey line (true ρ₂ > 30 %) · dashed: 10 pp', -.08)
+    save(fig, 'fig9c_event_loss_methods')
+
+
 # Fig. 9b: the same for the higher levels of the profile: typical error of rho_3, rho_4, rho_5 against their true values.
 def fig_persistence_levels(plt, pred):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
     e = level_errors(pred)
     t = e[e.index.get_level_values('method').isin(MAIN)].groupby(['source', 'arm']).median()
     sources = t.index.get_level_values('source').unique()
-    groups = (('real', [s for s in sources if s in NAMES], dict(color='#333333')),
-              ('time-shuffled twin', [s for s in sources if s.endswith('__pwt')], dict(color='white', edgecolor='#333333', lw=1.1)),
-              ('synthetic', [s for s in sources if s not in NAMES and not s.endswith('__pwt')], dict(color='#333333', marker='s')))
+    groups = network_groups(sources)
     fig, axes = plt.subplots(3, 4, figsize=(14, 7.4), sharex=True, sharey=True)
     for r, k in enumerate((1, 2, 3)):
         for ax, arm in zip(axes[r], ARMS):
@@ -1174,11 +1217,12 @@ def draw():
                     spread.loc[group], name, label)
     fig_textbook(plt, types); fig_textbook_networks(plt, pred, f)
     fig_correction(plt, pred); fig_correction_networks(plt, pred, f)
-    fig_stability(plt, pred); fig_noise_by_graph(plt, pred, f)
+    fig_stability(plt, pred); fig_noise_by_graph(plt, pred, f); fig_averaging(plt, pred)
     fig_python(plt, summary); fig_python_networks(plt, per, f); fig_python_groups(plt)
     fig_agreement(plt, per, f); fig_method_networks(plt, per, f); fig_structure(plt, perall, f); fig_cards(plt, perall, f); fig_networks(plt, per, f)
     fig_twins(plt, pred); fig_twin_error(plt, perall, f)
-    fig_memory(plt, perall); fig_persistence(plt, perall); fig_persistence_levels(plt, pred); fig_windows(plt)
+    fig_memory(plt, perall); fig_persistence(plt, perall); fig_event_loss_methods(plt, perall)
+    fig_persistence_levels(plt, pred); fig_windows(plt)
     gif_dar(plt); gif_activity(plt)
     from analysis_tables import write_tables
     write_tables(pred, f)
