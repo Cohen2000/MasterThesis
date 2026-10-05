@@ -1,24 +1,58 @@
-relation,method,arm,value
-six methods agree on which networks are hard (mean pairwise rank correlation),,R,0.93
-typical error vs effective pairs,,R,-0.87
-"redraw SD (MLE, ExtraTrees) vs pairs in the sample",,R,-0.67
-six methods agree on which networks are hard (mean pairwise rank correlation),,S,0.89
-typical error vs effective pairs,,S,-0.81
-"redraw SD (MLE, ExtraTrees) vs pairs in the sample",,S,-0.55
-six methods agree on which networks are hard (mean pairwise rank correlation),,H,0.42
-typical error vs effective pairs,,H,-0.57
-"redraw SD (MLE, ExtraTrees) vs pairs in the sample",,H,-0.83
-six methods agree on which networks are hard (mean pairwise rank correlation),,B,0.38
-typical error vs effective pairs,,B,-0.61
-"redraw SD (MLE, ExtraTrees) vs pairs in the sample",,B,-0.90
-answer SD vs true rho_2,gpt_6_sol,H,0.73
-answer SD vs true rho_2,gpt_6_sol,B,0.66
-answer SD: same networks noisy in H and B,gpt_6_sol,H/B,0.55
-answer SD vs true rho_2,deepseek_flash,H,0.17
-answer SD vs true rho_2,deepseek_flash,B,0.71
-answer SD: same networks noisy in H and B,deepseek_flash,H/B,0.29
-answer SD vs true rho_2,qwen_thinking,H,-0.04
-answer SD vs true rho_2,qwen_thinking,B,0.29
-answer SD: same networks noisy in H and B,qwen_thinking,H/B,-0.03
-pairs seen by a walk relative to random nodes (median ratio),,S,0.60
-true rho_2 vs keep rate p,,B,-0.76
+relation,group,method,arm,value
+six methods agree on which networks are hard (mean pairwise rank correlation),real,,R,0.93
+typical error vs effective pairs,real,,R,-0.87
+"redraw SD (MLE, ExtraTrees) vs pairs in the sample",real,,R,-0.67
+six methods agree on which networks are hard (mean pairwise rank correlation),real,,S,0.89
+typical error vs effective pairs,real,,S,-0.81
+"redraw SD (MLE, ExtraTrees) vs pairs in the sample",real,,S,-0.55
+six methods agree on which networks are hard (mean pairwise rank correlation),real,,H,0.42
+typical error vs effective pairs,real,,H,-0.57
+"redraw SD (MLE, ExtraTrees) vs pairs in the sample",real,,H,-0.83
+six methods agree on which networks are hard (mean pairwise rank correlation),real,,B,0.38
+typical error vs effective pairs,real,,B,-0.61
+"redraw SD (MLE, ExtraTrees) vs pairs in the sample",real,,B,-0.90
+answer SD vs true rho_2,real,gpt_6_sol,H,0.73
+answer SD vs true rho_2,real,gpt_6_sol,B,0.66
+answer SD: same networks noisy in H and B,real,gpt_6_sol,H/B,0.55
+share of S answers using the weights vs pairs in the network,real,gpt_6_sol,S,0.71
+answer SD vs true rho_2,real,deepseek_flash,H,0.17
+answer SD vs true rho_2,real,deepseek_flash,B,0.71
+answer SD: same networks noisy in H and B,real,deepseek_flash,H/B,0.29
+share of S answers using the weights vs pairs in the network,real,deepseek_flash,S,0.53
+answer SD vs true rho_2,real,qwen_thinking,H,-0.04
+answer SD vs true rho_2,real,qwen_thinking,B,0.29
+answer SD: same networks noisy in H and B,real,qwen_thinking,H/B,-0.03
+share of S answers using the weights vs pairs in the network,real,qwen_thinking,S,0.51
+pairs seen by a walk relative to random nodes (median ratio),real,,S,0.60
+true rho_2 vs keep rate p,real,,B,-0.76
+typical error vs nodes in the network,all 32,,R,-0.67
+typical error vs nodes in the network,real,,R,-0.87
+typical error vs nodes in the network,time-shuffled twin,,R,-0.76
+typical error vs nodes in the network,synthetic,,R,-0.08
+typical error vs events per pair,all 32,,S,0.79
+typical error vs events per pair,real,,S,0.77
+typical error vs events per pair,time-shuffled twin,,S,0.66
+typical error vs events per pair,synthetic,,S,0.88
+typical error vs bursty pairs (%),all 32,,H,0.52
+typical error vs bursty pairs (%),real,,H,0.64
+typical error vs bursty pairs (%),time-shuffled twin,,H,0.52
+typical error vs bursty pairs (%),synthetic,,H,0.90
+typical error vs true ρ₂ (%),all 32,,B,0.65
+typical error vs true ρ₂ (%),real,,B,0.85
+typical error vs true ρ₂ (%),time-shuffled twin,,B,0.36
+typical error vs true ρ₂ (%),synthetic,,B,0.83
+median events per pair,real,,,23.09
+median bursty pairs (%),real,,,30.61
+median true rho_2 (%),real,,,44.60
+median events per pair,time-shuffled twin,,,23.09
+median bursty pairs (%),time-shuffled twin,,,3.31
+median true rho_2 (%),time-shuffled twin,,,67.52
+median events per pair,synthetic,,,4.17
+median bursty pairs (%),synthetic,,,10.87
+median true rho_2 (%),synthetic,,,58.72
+networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,mle,B,12.00
+networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,et,B,16.00
+networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,gpt_6_sol,B,4.00
+networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,gpt_6_sol_tools,B,5.00
+networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,deepseek_flash,B,0.00
+networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,qwen_thinking,B,0.00

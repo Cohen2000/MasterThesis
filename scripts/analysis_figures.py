@@ -64,6 +64,15 @@ def activity_rows(g):
             for k in range(1, 6)]
 
 
+def graph_features(g):
+    """Size, persistence and event concentration of one complete network (twins and synthetic networks)."""
+    m = g.m
+    return {'source': g.key, 'nodes': g.N, 'pairs': g.D, 'events': g.M, 'events_per_pair': g.M/g.D, 'rho2': g.truth[0],
+            'effective_pairs': float(1/np.sum((m/g.M)**2)), 'share_one_event': float(np.mean(m == 1)),
+            'share_one_window_several': float(np.mean((g.K == 1) & (m > 1))),
+            **{f'share_{k}_windows': float(np.mean(g.K == k)) for k in range(2, 6)}}
+
+
 def build_inputs(external):
     """Network features and answer types, as small CSV tables."""
     from study.data import prepare_real
@@ -78,7 +87,7 @@ def build_inputs(external):
     obs = {p.stem: json.loads(p.read_text()) for p in sorted((external/'api_observations').glob('*.json'))}
 
     # Network features from the raw data; the rebuilt truth must equal TRUTH.json exactly.
-    rows, activity = [], []
+    rows, activity, twins = [], [], []
     tmp = tempfile.TemporaryDirectory()
     for key in NAMES:
         spec = CFG['stage2_sources'].get(key, {})
@@ -90,6 +99,7 @@ def build_inputs(external):
         twin = shuffle(g)   # the time-shuffled twin, rebuilt from its fixed seed
         if abs(twin.truth[0] - truth[twin.key][0]) > 1e-12: raise ValueError(f'{twin.key}: rebuilt truth differs from TRUTH.json')
         activity += activity_rows(g) + activity_rows(twin)
+        twins.append(graph_features(twin))
         m = g.m
         blocks = {a: [parse(o['block']) for o in obs.values() if o['graph_id'] == key and o['arm'] == a] for a in ARMS}
         rows.append({'source': key, 'nodes': g.N, 'pairs': g.D, 'events': g.M, 'rho2': g.truth[0],
@@ -109,6 +119,7 @@ def build_inputs(external):
     f['walk_distinct_pairs'] = walk.loc[f.index, 'distinct_dyads_mean']
     f['walk_revisit_share'] = walk.loc[f.index, 'revisit_rate_mean']
     f.to_csv(DATA/'network_features.csv', float_format='%.6g')
+    pd.DataFrame(twins).set_index('source').to_csv(DATA/'twin_features.csv', float_format='%.6g')
 
     # Synthetic test networks: regenerated from their fixed seeds; the truth must equal TRUTH.json.
     from study.synthetic import generate_pair
@@ -118,12 +129,7 @@ def build_inputs(external):
             for g, _, _ in generate_pair(family, replicate):
                 if abs(g.truth[0] - truth[g.key][0]) > 1e-12: raise ValueError(f'{g.key}: truth differs')
                 activity += activity_rows(g)
-                syn.append({'source': g.key, 'nodes': g.N, 'pairs': g.D, 'events': g.M,
-                            'events_per_pair': g.M/g.D, 'rho2': g.truth[0],
-                            'effective_pairs': float(1/np.sum((g.m/g.M)**2)),
-                            'share_one_event': float(np.mean(g.m == 1)),
-                            'share_one_window_several': float(np.mean((g.K == 1) & (g.m > 1))),
-                            **{f'share_{k}_windows': float(np.mean(g.K == k)) for k in range(2, 6)}})
+                syn.append(graph_features(g))
     pd.DataFrame(syn).set_index('source').to_csv(DATA/'synthetic_features.csv', float_format='%.6g')
     # Per-window activity of the 12 real networks, their 12 twins and the 8 synthetic networks.
     pd.DataFrame(activity).to_csv(DATA/'window_activity.csv', index=False, float_format='%.6g')
@@ -431,9 +437,9 @@ def fig_sample(plt, summary, per):
 # Fig. 2: error per arm, methods sorted from best to worst; the naive share is the grey row.
 def fig_ranking(plt, summary, spread, name='fig2_ranking', label='12 real networks'):
     methods = ['plugin', 'median', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking', 'qwen_nonthinking']
-    fig, axes = plt.subplots(1, 4, figsize=(15, 4.2))
-    xmax = 100*summary.MAE_2.max() + 23
-    for ax, arm in zip(axes, ARMS):
+    fig, axes = plt.subplots(2, 2, figsize=(10.5, 7.4))
+    xmax = 100*summary.MAE_2.max() + 16
+    for ax, arm in zip(axes.flat, ARMS):
         ranked = sorted(methods, key=lambda m: summary.loc[(arm, m), 'MAE_2'])[::-1]
         v = [100*summary.loc[(arm, m), 'MAE_2'] for m in ranked]
         y = np.arange(len(ranked))
@@ -447,8 +453,8 @@ def fig_ranking(plt, summary, spread, name='fig2_ranking', label='12 real networ
         for lab, m in zip(ax.get_yticklabels(), ranked):
             if m == 'plugin': lab.set_fontweight('bold')
         ax.set_xlim(0, xmax); ax.set_xticks([]); ax.spines['bottom'].set_visible(False); ax.set_title(ARMS[arm])
-    fig.subplots_adjust(wspace=1.05)
-    note(fig, 'mean error (pp) · grey: ± SD across ' + label, -.02)
+    fig.subplots_adjust(wspace=.62, hspace=.28)
+    note(fig, 'mean error (pp) · grey: ± SD across ' + label, .04)
     save(fig, name)
 
 
@@ -557,7 +563,7 @@ def fig_correction(plt, pred):
     t = a.groupby(['arm', 'method']).type.value_counts(normalize=True).unstack()
     vals = {m: {arm: 100*t.loc[(arm, m), 'about right'] for arm in 'HB'} for m, _ in MLE_LM3}
     fig, ax = plt.subplots(figsize=(7.5, 3.3))
-    grouped_bars(plt, ax, ['H', 'B'], vals, 92, '{:.0f} %', 'Corrections of about the right size', MLE_LM3)
+    grouped_bars(plt, ax, ['H', 'B'], vals, 92, '{:.0f} %', 'Corrections within 50–150 % of the needed correction', MLE_LM3)
     note(fig, REAL_NOTE + ' × 3 answers (MLE: 1) · only samples off by ≥ 5 pp', -.2)
     save(fig, 'fig4_correction')
 
@@ -571,7 +577,7 @@ def fig_correction_networks(plt, pred, f):
     order = network_order(f)
     vals = {m: {s: share[(m, s)] for s in order if (m, s) in share.index and count[(m, s)] >= 3} for m, _ in MLE_LM3}
     fig, ax = plt.subplots(figsize=(7.5, 4.4))
-    network_dots(plt, ax, order, vals, 'corrections of about the right size (%)', (-5, 105), f, MLE_LM3)
+    network_dots(plt, ax, order, vals, 'corrections within 50–150 % of the needed correction (%)', (-5, 105), f, MLE_LM3)
     ax.set_title('H and B together, per network', pad=12)
     ax.legend(frameon=False, ncol=4, loc='upper center', bbox_to_anchor=(.4, -.14), columnspacing=1.2)
     note(fig, 'networks sorted by true ρ₂ · only samples off by ≥ 5 pp (Digg and Linux: none)', -.18)
@@ -579,7 +585,7 @@ def fig_correction_networks(plt, pred, f):
 
 
 # Fig. 5a/b: simple bars, one controlled contrast per figure, on the same scale.
-def noise_bars(plt, values, name, title, footer, methods, xmax):
+def noise_bars(plt, values, name, title, footer, methods, xmax, labels=METHODS):
     fig, axes = plt.subplots(1, 4, figsize=(14, max(3., .45*len(methods) + 1.2)), sharey=True)
     y = np.arange(len(methods))[::-1]
     for ax, arm in zip(axes, ARMS):
@@ -587,7 +593,7 @@ def noise_bars(plt, values, name, title, footer, methods, xmax):
         ax.barh(y, v, height=.58, color=[colour(m) for m in methods])
         for yi, x in zip(y, v):
             ax.text(x + .015*xmax, yi, f'{x:.1f}', fontsize=10, va='center')
-        ax.set_yticks(y, [METHODS[m] for m in methods])
+        ax.set_yticks(y, [labels[m] for m in methods])
         ax.set_xlim(0, xmax); ax.set_xticks(np.linspace(0, xmax, 6))
         ax.set_xlabel('spread (SD, pp)'); ax.set_title(ARMS[arm])
         ax.tick_params(axis='y', length=0)
@@ -617,12 +623,12 @@ def fig_stability(plt, pred):
     noise_bars(plt, between, 'fig5_sample_variation', 'Sample-redraw noise · 3 draws · MLE / ExtraTrees',
                'median across 12 networks · fixed estimators · LLMs left out: their redraws also contain answer noise',
                ('mle', 'et'), 5)
-    # ExtraTrees gives one answer per sample. Retraining it is a different source of variation, so it is
-    # named in the note and not drawn as a bar next to the answers of the language models.
-    training = 100*pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").median_observation_SD_rho2
-    noise_bars(plt, response, 'fig5_stability', 'LLM answer-repeat noise · 3 answers to the same sample',
-               'median across samples with 3 valid answers · a different source of variation: ExtraTrees retrained 11× '
-               f'moves {training.min():.1f}–{training.max():.1f} pp', LLMS, 25)
+    # ExtraTrees gives one answer per sample; its counterpart is a new training fit on the same sample.
+    training = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").set_index('arm')
+    for arm in ARMS: response[(arm, 'et')] = 100*training.loc[arm, 'median_observation_SD_rho2']
+    noise_bars(plt, response, 'fig5_stability', 'Answer-repeat noise · 3 LLM answers to the same sample',
+               'median SD across samples · LLMs: 3 valid answers · ExtraTrees: 11 training fits instead', LLMS + ['et'], 25,
+               {**METHODS, 'et': 'ExtraTrees, retrained'})
 
 
 # Fig. 5c: does asking three times help? Error of one answer and of the mean of the three answers to the same sample.
@@ -641,14 +647,16 @@ def fig_averaging(plt, pred):
     save(fig, 'fig5_averaging')
 
 
-def write_relations(per, f, pred):
-    """Numbers behind the general statements of the analysis (12 real networks), as one small table:
-    rank correlations (Spearman) per sampler, so every 'why' can be looked up."""
+def write_relations(perall, f, pred):
+    """Numbers behind the general statements of the analysis, as one small table, so every 'why' can be looked up.
+    Rank correlations are Spearman; group says which networks they rest on."""
+    per = perall.query("group == 'real'")
     rows = []
-    add = lambda relation, arm, value, method='': rows.append(dict(relation=relation, method=method, arm=arm, value=value))
+    add = lambda relation, arm, value, method='', group='real': rows.append(
+        dict(relation=relation, group=group, method=method, arm=arm, value=value))
     rho = lambda a, b: pd.Series(np.asarray(a, float)).corr(pd.Series(np.asarray(b, float)), method='spearman')
     cases = noise_cases(pred).query('target == 2')
-    typical = typical_error(per)
+    typical = typical_error(perall)
     seen = {a: f.walk_distinct_pairs if a == 'S' else f[f'pairs_seen_{a}'] for a in ARMS}
     for arm in ARMS:
         e = per[per.arm == arm].pivot(index='source', columns='method', values='MAE_2').loc[f.index, MAIN]
@@ -658,11 +666,25 @@ def write_relations(per, f, pred):
         redraw = cases[cases.arm.eq(arm) & cases.method.isin(['mle', 'et'])].groupby('source').between_sd.mean().loc[f.index]
         add('redraw SD (MLE, ExtraTrees) vs pairs in the sample', arm, rho(seen[arm], redraw))
     answers = cases[cases.method.isin([m for m, _ in LM3])].set_index(['arm', 'method', 'source']).answer_sd.sort_index()
+    weights = pd.read_csv(DATA/'textbook_by_network.csv').set_index(['method', 'source']).share
     for m, _ in LM3:
         for arm in 'HB': add('answer SD vs true rho_2', arm, rho(f.rho2, answers.loc[(arm, m)].loc[f.index]), m)
         add('answer SD: same networks noisy in H and B', 'H/B', rho(answers.loc[('H', m)].loc[f.index], answers.loc[('B', m)].loc[f.index]), m)
+        add('share of S answers using the weights vs pairs in the network', 'S', rho(f.pairs, weights.loc[m].loc[f.index]), m)
     add('pairs seen by a walk relative to random nodes (median ratio)', 'S', (f.walk_distinct_pairs/f.pairs_seen_R).median())
     add('true rho_2 vs keep rate p', 'B', rho(f.rho2, f.kept_share_B))
+    # What makes a network hard, per sampler: on all 32 networks and within each group.
+    a = all_features()
+    groups = {lab: keys for lab, keys, _ in network_groups(typical.index)}
+    for arm, (col, label, _) in HARD_PROPERTY.items():
+        for lab, keys in {'all 32': list(typical.index), **groups}.items():
+            add(f'typical error vs {label}', arm, rho(a.loc[keys, col], typical.loc[keys, arm]), group=lab)
+    for lab, keys in groups.items():
+        for col, label in (('events_per_pair', 'events per pair'), ('bursty_pairs', 'bursty pairs (%)'), ('rho2', 'true rho_2 (%)')):
+            add(f'median {label}', '', a.loc[keys, col].median(), group=lab)
+    high = a.rho2 > 30
+    e = perall[perall.arm == 'B'].pivot(index='source', columns='method', values='MAE_2').loc[a.index]*100
+    for m in MAIN: add(f'networks with true rho_2 > 30 % ({int(high.sum())}) where the B error stays below 10 pp', 'B', int((e.loc[high, m] < 10).sum()), m, 'all 32')
     pd.DataFrame(rows).to_csv(DATA/'relations.csv', index=False, float_format='%.2f')
 
 
@@ -694,6 +716,19 @@ def fig_noise_by_graph(plt, pred, f):
     fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.6, .97))
     note(fig, 'networks sorted by true ρ₂ · SD of 3 answers to the same sample, median over samples · R/S: almost none', -.04)
     save(fig, 'fig5_answers_networks')
+
+    # The same numbers as H against B: a stable pattern would put the networks on the diagonal.
+    fig, axes = plt.subplots(1, 3, figsize=(11, 3.7))
+    for ax, (m, col) in zip(axes, LM3):
+        x, yv = v.loc[('H', m)].loc[order], v.loc[('B', m)].loc[order]
+        ax.plot([0, 45], [0, 45], color='#bbbbbb', lw=1, zorder=1)
+        ax.scatter(x, yv, s=46, color=col, edgecolor='white', lw=.7, zorder=3)
+        ax.set_xlim(-1.5, 45); ax.set_ylim(-1.5, 45); ax.set_aspect('equal'); ax.set_title(METHODS[m])
+        ax.set_xlabel('answer noise in H (SD, pp)'); ax.spines['left'].set_visible(True)
+        ax.text(.97, .04, f'rank correlation {x.corr(yv, method="spearman"):.2f}', transform=ax.transAxes, ha='right', fontsize=9, color=SPEC)
+    axes[0].set_ylabel('answer noise in B (SD, pp)')
+    note(fig, 'one dot per real network · on the line: equally noisy in H and B', -.04)
+    save(fig, 'fig5_answers_h_vs_b')
 
 
 def python_bars(ax, summary, title):
@@ -800,6 +835,41 @@ def fig_structure(plt, perall, f):
     save(fig, 'fig8b_pairs')
 
 
+def all_features():
+    """Size, events per pair, bursty pairs and true rho_2 of all 32 networks (real, time-shuffled twins, synthetic)."""
+    cols = ['nodes', 'pairs', 'events', 'events_per_pair', 'rho2', 'effective_pairs', 'share_one_window_several']
+    a = pd.concat([pd.read_csv(DATA/f'{name}_features.csv', index_col=0)[cols] for name in ('network', 'twin', 'synthetic')])
+    a['bursty_pairs'] = 100*a.share_one_window_several   # pairs with several events, all in one window (% of pairs)
+    a['rho2'] *= 100
+    return a
+
+
+# What makes a network hard, per sampler: (column of all_features, axis label, log axis).
+HARD_PROPERTY = {'R': ('nodes', 'nodes in the network', True), 'S': ('events_per_pair', 'events per pair', True),
+                 'H': ('bursty_pairs', 'bursty pairs (%)', False), 'B': ('rho2', 'true ρ₂ (%)', False)}
+
+
+# Fig. 8c: each sampler against the network property that goes with its error most clearly, all 32 networks.
+def fig_hard_networks(plt, perall):
+    a, t = all_features(), typical_error(perall)
+    fig, axes = plt.subplots(1, 4, figsize=(14, 3.3), sharey=True)
+    for ax, arm in zip(axes, ARMS):
+        col, label, log = HARD_PROPERTY[arm]
+        for lab, keys, style in network_groups(t.index): ax.scatter(a.loc[keys, col], t.loc[keys, arm], s=34, zorder=3, label=lab, **style)
+        if log:
+            ax.set_xscale('log'); ax.minorticks_off()
+            ticks = [100, 1000, 10000] if arm == 'R' else [1, 10, 100]
+            ax.set_xticks(ticks, [f'{x:,}' for x in ticks])
+        ax.set_ylim(0, 36); ax.set_title(ARMS[arm]); ax.set_xlabel(label); ax.spines['left'].set_visible(True)
+        r = a.loc[t.index, col].corr(t[arm], method='spearman')
+        ax.text(.03, .95, f'rank correlation {r:+.2f}'.replace('-', '−'), transform=ax.transAxes, va='top', fontsize=9, color=SPEC)
+    axes[0].set_ylabel('typical error (pp)')
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .98))
+    note(fig, '32 networks · typical error = median of six methods · bursty pairs = pairs with several events, all in one time window', -.08)
+    save(fig, 'fig8c_hard_networks')
+
+
 def network_groups(sources, c='#333333'):
     """The three groups of networks with their marker: real filled, time-shuffled twin hollow, synthetic square."""
     return (('real', [s for s in sources if s in NAMES], dict(color=c)),
@@ -807,47 +877,26 @@ def network_groups(sources, c='#333333'):
             ('synthetic', [s for s in sources if s not in NAMES and not s.endswith('__pwt')], dict(color=c, marker='s')))
 
 
-# Fig. 9: typical error against true rho_2, all 32 networks, per arm.
-def fig_persistence(plt, perall):
+# Fig. 9: every main method (rows) in every sampler (columns): error against true rho_2, all 32 networks.
+def fig_all_networks(plt, perall):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
-    t = typical_error(perall)
-    rho = pd.Series({s: 100*truth[s][0] for s in t.index})
-    groups = network_groups(t.index)
-    fig, axes = plt.subplots(1, 4, figsize=(14, 3.3), sharey=True)
-    for ax, arm in zip(axes, ARMS):
-        for lab, keys, style in groups: ax.scatter(rho[keys], t.loc[keys, arm], s=34, zorder=3, label=lab, **style)
-        ax.set_xlim(0, 90); ax.set_ylim(0, 35); ax.set_title(ARMS[arm]); ax.set_xlabel('true ρ₂ (%)')
-        ax.spines['left'].set_visible(True)
-    axes[0].set_ylabel('typical error (pp)')
-    h, l = axes[0].get_legend_handles_labels()
-    fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .98))
-    note(fig, '32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic · typical error = median of six methods', -.06)
-    save(fig, 'fig9_persistence')
-
-
-# Fig. 9c: arm B per method. The typical error hides that the methods differ most on persistent networks.
-def fig_event_loss_methods(plt, perall):
-    truth = json.loads((FINAL/'TRUTH.json').read_text())
-    e = perall[perall.arm == 'B'].pivot(index='source', columns='method', values='MAE_2')*100
+    e = perall.pivot_table(index='source', columns=['arm', 'method'], values='MAE_2')*100
     rho = pd.Series({s: 100*truth[s][0] for s in e.index})
-    high = rho > 30
-    fig, axes = plt.subplots(2, 3, figsize=(11, 6.6), sharex=True, sharey=True, gridspec_kw=dict(hspace=.28))
-    for ax, m in zip(axes.flat, MAIN):
-        for lab, keys, style in network_groups(e.index, '#333333'):
-            ax.scatter(rho[keys], e.loc[keys, m], s=34, zorder=3, label=lab, **{**style, 'color': colour(m) if lab != 'time-shuffled twin' else 'white',
-                                                                               'edgecolor': colour(m), 'lw': 1.1})
-        ax.axhline(10, color='#999999', lw=1, ls=(0, (4, 2)), zorder=1)
-        ax.axvline(30, color='#dddddd', lw=1, zorder=0)
-        ax.text(.03, .96, f'{int((e.loc[high, m] < 10).sum())} of {int(high.sum())} below 10 pp', transform=ax.transAxes,
-                ha='left', va='top', fontsize=9.5, color='#444444')
-        ax.set_xlim(0, 90); ax.set_ylim(0, 56); ax.set_title(METHODS[m]); ax.spines['left'].set_visible(True)
-    for ax in axes[1]: ax.set_xlabel('true ρ₂ (%)')
-    for ax in axes[:, 0]: ax.set_ylabel('error in B (pp)')
+    fig, axes = plt.subplots(len(MAIN), 4, figsize=(13, 13.5), sharex=True, sharey=True, gridspec_kw=dict(hspace=.16, wspace=.08))
+    for row, m in zip(axes, MAIN):
+        for ax, arm in zip(row, ARMS):
+            for lab, keys, style in network_groups(e.index, colour(m)):
+                ax.scatter(rho[keys], e.loc[keys, (arm, m)], s=22, zorder=3, **style)
+            ax.axhline(10, color='#bbbbbb', lw=.8, ls=(0, (4, 2)), zorder=1)
+            ax.set_xlim(0, 90); ax.set_ylim(0, 56); ax.spines['left'].set_visible(True)
+        row[0].set_ylabel(METHODS[m], fontsize=11.5, fontweight='bold', color=colour(m))
+    for ax, arm in zip(axes[0], ARMS): ax.set_title(ARMS[arm])
+    for ax in axes[-1]: ax.set_xlabel('true ρ₂ (%)')
     h = [plt.Line2D([], [], marker=mk, ls='', color='#555555', markerfacecolor=fc, markersize=6)
          for mk, fc in (('o', '#555555'), ('o', 'white'), ('s', '#555555'))]
-    fig.legend(h, ['real', 'time-shuffled twin', 'synthetic'], loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .93))
-    note(fig, 'B · event loss, 32 networks · counts: the 24 networks right of the grey line (true ρ₂ > 30 %) · dashed: 10 pp', .03)
-    save(fig, 'fig9c_event_loss_methods')
+    fig.legend(h, ['real', 'time-shuffled twin', 'synthetic'], loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .9))
+    note(fig, 'y-axis: error (pp) · 32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic · dashed: 10 pp', .075)
+    save(fig, 'fig9_all_networks')
 
 
 # Fig. 9b: the same for the higher levels of the profile: typical error of rho_3, rho_4, rho_5 against their true values.
@@ -1236,7 +1285,7 @@ def draw():
     pred = pd.read_csv(FINAL/'PREDICTIONS.csv')
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
-    write_relations(per, f, pred)
+    write_relations(perall, f, pred)
     fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per)
     fig_ranking(plt, summary, spread.loc['real']); fig_levels(plt, pred); fig_amount(plt, pred)
     for group, name, label in [('surrogate', 'fig2_twins_ranking', '12 time-shuffled twins'),
@@ -1247,9 +1296,10 @@ def draw():
     fig_correction(plt, pred); fig_correction_networks(plt, pred, f)
     fig_stability(plt, pred); fig_noise_by_graph(plt, pred, f); fig_averaging(plt, pred)
     fig_python(plt, summary, pred); fig_python_networks(plt, per, f); fig_python_groups(plt)
-    fig_agreement(plt, per, f); fig_method_networks(plt, per, f); fig_structure(plt, perall, f); fig_cards(plt, perall, f); fig_networks(plt, per, f)
+    fig_agreement(plt, per, f); fig_method_networks(plt, per, f); fig_structure(plt, perall, f)
+    fig_hard_networks(plt, perall); fig_cards(plt, perall, f); fig_networks(plt, per, f)
     fig_twins(plt, pred); fig_twin_error(plt, perall, f)
-    fig_memory(plt, perall); fig_persistence(plt, perall); fig_event_loss_methods(plt, perall)
+    fig_memory(plt, perall); fig_all_networks(plt, perall)
     fig_persistence_levels(plt, pred); fig_windows(plt)
     gif_dar(plt); gif_activity(plt)
     from analysis_tables import write_tables
