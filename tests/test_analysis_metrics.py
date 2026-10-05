@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
 from analysis_metrics import (answer_averaging, correction_residuals, noise_cases, noise_components, paired_comparisons,
-                              performance_spread)
+                              performance_spread, variance_shares)
 
 
 def predictions(method, samples, source='example'):
@@ -112,3 +112,11 @@ def test_averaging_three_answers_scores_their_mean_and_never_exceeds_the_single_
     frozen = answer_averaging(pd.read_csv(final/'PREDICTIONS.csv'))
     assert (frozen.mean_of_3 <= frozen.one_answer + 1e-12).all()
     assert frozen.samples.between(35, 36).all()
+
+
+def test_variance_shares_tell_network_from_method():
+    rows = [dict(group='real', arm=arm, source=s, method=m, MAE_2=(i if arm == 'R' else j))
+            for arm in 'RS' for i, s in enumerate('abc') for j, m in enumerate(('mle', 'et'))]
+    a = variance_shares(pd.DataFrame(rows), ['mle', 'et'])
+    assert a.loc['R'].round(9).tolist() == [1, 0, 0]      # errors differ only between networks
+    assert a.loc['S'].round(9).tolist() == [0, 1, 0]      # errors differ only between methods

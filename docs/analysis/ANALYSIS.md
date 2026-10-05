@@ -293,18 +293,38 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ![MLE and GPT errors for each real network and sampler](figures/fig7_agreement.png)
 
-- **R/S:** all methods struggle on the same networks (rank agreement ≈ 0.9).
-- **H/B:** agreement drops to ≈ 0.4; the method's assumptions decide.
+- **R/S:** all methods struggle on the same networks.
+- **H/B:** which method is used matters as much as the network.
 
 <details>
-<summary>8a detail · On which networks does MLE win, on which GPT, and why?</summary>
+<summary>8a detail · How much of the error comes from the network, how much from the method?</summary>
 
-### H/B per network: MLE and GPT fail on different networks
+### Share of the differences in error: the network in R/S, network and method in H/B
 
-![MLE and GPT errors on each real network in H and B](figures/fig7b_method_networks.png)
+<!-- table:network_or_method -->
+| Sampler | Network | Method | Both together |
+| --- | ---: | ---: | ---: |
+| **R · random nodes** | 94 % | 2 % | 4 % |
+| **S · random walk** | 68 % | 18 % | 14 % |
+| **H · late time only** | 28 % | 39 % | 34 % |
+| **B · event loss** | 39 % | 31 % | 30 % |
+<!-- /table:network_or_method -->
 
-- **H:** MLE assumes steady pair activity and adds ≈ 12 pp where ≈ 5 are needed ([twins → 9a](#twins)). That fits where the sample is far off (High school, Reality Mining) and overshoots where it is close (Linux, College messages); there GPT adds only 2–3 pp.
-- **B:** GPT wins clearly only on Linux and MathOverflow, where MLE overshoots by 9–10 pp. Elsewhere GPT's answers scatter: Copenhagen 31–80 %, truth 45 %.
+- 12 real networks, six methods. "Both together": which method works depends on the network.
+- Across all samplers, choosing among MLE, ExtraTrees and GPT explains 2 % of the differences; the network explains 42 %.
+
+</details>
+
+<details>
+<summary>8a detail · On which networks does GPT win, on which MLE and ExtraTrees?</summary>
+
+### H/B per network: GPT wins where little needs correcting, ExtraTrees and MLE where much does
+
+![MLE, ExtraTrees and GPT errors on each real network in H and B](figures/fig7b_method_networks.png)
+
+- **Low persistence (bottom four networks):** the sample is nearly right. GPT changes little and is best (H 1.9, B 3.1 pp); MLE and ExtraTrees correct too much (H 6.7 and 3.4; B 4.9 and 7.2).
+- **The other eight:** much must be corrected. ExtraTrees leads (H 4.2, B 8.2 pp); GPT falls behind in B (14.6), where its answers scatter (Copenhagen: 31–80 %, truth 45 %).
+- **Why MLE overshoots in H:** it assumes steady pair activity and adds ≈ 12 pp where ≈ 5 are needed ([twins → 9a](#twins)).
 
 </details>
 
@@ -450,7 +470,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 **How do LLMs compare with conventional methods?**
 
 4. **Where a formula exists (R, S), the best LLM uses it** and comes close to the conventional methods (S: GPT 8.4, MLE 6.9, ExtraTrees 5.0 pp).
-5. **Where none exists (H, B), only GPT keeps up.** In H it matches ExtraTrees over the whole profile. In B it is no more biased than MLE and ExtraTrees, only noisier; averaging its answers closes the gap. DeepSeek and Qwen fall behind. More reasoning or Python does not help.
+5. **Where none exists (H, B), only GPT keeps up.** It is best where little needs correcting, and behind ExtraTrees and MLE where much does. In B it is no more biased than they are, only noisier. DeepSeek and Qwen fall behind. More reasoning or Python does not help.
 6. **In short:** the best LLM gets close to the conventional methods, but it is noisier and never clearly better than the best of them. The other LLMs fall behind.
 
 <details>
@@ -475,7 +495,8 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 | 6b · Bias and noise in B | Mean error of a single estimate: MLE 7.6, ExtraTrees 7.9, GPT 10.8 pp. Left when all estimates of a network are averaged: 7.5, 7.7, 7.0 | [relations.csv](data/relations.csv) |
 | 6b detail · No stable pattern | Same networks noisy in H and B? Spearman: GPT 0.55, DeepSeek 0.29, Qwen thinking −0.03. GPT's noise vs ρ₂: 0.73 (H), 0.66 (B) | [relations.csv](data/relations.csv) |
 | 7a · Python | 8.3 code runs per B answer (R: 0.9); 92 % of B answers call a numerical optimiser; answer SD 5.1 → 12.2 pp; averaged over 3 answers the penalty shrinks from 4.4 to 2.4 pp; cost USD 94.50 vs 27.59 | [under_the_hood.csv](data/under_the_hood.csv), [answer_averaging.csv](data/answer_averaging.csv) |
-| 8a · Network in R/S, method in H/B | Mean rank agreement of the six methods: R 0.93, S 0.89, H 0.42, B 0.38 | [relations.csv](data/relations.csv) |
+| 8a · Network in R/S, method in H/B | Mean rank agreement of the six methods on which networks are hard: R 0.93, S 0.89, H 0.42, B 0.38. Shares of the differences in error: table in 8a detail; MLE, ExtraTrees and GPT across samplers: network 42 %, sampler 12 %, method 2 % | [relations.csv](data/relations.csv) |
+| 8a detail · Where GPT wins | Mean error on the 4 real networks with ρ₂ < 20 % and on the other 8 (naive share: H 1.2 and 9.0, B 4.3 and 22.5 pp) | [relations.csv](data/relations.csv) |
 | 8a detail · MLE in H | MLE adds 12.1 pp, needed 5.3 (twins: 10.8 vs 9.3) | [SUMMARY.csv](../results/final/SUMMARY.csv) |
 | 8c · Few effective pairs | Typical error vs effective pairs, Spearman on the 12 real networks: R −0.87, S −0.81, H −0.57, B −0.61. On all 32: −0.67, −0.77, −0.47, −0.56 | [relations.csv](data/relations.csv) |
 | 8d, 9e · Each sampler has its own hard networks | Typical error vs property, Spearman on the 12 real networks: nodes (R) −0.87, events per pair (S) +0.77, bursty pairs (H) +0.64, true ρ₂ (B) +0.85. On all 32: −0.67, +0.79, +0.52, +0.65; with any one network left out never weaker than −0.64, +0.77, +0.48, +0.61. Same sign within twins and synthetic networks (R: all synthetic networks have 500 nodes) | [relations.csv](data/relations.csv) |

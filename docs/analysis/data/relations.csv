@@ -76,6 +76,37 @@ networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,
 networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,gpt_6_sol_tools,B,5.00
 networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,deepseek_flash,B,0.00
 networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,qwen_thinking,B,0.00
+share of the differences in error: network (%),real,,B,39.00
+share of the differences in error: method (%),real,,B,31.15
+share of the differences in error: both (%),real,,B,29.86
+share of the differences in error: network (%),real,,H,27.81
+share of the differences in error: method (%),real,,H,38.67
+share of the differences in error: both (%),real,,H,33.53
+share of the differences in error: network (%),real,,R,93.76
+share of the differences in error: method (%),real,,R,1.87
+share of the differences in error: both (%),real,,R,4.37
+share of the differences in error: network (%),real,,S,68.23
+share of the differences in error: method (%),real,,S,18.07
+share of the differences in error: both (%),real,,S,13.70
+"MLE, ExtraTrees, GPT across samplers: share of the differences in error that goes with the network (%)",real,,,41.80
+"MLE, ExtraTrees, GPT across samplers: share of the differences in error that goes with the sampler (%)",real,,,12.20
+"MLE, ExtraTrees, GPT across samplers: share of the differences in error that goes with the method (%)",real,,,1.84
+mean error on the 4 real networks with true rho_2 < 20 % (pp),real,plugin,H,1.18
+mean error on the other 8 real networks (pp),real,plugin,H,9.00
+mean error on the 4 real networks with true rho_2 < 20 % (pp),real,mle,H,6.71
+mean error on the other 8 real networks (pp),real,mle,H,7.23
+mean error on the 4 real networks with true rho_2 < 20 % (pp),real,et,H,3.36
+mean error on the other 8 real networks (pp),real,et,H,4.17
+mean error on the 4 real networks with true rho_2 < 20 % (pp),real,gpt_6_sol,H,1.90
+mean error on the other 8 real networks (pp),real,gpt_6_sol,H,7.11
+mean error on the 4 real networks with true rho_2 < 20 % (pp),real,plugin,B,4.33
+mean error on the other 8 real networks (pp),real,plugin,B,22.47
+mean error on the 4 real networks with true rho_2 < 20 % (pp),real,mle,B,4.94
+mean error on the other 8 real networks (pp),real,mle,B,8.89
+mean error on the 4 real networks with true rho_2 < 20 % (pp),real,et,B,7.24
+mean error on the other 8 real networks (pp),real,et,B,8.21
+mean error on the 4 real networks with true rho_2 < 20 % (pp),real,gpt_6_sol,B,3.12
+mean error on the other 8 real networks (pp),real,gpt_6_sol,B,14.59
 order of the networks: estimate vs truth,real,plugin,R,0.98
 order of the networks: estimate vs truth,all 32,plugin,R,0.99
 order of the networks: estimate vs truth,real,mle,R,0.97

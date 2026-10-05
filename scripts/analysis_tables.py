@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from analysis_metrics import noise_cases, noise_components
+from analysis_metrics import noise_cases, noise_components, variance_shares
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT/'docs/analysis/data'
@@ -48,6 +48,10 @@ def write_tables(pred, features):
         '<tr><th rowspan="2" scope="col">LLM</th><th colspan="4" scope="colgroup">Median reasoning tokens / error (pp)</th></tr>',
         '<tr>' + ''.join(f'<th scope="col">{a}</th>' for a in ARMS) + '</tr>',
         '</thead>', '<tbody>', *rows, '</tbody>', '</table>'])
+
+    shares = variance_shares(pd.read_csv(FINAL/'PER_SOURCE.csv'), ['mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking'])
+    blocks['network_or_method'] = table(['Sampler', 'Network', 'Method', 'Both together'],
+        [[f'**{ARMS[a]}**', *[f'{100*shares.loc[a, part]:.0f} %' for part in ('network', 'method', 'both')]] for a in ARMS])
 
     cases = noise_cases(pred)
     cases.to_csv(DATA/'noise_by_network.csv', index=False, float_format='%.8g')

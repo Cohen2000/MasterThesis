@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from analysis_metrics import (primary_predictions, correction_residuals, noise_cases, noise_components, performance_spread,
-                              paired_comparisons, answer_averaging)
+                              paired_comparisons, answer_averaging, variance_shares, main_effect_shares)
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'src'))
@@ -705,6 +705,18 @@ def write_relations(perall, f, pred):
     high = a.rho2 > 30
     e = perall[perall.arm == 'B'].pivot(index='source', columns='method', values='MAE_2').loc[a.index]*100
     for m in MAIN: add(f'networks with true rho_2 > 30 % ({int(high.sum())}) where the B error stays below 10 pp', 'B', int((e.loc[high, m] < 10).sum()), m, 'all 32')
+    # Network or method: shares of the differences in error per sampler (six methods), and across samplers for the
+    # three leading methods; and the errors on the real networks with low persistence against the others.
+    for arm, s in variance_shares(perall, MAIN).iterrows():
+        for part in ('network', 'method', 'both'): add(f'share of the differences in error: {part} (%)', arm, 100*s[part])
+    for part, value in main_effect_shares(perall, ['mle', 'et', 'gpt_6_sol']).items():
+        add(f'MLE, ExtraTrees, GPT across samplers: share of the differences in error that goes with the {part} (%)', '', 100*value)
+    low = f.index[f.rho2 < .2]
+    for arm in 'HB':
+        e = per[per.arm == arm].pivot(index='source', columns='method', values='MAE_2')*100
+        for m in ('plugin', 'mle', 'et', 'gpt_6_sol'):
+            add(f'mean error on the {len(low)} real networks with true rho_2 < 20 % (pp)', arm, e.loc[low, m].mean(), m)
+            add(f'mean error on the other {len(f) - len(low)} real networks (pp)', arm, e.loc[f.index.difference(low), m].mean(), m)
     # Single estimates of all networks: order of the networks, large errors, and what is left when noise is averaged out.
     est = pd.concat([primary_predictions(pred, g) for g in ('real', 'surrogate', 'synthetic')])
     est = est[est.method.isin(['plugin'] + MAIN)].assign(truth=lambda d: 100*d.truth_rho2)
@@ -846,10 +858,11 @@ def fig_method_networks(plt, per, f):
     fig, axes = plt.subplots(1, 2, figsize=(9.5, 4.4), sharey=True, gridspec_kw=dict(wspace=.08))
     for ax, arm in zip(axes, 'HB'):
         e = per[per.arm == arm].pivot(index='source', columns='method', values='MAE_2')*100
-        network_dots(plt, ax, order, {m: e[m] for m in ('mle', 'gpt_6_sol')}, 'error (pp)', (-1, 22), f, MLE_LM3[:2],
-                     names=arm == 'H')
+        network_dots(plt, ax, order, {m: e[m] for m in ('mle', 'et', 'gpt_6_sol')}, 'error (pp)', (-1, 25), f,
+                     (('mle', BLUE), ('et', AQUA), ('gpt_6_sol', ORANGE)), names=arm == 'H')
         ax.set_title(ARMS[arm], pad=12)
-    axes[1].legend(frameon=False, ncol=2, loc='lower right', bbox_to_anchor=(1, 1.0), columnspacing=1, handletextpad=.2)
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.6, .97))
     note(fig, 'networks sorted by true ρ₂ · ' + REAL_NOTE + ' (GPT: × 3 answers)', -.04)
     save(fig, 'fig7b_method_networks')
 

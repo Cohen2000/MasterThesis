@@ -54,6 +54,32 @@ def primary_predictions(pred, group='real'):
     return p
 
 
+def variance_shares(per_source, methods, group='real'):
+    """Per sampler: share of the differences in error (sum of squares of the network-level errors) that lies
+    between networks, between methods, and in their interplay (what is left: which method works depends on
+    the network). One value per network and method, so the three shares add up to 1."""
+    p = per_source[(per_source.group == group) & per_source.method.isin(methods)]
+    rows = {}
+    for arm, d in p.groupby('arm'):
+        y = d.pivot(index='source', columns='method', values='MAE_2')
+        grand = y.to_numpy().mean()
+        total = ((y - grand)**2).to_numpy().sum()
+        network = y.shape[1]*((y.mean(axis=1) - grand)**2).sum()/total
+        method = y.shape[0]*((y.mean(axis=0) - grand)**2).sum()/total
+        rows[arm] = dict(network=network, method=method, both=1 - network - method)
+    return pd.DataFrame(rows).T
+
+
+def main_effect_shares(per_source, methods, group='real'):
+    """Across all samplers: share of the differences in error that goes with the network, the sampler and the
+    method alone (the rest is their interplay)."""
+    p = per_source[(per_source.group == group) & per_source.method.isin(methods)]
+    grand = p.MAE_2.mean()
+    total = ((p.MAE_2 - grand)**2).sum()
+    return {name: ((p.groupby(col).MAE_2.transform('mean') - grand)**2).sum()/total
+            for name, col in (('network', 'source'), ('sampler', 'arm'), ('method', 'method'))}
+
+
 def answer_averaging(pred, group='real'):
     """Error of one LLM answer and of the mean of the three answers to the same sample, in pp.
 
