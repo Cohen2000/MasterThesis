@@ -37,11 +37,7 @@
 
 ![Naive persistence errors across the four samplers and 12 real networks](figures/fig1_sample.png)
 
-### 0c · The bias shifts the level, not the order of the networks
-
-![Naive share against true persistence for each real network and sampler](figures/fig0c_order.png)
-
-- To compare real networks sampled the same way, the naive share is enough: rank correlation with the truth 0.95–0.98.
+- The bias shifts the level, not the order: within each sampler the naive share still ranks the 12 networks almost correctly (rank correlation with the truth 0.95–0.98).
 
 ## 1 · Twelve networks: persistence from 0.3 % to 61 %
 
@@ -460,7 +456,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 | Statement | Evidence | Data |
 |---|---|---|
-| 0c · Order of the networks | Rank correlation of the naive share with the truth, 12 real networks: R 0.98, S 0.95, H 0.97, B 0.97. MLE, ExtraTrees, GPT: 0.86–0.98, no better | [relations.csv](data/relations.csv) |
+| 0b · Order of the networks | Rank correlation of the naive share with the truth, 12 real networks: R 0.98, S 0.95, H 0.97, B 0.97. MLE, ExtraTrees, GPT: 0.86–0.98, no better | [relations.csv](data/relations.csv) |
 | 3a · GPT is the strongest LLM | Uses the formula in 100 % (R) and 90 % (S) of answers; lowest answer SD of all LLMs (H 1.7, B 5.1 pp) | [answer_types.csv](data/answer_types.csv), [VARIABILITY.md](../results/final/VARIABILITY.md) |
 | 3a · H: hidden returns and hidden pairs partly cancel | 51 % of returning pairs look non-returning; 40 % of all pairs are hidden; the naive share ends only 5 pp too low | [HISTORY.md](../results/final/HISTORY.md) |
 | 3a · B is hardest | Keep rate p: 0.1 % (Malawi) to 9.9 % (Digg) | [network_features.csv](data/network_features.csv) |

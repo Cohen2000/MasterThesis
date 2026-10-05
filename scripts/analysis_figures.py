@@ -448,23 +448,6 @@ def fig_sample(plt, summary, per):
     save(fig, 'fig1_sample')
 
 
-# Fig. 0c: what the bias does to a comparison of networks: the naive share against the truth, one dot per real network.
-def fig_order(plt, pred):
-    p = primary_predictions(pred)
-    n = p[p.method.eq('plugin')].groupby(['arm', 'source']).agg(naive=('rho2', 'mean'), truth=('truth_rho2', 'first'))
-    fig, axes = plt.subplots(1, 4, figsize=(14, 3.5), sharey=True)
-    for ax, arm in zip(axes, ARMS):
-        d = n.loc[arm]
-        ax.plot([0, 100], [0, 100], color='#bbbbbb', lw=1, zorder=1)
-        ax.scatter(100*d.truth, d.naive, s=46, color=GREY, edgecolor='white', lw=.7, zorder=3)
-        ax.set_xlim(-3, 100); ax.set_ylim(-3, 100); ax.set_aspect('equal'); ax.set_title(ARMS[arm]); ax.set_xlabel('true ρ₂ (%)')
-        ax.spines['left'].set_visible(True)
-        correlation_label(ax, d.naive.corr(d.truth, method='spearman'), right=True, y=.12)
-    axes[0].set_ylabel('naive share in the sample (%)')
-    note(fig, REAL_NOTE + ' (mean) · on the line: sample = truth', -.04)
-    save(fig, 'fig0c_order')
-
-
 # Fig. 2: error per arm, methods sorted from best to worst; the naive share is the grey row.
 def fig_ranking(plt, summary, spread, name='fig2_ranking', label='12 real networks'):
     methods = ['plugin', 'median', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking', 'qwen_nonthinking']
@@ -1348,7 +1331,7 @@ def draw():
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
     write_relations(perall, f, pred)
-    fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per); fig_order(plt, pred)
+    fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per)
     fig_ranking(plt, summary, spread.loc['real']); fig_levels(plt, pred); fig_amount(plt, pred)
     for group, name, label in [('surrogate', 'fig2_twins_ranking', '12 time-shuffled twins'),
                                ('synthetic', 'fig2_synthetic_ranking', '8 synthetic networks')]:
