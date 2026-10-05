@@ -91,6 +91,9 @@ share of the differences in error: both (%),real,,S,13.70
 "MLE, ExtraTrees, GPT across samplers: share of the differences in error that goes with the network (%)",real,,,41.80
 "MLE, ExtraTrees, GPT across samplers: share of the differences in error that goes with the sampler (%)",real,,,12.20
 "MLE, ExtraTrees, GPT across samplers: share of the differences in error that goes with the method (%)",real,,,1.84
+error vs true rho_2,real,mle,B,0.43
+error vs true rho_2,real,et,B,0.29
+error vs true rho_2,real,gpt_6_sol,B,0.87
 mean error on the 4 real networks with true rho_2 < 20 % (pp),real,plugin,H,1.18
 mean error on the other 8 real networks (pp),real,plugin,H,9.00
 mean error on the 4 real networks with true rho_2 < 20 % (pp),real,mle,H,6.71

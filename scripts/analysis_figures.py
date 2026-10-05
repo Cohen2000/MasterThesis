@@ -73,6 +73,19 @@ def graph_features(g):
             **{f'share_{k}_windows': float(np.mean(g.K == k)) for k in range(2, 6)}}
 
 
+def event_loss_split(g, p):
+    """What losing events does to rho_2 of one network, in two steps (ratios of expected counts): first only some
+    pairs are still seen at all (those with many events more often), then their histories have gaps."""
+    seen_in_window = -np.expm1(g.counts*np.log1p(-p))          # chance that a pair shows an event in a window
+    seen = -np.expm1(g.m*np.log1p(-p))                         # chance that a pair shows any event
+    gone = 1 - seen_in_window
+    never = gone.prod(axis=1)
+    once = sum(seen_in_window[:, j]*np.delete(gone, j, axis=1).prod(axis=1) for j in range(5))
+    return {'source': g.key, 'keep_rate': p, 'true_rho2': g.truth[0],
+            'true_rho2_of_pairs_still_seen': float(np.sum(seen*(g.K >= 2))/seen.sum()),
+            'rho2_seen': float(np.sum(1 - never - once)/seen.sum())}
+
+
 def build_inputs(external):
     """Network features and answer types, as small CSV tables."""
     from study.data import prepare_real
@@ -87,7 +100,7 @@ def build_inputs(external):
     obs = {p.stem: json.loads(p.read_text()) for p in sorted((external/'api_observations').glob('*.json'))}
 
     # Network features from the raw data; the rebuilt truth must equal TRUTH.json exactly.
-    rows, activity, twins = [], [], []
+    rows, activity, twins, split = [], [], [], []
     tmp = tempfile.TemporaryDirectory()
     for key in NAMES:
         spec = CFG['stage2_sources'].get(key, {})
@@ -114,12 +127,14 @@ def build_inputs(external):
                      'only_early_pairs': float(np.mean(g.counts[:, 2:].sum(axis=1) == 0)),
                      **{f'pairs_seen_{a}': float(np.mean([b['D_obs'] for b in blocks[a]])) for a in ARMS},
                      'kept_share_B': float(np.mean([b['parameter'] for b in blocks['B']]))})
+        split.append(event_loss_split(g, rows[-1]['kept_share_B']))
     walk = pd.read_csv(FINAL/'WALK.csv').set_index('graph_id')
     f = pd.DataFrame(rows).set_index('source')
     f['walk_distinct_pairs'] = walk.loc[f.index, 'distinct_dyads_mean']
     f['walk_revisit_share'] = walk.loc[f.index, 'revisit_rate_mean']
     f.to_csv(DATA/'network_features.csv', float_format='%.6g')
     pd.DataFrame(twins).set_index('source').to_csv(DATA/'twin_features.csv', float_format='%.6g')
+    pd.DataFrame(split).set_index('source').to_csv(DATA/'event_loss_split.csv', float_format='%.6g')
 
     # Synthetic test networks: regenerated from their fixed seeds; the truth must equal TRUTH.json.
     from study.synthetic import generate_pair
@@ -711,6 +726,8 @@ def write_relations(perall, f, pred):
         for part in ('network', 'method', 'both'): add(f'share of the differences in error: {part} (%)', arm, 100*s[part])
     for part, value in main_effect_shares(perall, ['mle', 'et', 'gpt_6_sol']).items():
         add(f'MLE, ExtraTrees, GPT across samplers: share of the differences in error that goes with the {part} (%)', '', 100*value)
+    b = per[per.arm == 'B'].pivot(index='source', columns='method', values='MAE_2').loc[f.index]
+    for m in ('mle', 'et', 'gpt_6_sol'): add('error vs true rho_2', 'B', rho(f.rho2, b[m]), m)
     low = f.index[f.rho2 < .2]
     for arm in 'HB':
         e = per[per.arm == arm].pivot(index='source', columns='method', values='MAE_2')*100
