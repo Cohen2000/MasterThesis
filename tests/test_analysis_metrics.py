@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
-from analysis_metrics import correction_residuals, noise_cases, noise_components, performance_spread
+from analysis_metrics import correction_residuals, noise_cases, noise_components, paired_comparisons, performance_spread
 
 
 def predictions(method, samples, source='example'):
@@ -90,3 +90,14 @@ def test_performance_means_match_frozen_real_twin_and_synthetic_scores():
     a = performance_spread(pd.read_csv(final/'PER_SOURCE.csv'))
     expected = pd.read_csv(final/'SUMMARY.csv').set_index(['group','arm','method']).MAE_2*100
     np.testing.assert_allclose(a['mean'], expected.loc[a.index], atol=1e-10)
+
+
+def test_paired_comparisons_match_the_frozen_sign_flip_tests():
+    final = Path(__file__).resolve().parents[1]/'docs/results/final'
+    a = paired_comparisons(pd.read_csv(final/'PER_SOURCE.csv')).set_index(['group', 'arm', 'first', 'second'])
+    frozen = pd.read_csv(final/'PAIRED_METHODS.csv')
+    for row in frozen.itertuples():
+        mine = a.loc[(row.group, row.arm, *row.comparison.split(' vs '))]
+        assert mine.networks == row.sources and mine.first_better == row.first_better
+        assert mine.mean_difference_pp == pytest.approx(100*row.mean_difference)
+        assert mine.exact_signflip_p == pytest.approx(row.exact_signflip_p)

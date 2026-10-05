@@ -20,7 +20,8 @@ import tempfile
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from analysis_metrics import primary_predictions, correction_residuals, noise_cases, noise_components, performance_spread
+from analysis_metrics import (primary_predictions, correction_residuals, noise_cases, noise_components, performance_spread,
+                              paired_comparisons)
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'src'))
@@ -161,7 +162,8 @@ def build_inputs(external):
             if d.get('kind') != 'main' or obs[oid]['stratum'] != 'real': continue
             trace = d.get('reasoning_content')
             rows.append({'method': method, 'arm': obs[oid]['arm'], 'reasoning_tokens': d.get('reasoning_tokens') or 0,
-                         'trace_says_guess': 'guess' in trace.lower() if trace else np.nan})
+                         'trace_says_guess': 'guess' in trace.lower() if trace else np.nan,
+                         'code_runs': d['tool_calls'] if run == 'openai_tools' else np.nan})
     # Qwen ran on the cluster; a copy of its answer files (one JSON per answer) lies in qwen_runs. Its output tokens
     # are the thinking plus the answer of about 55 tokens.
     for path in sorted((external/'qwen_runs').glob('**/answers/thinking_r*/*.json')):
@@ -171,7 +173,7 @@ def build_inputs(external):
                      'trace_says_guess': 'guess' in d['reasoning_text'].lower()})
     r = pd.DataFrame(rows).astype({'trace_says_guess': float}).groupby(['method', 'arm'])
     pd.DataFrame({'answers': r.size(), 'median_reasoning_tokens': r.reasoning_tokens.median(),
-                  'trace_says_guess': r.trace_says_guess.mean()}
+                  'trace_says_guess': r.trace_says_guess.mean(), 'mean_code_runs': r.code_runs.mean()}
                  ).to_csv(DATA/'under_the_hood.csv', float_format='%.4f')
 
 
@@ -376,14 +378,15 @@ def level_errors(pred):
     return pd.DataFrame(e, index=p.index, columns=LEVELS).groupby([p.group, p.source, p.arm, p.method]).mean()
 
 
-def network_dots(plt, ax, order, values, xlab, xlim, f, models=LM3):
+def network_dots(plt, ax, order, values, xlab, xlim, f, models=LM3, names=True):
     """One row per network; one coloured dot per model."""
     y = np.arange(len(order))
     for yi in y: ax.axhline(yi, color='#f0efeb', lw=6, zorder=0)
     for k, (m, c) in enumerate(models):
         v = [values[m].get(s, np.nan) for s in order]
         ax.scatter(v, y + (k - (len(models) - 1)/2)*.6/len(models), s=42, color=c, edgecolor='white', lw=.7, zorder=3, label=METHODS[m])
-    row_names(ax, order, f); ax.set_xlim(*xlim); ax.set_xlabel(xlab)
+    if names: row_names(ax, order, f)
+    ax.set_xlim(*xlim); ax.set_xlabel(xlab)
     ax.tick_params(axis='y', length=0); ax.set_ylim(-.6, len(order)-.4)
 
 
@@ -421,15 +424,16 @@ def fig_ranking(plt, summary, spread, name='fig2_ranking', label='12 real networ
         y = np.arange(len(ranked))
         ax.barh(y, v, color=[colour(m) for m in ranked], height=.7)
         for yi, vi, m in zip(y, v, ranked):
-            sd = spread.loc[(arm, m), 'sd']
-            ax.text(vi + .8, yi, f'{vi:.1f} ± {sd:.1f}', va='center', fontsize=9.5,
-                    fontweight='bold' if m == 'plugin' else 'normal')
+            mean = ax.annotate(f'{vi:.1f}', (vi, yi), xytext=(3, 0), textcoords='offset points', va='center',
+                               fontsize=10, fontweight='bold' if m == 'plugin' else 'normal')
+            ax.annotate(f"± {spread.loc[(arm, m), 'sd']:.1f}", (1, .5), xycoords=mean, xytext=(3, 0),
+                        textcoords='offset points', va='center', fontsize=8, color=SPEC)
         ax.set_yticks(y, [METHODS[m] for m in ranked])
         for lab, m in zip(ax.get_yticklabels(), ranked):
             if m == 'plugin': lab.set_fontweight('bold')
         ax.set_xlim(0, xmax); ax.set_xticks([]); ax.spines['bottom'].set_visible(False); ax.set_title(ARMS[arm])
     fig.subplots_adjust(wspace=1.05)
-    note(fig, 'mean error ± SD across ' + label + ' (pp)', -.02)
+    note(fig, 'mean error (pp) · grey: ± SD across ' + label, -.02)
     save(fig, name)
 
 
@@ -559,50 +563,8 @@ def fig_correction_networks(plt, pred, f):
     save(fig, 'fig4b_correction_networks')
 
 
-# Fig. 4c: mean estimates of rho_2..rho_5 against the truth, per arm (12 real networks).
-def fig_profile(plt, pred):
-    truth = json.loads((FINAL/'TRUTH.json').read_text())
-    p = pred[(pred.group == 'real') & pred.prediction.notna() & (pred.valid == True)
-             & (pred.replicate.isna() | pred.replicate.eq(0))]
-    prof = pd.DataFrame([json.loads(v) for v in p.prediction], index=p.index, columns=[2, 3, 4, 5])*100
-    mean = prof.groupby([p.arm, p.method, p.source]).mean().groupby(level=[0, 1]).mean()
-    t = pd.DataFrame({s: truth[s] for s in p.source.unique()}, index=[2, 3, 4, 5]).T.mean()*100
-    fig, axes = plt.subplots(1, 4, figsize=(14, 3.4), sharey=True)
-    k = np.arange(4)
-    for ax, arm in zip(axes, ARMS):
-        ax.plot(k, t.to_numpy(), color='#333333', lw=3, marker='o', label='truth', zorder=5)
-        for m, c in (('plugin', GREY),) + MLE_LM3:
-            ax.plot(k, mean.loc[(arm, m)].to_numpy(), color=c, lw=1.8, marker='o', markersize=4.5,
-                    ls=(0, (4, 2)) if m == 'plugin' else '-', label=METHODS[m])
-        ax.set_xticks(k, LEVELS); ax.set_title(ARMS[arm]); ax.set_ylim(0, 75)
-        ax.spines['left'].set_visible(True)
-    axes[0].set_ylabel('share of pairs (%)')
-    h, l = axes[0].get_legend_handles_labels()
-    fig.legend(h, l, loc='lower center', ncol=6, frameon=False, bbox_to_anchor=(.5, .98))
-    note(fig, 'mean over 12 real networks · 3 samples (× 3 answers) each', -.06)
-    save(fig, 'fig4c_profile')
-
-
-# Fig. 4d: how long the models think (median reasoning tokens per answer) against their error, one dot per model and arm.
-def fig_thinking(plt, summary):
-    tokens = pd.read_csv(DATA/'under_the_hood.csv').set_index(['method', 'arm']).median_reasoning_tokens
-    fig, ax = plt.subplots(figsize=(7.5, 3.6))
-    for m, c in LM3:
-        x = [tokens[(m, a)] for a in ARMS]; y = [100*summary.loc[(a, m), 'MAE_2'] for a in ARMS]
-        ax.scatter(x, y, s=70, color=c, edgecolor='white', lw=.8, zorder=3, label=METHODS[m])
-        for xi, yi, a in zip(x, y, ARMS):
-            ax.annotate(a, (xi, yi), xytext=(6, 4), textcoords='offset points', fontsize=9, color='#444444')
-    ax.set_xscale('log'); ax.set_xlim(250, 100000); ax.set_ylim(0, 25); ax.minorticks_off()
-    ax.set_xticks([300, 1000, 3000, 10000, 30000, 100000], ['300', '1,000', '3,000', '10,000', '30,000', '100,000'])
-    ax.set_xlabel('median reasoning tokens per answer'); ax.set_ylabel('error (pp)'); ax.spines['left'].set_visible(True)
-    ax.grid(axis='y', color='#eeeeee'); ax.set_axisbelow(True)
-    ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
-    note(fig, REAL_NOTE + ' × 3 answers · letters: the arm · Qwen: all output tokens', -.08)
-    save(fig, 'fig4d_thinking')
-
-
 # Fig. 5a/b: simple bars, one controlled contrast per figure, on the same scale.
-def noise_bars(plt, values, name, title, footer, methods, xmax):
+def noise_bars(plt, values, name, title, footer, methods, xmax, labels=METHODS):
     fig, axes = plt.subplots(1, 4, figsize=(14, max(3., .45*len(methods) + 1.2)), sharey=True)
     y = np.arange(len(methods))[::-1]
     for ax, arm in zip(axes, ARMS):
@@ -610,7 +572,7 @@ def noise_bars(plt, values, name, title, footer, methods, xmax):
         ax.barh(y, v, height=.58, color=[colour(m) for m in methods])
         for yi, x in zip(y, v):
             ax.text(x + .015*xmax, yi, f'{x:.1f}', fontsize=10, va='center')
-        ax.set_yticks(y, [METHODS[m] for m in methods])
+        ax.set_yticks(y, [labels[m] for m in methods])
         ax.set_xlim(0, xmax); ax.set_xticks(np.linspace(0, xmax, 6))
         ax.set_xlabel('spread (SD, pp)'); ax.set_title(ARMS[arm])
         ax.tick_params(axis='y', length=0)
@@ -634,8 +596,12 @@ def fig_stability(plt, pred):
     response = a[a['count'].eq(3)].groupby(['arm', 'method'])['std'].median()
     noise_bars(plt, between, 'fig5_sample_variation', 'Sample-redraw noise · 3 draws · MLE / ExtraTrees',
                'median across 12 networks · fixed estimators', ('mle', 'et'), 5)
-    noise_bars(plt, response, 'fig5_stability', 'LLM answer-repeat noise · 3 answers to the same sample',
-               'median across samples with 3 valid answers', LLMS, 25)
+    # ExtraTrees gives one answer per sample; its counterpart is a new training fit on the same sample.
+    training = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").set_index('arm')
+    for arm in ARMS: response[(arm, 'et')] = 100*training.loc[arm, 'median_observation_SD_rho2']
+    noise_bars(plt, response, 'fig5_stability', 'Answer-repeat noise · 3 LLM answers to the same sample',
+               'median SD across samples · LLMs: 3 valid answers · ExtraTrees: 11 training fits instead', LLMS + ['et'], 25,
+               {**METHODS, 'et': 'ExtraTrees, retrained'})
 
 
 def fig_noise_by_graph(plt, pred, f):
@@ -657,51 +623,19 @@ def fig_noise_by_graph(plt, pred, f):
     note(fig, 'mean over R/S/H/B · each SD: 3 redraws · fixed estimators', -.06)
     save(fig, 'fig5_redraw_networks')
 
-    v = c[c.method.isin(LLMS)].groupby('source').answer_sd.mean().reindex(order)
-    fig, ax = plt.subplots(figsize=(8, 4.8))
-    ax.barh(y, v, height=.6, color='#333333')
-    for yi, x in zip(y, v): ax.text(x + .08, yi, f'{x:.1f}', va='center', fontsize=10)
+    v = c[c.method.isin([m for m, _ in LM3])].groupby(['method', 'source']).answer_sd.mean()
+    fig, ax = plt.subplots(figsize=(8, 6.4))
+    for k, (m, _) in enumerate(LM3):
+        xs = v.loc[m].reindex(order)
+        ys = y + (1 - k)*.27
+        ax.barh(ys, xs, height=.22, color=colour(m), label=METHODS[m])
+        for yi, x in zip(ys, xs): ax.text(x + .15, yi, f'{x:.1f}', va='center', fontsize=8)
     row_names(ax, order, f)
-    ax.set_ylim(-.6, len(order)-.4); ax.set_xlim(0, v.max() + .8)
-    ax.set_xlabel('LLM answer-repeat noise (mean SD, pp)'); ax.tick_params(axis='y', length=0)
-    note(fig, 'mean over 5 LLM configurations × R/S/H/B · each case: median SD over samples', -.06)
+    ax.set_ylim(-.6, len(order)-.4); ax.set_xlim(0, v.max() + 1.5); ax.set_xticks(range(0, 20, 5))
+    ax.set_xlabel('answer-repeat noise (mean SD, pp)'); ax.tick_params(axis='y', length=0)
+    ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
+    note(fig, 'mean over R/S/H/B · each SD: 3 answers to the same sample, median over samples', -.05)
     save(fig, 'fig5_answers_networks')
-
-
-# Fig. 5b: per network, the spread of 3 answers to the same sample, H and B together (R and S hardly vary).
-def fig_noise_networks(plt, pred, f):
-    p = r2_answers(pred)
-    p = p[p.method.isin([m for m, _ in LM3]) & (p.valid == True) & p.arm.isin(['H', 'B'])]
-    sd = p.groupby(['method', 'arm', 'source', 'observation_id']).r2.std().groupby(['method', 'arm', 'source']).median()
-    v = sd.groupby(['method', 'source']).mean()
-    order = network_order(f)
-    fig, ax = plt.subplots(figsize=(7.5, 4.4))
-    network_dots(plt, ax, order, {m: {s: v[(m, s)] for s in order} for m, _ in LM3}, 'spread of 3 answers (pp)', (-1, 33), f)
-    ax.set_title('H and B together, per network', pad=12)
-    ax.legend(frameon=False, ncol=3, loc='upper center', bbox_to_anchor=(.45, -.14))
-    note(fig, 'networks sorted by true ρ₂ · median over samples, mean of H and B', -.18)
-    save(fig, 'fig5b_noise_networks')
-
-
-# Fig. 5c: a new sample of the same network: MLE's estimate from each of the 3 samples against the truth.
-def fig_sample_noise(plt, pred, f):
-    p = r2_answers(pred)
-    p = p[p.method == 'mle']
-    order = network_order(f)
-    fig, axes = plt.subplots(1, 4, figsize=(14, 4.4), sharey=True)
-    y = {s: i for i, s in enumerate(order)}
-    for ax, arm in zip(axes, ARMS):
-        for s in order:
-            ax.axhline(y[s], color='#f0efeb', lw=6, zorder=0)
-            ax.plot([100*f.loc[s, 'rho2']]*2, [y[s]-.35, y[s]+.35], color='#333333', lw=2.2, zorder=2)
-            est = p[(p.arm == arm) & (p.source == s)].r2
-            ax.scatter(est, [y[s]]*len(est), s=30, color=BLUE, edgecolor='white', lw=.6, zorder=3)
-        ax.set_xlim(-2, 95); ax.set_title(ARMS[arm]); ax.set_xlabel('ρ₂ (%)'); ax.tick_params(axis='y', length=0)
-    row_names(axes[0], order, f); axes[0].set_ylim(-.6, len(order)-.4)
-    h = [plt.Line2D([], [], color='#333333', lw=2.2), plt.Line2D([], [], marker='o', ls='', color=BLUE, markersize=6)]
-    fig.legend(h, ['true ρ₂', 'MLE estimate from one sample'], loc='lower center', ncol=2, frameon=False, bbox_to_anchor=(.5, .97))
-    note(fig, '12 real networks · 3 independent samples each · MLE gives the same answer for the same sample', -.04)
-    save(fig, 'fig5c_sample_noise')
 
 
 def python_bars(ax, summary, title):
@@ -773,47 +707,36 @@ def fig_agreement(plt, per, f):
     save(fig, 'fig7_agreement')
 
 
-def fig_method_examples(plt, pred):
-    """Show a reversal in each arm: all estimates and truth, no causal claim."""
-    examples = [('H', 'snap_collegemsg'), ('H', 'sp_highschool2013'),
-                ('B', 'snap_mathoverflow'), ('B', 'copenhagen_bluetooth')]
-    p = primary_predictions(pred)
-    fig, axes = plt.subplots(1, 4, figsize=(14, 2.7), sharey=True)
-    for ax, (arm, source) in zip(axes, examples):
-        a = p[p.arm.eq(arm) & p.source.eq(source)]
-        truth = 100*a.truth_rho2.iloc[0]
-        ax.axvline(truth, color='#333333', lw=1.5)
-        for i, m in enumerate(['plugin', 'mle', 'gpt_6_sol']):
-            v = a[a.method.eq(m)].rho2.to_numpy()
-            ax.scatter(v, i + np.linspace(-.11, .11, len(v)), s=24, color=colour(m), zorder=3)
-        ax.set_title(f'{arm} · {short(source)}', fontsize=10.5)
-        ax.set_yticks(range(3), [METHODS[m] for m in ['plugin', 'mle', 'gpt_6_sol']])
-        ax.set_xlim(-2, 90); ax.set_xticks([0, 25, 50, 75]); ax.set_xlabel('estimated ρ₂ (%)')
-    axes[0].set_ylim(2.7, -.6)
-    fig.legend([plt.Line2D([], [], color='#333333', lw=1.5)], ['truth'], frameon=False,
-               loc='lower center', bbox_to_anchor=(.5, 1.0))
-    note(fig, 'selected examples of each method winning · dots: individual estimates · line: true persistence', -.1)
-    save(fig, 'fig7b_method_examples')
+# Fig. 7b: on which networks MLE is closer and on which GPT, in H and B (error per network, pp).
+def fig_method_networks(plt, per, f):
+    order = network_order(f)
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 4.4), sharey=True, gridspec_kw=dict(wspace=.08))
+    for ax, arm in zip(axes, 'HB'):
+        e = per[per.arm == arm].pivot(index='source', columns='method', values='MAE_2')*100
+        network_dots(plt, ax, order, {m: e[m] for m in ('mle', 'gpt_6_sol')}, 'error (pp)', (-1, 22), f, MLE_LM3[:2],
+                     names=arm == 'H')
+        ax.set_title(ARMS[arm], pad=12)
+    axes[1].legend(frameon=False, ncol=2, loc='lower right', bbox_to_anchor=(1, 1.0), columnspacing=1, handletextpad=.2)
+    note(fig, 'networks sorted by true ρ₂ · ' + REAL_NOTE + ' (GPT: × 3 answers)', -.04)
+    save(fig, 'fig7b_method_networks')
 
 
-# Fig. 8 and 8b: typical error against the number of events, and against the number of pairs that carry them, per arm.
+# Fig. 8b: typical error against the number of pairs that carry the events, per arm.
 def fig_structure(plt, perall, f):
     t = typical_error(perall).loc[f.index]
-    figures = (('fig8_events', 'events', 'events in the network', [10**5, 10**6], '102k events', ''),
-               ('fig8b_pairs', 'effective_pairs', 'pairs that carry the events', [100, 1000, 10000, 100000], '55 pairs carry them',
-                ' · pairs that carry the events = effective number of pairs (see definitions)'))
-    for name, col, xlab, ticks, malawi, extra in figures:
-        fig, axes = plt.subplots(1, 4, figsize=(14, 2.9), sharey=True)
-        for ax, arm in zip(axes, ARMS):
-            ax.scatter(f[col], t[arm], s=40, color='#333333', zorder=3)
-            two_tone(ax, f.loc['sp_malawi', col], t.loc['sp_malawi', arm], 'Malawi', malawi, ax.transData, ha='left',
-                     size=8.5, small=8, dx=3, dy=9)
-            ax.set_xscale('log'); ax.set_xticks(ticks, [f'{x:,}' for x in ticks]); ax.minorticks_off()
-            ax.set_xlabel(xlab, fontsize=9.5); ax.set_ylim(0, 36); ax.set_yticks([0, 10, 20, 30]); ax.spines['left'].set_visible(True)
-            ax.set_title(ARMS[arm])
-        axes[0].set_ylabel('typical error (pp)')
-        note(fig, '12 real networks · typical error = median of six methods' + extra, -.12)
-        save(fig, name)
+    fig, axes = plt.subplots(1, 4, figsize=(14, 2.9), sharey=True)
+    for ax, arm in zip(axes, ARMS):
+        ax.scatter(f.effective_pairs, t[arm], s=40, color='#333333', zorder=3)
+        two_tone(ax, f.loc['sp_malawi', 'effective_pairs'], t.loc['sp_malawi', arm], 'Malawi', '55 pairs carry them', ax.transData,
+                 ha='left', size=8.5, small=8, dx=3, dy=9)
+        ticks = [100, 1000, 10000, 100000]
+        ax.set_xscale('log'); ax.set_xticks(ticks, [f'{x:,}' for x in ticks]); ax.minorticks_off()
+        ax.set_xlabel('pairs that carry the events', fontsize=9.5); ax.set_ylim(0, 36); ax.set_yticks([0, 10, 20, 30])
+        ax.spines['left'].set_visible(True); ax.set_title(ARMS[arm])
+    axes[0].set_ylabel('typical error (pp)')
+    note(fig, '12 real networks · typical error = median of six methods'
+         ' · pairs that carry the events = effective number of pairs (see definitions)', -.12)
+    save(fig, 'fig8b_pairs')
 
 
 # Fig. 9: typical error against true rho_2, all 32 networks, per arm.
@@ -1220,6 +1143,7 @@ def draw():
     per = perall.query("group == 'real'")
     spread = performance_spread(perall)
     spread.to_csv(DATA/'performance_spread.csv', float_format='%.8g')
+    paired_comparisons(perall).to_csv(DATA/'paired_comparisons.csv', index=False, float_format='%.4g')
     pred = pd.read_csv(FINAL/'PREDICTIONS.csv')
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
@@ -1233,7 +1157,7 @@ def draw():
     fig_correction(plt, pred); fig_correction_networks(plt, pred, f)
     fig_stability(plt, pred); fig_noise_by_graph(plt, pred, f)
     fig_python(plt, summary); fig_python_networks(plt, per, f); fig_python_groups(plt)
-    fig_agreement(plt, per, f); fig_structure(plt, perall, f); fig_cards(plt, perall, f); fig_networks(plt, per, f)
+    fig_agreement(plt, per, f); fig_method_networks(plt, per, f); fig_structure(plt, perall, f); fig_cards(plt, perall, f); fig_networks(plt, per, f)
     fig_twins(plt, pred); fig_twin_error(plt, perall, f)
     fig_memory(plt, perall); fig_persistence(plt, perall); fig_persistence_levels(plt, pred); fig_windows(plt)
     gif_dar(plt); gif_activity(plt)

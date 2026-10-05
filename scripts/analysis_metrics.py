@@ -4,6 +4,7 @@ ExtraTrees fit 0 is the reported model. Other fits measure training variation,
 never repeated answers or sampling variation. Missing/invalid LLM answers are
 excluded; an answer SD requires all three valid repeats.
 """
+import itertools
 import json
 
 import numpy as np
@@ -24,6 +25,24 @@ def performance_spread(per_source):
     p = per_source.assign(error_pp=100*per_source.MAE_2)
     return p.groupby(['group', 'arm', 'method']).error_pp.agg(
         mean='mean', sd='std', networks='count')
+
+
+def paired_comparisons(per_source):
+    """Method against method on the same networks: mean error difference (pp, first minus second), on how many
+    networks the first is better, and the exact sign-flip p-value. Descriptive: 8-12 networks, many comparisons,
+    no correction for multiple testing."""
+    pairs = ([(m, 'plugin') for m in METHODS[:-1]] + [(m, 'mle') for m in METHODS[1:-1]]
+             + [('gpt_6_sol', 'deepseek_flash'), ('gpt_6_sol_tools', 'gpt_6_sol')])
+    rows = []
+    for (group, arm), g in per_source.groupby(['group', 'arm'], sort=False):
+        e = g.pivot(index='source', columns='method', values='MAE_2')*100
+        for first, second in pairs:
+            d = (e[first] - e[second]).dropna().to_numpy()
+            signs = np.array(list(itertools.product([1, -1], repeat=len(d))))
+            p = np.mean(np.abs(signs@d) >= abs(d.sum()) - 1e-12)
+            rows.append(dict(group=group, arm=arm, first=first, second=second, networks=len(d),
+                             mean_difference_pp=d.mean(), first_better=int((d < 0).sum()), exact_signflip_p=p))
+    return pd.DataFrame(rows)
 
 
 def primary_predictions(pred, group='real'):

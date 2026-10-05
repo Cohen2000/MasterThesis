@@ -53,9 +53,6 @@ def write_tables(pred, features):
     cases.to_csv(DATA/'noise_by_network.csv', index=False, float_format='%.8g')
     components = noise_components(cases)
     components.to_csv(DATA/'noise_components.csv', index=False, float_format='%.8g')
-    training = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").set_index('arm')
-    blocks['training'] = table(['ExtraTrees: new training fit', 'R', 'S', 'H', 'B'],
-                              [['Spread (SD, pp)', *[fmt(training.loc[a, 'median_observation_SD_rho2']*100) for a in ARMS]]])
 
     for key, value in blocks.items():
         pattern = re.compile(rf'(<!-- table:{key} -->\n).*?(<!-- /table:{key} -->)', re.S)
