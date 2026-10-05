@@ -2,6 +2,8 @@
 
 **How does sampling bias affect persistence estimates in temporal graphs—and how do LLMs compare with conventional methods?**
 
+- **Why persistence?** It separates lasting ties from one-off encounters. Pairs that keep interacting shape how diseases and information spread, and which connections a network can rely on.
+
 ## 0 · The challenge: sampling changes apparent persistence
 
 <details>
