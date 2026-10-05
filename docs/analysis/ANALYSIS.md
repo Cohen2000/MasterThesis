@@ -74,7 +74,7 @@
 |---|---|
 | Coverage | About 10 % of active pair–window cells |
 | Samples | 3 seeds per network and sampler |
-| LLM answers | 3 independent repeats per sample |
+| LLM answers | 3 independent repeats per sample, each scored on its own ([mean of 3 → 6c](#averaging)) |
 | Scoring | Mean absolute error; each network counts equally |
 | **LLMs** | GPT (`gpt-6-sol`), GPT + Python, DeepSeek (`deepseek-flash`), Qwen3.6 thinking / no thinking |
 | **Statistical estimators** | Naive share; MLE (fits a distribution; no training) |
@@ -128,7 +128,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ![Errors at rho2 through rho5; broad method performance remains similar](figures/fig2b_levels.png)
 
-- **H:** three visible windows can never show ρ₄ or ρ₅. Over the whole profile MLE beats the naive share (4.4 vs 7.2 pp); for ρ₂ alone it does not (7.1 vs 6.4).
+- **H:** three visible windows cannot show ρ₄ or ρ₅, so the naive share says 0. There MLE, ExtraTrees and GPT are far better, also than the constant training median (ρ₄: 2.6–3.7 vs 8.7 pp). At ρ₃ only GPT gains much (3.3 vs 6.7).
 
 ### 3c · Corrected estimates: H/S tend above truth; B's errors cancel
 
@@ -228,12 +228,14 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 </details>
 
-### 6c · Averaging the 3 answers: LLM error drops in H/B, most in B
+<a id="averaging"></a>
+
+### 6c · What if the 3 answers are averaged first? LLM error drops in H/B, most in B
 
 ![Error of one answer and of the mean of three answers for GPT, DeepSeek and Qwen thinking](figures/fig5_averaging.png)
 
-- B: averaged GPT (8.2 pp) comes close to MLE (7.6) and ExtraTrees (7.9)—for three answers instead of one.
-- Averaging can never raise this error; its size is the finding.
+- Everywhere else each answer is scored on its own. With the mean of 3, the order in B stays MLE 7.6, ExtraTrees 7.9, GPT 8.2 pp; DeepSeek and Qwen thinking now beat the naive share (16.4).
+- Averaging can never raise this error and costs three answers; its size is the finding.
 
 ## 7 · Python: no consistent accuracy gain
 
@@ -242,7 +244,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 ![Mean error of GPT and GPT with Python on the real networks](figures/fig6_python.png)
 
 - **B:** worse with Python on **8 of 12** networks; barely better than the naive share (15.1 vs 16.4 pp). R/S change little.
-- **Likely why:** R/S need only arithmetic GPT already does unaided. In B it fits its own statistical models in Python (**8 code runs per answer**; R: 1); by a keyword search of the code, the three answers use different model families in 31 of 36 samples. Answer spread doubles ([6b](#answer-noise)).
+- **Likely why:** R/S need only arithmetic GPT already does unaided. In B it fits its own statistical models in Python (**8 code runs per answer**; R: 1) and its answers scatter twice as much ([6b](#answer-noise)). About half the penalty is this noise: with the 3 answers averaged it shrinks from 4.4 to 2.4 pp ([6c](#averaging)).
 - Twins and synthetic networks: no B penalty ([figure](figures/fig6c_python_groups.png)). Cost: **3.4×** (USD 94.50 vs 27.59).
 
 <details>
@@ -368,7 +370,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 <details>
 <summary>9.5 detail · Event loss per method</summary>
 
-### B · MLE and ExtraTrees often stay below 10 pp; GPT's error grows with persistence
+### B · MLE and ExtraTrees often stay below 10 pp; GPT sits at 9–22 pp above ρ₂ ≈ 30 %
 
 ![Error of MLE, ExtraTrees and GPT in B against true persistence on all 32 networks](figures/fig9c_event_loss_methods.png)
 

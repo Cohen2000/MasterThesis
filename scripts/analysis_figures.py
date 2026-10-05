@@ -162,12 +162,11 @@ def build_inputs(external):
             oid = d['id'].rsplit('__', 2)[0]
             if d.get('kind') != 'main' or obs[oid]['stratum'] != 'real': continue
             trace = d.get('reasoning_content')
-            row = {'method': method, 'arm': obs[oid]['arm'], 'sample': oid, 'reasoning_tokens': d.get('reasoning_tokens') or 0,
+            row = {'method': method, 'arm': obs[oid]['arm'], 'reasoning_tokens': d.get('reasoning_tokens') or 0,
                    'trace_says_guess': 'guess' in trace.lower() if trace else np.nan}
             if run == 'openai_tools':
                 code = '\n'.join(x.get('code') or '' for x in d['raw_response']['output'] if x['type'] == 'code_interpreter_call')
-                row.update(code_runs=d['tool_calls'], fits_numerically=bool(re.search(OPTIMISER, code)),
-                           models='+'.join(k for k, pattern in MODEL_FAMILIES.items() if re.search(pattern, code)))
+                row.update(code_runs=d['tool_calls'], fits_numerically=bool(re.search(OPTIMISER, code)))
             rows.append(row)
     # Qwen ran on the cluster; a copy of its answer files (one JSON per answer) lies in qwen_runs. Its output tokens
     # are the thinking plus the answer of about 55 tokens.
@@ -176,24 +175,15 @@ def build_inputs(external):
         if obs.get(d['observation_id'], {}).get('stratum') != 'real': continue
         rows.append({'method': 'qwen_thinking', 'arm': d['arm'], 'reasoning_tokens': d['output_tokens'],
                      'trace_says_guess': 'guess' in d['reasoning_text'].lower()})
-    t = pd.DataFrame(rows).astype({'trace_says_guess': float, 'fits_numerically': float})
-    r = t.groupby(['method', 'arm'])
-    # Share of samples whose three GPT + Python answers do not all fit the same model families.
-    differ = t.dropna(subset='models').groupby(['method', 'arm', 'sample']).models.nunique().gt(1).groupby(['method', 'arm']).mean()
+    r = pd.DataFrame(rows).astype({'trace_says_guess': float, 'fits_numerically': float}).groupby(['method', 'arm'])
     pd.DataFrame({'answers': r.size(), 'median_reasoning_tokens': r.reasoning_tokens.median(),
                   'trace_says_guess': r.trace_says_guess.mean(), 'mean_code_runs': r.code_runs.mean(),
-                  'fits_numerically': r.fits_numerically.mean(), 'samples_with_different_models': differ}
-                 ).to_csv(DATA/'under_the_hood.csv', float_format='%.4f')
+                  'fits_numerically': r.fits_numerically.mean()}).to_csv(DATA/'under_the_hood.csv', float_format='%.4f')
 
 
-# What the code of GPT + Python does, found by keywords: does it call a numerical optimiser, and which
-# distribution of pair activity does it fit (gamma, log-normal, beta, a few latent classes). A rough reading of code.
+# Does the code that GPT + Python ran call a numerical optimiser, i.e. fit a model of its own? (keyword search)
 OPTIMISER = (r'scipy\.optimize|minimize\(|least_squares\(|curve_fit\(|fsolve\(|brentq\(|root\(|differential_evolution|'
              r'nnls\(|lsq_linear|linprog')
-MODEL_FAMILIES = {'gamma': r'stats\.gamma|import gamma|\bgamma\.(?:pdf|cdf|ppf|rvs)|laguerre|nbinom|\.gamma\(',
-                  'lognormal': r'lognorm|hermite',
-                  'beta': r'stats\.beta|import beta\b|\bbeta\.(?:pdf|cdf|ppf|rvs)|betaln|betabinom|\.beta\(',
-                  'classes': r'nnls\(|lsq_linear|linprog|dirichlet|n_components|\bJ\s*=\s*\d|for J in|ncomp|n_class|classes'}
 
 
 def build_formula_references(external):
