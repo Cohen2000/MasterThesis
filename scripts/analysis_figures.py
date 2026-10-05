@@ -673,12 +673,17 @@ def write_relations(perall, f, pred):
         add('share of S answers using the weights vs pairs in the network', 'S', rho(f.pairs, weights.loc[m].loc[f.index]), m)
     add('pairs seen by a walk relative to random nodes (median ratio)', 'S', (f.walk_distinct_pairs/f.pairs_seen_R).median())
     add('true rho_2 vs keep rate p', 'B', rho(f.rho2, f.kept_share_B))
-    # What makes a network hard, per sampler: on all 32 networks and within each group.
+    # What makes a network hard: in every sampler (effective pairs) and per sampler, on all 32 networks, within each
+    # group, and the weakest value when any one network is left out.
     a = all_features()
     groups = {lab: keys for lab, keys, _ in network_groups(typical.index)}
-    for arm, (col, label, _) in HARD_PROPERTY.items():
-        for lab, keys in {'all 32': list(typical.index), **groups}.items():
-            add(f'typical error vs {label}', arm, rho(a.loc[keys, col], typical.loc[keys, arm]), group=lab)
+    for properties in (EFFECTIVE_PAIRS, HARD_PROPERTY):
+        for arm, (col, label, _) in properties.items():
+            relation = 'typical error vs ' + ('effective pairs' if col == 'effective_pairs' else label)
+            for lab, keys in {'all 32': list(typical.index), **groups}.items():
+                if not (lab == 'real' and col == 'effective_pairs'): add(relation, arm, rho(a.loc[keys, col], typical.loc[keys, arm]), group=lab)
+            left_out = [rho(a.loc[typical.index.drop(s), col], typical.loc[typical.index.drop(s), arm]) for s in typical.index]
+            add(relation + ', weakest when one network is left out', arm, min(left_out, key=abs), group='all 32')
     for lab, keys in groups.items():
         for col, label in (('events_per_pair', 'events per pair'), ('bursty_pairs', 'bursty pairs (%)'), ('rho2', 'true rho_2 (%)')):
             add(f'median {label}', '', a.loc[keys, col].median(), group=lab)
@@ -829,6 +834,7 @@ def fig_structure(plt, perall, f):
         ax.set_xscale('log'); ax.set_xticks(ticks, [f'{x:,}' for x in ticks]); ax.minorticks_off()
         ax.set_xlabel('pairs that carry the events', fontsize=9.5); ax.set_ylim(0, 36); ax.set_yticks([0, 10, 20, 30])
         ax.spines['left'].set_visible(True); ax.set_title(ARMS[arm])
+        correlation_label(ax, f.effective_pairs.corr(t[arm], method='spearman'), right=True, y=.8)   # clear of the Malawi label
     axes[0].set_ylabel('typical error (pp)')
     note(fig, '12 real networks · typical error = median of six methods'
          ' · pairs that carry the events = effective number of pairs (see definitions)', -.12)
@@ -844,30 +850,37 @@ def all_features():
     return a
 
 
-# What makes a network hard, per sampler: (column of all_features, axis label, log axis).
-HARD_PROPERTY = {'R': ('nodes', 'nodes in the network', True), 'S': ('events_per_pair', 'events per pair', True),
-                 'H': ('bursty_pairs', 'bursty pairs (%)', False), 'B': ('rho2', 'true ρ₂ (%)', False)}
+def correlation_label(ax, r, right=False, y=.95):
+    """The rank correlation of a panel, small and grey in its upper corner."""
+    ax.text(.97 if right else .03, y, f'rank correlation {r:+.2f}'.replace('-', '−'), transform=ax.transAxes, va='top',
+            ha='right' if right else 'left', fontsize=9, color=SPEC)
 
 
-# Fig. 8c: each sampler against the network property that goes with its error most clearly, all 32 networks.
-def fig_hard_networks(plt, perall):
+# What makes a network hard: (column of all_features, axis label, ticks of a log axis or None), per sampler.
+HARD_PROPERTY = {'R': ('nodes', 'nodes in the network', [100, 1000, 10000]), 'S': ('events_per_pair', 'events per pair', [1, 10, 100]),
+                 'H': ('bursty_pairs', 'bursty pairs (%)', None), 'B': ('rho2', 'true ρ₂ (%)', None)}
+EFFECTIVE_PAIRS = {arm: ('effective_pairs', 'pairs that carry the events', [100, 1000, 10000, 100000]) for arm in ARMS}
+
+
+# Fig. 8d, 9e: typical error against a network property per sampler, on the real networks or on all 32.
+def fig_property(plt, perall, name, properties, real_only):
     a, t = all_features(), typical_error(perall)
+    keys = [s for s in t.index if s in NAMES] if real_only else list(t.index)
     fig, axes = plt.subplots(1, 4, figsize=(14, 3.3), sharey=True)
     for ax, arm in zip(axes, ARMS):
-        col, label, log = HARD_PROPERTY[arm]
-        for lab, keys, style in network_groups(t.index): ax.scatter(a.loc[keys, col], t.loc[keys, arm], s=34, zorder=3, label=lab, **style)
-        if log:
-            ax.set_xscale('log'); ax.minorticks_off()
-            ticks = [100, 1000, 10000] if arm == 'R' else [1, 10, 100]
-            ax.set_xticks(ticks, [f'{x:,}' for x in ticks])
+        col, label, ticks = properties[arm]
+        for lab, group, style in network_groups(keys): ax.scatter(a.loc[group, col], t.loc[group, arm], s=34, zorder=3, label=lab, **style)
+        if ticks: ax.set_xscale('log'); ax.minorticks_off(); ax.set_xticks(ticks, [f'{x:,}' for x in ticks])
         ax.set_ylim(0, 36); ax.set_title(ARMS[arm]); ax.set_xlabel(label); ax.spines['left'].set_visible(True)
-        r = a.loc[t.index, col].corr(t[arm], method='spearman')
-        ax.text(.03, .95, f'rank correlation {r:+.2f}'.replace('-', '−'), transform=ax.transAxes, va='top', fontsize=9, color=SPEC)
+        correlation_label(ax, a.loc[keys, col].corr(t.loc[keys, arm], method='spearman'), right=col == 'effective_pairs')
     axes[0].set_ylabel('typical error (pp)')
-    h, l = axes[0].get_legend_handles_labels()
-    fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .98))
-    note(fig, '32 networks · typical error = median of six methods · bursty pairs = pairs with several events, all in one time window', -.08)
-    save(fig, 'fig8c_hard_networks')
+    if not real_only:
+        h, l = axes[0].get_legend_handles_labels()
+        fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .98))
+    bursty = ' · bursty pairs = pairs with several events, all in one time window' if properties is HARD_PROPERTY else ''
+    note(fig, ('12 real networks' if real_only else '32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic')
+         + ' · typical error = median of six methods' + bursty, -.08)
+    save(fig, name)
 
 
 def network_groups(sources, c='#333333'):
@@ -1297,9 +1310,10 @@ def draw():
     fig_stability(plt, pred); fig_noise_by_graph(plt, pred, f); fig_averaging(plt, pred)
     fig_python(plt, summary, pred); fig_python_networks(plt, per, f); fig_python_groups(plt)
     fig_agreement(plt, per, f); fig_method_networks(plt, per, f); fig_structure(plt, perall, f)
-    fig_hard_networks(plt, perall); fig_cards(plt, perall, f); fig_networks(plt, per, f)
+    fig_property(plt, perall, 'fig8d_hard_networks', HARD_PROPERTY, True); fig_cards(plt, perall, f); fig_networks(plt, per, f)
     fig_twins(plt, pred); fig_twin_error(plt, perall, f)
-    fig_memory(plt, perall); fig_all_networks(plt, perall)
+    fig_memory(plt, perall); fig_property(plt, perall, 'fig9e_hard_networks', HARD_PROPERTY, False)
+    fig_property(plt, perall, 'fig9e_pairs', EFFECTIVE_PAIRS, False); fig_all_networks(plt, perall)
     fig_persistence_levels(plt, pred); fig_windows(plt)
     gif_dar(plt); gif_activity(plt)
     from analysis_tables import write_tables

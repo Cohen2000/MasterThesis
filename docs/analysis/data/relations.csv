@@ -25,22 +25,42 @@ answer SD: same networks noisy in H and B,real,qwen_thinking,H/B,-0.03
 share of S answers using the weights vs pairs in the network,real,qwen_thinking,S,0.51
 pairs seen by a walk relative to random nodes (median ratio),real,,S,0.60
 true rho_2 vs keep rate p,real,,B,-0.76
+typical error vs effective pairs,all 32,,R,-0.67
+typical error vs effective pairs,time-shuffled twin,,R,-0.81
+typical error vs effective pairs,synthetic,,R,0.00
+"typical error vs effective pairs, weakest when one network is left out",all 32,,R,-0.64
+typical error vs effective pairs,all 32,,S,-0.77
+typical error vs effective pairs,time-shuffled twin,,S,-0.63
+typical error vs effective pairs,synthetic,,S,-0.95
+"typical error vs effective pairs, weakest when one network is left out",all 32,,S,-0.75
+typical error vs effective pairs,all 32,,H,-0.47
+typical error vs effective pairs,time-shuffled twin,,H,-0.20
+typical error vs effective pairs,synthetic,,H,-0.33
+"typical error vs effective pairs, weakest when one network is left out",all 32,,H,-0.42
+typical error vs effective pairs,all 32,,B,-0.56
+typical error vs effective pairs,time-shuffled twin,,B,-0.43
+typical error vs effective pairs,synthetic,,B,-0.93
+"typical error vs effective pairs, weakest when one network is left out",all 32,,B,-0.51
 typical error vs nodes in the network,all 32,,R,-0.67
 typical error vs nodes in the network,real,,R,-0.87
 typical error vs nodes in the network,time-shuffled twin,,R,-0.76
 typical error vs nodes in the network,synthetic,,R,-0.08
+"typical error vs nodes in the network, weakest when one network is left out",all 32,,R,-0.64
 typical error vs events per pair,all 32,,S,0.79
 typical error vs events per pair,real,,S,0.77
 typical error vs events per pair,time-shuffled twin,,S,0.66
 typical error vs events per pair,synthetic,,S,0.88
+"typical error vs events per pair, weakest when one network is left out",all 32,,S,0.77
 typical error vs bursty pairs (%),all 32,,H,0.52
 typical error vs bursty pairs (%),real,,H,0.64
 typical error vs bursty pairs (%),time-shuffled twin,,H,0.52
 typical error vs bursty pairs (%),synthetic,,H,0.90
+"typical error vs bursty pairs (%), weakest when one network is left out",all 32,,H,0.48
 typical error vs true ρ₂ (%),all 32,,B,0.65
 typical error vs true ρ₂ (%),real,,B,0.85
 typical error vs true ρ₂ (%),time-shuffled twin,,B,0.36
 typical error vs true ρ₂ (%),synthetic,,B,0.83
+"typical error vs true ρ₂ (%), weakest when one network is left out",all 32,,B,0.61
 median events per pair,real,,,23.09
 median bursty pairs (%),real,,,30.61
 median true rho_2 (%),real,,,44.60

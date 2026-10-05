@@ -125,7 +125,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 - GPT is the strongest LLM: it uses the formulas most often ([4a](#formula)) and its answers scatter least ([6b](#answer-noise)).
 - **R:** nothing to correct; random nodes cause no selection bias. MLE's model fit costs 1 pp.
 - **H:** only ExtraTrees is well below the naive share (3.9 vs 6.4 pp). **Why:** the time cut hides returns, but it also hides whole pairs. The two partly cancel, so the sample is already close.
-- **B:** hardest overall. **Why:** only 0.1–10 % of events are kept, so every pair's history has gaps ([per network → 8d](#network-difficulty)).
+- **B:** hardest overall. **Why:** only 0.1–10 % of events are kept, so every pair's history has gaps ([per network → 8b](#network-difficulty)).
 
 ### 3b · Persistence profile: similar ranking; in H correction pays off beyond ρ₂
 
@@ -269,7 +269,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 - **B:** worse with Python on **8 of 12** networks. R/S change little.
 - **Likely why:** R/S need only arithmetic, which GPT does without Python. In B, GPT uses Python to fit models of its own, and its answers scatter twice as much.
-- Twins and synthetic networks: no penalty. Cost: **3.4×**.
+- Cost: **3.4×**.
 
 <details>
 <summary>7a detail · On which networks does Python help or hurt?</summary>
@@ -303,34 +303,35 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 </details>
 
-### 8b · Event concentration: fewer effective pairs make every sampler harder, R/S most
-
-![Typical error versus the effective number of pairs carrying the events](figures/fig8b_pairs.png)
-
-- Effective pairs = equally busy pairs with the same event concentration. Malawi: **347 actual, 55 effective**, the hardest network in R, S and B.
-- **Why:** with few effective pairs, a sample keeps seeing the same few pairs (a Malawi walk sees ≈ 20).
-
-<a id="hard-networks"></a>
-
-### 8c · What makes a network hard: each sampler has its own answer
-
-![Typical error against the network property that matters most in each sampler, all 32 networks](figures/fig8c_hard_networks.png)
-
-- **R:** small networks. Few nodes give a sample with few pairs.
-- **S:** many events per pair. The walk follows events and keeps revisiting busy pairs.
-- **H:** bursty pairs. They have many events but never return, so they look like returning pairs. The weakest of the four relations.
-- **B:** persistent pairs. Their returns must be rebuilt from the few events kept.
-- These properties overlap: among the real networks, the small ones are also the dense and persistent ones.
-
 <a id="network-difficulty"></a>
 
-### 8d · Per-network error: B is hardest often, not always
+### 8b · Per-network error: B is hardest often, not always
 
 ![Typical error of the six main methods on each real network](figures/fig11_cards.png)
 
 - Hardest sampler: **B on 6 networks · S on 4 · H on 2**.
 
-## 9 · Controlled tests: do methods use timing and memory?
+### 8c · One property makes every sampler harder: few effective pairs
+
+![Typical error versus the effective number of pairs carrying the events](figures/fig8b_pairs.png)
+
+- Effective pairs = equally busy pairs with the same event concentration. Malawi: **347 actual, 55 effective**, the hardest network in R, S and B.
+- Rank correlation with the typical error: R −0.87, S −0.81, H −0.57, B −0.61.
+- **Why:** with few effective pairs, a sample keeps seeing the same few pairs (a Malawi walk sees ≈ 20).
+
+<a id="hard-networks"></a>
+
+### 8d · Each sampler also has its own hard networks
+
+![Typical error against the network property that matters most in each sampler, 12 real networks](figures/fig8d_hard_networks.png)
+
+- **R:** small networks (−0.87). Few nodes give a sample with few pairs.
+- **S:** many events per pair (+0.77). The walk follows events and keeps revisiting busy pairs.
+- **H:** bursty pairs (+0.64). They have many events but never return, so they look like returning pairs.
+- **B:** persistent pairs (+0.85). Their returns must be rebuilt from the few events kept.
+- These properties overlap: the small real networks are also the dense and persistent ones. The controlled networks test them separately ([9e](#hard-all)).
+
+## 9 · Controlled tests: timing, memory and what makes a network hard
 
 <a id="twins"></a>
 
@@ -398,19 +399,39 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 ![Mean error and between-network SD of each method on the eight synthetic networks](figures/fig2_synthetic_ranking.png)
 
 - vs [real networks (3a)](#ranking-real): same leaders (ExtraTrees, MLE, GPT). **H:** all three, and DeepSeek, now beat the naive share (9.5 pp). **B:** ExtraTrees clearly first (3.6 vs MLE 7.5 pp); it was trained on graphs from the same two generators.
-- **Why S and H are easier than on real networks:** synthetic networks have few events per pair (median 4 vs 23) and few bursty pairs (11 % vs 31 %), the two properties that make S and H hard ([8c](#hard-networks)).
+- Why S and H are easier than on real networks: [9e](#hard-all).
 
 </details>
 
-### 9e · All 32 networks: every method in every sampler
+<a id="hard-all"></a>
+
+### 9e · Twins and synthetic networks: the same properties make them hard
+
+![Typical error against the network property that matters most in each sampler, all 32 networks](figures/fig9e_hard_networks.png)
+
+- Same direction on all 32 networks: R −0.67, S +0.79, H +0.52, B +0.65. Weaker than on the real networks alone; no single network drives them.
+- Few effective pairs make every sampler harder here too: R −0.67, S −0.77, H −0.47, B −0.56.
+- **Why synthetic networks are easier in S and H:** they have few events per pair (median 4 vs 23) and few bursty pairs (11 % vs 31 %).
+- **Why twins are easier in H and harder in B:** shuffling dissolves bursts (bursty pairs 31 % → 3 %) and raises persistence (ρ₂ 45 % → 68 %).
+
+<details>
+<summary>9e detail · Do few effective pairs make all 32 networks harder?</summary>
+
+### Effective pairs on all 32 networks: the same direction in every sampler
+
+![Typical error versus the effective number of pairs on all 32 networks](figures/fig9e_pairs.png)
+
+</details>
+
+### 9f · All 32 networks: every method in every sampler
 
 ![Error of the six main methods in the four samplers against true persistence on all 32 networks](figures/fig9_all_networks.png)
 
 - **R:** easy for every method on real, twin and synthetic networks alike.
-- **S:** synthetic networks are easy for all methods (few events per pair). Real and twin networks with busy pairs are hard for all.
-- **H:** twins and synthetic networks are easier for MLE (4.9 and 3.7 vs 7.1 pp): they have few bursty pairs, as MLE assumes. Qwen thinking stays high everywhere.
+- **S:** synthetic networks are easy for all methods. Networks with busy pairs are hard for all.
+- **H:** twins and synthetic networks are easier for MLE (4.9 and 3.7 vs 7.1 pp). Qwen thinking stays high everywhere.
 - **B:** error rises with ρ₂. Above 30 %, ExtraTrees stays below 10 pp on 16 of 24 networks, MLE on 12, GPT on 4, DeepSeek and Qwen thinking on none.
-- **B:** twins are hardest (ρ₂ +27 pp with the same events). Synthetic networks are easy only for ExtraTrees, which was trained on the same generators.
+- **B:** twins are hardest. Synthetic networks are easy only for ExtraTrees, which was trained on the same generators. Python costs GPT nothing here (twins 12.8 vs 13.3 pp; synthetic 10.7 vs 12.9).
 
 ## 10 · Key findings
 
@@ -418,7 +439,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 1. **It depends on what the sampler hides.** Random nodes: no bias. Walks overstate persistence (+28 pp). Missing time and missing events understate it (−5 and −16 pp).
 2. **What is hidden decides how well it can be corrected.** Walk weights are known, so a formula removes most of the bias (30 → 5–9 pp). Hidden time and lost events must be modelled; 4–8 pp remain even for the best method.
-3. **The network matters as much as the method**, and each sampler has its own hard networks: small ones (R), busy pairs (S), bursty pairs (H), persistent pairs (B).
+3. **The network matters as much as the method.** Networks whose events sit on few pairs are hard in every sampler. Each sampler also has its own hard networks: small ones (R), busy pairs (S), bursty pairs (H), persistent pairs (B).
 
 **How do LLMs compare with conventional methods?**
 
@@ -446,11 +467,11 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 | 7a · Python | 8.3 code runs per B answer (R: 0.9); 92 % of B answers call a numerical optimiser; answer SD 5.1 → 12.2 pp; averaged over 3 answers the penalty shrinks from 4.4 to 2.4 pp; cost USD 94.50 vs 27.59 | [under_the_hood.csv](data/under_the_hood.csv), [answer_averaging.csv](data/answer_averaging.csv) |
 | 8a · Network in R/S, method in H/B | Mean rank agreement of the six methods: R 0.93, S 0.89, H 0.42, B 0.38 | [relations.csv](data/relations.csv) |
 | 8a detail · MLE in H | MLE adds 12.1 pp, needed 5.3 (twins: 10.8 vs 9.3) | [SUMMARY.csv](../results/final/SUMMARY.csv) |
-| 8b · Effective pairs | Typical error vs effective pairs, Spearman: R −0.87, S −0.81, H −0.57, B −0.61 | [relations.csv](data/relations.csv) |
-| 8c · Each sampler has its own hard networks | Typical error vs property, Spearman on all 32 networks: nodes (R) −0.67, events per pair (S) +0.79, bursty pairs (H) +0.52, true ρ₂ (B) +0.65. Same sign within real, twin and synthetic networks (R: all synthetic networks have 500 nodes) | [relations.csv](data/relations.csv) |
-| 8c · Properties overlap | Real networks: true ρ₂ vs keep rate p, Spearman −0.76 | [relations.csv](data/relations.csv) |
-| 9d detail · Synthetic networks are easier in S and H | Median events per pair: 4 (synthetic) vs 23 (real); bursty pairs: 11 % vs 31 % (twins: 3 %) | [relations.csv](data/relations.csv) |
-| 9e · B at high persistence | Networks with ρ₂ > 30 % (24) and B error below 10 pp: ExtraTrees 16, MLE 12, GPT + Python 5, GPT 4, DeepSeek 0, Qwen thinking 0. Twins: median ρ₂ 68 % vs 45 % (real) | [relations.csv](data/relations.csv) |
+| 8c · Few effective pairs | Typical error vs effective pairs, Spearman on the 12 real networks: R −0.87, S −0.81, H −0.57, B −0.61. On all 32: −0.67, −0.77, −0.47, −0.56 | [relations.csv](data/relations.csv) |
+| 8d, 9e · Each sampler has its own hard networks | Typical error vs property, Spearman on the 12 real networks: nodes (R) −0.87, events per pair (S) +0.77, bursty pairs (H) +0.64, true ρ₂ (B) +0.85. On all 32: −0.67, +0.79, +0.52, +0.65; with any one network left out never weaker than −0.64, +0.77, +0.48, +0.61. Same sign within twins and synthetic networks (R: all synthetic networks have 500 nodes) | [relations.csv](data/relations.csv) |
+| 8d · Properties overlap | Real networks: true ρ₂ vs keep rate p, Spearman −0.76 | [relations.csv](data/relations.csv) |
+| 9e · Synthetic networks and twins | Median events per pair: 4 (synthetic) vs 23 (real, twins). Bursty pairs: 31 % (real), 11 % (synthetic), 3 % (twins). Median ρ₂: 45 % (real), 68 % (twins) | [relations.csv](data/relations.csv) |
+| 9f · B at high persistence | Networks with ρ₂ > 30 % (24) and B error below 10 pp: ExtraTrees 16, MLE 12, GPT + Python 5, GPT 4, DeepSeek 0, Qwen thinking 0 | [relations.csv](data/relations.csv) |
 
 </details>
 
