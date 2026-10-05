@@ -81,7 +81,9 @@
 | **Supervised models** | ExtraTrees (16 other real + 400 synthetic training graphs); training-median baseline |
 
 <details>
-<summary>ExtraTrees · the 174 input features</summary>
+<summary>2 detail · Which features does ExtraTrees use?</summary>
+
+### ExtraTrees: 174 input features
 
 | Feature group | Count | Content |
 |---|---:|---|
@@ -97,7 +99,7 @@
 
 </details>
 
-### Example input · Hospital, random nodes
+### 2a · Example input: Hospital, random nodes
 
 - Sampling rule, sizes and time patterns; S also has weights. No truth, names or node IDs.
 
@@ -120,56 +122,59 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ![Mean absolute error by method and sampler](figures/fig2_ranking.png)
 
-- GPT is the strongest LLM: it applies the formulas most often ([4a](#formula)) and its answers scatter least ([6b](#answer-noise)).
-- B is hardest: only 0.1–10 % of events are kept, so every pair's history has gaps ([per network → 8b](#network-difficulty)).
-- **R:** nothing to correct—random nodes cause no selection bias; MLE's model fit costs 1 pp.
-- **H:** only ExtraTrees is well below the naive share (3.9 vs 6.4 pp). Why: the time cut makes 51 % of returning pairs look non-returning but also hides 40 % of all pairs; the two partly cancel ([HISTORY.md](../results/final/HISTORY.md)).
+- GPT is the strongest LLM: it uses the formulas most often ([4a](#formula)) and its answers scatter least ([6b](#answer-noise)).
+- **R:** nothing to correct; random nodes cause no selection bias. MLE's model fit costs 1 pp.
+- **H:** only ExtraTrees is well below the naive share (3.9 vs 6.4 pp). **Why:** the time cut hides returns, but it also hides whole pairs. The two partly cancel, so the sample is already close.
+- **B:** hardest overall. **Why:** only 0.1–10 % of events are kept, so every pair's history has gaps ([per network → 8c](#network-difficulty)).
 
 ### 3b · Persistence profile: similar ranking; in H correction pays off beyond ρ₂
 
 ![Errors at rho2 through rho5; broad method performance remains similar](figures/fig2b_levels.png)
 
-- **H:** with three visible windows the naive share must say 0 for ρ₄ and ρ₅. There MLE, ExtraTrees and GPT also beat the training median (ρ₄: 2.6–3.7 vs 8.7 pp). At ρ₃ only GPT gains much (3.3 vs 6.7).
+- **H:** with three visible windows the naive share must say 0 for ρ₄ and ρ₅; there correction clearly helps. At ρ₃ only GPT gains much.
 
 ### 3c · Corrected estimates: H/S tend above truth; B's errors cancel
 
 ![Mean signed error and middle 80 percent of individual estimates](figures/fig2c_amount.png)
 
-- Why above truth: in H, methods add returns for the hidden windows ([8a](#mle-gpt)); in S, the excess comes mostly from Malawi and Hospital, where a walk sees < 100 pairs.
-- DeepSeek in B: mean −2.6 pp, absolute error **17.2 pp**—a good mean hides large errors.
+- **Why:** in H, methods add returns for the hidden windows ([8a](#mle-gpt)); in S, two small networks (Malawi, Hospital) cause most of the excess.
+- **B:** DeepSeek's mean error is −2.6 pp, its absolute error **17.2 pp**. A good mean hides large errors.
 
 ## 4 · Correction: formulas help where information survives
 
 <a id="formula"></a>
 
-### 4a · R/S: LLM answers often match the direct formula
+### 4a · R/S: every LLM counts correctly in R; using the weights in S depends on the LLM
 
 ![Language-model answers matching the naive share in R or reweighting in S](figures/fig3_textbook.png)
 
-- R: count returning pairs. S: undo the walk's preference for busy pairs with weights.
-- S: the formula alone gives 8.8 pp (GPT: 8.4). MLE (6.9) reweights **before fitting**; ExtraTrees (5.0) starts from the MLE.
-- Qwen thinking leaves a third of its S answers unweighted (naive share, 34 pp off); hence its 18 pp.
+- **R:** count returning pairs. **S:** undo the walk's preference for busy pairs with weights.
+- **S:** the formula alone gives 8.8 pp (GPT: 8.4). MLE (6.9) reweights before fitting; ExtraTrees (5.0) starts from the MLE.
+- **Why Qwen thinking trails (18 pp):** it leaves a third of its S answers unweighted.
 
 <details>
-<summary>4a detail · Formula matches on individual networks</summary>
+<summary>4a detail · On which networks do the LLMs use the weights?</summary>
 
-### Walk estimates · formula matches vary by network
+### S per network: no network is easy or hard for every LLM
 
 ![Language-model estimates matching walk reweighting on each network](figures/fig3b_textbook_networks.png)
 
+- The LLM decides, not the network: GPT uses the weights almost everywhere, Qwen thinking almost nowhere.
+- Exception: Digg and Linux, where weighting barely changes the answer.
+
 </details>
 
-### 4b · H/B estimates: GPT comes closest among LLMs; MLE remains competitive
+### 4b · H/B: how often is the correction about right? GPT most often among LLMs; MLE stays competitive
 
-![Share of estimates within the target band in H and B](figures/fig4_correction.png)
+![Share of corrections of about the right size in H and B](figures/fig4_correction.png)
 
-- Target band: 50–150 % of the needed adjustment; samples ≥ 5 pp off truth only.
-- Why Qwen thinking and DeepSeek trail: Qwen repeats the naive share in 70 % of H and 35 % of B answers; when it does correct in H, it is 39 pp off. DeepSeek corrects, but scatters ([6b](#answer-noise)).
+- About right = half to one and a half times the needed correction; only samples at least 5 pp off.
+- **Why Qwen thinking and DeepSeek trail:** Qwen often makes no correction at all (70 % of its H answers repeat the naive share). DeepSeek corrects, but its answers scatter ([6b](#answer-noise)).
 
 <details>
-<summary>4b detail · Estimation performance on individual networks</summary>
+<summary>4b detail · On which networks is the correction about right?</summary>
 
-### H/B estimates · reaching the target band depends on the network
+### H/B per network: how often the correction is about right depends on the network
 
 ![MLE and language-model estimates making about the needed adjustment on each network](figures/fig4b_correction_networks.png)
 
@@ -177,7 +182,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ## 5 · Reasoning: more tokens do not guarantee lower error
 
-### Tokens and error · B uses the most reasoning
+### 5a · Tokens and error: B uses the most reasoning
 
 <!-- table:reasoning -->
 <table>
@@ -195,8 +200,8 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 <!-- /table:reasoning -->
 
 - DeepSeek uses **6–19×** GPT's reasoning tokens, with no accuracy gain.
-- Tokens rise with difficulty (R → B): long reasoning marks a hard sample; it does not solve it.
-- Qwen: all output tokens counted. Without thinking: valid answers (1,150 of 1,152), but 25–53 pp error—worse than the constant training median (23 pp).
+- **Likely why:** tokens rise with difficulty (R → B). Long reasoning marks a hard sample; it does not solve it.
+- Qwen: all output tokens counted. Without thinking: valid answers, but 25–53 pp error—worse than the constant training median (23 pp).
 
 ## 6 · Noise: new samples and repeated answers
 
@@ -204,15 +209,17 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ![Sample-redraw noise for MLE and fixed-fit ExtraTrees across the four samplers](figures/fig5_sample_variation.png)
 
-- Likely why S: reweighting gives rarely visited pairs large weights, so a walk is worth few independent observations (Reality Mining: 158 pairs seen ≈ 16 effective; [WALK.md](../results/final/WALK.md)).
-- H/B: MLE's redraw SD is ≈ 1 pp, its error 7–8 pp—mostly bias, not sample noise.
+- **Why S:** a walk keeps revisiting busy pairs; it sees about 40 % fewer different pairs than random nodes.
+- **H/B:** MLE's redraw SD is ≈ 1 pp, its error 7–8 pp: mostly bias, not sample noise.
 
 <details>
 <summary>6a detail · Which networks generate redraw noise?</summary>
 
-### Per-network redraw noise · MLE and ExtraTrees, averaged over samplers
+### Redraw noise per network: small networks are the noisy ones, in every sampler
 
 ![Mean redraw SD per network for MLE and ExtraTrees](figures/fig5_redraw_networks.png)
+
+- The fewer pairs a sample holds, the more the estimate changes from draw to draw. This holds in each of the four samplers, weakest in S.
 
 </details>
 
@@ -222,42 +229,50 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ![LLM answer-repeat noise across the four samplers](figures/fig5_stability.png)
 
-- Likely why H/B: R/S have a formula, so repeats agree (GPT: SD 0). H/B have none; each answer makes its own assumptions.
+- **Likely why H/B:** R/S have a formula, so repeated answers agree. H/B have none; each answer makes its own assumptions.
 - Low spread can still mean consistently wrong estimates.
 - ExtraTrees: the reported fit is the best of 11 retrainings in S and H (5.0 vs 5.5 pp on average; 3.9 vs 4.2); its rank holds for every fit.
 
 <details>
-<summary>6b detail · Which networks generate answer-repeat noise?</summary>
+<summary>6b detail · Which networks generate answer noise?</summary>
 
-### Per-network answer noise · GPT, DeepSeek and Qwen thinking, averaged over samplers
+### Answer noise per network: no stable pattern; it changes with sampler and LLM
 
-![Mean answer-repeat SD per network for GPT, DeepSeek and Qwen thinking](figures/fig5_answers_networks.png)
+![Answer-repeat SD per network for GPT, DeepSeek and Qwen thinking in H and B](figures/fig5_answers_networks.png)
+
+- The networks that are noisy in H are mostly not the ones that are noisy in B.
+- Only GPT shows a trend: more noise on more persistent networks. Digg (ρ₂ ≈ 0): no noise anywhere.
 
 </details>
 
 <a id="averaging"></a>
 
-### 6c · What if the 3 answers are averaged first? LLM error drops in H/B, most in B
+<details>
+<summary>6c · What if the 3 answers are averaged first?</summary>
+
+### Averaging the 3 answers: LLM error drops in H/B, most in B
 
 ![Error of one answer and of the mean of three answers for GPT, DeepSeek and Qwen thinking](figures/fig5_averaging.png)
 
 - Elsewhere each answer is scored on its own. With the mean of 3, B's order stays MLE 7.6, ExtraTrees 7.9, GPT 8.2 pp; DeepSeek and Qwen thinking now beat the naive share (16.4).
 - Averaging can never raise this error and costs three answers; its size is the finding.
 
+</details>
+
 ## 7 · Python: no consistent accuracy gain
 
-### GPT with and without Python · in B, error and answer spread both rise
+### 7a · GPT with and without Python: in B, error and answer spread both rise
 
-![Mean error and answer spread of GPT with and without Python on the real networks](figures/fig6_python.png)
+![Mean error of GPT with and without Python on the real networks, with the spread of the three answers in grey](figures/fig6_python.png)
 
-- **B:** worse with Python on **8 of 12** networks; barely better than the naive share (15.1 vs 16.4 pp). R/S change little.
-- **Likely why:** R/S need only arithmetic GPT does unaided. In B it fits its own statistical models in Python (**8 code runs per answer**; R: 1) and its answers scatter twice as much. About half the penalty is this noise: averaged over 3 answers it shrinks from 4.4 to 2.4 pp ([6c](#averaging)).
-- Twins and synthetic networks: no B penalty ([figure](figures/fig6c_python_groups.png)). Cost: **3.4×**.
+- **B:** worse with Python on **8 of 12** networks. R/S change little.
+- **Likely why:** R/S need only arithmetic, which GPT does without Python. In B, GPT uses Python to fit models of its own, and its answers scatter twice as much.
+- Twins and synthetic networks: no penalty. Cost: **3.4×**.
 
 <details>
-<summary>Python · Gains and losses on individual networks</summary>
+<summary>7a detail · On which networks does Python help or hurt?</summary>
 
-### Python versus GPT · effects vary by network
+### Python per network: effects vary by network
 
 ![Change in GPT error with Python on individual networks](figures/fig6b_python_networks.png)
 
@@ -267,32 +282,35 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 <a id="mle-gpt"></a>
 
-### 8a · Difficulty: network-dependent in R/S, method-dependent in H/B
+### 8a · Network or method: the network decides in R/S, the method in H/B
 
 ![MLE and GPT errors for each real network and sampler](figures/fig7_agreement.png)
 
-- **H:** MLE assumes steady pair activity and adds ≈ 12 pp where ≈ 5 are needed ([twins → 9.1](#twins)). That fits where the sample is far off (High school, Reality Mining) and overshoots where it is close (Linux, College messages); there GPT adds only 2–3 pp.
-- **B:** GPT wins clearly only on Linux and MathOverflow, where MLE overshoots by 9–10 pp. Elsewhere GPT's answers scatter: Copenhagen 31–80 %, truth 45 %.
+- **R/S:** all methods struggle on the same networks (rank agreement ≈ 0.9).
+- **H/B:** agreement drops to ≈ 0.4; the method's assumptions decide.
 
 <details>
-<summary>8a detail · On which networks does MLE win, on which GPT?</summary>
+<summary>8a detail · On which networks does MLE win, on which GPT, and why?</summary>
 
-### H/B · error of MLE and GPT on each network
+### H/B per network: MLE and GPT fail on different networks
 
 ![MLE and GPT errors on each real network in H and B](figures/fig7b_method_networks.png)
 
+- **H:** MLE assumes steady pair activity and adds ≈ 12 pp where ≈ 5 are needed ([twins → 9a](#twins)). That fits where the sample is far off (High school, Reality Mining) and overshoots where it is close (Linux, College messages); there GPT adds only 2–3 pp.
+- **B:** GPT wins clearly only on Linux and MathOverflow, where MLE overshoots by 9–10 pp. Elsewhere GPT's answers scatter: Copenhagen 31–80 %, truth 45 %.
+
 </details>
 
-### Event concentration · fewer effective pairs make R/S harder
+### 8b · Event concentration: fewer effective pairs make every sampler harder, R/S most
 
 ![Typical error versus the effective number of pairs carrying the events](figures/fig8b_pairs.png)
 
-- Effective pairs = equally busy pairs with the same event concentration. Malawi: **347 actual, 55 effective**.
-- Malawi, S: 89 % of walk steps revisit a pair; a walk sees ≈ 20 pairs. Even exact reweighting is off by +12 pp ([WALK.md](../results/final/WALK.md)).
+- Effective pairs = equally busy pairs with the same event concentration. Malawi: **347 actual, 55 effective**, the hardest network in R, S and B.
+- **Why:** with few effective pairs, a sample keeps seeing the same few pairs (a Malawi walk sees ≈ 20).
 
 <a id="network-difficulty"></a>
 
-### 8b · Per-network error: B is hardest often, not always
+### 8c · Per-network error: B is hardest often, not always
 
 ![Typical error of the six main methods on each real network](figures/fig11_cards.png)
 
@@ -302,7 +320,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 <a id="twins"></a>
 
-### 9.1 · Twins: timing sensitivity in LLMs—except Qwen no thinking
+### 9a · Twins: timing sensitivity in LLMs—except Qwen no thinking
 
 | Kept | Changed | Test |
 |---|---|---|
@@ -310,21 +328,22 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ![Change in estimated persistence after shuffling event times](figures/fig10_twins.png)
 
-- R/S/H: the naive share itself rises by 18–28 pp, so following it proves little. **B** is the cleaner test: naive +11, MLE +17, GPT +24 of +27 pp.
-- **H:** MLE adds ≈ 11 pp on twins, ≈ 12 on real networks; twins need ≈ 9, real networks ≈ 5. So it fits the twins: 4.9 pp vs naive 9.4.
+- **R/S/H:** the naive share itself rises by 18–28 pp, so following it proves little.
+- **B:** the cleaner test: naive +11, MLE +17, GPT +24 of +27 pp.
+- **H:** MLE adds ≈ 11 pp on twins and ≈ 12 on real networks; twins need ≈ 9, real networks ≈ 5. So it fits the twins: 4.9 pp vs naive 9.4.
 
 <details>
-<summary>Twins · Which methods estimate persistence best?</summary>
+<summary>9a detail · Which methods estimate persistence best on twins?</summary>
 
-### Twin estimates · mean error and SD by method and sampler
+### Twins: mean error by method and sampler
 
 ![Mean error and between-network SD of each method on the twelve time-shuffled twins](figures/fig2_twins_ranking.png)
 
-- vs [real networks (3a)](#ranking-real): R/S unchanged. H: MLE moves ahead of the naive share. B: all errors rise; ExtraTrees, GPT (with or without Python) and MLE stay ahead, within 1.5 pp.
+- vs [real networks (3a)](#ranking-real): R/S unchanged. **H:** MLE moves ahead of the naive share. **B:** all errors rise; ExtraTrees, GPT (with or without Python) and MLE stay ahead, within 1.5 pp.
 
 </details>
 
-### 9.2 · Synthetic networks: two memory rules with real-world motivations
+### 9b · Synthetic networks: two memory rules with real-world motivations
 
 | Generator | Real-world motivation | Memory rule tested here |
 |---|---|---|
@@ -334,23 +353,23 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 - Per generator: 2 networks without and 2 with memory, same size (**500 nodes, ≈ 10k events**) and same random numbers: only the memory rule differs.
 - DAR only switches links ON or OFF; we add event counts. The animations show tiny examples, not the tested networks.
 
-### DAR · copying the last state makes links persist
+#### DAR: copying the last state makes links persist
 
 - **Copy:** ON stays ON, OFF stays OFF. **New draw:** choose ON (20 %) or OFF again.
 
 ![DAR animation showing both ON and OFF states being copied](figures/gif_dar.gif)
 
-### Activity-driven · remembered partners make contacts return
+#### Activity-driven: remembered partners make contacts return
 
 - Active nodes make one contact, lasting one round. With 3 known partners: **75 % known, 25 % new**.
 
 ![Activity-driven animation showing random versus remembered partner choices](figures/gif_activity.gif)
 
-### 9.3 · Memory: similar event counts, much more persistence
+### 9c · Memory: similar event counts, much more persistence
 
 ![Pair activity in the synthetic networks with and without memory](figures/fig12_synthetic_active.png)
 
-### 9.4 · Memory raises event-loss error—mostly where persistence starts low
+### 9d · Memory raises event-loss error—mostly where persistence starts low
 
 ![Typical error with and without memory in the two generators](figures/fig13_memory.png)
 
@@ -358,41 +377,68 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 - Two paired instances per generator: a mechanism check, not a broad synthetic benchmark.
 
 <details>
-<summary>Synthetic networks · Which methods estimate persistence best?</summary>
+<summary>9d detail · Which methods estimate persistence best on synthetic networks?</summary>
 
-### Synthetic estimates · mean error and SD by method and sampler
+### Synthetic networks: mean error by method and sampler
 
 ![Mean error and between-network SD of each method on the eight synthetic networks](figures/fig2_synthetic_ranking.png)
 
-- vs [real networks (3a)](#ranking-real): same leaders (ExtraTrees, MLE, GPT). H: all three, and DeepSeek, now beat the naive share (9.5 pp). B: ExtraTrees clearly first (3.6 vs MLE 7.5 pp)—it was trained on graphs from the same two generators.
+- vs [real networks (3a)](#ranking-real): same leaders (ExtraTrees, MLE, GPT). **H:** all three, and DeepSeek, now beat the naive share (9.5 pp). **B:** ExtraTrees clearly first (3.6 vs MLE 7.5 pp); it was trained on graphs from the same two generators.
 
 </details>
 
-### 9.5 · All 32 networks: at high persistence, event loss separates the methods; walks remain network-dependent
+### 9e · All 32 networks: at high persistence, event loss separates the methods; walks remain network-dependent
 
 ![Typical error versus true persistence across real, twin and synthetic networks](figures/fig9_persistence.png)
 
-- **B:** above ρ₂ = 30 % the typical error is 10–24 pp on all 24 networks—but ExtraTrees stays below 10 pp on 16 of them, MLE on 12, GPT on 4.
-- **S:** the same persistence range spans **1–33 pp** error; persistence alone does not determine difficulty.
-- Not persistence alone: on the real networks higher ρ₂ comes with a lower keep rate p (9.9 % → 0.1 %; Spearman −0.76); twins and memory tests also change pair histories. **30 % is not a universal threshold.**
+- **B:** above ρ₂ = 30 %, the typical error is 10–24 pp on all 24 networks, but ExtraTrees stays below 10 pp on 16 of them, MLE on 12, GPT on 4.
+- **S:** the same persistence range spans **1–33 pp**; persistence alone does not determine difficulty.
+- Not persistence alone: persistent real networks also keep fewer events (p 9.9 % → 0.1 %). **30 % is not a universal threshold.**
 
 <details>
-<summary>9.5 detail · Event loss per method</summary>
+<summary>9e detail · How does each method handle event loss?</summary>
 
-### B · MLE and ExtraTrees often stay below 10 pp; GPT sits at 9–22 pp above ρ₂ ≈ 30 %
+### B per method: ExtraTrees and MLE often stay below 10 pp, the LLMs rarely
 
-![Error of MLE, ExtraTrees and GPT in B against true persistence on all 32 networks](figures/fig9c_event_loss_methods.png)
+![Error of the six main methods in B against true persistence on all 32 networks](figures/fig9c_event_loss_methods.png)
 
 </details>
 
-<details>
-<summary>Key findings · the opening question answered</summary>
+## 10 · Key findings
 
-1. **Sampling bias shifts apparent persistence.** Walks overstate it (+28 pp); missing time and events understate it (−5, −16 pp); random nodes do not.
-2. **Correction helps in S and B; in H mainly beyond ρ₂**—and never reaches R's accuracy (2.7 pp). MLE's remaining H/B error is bias; LLM error is partly answer noise: averaging 3 answers cuts it by 24–37 % in B.
-3. **No LLM consistently beats the conventional methods.** ExtraTrees is among the two best in S, H and B; MLE in S and B. GPT is the strongest LLM. More reasoning or Python gives no consistent gain.
-4. **Sampler, network and method interact.** R/S: a network is hard for all methods alike. H/B: the method's assumptions decide.
-5. **Event loss on persistent networks separates the methods.** Above ρ₂ ≈ 30 %, ExtraTrees stays below 10 pp on 16 of 24 networks, MLE on 12, GPT on 4.
+**How does sampling bias affect persistence estimates?**
+
+1. **It depends on what the sampler hides.** Random nodes: no bias. Walks overstate persistence (+28 pp). Missing time and missing events understate it (−5 and −16 pp).
+2. **What is hidden decides how well it can be corrected.** Walk weights are known, so a formula removes most of the bias (30 → 5–9 pp). Hidden time and lost events must be modelled; 4–8 pp remain even for the best method.
+3. **The network matters as much as the method.** Few busy pairs, high persistence and bursty timing make a network hard.
+
+**How do LLMs compare with conventional methods?**
+
+4. **Where a formula exists (R, S), the best LLM uses it** and comes close to the conventional methods (S: GPT 8.4, MLE 6.9, ExtraTrees 5.0 pp).
+5. **Where none exists (H, B), LLMs fall behind.** Their answers scatter; more reasoning or Python does not help. No LLM consistently beats MLE or ExtraTrees; GPT comes closest.
+6. **In short:** today's LLMs calculate well, but do not yet replace a statistical model when information is missing.
+
+<details>
+<summary>Evidence behind the why-statements</summary>
+
+| Statement | Evidence | Data |
+|---|---|---|
+| 3a · GPT is the strongest LLM | Uses the formula in 100 % (R) and 90 % (S) of answers; lowest answer SD of all LLMs (H 1.7, B 5.1 pp) | [answer_types.csv](data/answer_types.csv), [VARIABILITY.md](../results/final/VARIABILITY.md) |
+| 3a · H: hidden returns and hidden pairs partly cancel | 51 % of returning pairs look non-returning; 40 % of all pairs are hidden; the naive share ends only 5 pp too low | [HISTORY.md](../results/final/HISTORY.md) |
+| 3a · B is hardest | Keep rate p: 0.1 % (Malawi) to 9.9 % (Digg) | [network_features.csv](data/network_features.csv) |
+| 3b · H beyond ρ₂ | ρ₄: naive 10.3, training median 8.7, MLE 3.7, ExtraTrees 2.7, GPT 2.6 pp. ρ₃: naive 6.7, GPT 3.3 | [PREDICTIONS.csv](../results/final/PREDICTIONS.csv) |
+| 3c · S ends above truth | Signed error of the six methods: Malawi +14 to +37 pp, Hospital +14 to +24 (a walk sees ≈ 20 and ≈ 80 pairs). Without the two, the mean is −0.5 to +1.0 pp (Qwen thinking: +11) | [PER_SOURCE.csv](../results/final/PER_SOURCE.csv), [WALK.md](../results/final/WALK.md) |
+| 4a · Qwen thinking in S | 34 % of its S answers equal the naive share (34 pp off); its other answers: 9 pp | [answer_types.csv](data/answer_types.csv) |
+| 4b · Qwen thinking, DeepSeek in H/B | Qwen repeats the naive share in 70 % (H) and 35 % (B) of answers; its other H answers are 39 pp off. DeepSeek answer SD: 10–12 pp | [answer_types.csv](data/answer_types.csv), [VARIABILITY.md](../results/final/VARIABILITY.md) |
+| 5a · Tokens follow difficulty | Median tokens rise from R to B in every LLM (table in 5a) | [under_the_hood.csv](data/under_the_hood.csv) |
+| 6a · S is the noisiest sample | 17–89 % of walk steps revisit a pair; a walk sees 40 % fewer pairs than random nodes (median) | [WALK.md](../results/final/WALK.md), [relations.csv](data/relations.csv) |
+| 6a detail · Small networks are noisy | Redraw SD vs pairs in the sample, Spearman: R −0.67, S −0.55, H −0.83, B −0.90 | [relations.csv](data/relations.csv) |
+| 6b detail · No stable pattern | Same networks noisy in H and B? Spearman: GPT 0.55, DeepSeek 0.29, Qwen thinking −0.03. GPT's noise vs ρ₂: 0.73 (H), 0.66 (B) | [relations.csv](data/relations.csv) |
+| 7a · Python | 8.3 code runs per B answer (R: 0.9); 92 % of B answers call a numerical optimiser; answer SD 5.1 → 12.2 pp; averaged over 3 answers the penalty shrinks from 4.4 to 2.4 pp; cost USD 94.50 vs 27.59 | [under_the_hood.csv](data/under_the_hood.csv), [answer_averaging.csv](data/answer_averaging.csv) |
+| 8a · Network in R/S, method in H/B | Mean rank agreement of the six methods: R 0.93, S 0.89, H 0.42, B 0.38 | [relations.csv](data/relations.csv) |
+| 8a detail · MLE in H | MLE adds 12.1 pp, needed 5.3 (twins: 10.8 vs 9.3) | [SUMMARY.csv](../results/final/SUMMARY.csv) |
+| 8b · Effective pairs | Typical error vs effective pairs, Spearman: R −0.87, S −0.81, H −0.57, B −0.61 | [relations.csv](data/relations.csv) |
+| 9e · Not persistence alone | True ρ₂ vs keep rate p, Spearman: −0.76 | [relations.csv](data/relations.csv) |
 
 </details>
 

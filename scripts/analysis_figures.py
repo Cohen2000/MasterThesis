@@ -358,13 +358,17 @@ def row_names(ax, order, f, x=-.02):
     for i, s in enumerate(order): two_tone(ax, x, i, short(s), pair_spec(s, f), ax.get_yaxis_transform())
 
 
-def pair_bars(ax, first, second, labels, colours, title, ymax):
-    """Two bars per arm with their values on top: the same quantity under two conditions."""
+def pair_bars(ax, first, second, labels, colours, title, ymax, spreads=None):
+    """Two bars per arm with their values on top: the same quantity under two conditions.
+    spreads: per condition a second, small grey number written as '± x' above the value."""
     w = .38
     for k, (values, c, lab) in enumerate(zip((first, second), colours, labels)):
         xs = np.arange(4) + (k - .5)*w
         ax.bar(xs, values, width=w*.92, color=c, label=lab)
-        for x, v in zip(xs, values): ax.text(x, v + .3, f'{v:.1f}', ha='center', va='bottom', fontsize=9.5)
+        for i, (x, v) in enumerate(zip(xs, values)):
+            value = ax.annotate(f'{v:.1f}', (x, v), xytext=(0, 2), textcoords='offset points', ha='center', va='bottom', fontsize=9.5)
+            if spreads: ax.annotate(f'± {spreads[k][i]:.1f}', (.5, 1), xycoords=value, xytext=(0, 1), textcoords='offset points',
+                                    ha='center', va='bottom', fontsize=8, color=SPEC)
     ax.set_xticks(range(4), [ARMS[a] for a in ARMS]); ax.set_ylim(0, ymax); ax.set_yticks([])
     ax.spines['left'].set_visible(False); ax.tick_params(axis='x', length=0)
     ax.legend(frameon=False, ncol=2, loc='upper left'); ax.set_title(title, pad=12)
@@ -553,7 +557,7 @@ def fig_correction(plt, pred):
     t = a.groupby(['arm', 'method']).type.value_counts(normalize=True).unstack()
     vals = {m: {arm: 100*t.loc[(arm, m), 'about right'] for arm in 'HB'} for m, _ in MLE_LM3}
     fig, ax = plt.subplots(figsize=(7.5, 3.3))
-    grouped_bars(plt, ax, ['H', 'B'], vals, 92, '{:.0f} %', 'Estimates within the target band', MLE_LM3)
+    grouped_bars(plt, ax, ['H', 'B'], vals, 92, '{:.0f} %', 'Corrections of about the right size', MLE_LM3)
     note(fig, REAL_NOTE + ' × 3 answers (MLE: 1) · only samples off by ≥ 5 pp', -.2)
     save(fig, 'fig4_correction')
 
@@ -567,7 +571,7 @@ def fig_correction_networks(plt, pred, f):
     order = network_order(f)
     vals = {m: {s: share[(m, s)] for s in order if (m, s) in share.index and count[(m, s)] >= 3} for m, _ in MLE_LM3}
     fig, ax = plt.subplots(figsize=(7.5, 4.4))
-    network_dots(plt, ax, order, vals, 'estimates within the target band (%)', (-5, 105), f, MLE_LM3)
+    network_dots(plt, ax, order, vals, 'corrections of about the right size (%)', (-5, 105), f, MLE_LM3)
     ax.set_title('H and B together, per network', pad=12)
     ax.legend(frameon=False, ncol=4, loc='upper center', bbox_to_anchor=(.4, -.14), columnspacing=1.2)
     note(fig, 'networks sorted by true ρ₂ · only samples off by ≥ 5 pp (Digg and Linux: none)', -.18)
@@ -637,6 +641,31 @@ def fig_averaging(plt, pred):
     save(fig, 'fig5_averaging')
 
 
+def write_relations(per, f, pred):
+    """Numbers behind the general statements of the analysis (12 real networks), as one small table:
+    rank correlations (Spearman) per sampler, so every 'why' can be looked up."""
+    rows = []
+    add = lambda relation, arm, value, method='': rows.append(dict(relation=relation, method=method, arm=arm, value=value))
+    rho = lambda a, b: pd.Series(np.asarray(a, float)).corr(pd.Series(np.asarray(b, float)), method='spearman')
+    cases = noise_cases(pred).query('target == 2')
+    typical = typical_error(per)
+    seen = {a: f.walk_distinct_pairs if a == 'S' else f[f'pairs_seen_{a}'] for a in ARMS}
+    for arm in ARMS:
+        e = per[per.arm == arm].pivot(index='source', columns='method', values='MAE_2').loc[f.index, MAIN]
+        c = e.corr(method='spearman').to_numpy()
+        add('six methods agree on which networks are hard (mean pairwise rank correlation)', arm, c[np.triu_indices(len(MAIN), 1)].mean())
+        add('typical error vs effective pairs', arm, rho(f.effective_pairs, typical.loc[f.index, arm]))
+        redraw = cases[cases.arm.eq(arm) & cases.method.isin(['mle', 'et'])].groupby('source').between_sd.mean().loc[f.index]
+        add('redraw SD (MLE, ExtraTrees) vs pairs in the sample', arm, rho(seen[arm], redraw))
+    answers = cases[cases.method.isin([m for m, _ in LM3])].set_index(['arm', 'method', 'source']).answer_sd.sort_index()
+    for m, _ in LM3:
+        for arm in 'HB': add('answer SD vs true rho_2', arm, rho(f.rho2, answers.loc[(arm, m)].loc[f.index]), m)
+        add('answer SD: same networks noisy in H and B', 'H/B', rho(answers.loc[('H', m)].loc[f.index], answers.loc[('B', m)].loc[f.index]), m)
+    add('pairs seen by a walk relative to random nodes (median ratio)', 'S', (f.walk_distinct_pairs/f.pairs_seen_R).median())
+    add('true rho_2 vs keep rate p', 'B', rho(f.rho2, f.kept_share_B))
+    pd.DataFrame(rows).to_csv(DATA/'relations.csv', index=False, float_format='%.2f')
+
+
 def fig_noise_by_graph(plt, pred, f):
     """Two compact details: pure redraw SDs, then pooled LLM answer SDs."""
     c = noise_cases(pred).query('target == 2')
@@ -656,18 +685,14 @@ def fig_noise_by_graph(plt, pred, f):
     note(fig, 'mean over R/S/H/B · each SD: 3 redraws · fixed estimators', -.06)
     save(fig, 'fig5_redraw_networks')
 
-    v = c[c.method.isin([m for m, _ in LM3])].groupby(['method', 'source']).answer_sd.mean()
-    fig, ax = plt.subplots(figsize=(8, 6.4))
-    for k, (m, _) in enumerate(LM3):
-        xs = v.loc[m].reindex(order)
-        ys = y + (1 - k)*.27
-        ax.barh(ys, xs, height=.22, color=colour(m), label=METHODS[m])
-        for yi, x in zip(ys, xs): ax.text(x + .15, yi, f'{x:.1f}', va='center', fontsize=8)
-    row_names(ax, order, f)
-    ax.set_ylim(-.6, len(order)-.4); ax.set_xlim(0, v.max() + 1.5); ax.set_xticks(range(0, 20, 5))
-    ax.set_xlabel('answer-repeat noise (mean SD, pp)'); ax.tick_params(axis='y', length=0)
-    ax.legend(frameon=False, ncol=3, loc='lower center', bbox_to_anchor=(.5, 1.0))
-    note(fig, 'mean over R/S/H/B · each SD: 3 answers to the same sample, median over samples', -.05)
+    v = c[c.method.isin([m for m, _ in LM3])].set_index(['arm', 'method', 'source']).answer_sd.sort_index()
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 4.4), sharey=True, gridspec_kw=dict(wspace=.08))
+    for ax, arm in zip(axes, 'HB'):
+        network_dots(plt, ax, order, {m: v.loc[(arm, m)] for m, _ in LM3}, 'answer-repeat noise (SD, pp)', (-1.5, 45), f, names=arm == 'H')
+        ax.set_title(ARMS[arm], pad=12)
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.6, .97))
+    note(fig, 'networks sorted by true ρ₂ · SD of 3 answers to the same sample, median over samples · R/S: almost none', -.04)
     save(fig, 'fig5_answers_networks')
 
 
@@ -678,16 +703,14 @@ def python_bars(ax, summary, title):
     pair_bars(ax, first, second, [METHODS[m] for m in pair], [colour(m) for m in pair], title, 18)
 
 
-# Fig. 6: GPT with and without Python: error per arm and, next to it, how much the three answers to a sample differ.
+# Fig. 6: GPT with and without Python: error per arm; in grey how much the three answers to a sample differ.
 def fig_python(plt, summary, pred):
     pair = ('gpt_6_sol', 'gpt_6_sol_tools')
     spread = answer_spread(pred)
-    fig, axes = plt.subplots(1, 2, figsize=(16, 3.2))
-    python_bars(axes[0], summary, 'Error (pp)')
-    pair_bars(axes[1], *([spread[(a, m)] for a in ARMS] for m in pair), [METHODS[m] for m in pair], [colour(m) for m in pair],
-              'Spread of the 3 answers to a sample (SD, pp)', 18)
-    fig.subplots_adjust(wspace=.1)
-    note(fig, REAL_NOTE + ' × 3 answers · spread: median over samples', -.1)
+    fig, ax = plt.subplots(figsize=(7.5, 3.4))
+    pair_bars(ax, *([100*summary.loc[(a, m), 'MAE_2'] for a in ARMS] for m in pair), [METHODS[m] for m in pair],
+              [colour(m) for m in pair], 'Error (pp)', 21, spreads=[[spread[(a, m)] for a in ARMS] for m in pair])
+    note(fig, REAL_NOTE + ' × 3 answers · grey: ± spread of the 3 answers to a sample (SD)', -.1)
     save(fig, 'fig6_python')
 
 
@@ -808,21 +831,22 @@ def fig_event_loss_methods(plt, perall):
     e = perall[perall.arm == 'B'].pivot(index='source', columns='method', values='MAE_2')*100
     rho = pd.Series({s: 100*truth[s][0] for s in e.index})
     high = rho > 30
-    fig, axes = plt.subplots(1, 3, figsize=(11, 3.3), sharey=True)
-    for ax, m in zip(axes, ('mle', 'et', 'gpt_6_sol')):
+    fig, axes = plt.subplots(2, 3, figsize=(11, 6.6), sharex=True, sharey=True, gridspec_kw=dict(hspace=.28))
+    for ax, m in zip(axes.flat, MAIN):
         for lab, keys, style in network_groups(e.index, '#333333'):
             ax.scatter(rho[keys], e.loc[keys, m], s=34, zorder=3, label=lab, **{**style, 'color': colour(m) if lab != 'time-shuffled twin' else 'white',
                                                                                'edgecolor': colour(m), 'lw': 1.1})
         ax.axhline(10, color='#999999', lw=1, ls=(0, (4, 2)), zorder=1)
         ax.axvline(30, color='#dddddd', lw=1, zorder=0)
-        ax.text(89, 32.5, f'{int((e.loc[high, m] < 10).sum())} of {int(high.sum())} below 10 pp', ha='right', va='top', fontsize=10, fontweight='bold')
-        ax.set_xlim(0, 90); ax.set_ylim(0, 35); ax.set_title(METHODS[m]); ax.set_xlabel('true ρ₂ (%)')
-        ax.spines['left'].set_visible(True)
-    axes[0].set_ylabel('error in B (pp)')
+        ax.text(.03, .96, f'{int((e.loc[high, m] < 10).sum())} of {int(high.sum())} below 10 pp', transform=ax.transAxes,
+                ha='left', va='top', fontsize=9.5, color='#444444')
+        ax.set_xlim(0, 90); ax.set_ylim(0, 56); ax.set_title(METHODS[m]); ax.spines['left'].set_visible(True)
+    for ax in axes[1]: ax.set_xlabel('true ρ₂ (%)')
+    for ax in axes[:, 0]: ax.set_ylabel('error in B (pp)')
     h = [plt.Line2D([], [], marker=mk, ls='', color='#555555', markerfacecolor=fc, markersize=6)
          for mk, fc in (('o', '#555555'), ('o', 'white'), ('s', '#555555'))]
-    fig.legend(h, ['real', 'time-shuffled twin', 'synthetic'], loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .98))
-    note(fig, 'B · event loss, 32 networks · counts: the 24 networks right of the grey line (true ρ₂ > 30 %) · dashed: 10 pp', -.08)
+    fig.legend(h, ['real', 'time-shuffled twin', 'synthetic'], loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .93))
+    note(fig, 'B · event loss, 32 networks · counts: the 24 networks right of the grey line (true ρ₂ > 30 %) · dashed: 10 pp', .03)
     save(fig, 'fig9c_event_loss_methods')
 
 
@@ -1212,6 +1236,7 @@ def draw():
     pred = pd.read_csv(FINAL/'PREDICTIONS.csv')
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
+    write_relations(per, f, pred)
     fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per)
     fig_ranking(plt, summary, spread.loc['real']); fig_levels(plt, pred); fig_amount(plt, pred)
     for group, name, label in [('surrogate', 'fig2_twins_ranking', '12 time-shuffled twins'),
