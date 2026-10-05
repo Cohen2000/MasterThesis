@@ -145,9 +145,11 @@ def build_inputs(external):
             near_rw = np.abs(v - oid.map(design).to_numpy()) <= .005 if arm == 'S' else np.zeros(len(v), bool)
             near_obs = (np.abs(v - oid.map(ref['plugin']).to_numpy()) <= .005) & ~near_rw
             near_mle = (np.abs(v - oid.map(ref['mle']).to_numpy()) <= .005) & ~near_rw & ~near_obs
+            other, error = ~(near_rw | near_obs | near_mle), 100*a.AE2.to_numpy()
             out.append({'method': method, 'arm': arm, 'answers': len(a), 'reweighting': near_rw.mean(),
-                        'observed_share': near_obs.mean(), 'mle': near_mle.mean(),
-                        'other': 1 - near_rw.mean() - near_obs.mean() - near_mle.mean()})
+                        'observed_share': near_obs.mean(), 'mle': near_mle.mean(), 'other': other.mean(),
+                        'error_observed_share_pp': error[near_obs].mean() if near_obs.any() else np.nan,
+                        'error_other_pp': error[other].mean() if other.any() else np.nan})
     pd.DataFrame(out).to_csv(DATA/'answer_types.csv', index=False, float_format='%.4f')
     s = pred[(pred.arm == 'S') & pred.method.isin(LLMS) & (pred.valid == True)]
     near = (s.r2 - s.observation_id.map(design)).abs() <= .005
@@ -591,6 +593,13 @@ def noise_bars(plt, values, name, title, footer, methods, xmax):
     save(fig, name)
 
 
+def answer_spread(pred):
+    """Median SD of the three answers to the same sample (pp), per arm and language model; complete repeats only."""
+    p = primary_predictions(pred)
+    a = p[p.method.isin(LLMS)].groupby(['arm', 'method', 'observation_id']).rho2.agg(['count', 'std'])
+    return a[a['count'].eq(3)].groupby(['arm', 'method'])['std'].median()
+
+
 def fig_stability(plt, pred):
     """Two controlled contrasts, directly measured, with one fixed ExtraTrees fit."""
     cases = noise_cases(pred)
@@ -600,11 +609,10 @@ def fig_stability(plt, pred):
     # Match the frozen variability report: median of per-network between-sample
     # SDs, and median of per-observation answer SDs (complete repeats only).
     between = c.groupby(['arm', 'method']).between_sd.median()
-    p = primary_predictions(pred)
-    a = p[p.method.isin(LLMS)].groupby(['arm', 'method', 'observation_id']).rho2.agg(['count', 'std'])
-    response = a[a['count'].eq(3)].groupby(['arm', 'method'])['std'].median()
+    response = answer_spread(pred)
     noise_bars(plt, between, 'fig5_sample_variation', 'Sample-redraw noise · 3 draws · MLE / ExtraTrees',
-               'median across 12 networks · fixed estimators', ('mle', 'et'), 5)
+               'median across 12 networks · fixed estimators · LLMs left out: their redraws also contain answer noise',
+               ('mle', 'et'), 5)
     # ExtraTrees gives one answer per sample. Retraining it is a different source of variation, so it is
     # named in the note and not drawn as a bar next to the answers of the language models.
     training = 100*pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").median_observation_SD_rho2
@@ -670,11 +678,16 @@ def python_bars(ax, summary, title):
     pair_bars(ax, first, second, [METHODS[m] for m in pair], [colour(m) for m in pair], title, 18)
 
 
-# Fig. 6: GPT with and without Python, error per arm.
-def fig_python(plt, summary):
-    fig, ax = plt.subplots(figsize=(7.5, 3.2))
-    python_bars(ax, summary, 'Error (pp)')
-    note(fig, REAL_NOTE + ' × 3 answers', -.1)
+# Fig. 6: GPT with and without Python: error per arm and, next to it, how much the three answers to a sample differ.
+def fig_python(plt, summary, pred):
+    pair = ('gpt_6_sol', 'gpt_6_sol_tools')
+    spread = answer_spread(pred)
+    fig, axes = plt.subplots(1, 2, figsize=(16, 3.2))
+    python_bars(axes[0], summary, 'Error (pp)')
+    pair_bars(axes[1], *([spread[(a, m)] for a in ARMS] for m in pair), [METHODS[m] for m in pair], [colour(m) for m in pair],
+              'Spread of the 3 answers to a sample (SD, pp)', 18)
+    fig.subplots_adjust(wspace=.1)
+    note(fig, REAL_NOTE + ' × 3 answers · spread: median over samples', -.1)
     save(fig, 'fig6_python')
 
 
@@ -1208,7 +1221,7 @@ def draw():
     fig_textbook(plt, types); fig_textbook_networks(plt, pred, f)
     fig_correction(plt, pred); fig_correction_networks(plt, pred, f)
     fig_stability(plt, pred); fig_noise_by_graph(plt, pred, f); fig_averaging(plt, pred)
-    fig_python(plt, summary); fig_python_networks(plt, per, f); fig_python_groups(plt)
+    fig_python(plt, summary, pred); fig_python_networks(plt, per, f); fig_python_groups(plt)
     fig_agreement(plt, per, f); fig_method_networks(plt, per, f); fig_structure(plt, perall, f); fig_cards(plt, perall, f); fig_networks(plt, per, f)
     fig_twins(plt, pred); fig_twin_error(plt, perall, f)
     fig_memory(plt, perall); fig_persistence(plt, perall); fig_event_loss_methods(plt, perall)
