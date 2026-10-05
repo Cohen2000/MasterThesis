@@ -1,0 +1,13 @@
+method,arm,samples,longest_is_best,longest_is_worst
+deepseek_flash,B,96.0000,0.3438,0.3750
+deepseek_flash,H,96.0000,0.3646,0.3542
+deepseek_flash,R,70.0000,0.5286,0.3429
+deepseek_flash,S,82.0000,0.4024,0.5610
+gpt_6_sol,B,94.0000,0.4362,0.2660
+gpt_6_sol,H,91.0000,0.4505,0.3956
+gpt_6_sol,R,44.0000,0.4318,0.5682
+gpt_6_sol,S,72.0000,0.3750,0.5417
+gpt_6_sol_tools,B,93.0000,0.3548,0.3548
+gpt_6_sol_tools,H,94.0000,0.3298,0.3830
+gpt_6_sol_tools,R,57.0000,0.5789,0.3860
+gpt_6_sol_tools,S,62.0000,0.4677,0.4677

@@ -76,3 +76,86 @@ networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,
 networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,gpt_6_sol_tools,B,5.00
 networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,deepseek_flash,B,0.00
 networks with true rho_2 > 30 % (24) where the B error stays below 10 pp,all 32,qwen_thinking,B,0.00
+order of the networks: estimate vs truth,real,plugin,R,0.98
+order of the networks: estimate vs truth,all 32,plugin,R,0.99
+order of the networks: estimate vs truth,real,mle,R,0.97
+order of the networks: estimate vs truth,all 32,mle,R,0.98
+order of the networks: estimate vs truth,real,et,R,0.98
+order of the networks: estimate vs truth,all 32,et,R,0.99
+order of the networks: estimate vs truth,real,gpt_6_sol,R,0.98
+order of the networks: estimate vs truth,all 32,gpt_6_sol,R,0.99
+share of single estimates more than 20 pp off (%),real,mle,R,2.78
+error left when all estimates of a network are averaged (pp),real,mle,R,3.28
+share of single estimates more than 20 pp off (%),real,et,R,0.00
+error left when all estimates of a network are averaged (pp),real,et,R,1.74
+share of single estimates more than 20 pp off (%),real,gpt_6_sol,R,0.00
+error left when all estimates of a network are averaged (pp),real,gpt_6_sol,R,1.43
+share of single estimates more than 20 pp off (%),real,gpt_6_sol_tools,R,0.00
+error left when all estimates of a network are averaged (pp),real,gpt_6_sol_tools,R,1.49
+share of single estimates more than 20 pp off (%),real,deepseek_flash,R,0.00
+error left when all estimates of a network are averaged (pp),real,deepseek_flash,R,1.43
+share of single estimates more than 20 pp off (%),real,qwen_thinking,R,0.00
+error left when all estimates of a network are averaged (pp),real,qwen_thinking,R,1.51
+order of the networks: estimate vs truth,real,plugin,S,0.95
+order of the networks: estimate vs truth,all 32,plugin,S,0.92
+order of the networks: estimate vs truth,real,mle,S,0.92
+order of the networks: estimate vs truth,all 32,mle,S,0.95
+order of the networks: estimate vs truth,real,et,S,0.92
+order of the networks: estimate vs truth,all 32,et,S,0.94
+order of the networks: estimate vs truth,real,gpt_6_sol,S,0.87
+order of the networks: estimate vs truth,all 32,gpt_6_sol,S,0.94
+share of single estimates more than 20 pp off (%),real,mle,S,8.33
+error left when all estimates of a network are averaged (pp),real,mle,S,5.94
+share of single estimates more than 20 pp off (%),real,et,S,2.78
+error left when all estimates of a network are averaged (pp),real,et,S,3.81
+share of single estimates more than 20 pp off (%),real,gpt_6_sol,S,13.89
+error left when all estimates of a network are averaged (pp),real,gpt_6_sol,S,6.47
+share of single estimates more than 20 pp off (%),real,gpt_6_sol_tools,S,12.96
+error left when all estimates of a network are averaged (pp),real,gpt_6_sol_tools,S,6.32
+share of single estimates more than 20 pp off (%),real,deepseek_flash,S,14.02
+error left when all estimates of a network are averaged (pp),real,deepseek_flash,S,6.79
+share of single estimates more than 20 pp off (%),real,qwen_thinking,S,38.89
+error left when all estimates of a network are averaged (pp),real,qwen_thinking,S,14.67
+order of the networks: estimate vs truth,real,plugin,H,0.97
+order of the networks: estimate vs truth,all 32,plugin,H,0.97
+order of the networks: estimate vs truth,real,mle,H,0.96
+order of the networks: estimate vs truth,all 32,mle,H,0.97
+order of the networks: estimate vs truth,real,et,H,0.94
+order of the networks: estimate vs truth,all 32,et,H,0.97
+order of the networks: estimate vs truth,real,gpt_6_sol,H,0.92
+order of the networks: estimate vs truth,all 32,gpt_6_sol,H,0.97
+share of single estimates more than 20 pp off (%),real,mle,H,0.00
+error left when all estimates of a network are averaged (pp),real,mle,H,6.85
+share of single estimates more than 20 pp off (%),real,et,H,0.00
+error left when all estimates of a network are averaged (pp),real,et,H,3.69
+share of single estimates more than 20 pp off (%),real,gpt_6_sol,H,0.93
+error left when all estimates of a network are averaged (pp),real,gpt_6_sol,H,4.32
+share of single estimates more than 20 pp off (%),real,gpt_6_sol_tools,H,1.85
+error left when all estimates of a network are averaged (pp),real,gpt_6_sol_tools,H,4.96
+share of single estimates more than 20 pp off (%),real,deepseek_flash,H,24.07
+error left when all estimates of a network are averaged (pp),real,deepseek_flash,H,9.48
+share of single estimates more than 20 pp off (%),real,qwen_thinking,H,27.78
+error left when all estimates of a network are averaged (pp),real,qwen_thinking,H,10.02
+order of the networks: estimate vs truth,real,plugin,B,0.97
+order of the networks: estimate vs truth,all 32,plugin,B,0.77
+order of the networks: estimate vs truth,real,mle,B,0.91
+order of the networks: estimate vs truth,all 32,mle,B,0.92
+order of the networks: estimate vs truth,real,et,B,0.93
+order of the networks: estimate vs truth,all 32,et,B,0.91
+order of the networks: estimate vs truth,real,gpt_6_sol,B,0.86
+order of the networks: estimate vs truth,all 32,gpt_6_sol,B,0.93
+share of single estimates more than 20 pp off (%),real,mle,B,5.56
+error left when all estimates of a network are averaged (pp),real,mle,B,7.50
+share of single estimates more than 20 pp off (%),real,et,B,5.56
+error left when all estimates of a network are averaged (pp),real,et,B,7.74
+share of single estimates more than 20 pp off (%),real,gpt_6_sol,B,14.81
+error left when all estimates of a network are averaged (pp),real,gpt_6_sol,B,6.95
+share of single estimates more than 20 pp off (%),real,gpt_6_sol_tools,B,32.41
+error left when all estimates of a network are averaged (pp),real,gpt_6_sol_tools,B,9.34
+share of single estimates more than 20 pp off (%),real,deepseek_flash,B,36.11
+error left when all estimates of a network are averaged (pp),real,deepseek_flash,B,7.70
+share of single estimates more than 20 pp off (%),real,qwen_thinking,B,49.07
+error left when all estimates of a network are averaged (pp),real,qwen_thinking,B,10.44
+mean signed error on the 13 networks with true rho_2 > 60 % (pp),all 32,mle,B,-11.58
+mean signed error on the 13 networks with true rho_2 > 60 % (pp),all 32,et,B,-10.02
+mean signed error on the 13 networks with true rho_2 > 60 % (pp),all 32,gpt_6_sol,B,-0.78

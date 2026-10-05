@@ -163,12 +163,16 @@ def build_inputs(external):
 
     # Under the hood (real networks): reasoning length, whether the full trace says "guess" (GPT releases no full
     # trace), and what GPT + Python does with its code runs.
-    rows = []
+    rows, answers = [], []
     for run, method in (('openai', 'gpt_6_sol'), ('openai_tools', 'gpt_6_sol_tools'), ('deepseek', 'deepseek_flash')):
         for line in (external/'api_runs'/run/'responses.jsonl').read_text().splitlines():
             d = json.loads(line)
             oid = d['id'].rsplit('__', 2)[0]
-            if d.get('kind') != 'main' or obs[oid]['stratum'] != 'real': continue
+            if d.get('kind') != 'main': continue
+            if d.get('validity') == 'valid':   # every valid answer of all 32 networks, for the comparison within a sample
+                answers.append({'method': method, 'arm': obs[oid]['arm'], 'sample': oid, 'tokens': d.get('reasoning_tokens') or 0,
+                                'error': abs(d['prediction'][0] - truth[obs[oid]['graph_id']][0])})
+            if obs[oid]['stratum'] != 'real': continue
             trace = d.get('reasoning_content')
             row = {'method': method, 'arm': obs[oid]['arm'], 'reasoning_tokens': d.get('reasoning_tokens') or 0,
                    'trace_says_guess': 'guess' in trace.lower() if trace else np.nan}
@@ -187,6 +191,16 @@ def build_inputs(external):
     pd.DataFrame({'answers': r.size(), 'median_reasoning_tokens': r.reasoning_tokens.median(),
                   'trace_says_guess': r.trace_says_guess.mean(), 'mean_code_runs': r.code_runs.mean(),
                   'fits_numerically': r.fits_numerically.mean()}).to_csv(DATA/'under_the_hood.csv', float_format='%.4f')
+
+    # Within one sample (all 32 networks): is the answer with the longest reasoning the best or the worst of the three?
+    def longest(g):
+        g = g[g.groupby('sample').error.transform('size').eq(3)]
+        top = g.loc[g.groupby('sample').tokens.idxmax()].set_index('sample').error
+        low, high = g.groupby('sample').error.min(), g.groupby('sample').error.max()
+        differ = high > low
+        return pd.Series({'samples': int(differ.sum()), 'longest_is_best': (top[differ] == low[differ]).mean(),
+                          'longest_is_worst': (top[differ] == high[differ]).mean()})
+    pd.DataFrame(answers).groupby(['method', 'arm']).apply(longest).to_csv(DATA/'reasoning_within_sample.csv', float_format='%.4f')
 
 
 # Does the code that GPT + Python ran call a numerical optimiser, i.e. fit a model of its own? (keyword search)
@@ -434,6 +448,23 @@ def fig_sample(plt, summary, per):
     save(fig, 'fig1_sample')
 
 
+# Fig. 0c: what the bias does to a comparison of networks: the naive share against the truth, one dot per real network.
+def fig_order(plt, pred):
+    p = primary_predictions(pred)
+    n = p[p.method.eq('plugin')].groupby(['arm', 'source']).agg(naive=('rho2', 'mean'), truth=('truth_rho2', 'first'))
+    fig, axes = plt.subplots(1, 4, figsize=(14, 3.5), sharey=True)
+    for ax, arm in zip(axes, ARMS):
+        d = n.loc[arm]
+        ax.plot([0, 100], [0, 100], color='#bbbbbb', lw=1, zorder=1)
+        ax.scatter(100*d.truth, d.naive, s=46, color=GREY, edgecolor='white', lw=.7, zorder=3)
+        ax.set_xlim(-3, 100); ax.set_ylim(-3, 100); ax.set_aspect('equal'); ax.set_title(ARMS[arm]); ax.set_xlabel('true ρ₂ (%)')
+        ax.spines['left'].set_visible(True)
+        correlation_label(ax, d.naive.corr(d.truth, method='spearman'), right=True, y=.12)
+    axes[0].set_ylabel('naive share in the sample (%)')
+    note(fig, REAL_NOTE + ' (mean) · on the line: sample = truth', -.04)
+    save(fig, 'fig0c_order')
+
+
 # Fig. 2: error per arm, methods sorted from best to worst; the naive share is the grey row.
 def fig_ranking(plt, summary, spread, name='fig2_ranking', label='12 real networks'):
     methods = ['plugin', 'median', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking', 'qwen_nonthinking']
@@ -635,7 +666,8 @@ def fig_stability(plt, pred):
 def fig_averaging(plt, pred):
     from matplotlib.colors import to_rgba
     a = answer_averaging(pred)
-    a.to_csv(DATA/'answer_averaging.csv', float_format='%.4g')
+    pd.concat({g: answer_averaging(pred, g) for g in ('real', 'surrogate', 'synthetic')}, names=['group']
+              ).to_csv(DATA/'answer_averaging.csv', float_format='%.4g')
     fig, axes = plt.subplots(1, 3, figsize=(15, 3.2))
     for ax, (m, c) in zip(axes, LM3):
         pair_bars(ax, a.loc[m].one_answer[list(ARMS)], a.loc[m].mean_of_3[list(ARMS)], ['one answer', 'mean of 3 answers'],
@@ -690,6 +722,23 @@ def write_relations(perall, f, pred):
     high = a.rho2 > 30
     e = perall[perall.arm == 'B'].pivot(index='source', columns='method', values='MAE_2').loc[a.index]*100
     for m in MAIN: add(f'networks with true rho_2 > 30 % ({int(high.sum())}) where the B error stays below 10 pp', 'B', int((e.loc[high, m] < 10).sum()), m, 'all 32')
+    # Single estimates of all networks: order of the networks, large errors, and what is left when noise is averaged out.
+    est = pd.concat([primary_predictions(pred, g) for g in ('real', 'surrogate', 'synthetic')])
+    est = est[est.method.isin(['plugin'] + MAIN)].assign(truth=lambda d: 100*d.truth_rho2)
+    net = est.groupby(['group', 'arm', 'method', 'source']).agg(estimate=('rho2', 'mean'), truth=('truth', 'first'))
+    for arm in ARMS:
+        for m in ('plugin', 'mle', 'et', 'gpt_6_sol'):
+            for lab, d in (('real', net.loc[('real', arm, m)]), ('all 32', net.xs((arm, m), level=('arm', 'method')))):
+                add('order of the networks: estimate vs truth', arm, rho(d.estimate, d.truth), m, lab)
+        for m in MAIN:
+            single = est[est.group.eq('real') & est.arm.eq(arm) & est.method.eq(m)]
+            add('share of single estimates more than 20 pp off (%)', arm, 100*((single.rho2 - single.truth).abs() > 20).mean(), m)
+            d = net.loc[('real', arm, m)]
+            add('error left when all estimates of a network are averaged (pp)', arm, (d.estimate - d.truth).abs().mean(), m)
+    very = net.xs('B', level='arm'); very = very[very.truth > 60]
+    for m in ('mle', 'et', 'gpt_6_sol'):
+        d = very.xs(m, level='method')
+        add(f'mean signed error on the {len(d)} networks with true rho_2 > 60 % (pp)', 'B', (d.estimate - d.truth).mean(), m, 'all 32')
     pd.DataFrame(rows).to_csv(DATA/'relations.csv', index=False, float_format='%.2f')
 
 
@@ -1299,7 +1348,7 @@ def draw():
     f = pd.read_csv(DATA/'network_features.csv', index_col=0)
     types = pd.read_csv(DATA/'answer_types.csv')
     write_relations(perall, f, pred)
-    fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per)
+    fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per); fig_order(plt, pred)
     fig_ranking(plt, summary, spread.loc['real']); fig_levels(plt, pred); fig_amount(plt, pred)
     for group, name, label in [('surrogate', 'fig2_twins_ranking', '12 time-shuffled twins'),
                                ('synthetic', 'fig2_synthetic_ranking', '8 synthetic networks')]:
