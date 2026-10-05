@@ -26,12 +26,12 @@
 
 ![Each returning pair counts once; the four samples produce different persistence shares](figures/fig0_toy.png)
 
-| Sampler | What it shows | What can go wrong |
-|---|---|---|
-| **R · random nodes** | Full histories between sampled nodes | Equal pair inclusion, but samples vary |
-| **S · random walk** | Full histories of visited pairs; visit weights | Busy pairs are overrepresented |
-| **H · late time** | Sampled nodes; windows 3–5 only | Early returns are hidden |
-| **B · event loss** | Each event retained with probability p | Returns—and whole pairs—disappear |
+| Sampler | Real-world case | What it shows | What can go wrong |
+|---|---|---|---|
+| **R · random nodes** | A study panel: only some people take part, e.g. wear a sensor | Full histories between sampled nodes | Equal pair inclusion, but samples vary |
+| **S · random walk** | Crawling a platform from contact to contact (snowball) | Full histories of visited pairs; visit weights | Busy pairs are overrepresented |
+| **H · late time** | Recording starts late, or old logs were deleted | Sampled nodes; windows 3–5 only | Early returns are hidden |
+| **B · event loss** | Lossy recording: sensors miss contacts, or only a share of messages is stored | Each event retained with probability p | Returns—and whole pairs—disappear |
 
 ### 0b · Real samples: walks overstate persistence; missing time and events usually understate it
 
