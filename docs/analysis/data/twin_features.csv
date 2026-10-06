@@ -1,4 +1,4 @@
-source,nodes,pairs,events,events_per_pair,rho2,effective_pairs,share_one_event,share_one_window_several,share_2_windows,share_3_windows,share_4_windows,share_5_windows,extrapolation_error_2,extrapolation_error_3,extrapolation_error_4,extrapolation_error_5
+source,nodes,pairs,events,events_per_pair,rho2,effective_pairs,share_one_event,share_one_window_several,share_2_windows,share_3_windows,share_4_windows,share_5_windows,early_late_mismatch_2,early_late_mismatch_3,early_late_mismatch_4,early_late_mismatch_5
 copenhagen_bluetooth__pwt,692,79530,2426279,30.5077,0.714762,4589.51,0.25877,0.026468,0.142688,0.104539,0.108714,0.358821,0.0427859,0.0397595,0.0191022,-0.0136198
 lkml_reply__pwt,26885,159996,1028233,6.42662,0.54237,8589.02,0.415979,0.041651,0.208999,0.123278,0.089096,0.120997,0.0381127,0.03244,0.00809978,-0.0188274
 nr_digg_reply__pwt,30360,85155,86203,1.01231,0.00814984,82900.6,0.989924,0.0019259,0.00745699,0.000540191,0.000129176,2.34866e-05,0.00263437,-0.000576308,-0.000151714,-2.34824e-05

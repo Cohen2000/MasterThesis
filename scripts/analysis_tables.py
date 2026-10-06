@@ -60,15 +60,15 @@ def write_tables(pred, features):
         if (relation, group, '', arm) not in rel.index: return '–'
         value = rel[(relation, group, '', arm)]
         return '0.00' if abs(value) < .005 else f'{value:+.2f}'.replace('-', '−')
-    own = {'R': 'nodes', 'S': 'events per pair', 'H': 'extrapolation error', 'B': 'true rho_2'}
-    shown = {'nodes': 'Nodes', 'events per pair': 'Events per pair', 'extrapolation error': 'Extrapolation error', 'true rho_2': 'True ρ₂'}
+    own = {'R': 'nodes', 'S': 'events per pair', 'H': 'early-late mismatch', 'B': 'true rho_2'}
+    shown = {'nodes': 'Nodes', 'events per pair': 'Events per pair', 'early-late mismatch': 'Early–late mismatch', 'true rho_2': 'True ρ₂'}
     sets = ('real', 'time-shuffled twin', 'synthetic', 'all 32')
     blocks['hard_properties'] = table(['Property', 'Sampler', 'Real', 'Twins', 'Synthetic', 'All 32'],
         [['Effective pairs', a, *[signed('typical error vs effective pairs', g, a) for g in sets]] for a in ARMS]
         + [[f'**{shown[own[a]]}**', f'**{a}**', *[signed(f'typical error vs {own[a]}', g, a) for g in sets]] for a in ARMS], left=2)
-    at_level = {'R': lambda k: 'nodes', 'S': lambda k: 'events per pair', 'H': lambda k: f'extrapolation error of rho_{k}',
+    at_level = {'R': lambda k: 'nodes', 'S': lambda k: 'events per pair', 'H': lambda k: f'early-late mismatch of rho_{k}',
                 'B': lambda k: f'true rho_{k}'}
-    words = {'R': 'nodes', 'S': 'events per pair', 'H': 'extrapolation error of that level', 'B': 'true share of that level'}
+    words = {'R': 'nodes', 'S': 'events per pair', 'H': 'early–late mismatch of that level', 'B': 'true share of that level'}
     blocks['levels'] = table(['Sampler', 'Property', 'ρ₂', 'ρ₃', 'ρ₄', 'ρ₅'],
         [[f'**{a}**', words[a], *[' / '.join(signed(f'typical error of rho_{k} vs {at_level[a](k)}', g, a) for g in sets[:2])
                                  for k in range(2, 6)]] for a in ARMS], left=2)

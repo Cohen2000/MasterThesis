@@ -50,11 +50,11 @@ typical error vs events per pair,time-shuffled twin,,S,0.66
 typical error vs events per pair,synthetic,,S,0.88
 typical error vs events per pair,all 32,,S,0.79
 "typical error vs events per pair, weakest when one network is left out",all 32,,S,0.77
-typical error vs extrapolation error,real,,H,0.78
-typical error vs extrapolation error,time-shuffled twin,,H,0.90
-typical error vs extrapolation error,synthetic,,H,0.29
-typical error vs extrapolation error,all 32,,H,0.80
-"typical error vs extrapolation error, weakest when one network is left out",all 32,,H,0.78
+typical error vs early-late mismatch,real,,H,0.78
+typical error vs early-late mismatch,time-shuffled twin,,H,0.90
+typical error vs early-late mismatch,synthetic,,H,0.29
+typical error vs early-late mismatch,all 32,,H,0.80
+"typical error vs early-late mismatch, weakest when one network is left out",all 32,,H,0.78
 typical error vs true rho_2,real,,B,0.85
 typical error vs true rho_2,time-shuffled twin,,B,0.36
 typical error vs true rho_2,synthetic,,B,0.83
@@ -102,30 +102,30 @@ error vs events per pair,real,qwen_thinking,S,0.85
 error vs events per pair,time-shuffled twin,qwen_thinking,S,0.21
 error vs events per pair,synthetic,qwen_thinking,S,0.57
 error vs events per pair,all 32,qwen_thinking,S,0.72
-error vs extrapolation error,real,mle,H,0.94
-error vs extrapolation error,time-shuffled twin,mle,H,0.85
-error vs extrapolation error,synthetic,mle,H,0.67
-error vs extrapolation error,all 32,mle,H,0.87
-error vs extrapolation error,real,et,H,0.43
-error vs extrapolation error,time-shuffled twin,et,H,0.29
-error vs extrapolation error,synthetic,et,H,0.14
-error vs extrapolation error,all 32,et,H,0.38
-error vs extrapolation error,real,gpt_6_sol,H,0.58
-error vs extrapolation error,time-shuffled twin,gpt_6_sol,H,0.56
-error vs extrapolation error,synthetic,gpt_6_sol,H,0.64
-error vs extrapolation error,all 32,gpt_6_sol,H,0.58
-error vs extrapolation error,real,gpt_6_sol_tools,H,0.66
-error vs extrapolation error,time-shuffled twin,gpt_6_sol_tools,H,0.72
-error vs extrapolation error,synthetic,gpt_6_sol_tools,H,0.38
-error vs extrapolation error,all 32,gpt_6_sol_tools,H,0.63
-error vs extrapolation error,real,deepseek_flash,H,0.64
-error vs extrapolation error,time-shuffled twin,deepseek_flash,H,0.59
-error vs extrapolation error,synthetic,deepseek_flash,H,0.52
-error vs extrapolation error,all 32,deepseek_flash,H,0.68
-error vs extrapolation error,real,qwen_thinking,H,-0.08
-error vs extrapolation error,time-shuffled twin,qwen_thinking,H,0.49
-error vs extrapolation error,synthetic,qwen_thinking,H,-0.50
-error vs extrapolation error,all 32,qwen_thinking,H,0.06
+error vs early-late mismatch,real,mle,H,0.94
+error vs early-late mismatch,time-shuffled twin,mle,H,0.85
+error vs early-late mismatch,synthetic,mle,H,0.67
+error vs early-late mismatch,all 32,mle,H,0.87
+error vs early-late mismatch,real,et,H,0.43
+error vs early-late mismatch,time-shuffled twin,et,H,0.29
+error vs early-late mismatch,synthetic,et,H,0.14
+error vs early-late mismatch,all 32,et,H,0.38
+error vs early-late mismatch,real,gpt_6_sol,H,0.58
+error vs early-late mismatch,time-shuffled twin,gpt_6_sol,H,0.56
+error vs early-late mismatch,synthetic,gpt_6_sol,H,0.64
+error vs early-late mismatch,all 32,gpt_6_sol,H,0.58
+error vs early-late mismatch,real,gpt_6_sol_tools,H,0.66
+error vs early-late mismatch,time-shuffled twin,gpt_6_sol_tools,H,0.72
+error vs early-late mismatch,synthetic,gpt_6_sol_tools,H,0.38
+error vs early-late mismatch,all 32,gpt_6_sol_tools,H,0.63
+error vs early-late mismatch,real,deepseek_flash,H,0.64
+error vs early-late mismatch,time-shuffled twin,deepseek_flash,H,0.59
+error vs early-late mismatch,synthetic,deepseek_flash,H,0.52
+error vs early-late mismatch,all 32,deepseek_flash,H,0.68
+error vs early-late mismatch,real,qwen_thinking,H,-0.08
+error vs early-late mismatch,time-shuffled twin,qwen_thinking,H,0.49
+error vs early-late mismatch,synthetic,qwen_thinking,H,-0.50
+error vs early-late mismatch,all 32,qwen_thinking,H,0.06
 error vs true rho_2,real,mle,B,0.43
 error vs true rho_2,time-shuffled twin,mle,B,0.57
 error vs true rho_2,synthetic,mle,B,0.50
@@ -173,10 +173,10 @@ typical error of rho_2 vs true rho_2,real,,S,0.67
 typical error of rho_2 vs true rho_2,time-shuffled twin,,S,0.58
 typical error of rho_2 vs true rho_2,synthetic,,S,0.76
 typical error of rho_2 vs true rho_2,all 32,,S,0.64
-typical error of rho_2 vs extrapolation error of rho_2,real,,H,0.78
-typical error of rho_2 vs extrapolation error of rho_2,time-shuffled twin,,H,0.90
-typical error of rho_2 vs extrapolation error of rho_2,synthetic,,H,0.29
-typical error of rho_2 vs extrapolation error of rho_2,all 32,,H,0.80
+typical error of rho_2 vs early-late mismatch of rho_2,real,,H,0.78
+typical error of rho_2 vs early-late mismatch of rho_2,time-shuffled twin,,H,0.90
+typical error of rho_2 vs early-late mismatch of rho_2,synthetic,,H,0.29
+typical error of rho_2 vs early-late mismatch of rho_2,all 32,,H,0.80
 typical error of rho_2 vs effective pairs,real,,H,-0.57
 typical error of rho_2 vs effective pairs,time-shuffled twin,,H,-0.20
 typical error of rho_2 vs effective pairs,synthetic,,H,-0.33
@@ -220,10 +220,10 @@ typical error of rho_3 vs true rho_3,real,,S,0.77
 typical error of rho_3 vs true rho_3,time-shuffled twin,,S,0.76
 typical error of rho_3 vs true rho_3,synthetic,,S,0.86
 typical error of rho_3 vs true rho_3,all 32,,S,0.75
-typical error of rho_3 vs extrapolation error of rho_3,real,,H,0.87
-typical error of rho_3 vs extrapolation error of rho_3,time-shuffled twin,,H,0.71
-typical error of rho_3 vs extrapolation error of rho_3,synthetic,,H,0.93
-typical error of rho_3 vs extrapolation error of rho_3,all 32,,H,0.86
+typical error of rho_3 vs early-late mismatch of rho_3,real,,H,0.87
+typical error of rho_3 vs early-late mismatch of rho_3,time-shuffled twin,,H,0.71
+typical error of rho_3 vs early-late mismatch of rho_3,synthetic,,H,0.93
+typical error of rho_3 vs early-late mismatch of rho_3,all 32,,H,0.86
 typical error of rho_3 vs effective pairs,real,,H,-0.79
 typical error of rho_3 vs effective pairs,time-shuffled twin,,H,-0.49
 typical error of rho_3 vs effective pairs,synthetic,,H,-0.83
@@ -267,10 +267,10 @@ typical error of rho_4 vs true rho_4,real,,S,0.83
 typical error of rho_4 vs true rho_4,time-shuffled twin,,S,0.78
 typical error of rho_4 vs true rho_4,synthetic,,S,0.79
 typical error of rho_4 vs true rho_4,all 32,,S,0.85
-typical error of rho_4 vs extrapolation error of rho_4,real,,H,0.84
-typical error of rho_4 vs extrapolation error of rho_4,time-shuffled twin,,H,0.62
-typical error of rho_4 vs extrapolation error of rho_4,synthetic,,H,0.95
-typical error of rho_4 vs extrapolation error of rho_4,all 32,,H,0.85
+typical error of rho_4 vs early-late mismatch of rho_4,real,,H,0.84
+typical error of rho_4 vs early-late mismatch of rho_4,time-shuffled twin,,H,0.62
+typical error of rho_4 vs early-late mismatch of rho_4,synthetic,,H,0.95
+typical error of rho_4 vs early-late mismatch of rho_4,all 32,,H,0.85
 typical error of rho_4 vs effective pairs,real,,H,-0.77
 typical error of rho_4 vs effective pairs,time-shuffled twin,,H,-0.68
 typical error of rho_4 vs effective pairs,synthetic,,H,-0.93
@@ -314,10 +314,10 @@ typical error of rho_5 vs true rho_5,real,,S,0.95
 typical error of rho_5 vs true rho_5,time-shuffled twin,,S,0.87
 typical error of rho_5 vs true rho_5,synthetic,,S,0.95
 typical error of rho_5 vs true rho_5,all 32,,S,0.93
-typical error of rho_5 vs extrapolation error of rho_5,real,,H,0.92
-typical error of rho_5 vs extrapolation error of rho_5,time-shuffled twin,,H,0.81
-typical error of rho_5 vs extrapolation error of rho_5,synthetic,,H,0.98
-typical error of rho_5 vs extrapolation error of rho_5,all 32,,H,0.90
+typical error of rho_5 vs early-late mismatch of rho_5,real,,H,0.92
+typical error of rho_5 vs early-late mismatch of rho_5,time-shuffled twin,,H,0.81
+typical error of rho_5 vs early-late mismatch of rho_5,synthetic,,H,0.98
+typical error of rho_5 vs early-late mismatch of rho_5,all 32,,H,0.90
 typical error of rho_5 vs effective pairs,real,,H,-0.78
 typical error of rho_5 vs effective pairs,time-shuffled twin,,H,-0.70
 typical error of rho_5 vs effective pairs,synthetic,,H,-0.93
@@ -349,12 +349,12 @@ true rho_2: weakest rank correlation with the typical error over the four sample
 true rho_3: weakest rank correlation with the typical error over the four samplers,real and twins,,,0.05
 true rho_4: weakest rank correlation with the typical error over the four samplers,real and twins,,,0.02
 true rho_5: weakest rank correlation with the typical error over the four samplers,real and twins,,,-0.18
-extrapolation error: weakest rank correlation with the typical error over the four samplers,real and twins,,,0.01
-mean extrapolation error (pp),real,,H,6.89
-largest extrapolation error (pp),real,,H,19.30
-mean signed extrapolation error (pp),real,,H,6.57
-typical error without MLE vs extrapolation error,real,,H,0.71
-typical error of the four LLMs vs extrapolation error,real,,H,0.62
+early-late mismatch: weakest rank correlation with the typical error over the four samplers,real and twins,,,0.01
+mean early-late mismatch (pp),real,,H,6.89
+largest early-late mismatch (pp),real,,H,19.30
+mean signed early-late mismatch (pp),real,,H,6.57
+typical error without MLE vs early-late mismatch,real,,H,0.71
+typical error of the four LLMs vs early-late mismatch,real,,H,0.62
 mean signed error (pp),real,mle,H,6.76
 mean signed error (pp),real,et,H,1.46
 mean signed error (pp),real,gpt_6_sol,H,3.05
@@ -365,11 +365,11 @@ mean typical error (pp),real,,R,2.68
 mean typical error (pp),real,,S,8.16
 mean typical error (pp),real,,H,6.55
 mean typical error (pp),real,,B,12.85
-mean extrapolation error (pp),time-shuffled twin,,H,4.56
-largest extrapolation error (pp),time-shuffled twin,,H,13.42
-mean signed extrapolation error (pp),time-shuffled twin,,H,1.05
-typical error without MLE vs extrapolation error,time-shuffled twin,,H,0.90
-typical error of the four LLMs vs extrapolation error,time-shuffled twin,,H,0.75
+mean early-late mismatch (pp),time-shuffled twin,,H,4.56
+largest early-late mismatch (pp),time-shuffled twin,,H,13.42
+mean signed early-late mismatch (pp),time-shuffled twin,,H,1.05
+typical error without MLE vs early-late mismatch,time-shuffled twin,,H,0.90
+typical error of the four LLMs vs early-late mismatch,time-shuffled twin,,H,0.75
 mean signed error (pp),time-shuffled twin,mle,H,1.50
 mean signed error (pp),time-shuffled twin,et,H,-3.89
 mean signed error (pp),time-shuffled twin,gpt_6_sol,H,-1.13
@@ -380,11 +380,11 @@ mean typical error (pp),time-shuffled twin,,R,1.64
 mean typical error (pp),time-shuffled twin,,S,9.52
 mean typical error (pp),time-shuffled twin,,H,6.25
 mean typical error (pp),time-shuffled twin,,B,16.19
-mean extrapolation error (pp),synthetic,,H,2.01
-largest extrapolation error (pp),synthetic,,H,4.57
-mean signed extrapolation error (pp),synthetic,,H,2.01
-typical error without MLE vs extrapolation error,synthetic,,H,0.31
-typical error of the four LLMs vs extrapolation error,synthetic,,H,0.40
+mean early-late mismatch (pp),synthetic,,H,2.01
+largest early-late mismatch (pp),synthetic,,H,4.57
+mean signed early-late mismatch (pp),synthetic,,H,2.01
+typical error without MLE vs early-late mismatch,synthetic,,H,0.31
+typical error of the four LLMs vs early-late mismatch,synthetic,,H,0.40
 mean signed error (pp),synthetic,mle,H,2.17
 mean signed error (pp),synthetic,et,H,-1.34
 mean signed error (pp),synthetic,gpt_6_sol,H,0.57
@@ -395,11 +395,11 @@ mean typical error (pp),synthetic,,R,2.35
 mean typical error (pp),synthetic,,S,2.84
 mean typical error (pp),synthetic,,H,4.18
 mean typical error (pp),synthetic,,B,11.83
-change from a network to its twin: typical error vs extrapolation error,real and twins,,H,0.93
-change from a network to its twin: typical error without MLE vs extrapolation error,real and twins,,H,0.76
-median extrapolation error (pp),all 32,,H,3.94
-mean typical error where the extrapolation error is at most its median (pp),all 32,,H,3.62
-mean typical error where the extrapolation error is above its median (pp),all 32,,H,8.07
+change from a network to its twin: typical error vs early-late mismatch,real and twins,,H,0.93
+change from a network to its twin: typical error without MLE vs early-late mismatch,real and twins,,H,0.76
+median early-late mismatch (pp),all 32,,H,3.94
+mean typical error where the early-late mismatch is at most its median (pp),all 32,,H,3.62
+mean typical error where the early-late mismatch is above its median (pp),all 32,,H,8.07
 typical error vs true rho_2 on the 13 networks with true rho_2 below 45 %,all 32,,B,0.90
 typical error vs true rho_2 on the 19 networks with true rho_2 of 45 % or more,all 32,,B,-0.09
 median typical error on the 7 networks with true rho_2 below 20 % (pp),all 32,,B,2.82

@@ -1,4 +1,4 @@
-source,nodes,pairs,events,events_per_pair,rho2,effective_pairs,share_one_event,share_one_window_several,share_2_windows,share_3_windows,share_4_windows,share_5_windows,extrapolation_error_2,extrapolation_error_3,extrapolation_error_4,extrapolation_error_5
+source,nodes,pairs,events,events_per_pair,rho2,effective_pairs,share_one_event,share_one_window_several,share_2_windows,share_3_windows,share_4_windows,share_5_windows,early_late_mismatch_2,early_late_mismatch_3,early_late_mismatch_4,early_late_mismatch_5
 dar_a0_r1,500,3351,9972,2.97583,0.386452,2443.14,0.218144,0.395404,0.303491,0.0716204,0.0110415,0.000298418,0.00288631,0.00251398,-0.00146702,0.000169575
 dar_a08_r1,500,1610,9937,6.17205,0.784472,1213.09,0.0795031,0.136025,0.190683,0.177019,0.11677,0.3,0.00848141,0.0720219,0.136371,0.118682
 dar_a0_r2,500,3310,9994,3.01934,0.396073,2400.04,0.22568,0.378248,0.309668,0.0752266,0.0108761,0.000302115,0.0196785,0.0120731,0.00115246,0.000333018
