@@ -350,6 +350,38 @@ true rho_3: weakest rank correlation with the typical error over the four sample
 true rho_4: weakest rank correlation with the typical error over the four samplers,real and twins,,,0.02
 true rho_5: weakest rank correlation with the typical error over the four samplers,real and twins,,,-0.18
 early-late mismatch: weakest rank correlation with the typical error over the four samplers,real and twins,,,0.01
+"typical error vs effective pairs, strongest when one network is left out",real,,R,-0.91
+median typical error of the six networks with the fewest effective pairs (pp),real,,R,3.36
+median typical error of the six networks with the most effective pairs (pp),real,,R,0.76
+"typical error vs effective pairs, strongest when one network is left out",real,,S,-0.95
+median typical error of the six networks with the fewest effective pairs (pp),real,,S,11.73
+median typical error of the six networks with the most effective pairs (pp),real,,S,1.14
+"typical error vs effective pairs, strongest when one network is left out",real,,H,-0.68
+median typical error of the six networks with the fewest effective pairs (pp),real,,H,8.31
+median typical error of the six networks with the most effective pairs (pp),real,,H,5.10
+"typical error vs effective pairs, strongest when one network is left out",real,,B,-0.72
+median typical error of the six networks with the fewest effective pairs (pp),real,,B,15.98
+median typical error of the six networks with the most effective pairs (pp),real,,B,9.34
+"typical error vs effective pairs, weakest when one network is left out",time-shuffled twin,,R,-0.75
+"typical error vs effective pairs, strongest when one network is left out",time-shuffled twin,,R,-0.86
+median typical error of the six networks with the fewest effective pairs (pp),time-shuffled twin,,R,2.18
+median typical error of the six networks with the most effective pairs (pp),time-shuffled twin,,R,1.01
+"typical error vs effective pairs, weakest when one network is left out",time-shuffled twin,,S,-0.52
+"typical error vs effective pairs, strongest when one network is left out",time-shuffled twin,,S,-0.93
+median typical error of the six networks with the fewest effective pairs (pp),time-shuffled twin,,S,12.36
+median typical error of the six networks with the most effective pairs (pp),time-shuffled twin,,S,2.76
+"typical error vs effective pairs, weakest when one network is left out",time-shuffled twin,,H,0.05
+"typical error vs effective pairs, strongest when one network is left out",time-shuffled twin,,H,-0.36
+median typical error of the six networks with the fewest effective pairs (pp),time-shuffled twin,,H,6.01
+median typical error of the six networks with the most effective pairs (pp),time-shuffled twin,,H,5.22
+"typical error vs effective pairs, weakest when one network is left out",time-shuffled twin,,B,-0.26
+"typical error vs effective pairs, strongest when one network is left out",time-shuffled twin,,B,-0.76
+median typical error of the six networks with the fewest effective pairs (pp),time-shuffled twin,,B,17.96
+median typical error of the six networks with the most effective pairs (pp),time-shuffled twin,,B,17.14
+"typical error vs effective pairs, weakest when one network is left out",real,,R,-0.84
+"typical error vs effective pairs, weakest when one network is left out",real,,S,-0.75
+"typical error vs effective pairs, weakest when one network is left out",real,,H,-0.44
+"typical error vs effective pairs, weakest when one network is left out",real,,B,-0.49
 mean early-late mismatch (pp),real,,H,6.89
 largest early-late mismatch (pp),real,,H,19.30
 mean signed early-late mismatch (pp),real,,H,6.57

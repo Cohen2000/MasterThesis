@@ -773,6 +773,19 @@ def write_relations(perall, f, pred):
     for col, label in candidates.items():
         eight = [rho(a.loc[keys, col], typical.loc[keys, arm]) for arm in ARMS for keys in (real, twins)]
         add(f'{label}: weakest rank correlation with the typical error over the four samplers', '', min(eight, key=abs), group='real and twins')
+    # Few effective pairs on the real networks and on the twins: how much hangs on a single network, and how large the
+    # difference in error is between the six networks with the fewest and the six with the most effective pairs.
+    for lab, keys in (('real', real), ('time-shuffled twin', twins)):
+        for arm in ARMS:
+            x, y = a.loc[keys, 'effective_pairs'], typical.loc[keys, arm]
+            left_out = [rho(x.drop(s), y.drop(s)) for s in keys]
+            if lab != 'real': add('typical error vs effective pairs, weakest when one network is left out', arm, min(left_out, key=abs), group=lab)
+            add('typical error vs effective pairs, strongest when one network is left out', arm, max(left_out, key=abs), group=lab)
+            order = x.sort_values().index
+            add('median typical error of the six networks with the fewest effective pairs (pp)', arm, y[order[:6]].median(), group=lab)
+            add('median typical error of the six networks with the most effective pairs (pp)', arm, y[order[6:]].median(), group=lab)
+    for arm in ARMS: add('typical error vs effective pairs, weakest when one network is left out', arm, min(
+        (rho(a.loc[real, 'effective_pairs'].drop(s), typical.loc[real, arm].drop(s)) for s in real), key=abs), group='real')
     # H: the early-late mismatch by group, what a change of it does to the error, and whether MLE (whose model it is) drives it.
     change = lambda x: x.loc[twins].to_numpy() - x.loc[real].to_numpy()
     others = e_all['H'][[m for m in MAIN if m != 'mle']].median(axis=1)
