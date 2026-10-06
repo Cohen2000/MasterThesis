@@ -366,6 +366,8 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 </details>
 
+<a id="hard-pairs"></a>
+
 ### 8d · Across samplers: few effective pairs is a tendency, and no property decides everywhere
 
 ![Typical error versus the effective number of pairs on the 12 real networks](figures/fig8_pairs_real.png)
@@ -397,7 +399,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 - **Twins:** the same property decides in R, S and H (−0.76, +0.66, +0.90).
 - **B:** weak on the twins (+0.36). Shuffling makes 10 of 12 twins persistent (ρ₂ above ≈ 45 %), and there the error no longer grows.
 - **H:** the mismatch uses MLE's way of guessing, but the other methods follow it too (without MLE: +0.71, twins +0.90). **Likely why:** real pairs come and go, so the guess lands 6.6 pp too high on average; with shuffled timing only 1 pp.
-- These are associations, and the properties overlap. The synthetic networks confirm S and B ([9d](#hard-all)).
+- These are associations, and the properties overlap. The synthetic networks fit the same picture ([9d](#hard-all)).
 
 <details>
 <summary>8e detail · Do the same properties decide for ρ₃ to ρ₅?</summary>
@@ -468,7 +470,20 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 <a id="hard-all"></a>
 
-### 9d · Synthetic networks: the same properties decide in S and B; R and H offer little to test
+### 9d · Synthetic networks: they lie where real networks with the same property lie
+
+![Typical error against the property that matters in each sampler: the eight synthetic networks in front of the real networks and twins](figures/fig8_property_synthetic.png)
+
+- Grey: the 24 real networks and twins from [8e](#hard-networks). Squares: the eight synthetic networks.
+- **S, B:** the property also orders the eight among themselves (+0.88, +0.83). They were built to differ in memory, which changes events per pair and persistence.
+- **R:** all eight have ≈ 500 nodes, so there is nothing to order. Their error (0.8–3.8 pp) is that of real networks and twins of similar size (0.8–2.8 pp).
+- **H:** the generators run evenly over time, so the early windows behave like the late ones: the mismatch is at most 4.6 pp (real networks: up to 19.3). Their error (1.1–6.4 pp) is that of real networks and twins with a mismatch this small (0.0–8.0 pp). Too little spread for a trend among the eight (+0.29).
+- **Likely why synthetic networks are easier in S:** few events per pair (median 4 vs 23).
+
+<details>
+<summary>9d detail · What are all the rank correlations, side by side?</summary>
+
+### Real networks, twins, synthetic networks: the typical error against each property
 
 <!-- table:hard_properties -->
 | Property | Sampler | Real | Twins | Synthetic | All 32 |
@@ -483,28 +498,18 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 | **True ρ₂** | **B** | +0.85 | +0.36 | +0.83 | +0.65 |
 <!-- /table:hard_properties -->
 
-- Rank correlation of the typical error with the property; negative means fewer, larger error. Bold: the sampler's own property ([8e](#hard-networks)).
-- **S, B:** confirmed (+0.88, +0.83).
-- **R:** no test; all eight networks have ≈ 500 nodes.
-- **H:** the generators run evenly over time, so the early–late mismatch is small on all eight (at most 4.6 pp; real networks up to 19.3). H is easier there (4.2 vs 6.5 pp), with too little spread for a trend (+0.29).
-- **Few effective pairs:** as on the real networks in S and B. But memory changes effective pairs and persistence together, so the two cannot be separated here.
-- **Likely why synthetic networks are easier in S:** few events per pair (median 4 vs 23).
+- Negative: fewer, larger error. Bold: the sampler's own property ([8e](#hard-networks)); above it, effective pairs ([8d](#hard-pairs)).
+
+</details>
 
 <details>
 <summary>9d detail · Are synthetic networks with few effective pairs harder?</summary>
 
 ### Synthetic networks: few effective pairs go with larger errors in S and B
 
-![Typical error versus the effective number of pairs on the eight synthetic networks](figures/fig8_pairs_synthetic.png)
+![Typical error versus the effective number of pairs: the eight synthetic networks in front of the real networks and twins](figures/fig8_pairs_synthetic.png)
 
-</details>
-
-<details>
-<summary>9d detail · Does each sampler's property decide on the synthetic networks?</summary>
-
-### Synthetic networks: events per pair (S) and persistence (B) decide again
-
-![Typical error against the property that matters in each sampler, on the eight synthetic networks](figures/fig8_property_synthetic.png)
+- As on the real networks in S and B (−0.95, −0.93). But memory changes effective pairs and persistence together, so the two cannot be separated here.
 
 </details>
 
@@ -564,7 +569,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 | 8e · B: persistence up to ≈ 45 % | Typical error vs true ρ₂: real +0.85, twins +0.36. On all 32 networks: +0.90 among the 13 below 45 %, −0.09 among the 19 from 45 %; median error 2.8 pp below 20 %, 13.4 pp from 20 to 45 %, 16.9 pp from 45 %. Networks from 45 %: 5 real, 10 twins, 4 synthetic | [relations.csv](data/relations.csv) |
 | 8e · Properties overlap | Real networks: true ρ₂ vs keep rate p, Spearman −0.76 | [relations.csv](data/relations.csv) |
 | 8e detail · ρ₃ to ρ₅ | Table in 8e detail. Few effective pairs vs typical error on the twins, ρ₃ / ρ₄ / ρ₅: H −0.49 / −0.68 / −0.70, B −0.64 / −0.77 / −0.69 (R and S: −0.67 to −0.93). True share vs typical error at ρ₅: real +0.93 to +0.97, twins +0.84 to +0.99. Effective pairs vs true share, ρ₂ to ρ₅: real −0.69 to −0.78, twins −0.73 to −0.89 | [relations.csv](data/relations.csv) |
-| 9d · Synthetic networks | Table in 9d. Early–late mismatch: at most 4.6 pp (synthetic), 19.3 (real), 13.4 (twins); means 2.0, 6.9, 4.6 pp. Mean typical error in H: 4.2 (synthetic) vs 6.5 pp (real); in S: 2.8 vs 8.2 pp. Median events per pair: 4 (synthetic) vs 23 (real, twins). Effective pairs vs true ρ₂ on the synthetic networks: −0.76 | [relations.csv](data/relations.csv), [synthetic_features.csv](data/synthetic_features.csv) |
+| 9d · Synthetic networks | Typical error of the eight against real networks and twins in the same range of the property: R (200 to 1,000 nodes, 8 networks) 0.8–3.8 vs 0.8–2.8 pp, medians 2.4 vs 1.5; S (1.1 to 6.4 events per pair, 4) 0.2–5.3 vs 0.3–2.5 pp; H (mismatch up to 4.6 pp, 13) 1.1–6.4 vs 0.0–8.0 pp, medians 5.0 vs 4.1; B (ρ₂ 5 to 80 %, 19) 1.0–17.7 vs 4.8–22.3 pp. Rank correlations: table in 9d detail. Early–late mismatch: at most 4.6 pp (synthetic), 19.3 (real), 13.4 (twins); means 2.0, 6.9, 4.6 pp. Mean typical error in H: 4.2 (synthetic) vs 6.5 pp (real); in S: 2.8 vs 8.2 pp. Median events per pair: 4 (synthetic) vs 23 (real, twins). Effective pairs vs true ρ₂ on the synthetic networks: −0.76 | [relations.csv](data/relations.csv), [synthetic_features.csv](data/synthetic_features.csv) |
 | 9e · Per method | Error vs the sampler's property on all 32 networks. Nodes (R): −0.51 (MLE) to −0.72 (ExtraTrees). Events per pair (S): +0.72 (Qwen thinking) to +0.77. Early–late mismatch (H): MLE +0.87, DeepSeek +0.68, GPT + Python +0.63, GPT +0.58, ExtraTrees +0.38, Qwen thinking +0.06. True ρ₂ (B): ExtraTrees +0.23, GPT + Python +0.44, GPT +0.51, MLE +0.55, Qwen thinking +0.73, DeepSeek +0.83 | [relations.csv](data/relations.csv) |
 | 9e · B at high persistence | Networks with ρ₂ > 30 % (24) and B error below 10 pp: ExtraTrees 16, MLE 12, GPT + Python 5, GPT 4, DeepSeek 0, Qwen thinking 0. Mean signed error on the 13 networks with ρ₂ > 60 %: MLE −11.6, ExtraTrees −10.0, GPT −0.8 pp | [relations.csv](data/relations.csv) |
 | 9e · Averaged GPT answers | B, mean of 3 answers: twins 8.1 (ExtraTrees 11.9, MLE 13.2; better on 9 of 12, not significant), real 8.2 (7.9, 7.6), synthetic 12.3 (3.6, 7.5). Python on twins and synthetic networks: no B penalty (12.8 vs 13.3; 10.7 vs 12.9 pp) | [answer_averaging.csv](data/answer_averaging.csv), [SUMMARY.csv](../results/final/SUMMARY.csv) |

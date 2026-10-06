@@ -786,6 +786,16 @@ def write_relations(perall, f, pred):
             add('median typical error of the six networks with the most effective pairs (pp)', arm, y[order[6:]].median(), group=lab)
     for arm in ARMS: add('typical error vs effective pairs, weakest when one network is left out', arm, min(
         (rho(a.loc[real, 'effective_pairs'].drop(s), typical.loc[real, arm].drop(s)) for s in real), key=abs), group='real')
+    # The synthetic networks against the real networks and twins with the same property: within the range the synthetic
+    # networks span (nodes: 200 to 1,000, as all synthetic networks have about 500).
+    synthetic = groups['synthetic']
+    for arm, (col, *_) in HARD_PROPERTY.items():
+        lo, hi = (200, 1000) if spread_too_small(a.loc[synthetic, col]) else (a.loc[synthetic, col].min(), a.loc[synthetic, col].max())
+        near = [s for s in real + twins if lo <= a.loc[s, col] <= hi]
+        add(f'real networks and twins with {names[col]} in the range of the synthetic networks', arm, len(near), group='real and twins')
+        for lab, keys in (('synthetic', synthetic), ('real and twins in the range of the synthetic networks', near)):
+            for stat in ('min', 'median', 'max'): add(f'typical error, {stat} (pp)', arm, getattr(typical.loc[keys, arm], stat)(), group=lab)
+        for stat in ('min', 'max'): add(f'{names[col]}, {stat}', arm, getattr(a.loc[synthetic, col], stat)(), group='synthetic')
     # H: the early-late mismatch by group, what a change of it does to the error, and whether MLE (whose model it is) drives it.
     change = lambda x: x.loc[twins].to_numpy() - x.loc[real].to_numpy()
     others = e_all['H'][[m for m in MAIN if m != 'mle']].median(axis=1)
@@ -1058,6 +1068,7 @@ def fig_property(plt, perall, name, properties, group):
     real = list(NAMES)
     keys = {'real': real, 'twins': [s + '__pwt' for s in real], 'synthetic': [f'{v}_r{i}' for v, _ in VARIANTS for i in (1, 2)]}[group]
     memory = [s for s in keys if s.startswith(('dar_a08', 'ad_memory_'))]
+    reference = real + [s + '__pwt' for s in real]          # drawn in grey behind the synthetic networks
     corr = lambda k, col, arm: a.loc[k, col].corr(t.loc[k, arm], method='spearman')
     fig, axes = plt.subplots(1, 4, figsize=(14, 3.2), sharey=True)
     for ax, arm in zip(axes, ARMS):
@@ -1065,25 +1076,28 @@ def fig_property(plt, perall, name, properties, group):
         if group == 'real': ax.scatter(a.loc[keys, col], t.loc[keys, arm], s=40, color='#333333', zorder=3)
         elif group == 'twins': ax.scatter(a.loc[keys, col], t.loc[keys, arm], s=40, color='white', edgecolor='#333333', lw=1.3, zorder=3)
         else:
-            for part, style, lab in (([s for s in keys if s not in memory], dict(color='white', edgecolor='#333333', lw=1.3), 'without memory'),
-                                     (memory, dict(color='#333333'), 'with memory')):
+            ax.scatter(a.loc[reference, col], t.loc[reference, arm], s=30, color='#d2d0ca', zorder=2, label='real networks and twins')
+            for part, style, lab in (([s for s in keys if s not in memory], dict(color='white', edgecolor='#333333', lw=1.3), 'synthetic, without memory'),
+                                     (memory, dict(color='#333333'), 'synthetic, with memory')):
                 ax.scatter(a.loc[part, col], t.loc[part, arm], s=40, marker='s', zorder=3, label=lab, **style)
         property_axes(ax, arm, properties)
-        if spread_too_small(a.loc[keys, col]): label = {'all ≈ 500 nodes: no test': None}
+        if spread_too_small(a.loc[keys, col]): label = {'synthetic: all ≈ 500 nodes': None}
         elif group == 'twins': label = {'rank correlation': corr(keys, col, arm), 'real networks:': corr(real, col, arm)}
+        elif group == 'synthetic': label = {'synthetic:': corr(keys, col, arm)}
         else: label = {'rank correlation': corr(keys, col, arm)}
-        correlation_labels(ax, label, a.loc[keys, col], t.loc[keys, arm], label_right(col))
+        drawn = keys + reference if group == 'synthetic' else keys
+        correlation_labels(ax, label, a.loc[drawn, col], t.loc[drawn, arm], label_right(col))
     axes[0].set_ylabel('typical error (pp)')
     title = {'real': '12 real networks', 'twins': 'Their 12 time-shuffled twins: same nodes and pairs, shuffled event times',
              'synthetic': '8 synthetic networks'}[group]
     fig.text(axes[0].get_position().x0, 1.03, title, fontsize=12, fontweight='bold', ha='left', va='bottom')
     if group == 'synthetic':
         h, l = axes[0].get_legend_handles_labels()
-        fig.legend(h, l, loc='lower right', ncol=2, frameon=False, bbox_to_anchor=(axes[-1].get_position().x1, 1.0))
+        fig.legend(h, l, loc='lower right', ncol=3, frameon=False, bbox_to_anchor=(axes[-1].get_position().x1, 1.0))
     what = (' · pairs that carry the events = effective pairs (see definitions)' if properties is EFFECTIVE_PAIRS else
             ' · early–late mismatch: see definitions')
     extra = {'real': '', 'twins': ' · same axes as for the real networks',
-             'synthetic': ' · 2 generators × with / without memory × 2 instances · same axes as for the real networks'}[group]
+             'synthetic': ' · synthetic: 2 generators × with / without memory × 2 instances · number: rank correlation of the 8'}[group]
     note(fig, 'typical error = median of six methods' + what + extra, -.1)
     save(fig, name)
 

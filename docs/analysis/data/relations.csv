@@ -382,6 +382,42 @@ median typical error of the six networks with the most effective pairs (pp),time
 "typical error vs effective pairs, weakest when one network is left out",real,,S,-0.75
 "typical error vs effective pairs, weakest when one network is left out",real,,H,-0.44
 "typical error vs effective pairs, weakest when one network is left out",real,,B,-0.49
+real networks and twins with nodes in the range of the synthetic networks,real and twins,,R,8.00
+"typical error, min (pp)",synthetic,,R,0.81
+"typical error, median (pp)",synthetic,,R,2.42
+"typical error, max (pp)",synthetic,,R,3.82
+"typical error, min (pp)",real and twins in the range of the synthetic networks,,R,0.83
+"typical error, median (pp)",real and twins in the range of the synthetic networks,,R,1.50
+"typical error, max (pp)",real and twins in the range of the synthetic networks,,R,2.83
+"nodes, min",synthetic,,R,499.00
+"nodes, max",synthetic,,R,500.00
+real networks and twins with events per pair in the range of the synthetic networks,real and twins,,S,4.00
+"typical error, min (pp)",synthetic,,S,0.24
+"typical error, median (pp)",synthetic,,S,2.83
+"typical error, max (pp)",synthetic,,S,5.32
+"typical error, min (pp)",real and twins in the range of the synthetic networks,,S,0.33
+"typical error, median (pp)",real and twins in the range of the synthetic networks,,S,1.08
+"typical error, max (pp)",real and twins in the range of the synthetic networks,,S,2.48
+"events per pair, min",synthetic,,S,1.07
+"events per pair, max",synthetic,,S,6.38
+real networks and twins with early-late mismatch in the range of the synthetic networks,real and twins,,H,13.00
+"typical error, min (pp)",synthetic,,H,1.10
+"typical error, median (pp)",synthetic,,H,4.99
+"typical error, max (pp)",synthetic,,H,6.43
+"typical error, min (pp)",real and twins in the range of the synthetic networks,,H,0.04
+"typical error, median (pp)",real and twins in the range of the synthetic networks,,H,4.14
+"typical error, max (pp)",real and twins in the range of the synthetic networks,,H,7.98
+"early-late mismatch, min",synthetic,,H,0.01
+"early-late mismatch, max",synthetic,,H,4.57
+real networks and twins with true rho_2 in the range of the synthetic networks,real and twins,,B,19.00
+"typical error, min (pp)",synthetic,,B,1.00
+"typical error, median (pp)",synthetic,,B,14.18
+"typical error, max (pp)",synthetic,,B,17.67
+"typical error, min (pp)",real and twins in the range of the synthetic networks,,B,4.85
+"typical error, median (pp)",real and twins in the range of the synthetic networks,,B,16.15
+"typical error, max (pp)",real and twins in the range of the synthetic networks,,B,22.25
+"true rho_2, min",synthetic,,B,5.49
+"true rho_2, max",synthetic,,B,79.63
 mean early-late mismatch (pp),real,,H,6.89
 largest early-late mismatch (pp),real,,H,19.30
 mean signed early-late mismatch (pp),real,,H,6.57
