@@ -53,6 +53,26 @@ def write_tables(pred, features):
     blocks['network_or_method'] = table(['Sampler', 'Network', 'Method', 'Both together'],
         [[f'**{ARMS[a]}**', *[f'{100*shares.loc[a, part]:.0f} %' for part in ('network', 'method', 'both')]] for a in ARMS])
 
+    # What makes a network hard: rank correlations of the typical error with a network property, from relations.csv.
+    rel = pd.read_csv(DATA/'relations.csv').fillna('').set_index(['relation', 'group', 'method', 'arm']).value
+    def signed(relation, group, arm):
+        """A rank correlation with its sign; '–' where the property hardly differs between the networks."""
+        if (relation, group, '', arm) not in rel.index: return '–'
+        value = rel[(relation, group, '', arm)]
+        return '0.00' if abs(value) < .005 else f'{value:+.2f}'.replace('-', '−')
+    own = {'R': 'nodes', 'S': 'events per pair', 'H': 'extrapolation error', 'B': 'true rho_2'}
+    shown = {'nodes': 'Nodes', 'events per pair': 'Events per pair', 'extrapolation error': 'Extrapolation error', 'true rho_2': 'True ρ₂'}
+    sets = ('real', 'time-shuffled twin', 'synthetic', 'all 32')
+    blocks['hard_properties'] = table(['Property', 'Sampler', 'Real', 'Twins', 'Synthetic', 'All 32'],
+        [['Effective pairs', a, *[signed('typical error vs effective pairs', g, a) for g in sets]] for a in ARMS]
+        + [[f'**{shown[own[a]]}**', f'**{a}**', *[signed(f'typical error vs {own[a]}', g, a) for g in sets]] for a in ARMS], left=2)
+    at_level = {'R': lambda k: 'nodes', 'S': lambda k: 'events per pair', 'H': lambda k: f'extrapolation error of rho_{k}',
+                'B': lambda k: f'true rho_{k}'}
+    words = {'R': 'nodes', 'S': 'events per pair', 'H': 'extrapolation error of that level', 'B': 'true share of that level'}
+    blocks['levels'] = table(['Sampler', 'Property', 'ρ₂', 'ρ₃', 'ρ₄', 'ρ₅'],
+        [[f'**{a}**', words[a], *[' / '.join(signed(f'typical error of rho_{k} vs {at_level[a](k)}', g, a) for g in sets[:2])
+                                 for k in range(2, 6)]] for a in ARMS], left=2)
+
     cases = noise_cases(pred)
     cases.to_csv(DATA/'noise_by_network.csv', index=False, float_format='%.8g')
     components = noise_components(cases)

@@ -64,13 +64,24 @@ def activity_rows(g):
             for k in range(1, 6)]
 
 
+def extrapolation_error(g):
+    """Sampler H without sampling noise: take every pair of the complete network, keep only its last three windows,
+    extend them to five windows with the MLE's model (the early windows behave like the late ones) and compare with
+    the truth. Signed error of rho_2 ... rho_5."""
+    from study.mle import fit_profile_from_counts
+    late = (g.counts[:, 2:] > 0).sum(axis=1)
+    fit = fit_profile_from_counts([0.] + [float(np.sum(late == j)) for j in (1, 2, 3)], 3)
+    if fit.fallback_used: raise ValueError(f'{g.key}: the extrapolation fit did not converge')
+    return {f'extrapolation_error_{k}': fit.rho[k - 2] - g.truth[k - 2] for k in range(2, 6)}
+
+
 def graph_features(g):
     """Size, persistence and event concentration of one complete network (twins and synthetic networks)."""
     m = g.m
     return {'source': g.key, 'nodes': g.N, 'pairs': g.D, 'events': g.M, 'events_per_pair': g.M/g.D, 'rho2': g.truth[0],
             'effective_pairs': float(1/np.sum((m/g.M)**2)), 'share_one_event': float(np.mean(m == 1)),
             'share_one_window_several': float(np.mean((g.K == 1) & (m > 1))),
-            **{f'share_{k}_windows': float(np.mean(g.K == k)) for k in range(2, 6)}}
+            **{f'share_{k}_windows': float(np.mean(g.K == k)) for k in range(2, 6)}, **extrapolation_error(g)}
 
 
 def event_loss_split(g, p):
@@ -125,6 +136,7 @@ def build_inputs(external):
                      # pairs that carry the events: as many equally busy pairs would hold them (inverse Simpson index of event shares)
                      'effective_pairs': float(1/np.sum((m/m.sum())**2)),
                      'only_early_pairs': float(np.mean(g.counts[:, 2:].sum(axis=1) == 0)),
+                     **extrapolation_error(g),
                      **{f'pairs_seen_{a}': float(np.mean([b['D_obs'] for b in blocks[a]])) for a in ARMS},
                      'kept_share_B': float(np.mean([b['parameter'] for b in blocks['B']]))})
         split.append(event_loss_split(g, rows[-1]['kept_share_B']))
@@ -718,17 +730,74 @@ def write_relations(perall, f, pred):
         add('share of S answers using the weights vs pairs in the network', 'S', rho(f.pairs, weights.loc[m].loc[f.index]), m)
     add('pairs seen by a walk relative to random nodes (median ratio)', 'S', (f.walk_distinct_pairs/f.pairs_seen_R).median())
     add('true rho_2 vs keep rate p', 'B', rho(f.rho2, f.kept_share_B))
-    # What makes a network hard: in every sampler (effective pairs) and per sampler, on all 32 networks, within each
-    # group, and the weakest value when any one network is left out.
+    # What makes a network hard: in every sampler (effective pairs) and per sampler (its own property): within each group
+    # of networks, on all 32, with any one network left out, per method and per level of the profile.
     a = all_features()
     groups = {lab: keys for lab, keys, _ in network_groups(typical.index)}
+    sets = {**groups, 'all 32': list(typical.index)}
+    names = {'effective_pairs': 'effective pairs', 'nodes': 'nodes', 'events_per_pair': 'events per pair',
+             'extrapolation_2': 'extrapolation error', 'rho2': 'true rho_2'}
+    e_all = perall.pivot_table(index='source', columns=['arm', 'method'], values='MAE_2').loc[a.index]*100
     for properties in (EFFECTIVE_PAIRS, HARD_PROPERTY):
-        for arm, (col, label, _) in properties.items():
-            relation = 'typical error vs ' + ('effective pairs' if col == 'effective_pairs' else label)
-            for lab, keys in {'all 32': list(typical.index), **groups}.items():
-                if not (lab == 'real' and col == 'effective_pairs'): add(relation, arm, rho(a.loc[keys, col], typical.loc[keys, arm]), group=lab)
+        for arm, (col, *_) in properties.items():
+            relation = f'typical error vs {names[col]}'
+            for lab, keys in sets.items():
+                if spread_too_small(a.loc[keys, col]) or (lab == 'real' and col == 'effective_pairs'): continue
+                add(relation, arm, rho(a.loc[keys, col], typical.loc[keys, arm]), group=lab)
             left_out = [rho(a.loc[typical.index.drop(s), col], typical.loc[typical.index.drop(s), arm]) for s in typical.index]
             add(relation + ', weakest when one network is left out', arm, min(left_out, key=abs), group='all 32')
+    for arm, (col, *_) in HARD_PROPERTY.items():
+        for m in MAIN:
+            for lab, keys in sets.items():
+                if not spread_too_small(a.loc[keys, col]): add(f'error vs {names[col]}', arm, rho(a.loc[keys, col], e_all.loc[keys, (arm, m)]), m, lab)
+    level = level_errors(pred)
+    level = level[level.index.get_level_values('method').isin(MAIN)].groupby(['source', 'arm']).median()
+    for k in range(2, 6):
+        tk = typical if k == 2 else level[LEVELS[k - 2]].unstack('arm')
+        for arm in ARMS:
+            own = {'nodes': 'nodes', 'events_per_pair': 'events per pair', 'extrapolation_2': f'extrapolation error of rho_{k}',
+                   'rho2': f'true rho_{k}'}[HARD_PROPERTY[arm][0]]
+            checks = [(property_at(arm, k), own), ('effective_pairs', 'effective pairs')]
+            if arm != 'B': checks.append((f'rho{k}', f'true rho_{k}'))    # in B the true share is the sampler's own property
+            for col, label in checks:
+                for lab, keys in sets.items():
+                    if not spread_too_small(a.loc[keys, col]): add(f'typical error of rho_{k} vs {label}', arm, rho(a.loc[keys, col], tk.loc[keys, arm]), group=lab)
+        for lab, keys in sets.items(): add(f'effective pairs vs true rho_{k}', '', rho(a.loc[keys, 'effective_pairs'], a.loc[keys, f'rho{k}']), group=lab)
+    # No property for all samplers: per network property the weakest of its eight rank correlations with the typical error
+    # (four samplers, real networks and twins).
+    real, twins = groups['real'], groups['time-shuffled twin']
+    candidates = {'nodes': 'nodes', 'pairs': 'pairs', 'events': 'events', 'events_per_pair': 'events per pair',
+                  'effective_pairs': 'effective pairs', 'share_one_event': 'share of pairs with one event', 'bursty_pairs': 'bursty pairs',
+                  'rho2': 'true rho_2', 'rho3': 'true rho_3', 'rho4': 'true rho_4', 'rho5': 'true rho_5', 'extrapolation_2': 'extrapolation error'}
+    for col, label in candidates.items():
+        eight = [rho(a.loc[keys, col], typical.loc[keys, arm]) for arm in ARMS for keys in (real, twins)]
+        add(f'{label}: weakest rank correlation with the typical error over the four samplers', '', min(eight, key=abs), group='real and twins')
+    # H: the extrapolation error by group, what a change of it does to the error, and whether MLE (whose model it is) drives it.
+    change = lambda x: x.loc[twins].to_numpy() - x.loc[real].to_numpy()
+    others = e_all['H'][[m for m in MAIN if m != 'mle']].median(axis=1)
+    llms = e_all['H'][[m for m in MAIN if m not in ('mle', 'et')]].median(axis=1)
+    signed = perall.pivot_table(index='source', columns=['arm', 'method'], values='signed_rho_2').loc[a.index]*100
+    for lab, keys in groups.items():
+        add('mean extrapolation error (pp)', 'H', a.loc[keys, 'extrapolation_2'].mean(), group=lab)
+        add('largest extrapolation error (pp)', 'H', a.loc[keys, 'extrapolation_2'].max(), group=lab)
+        add('mean signed extrapolation error (pp)', 'H', a.loc[keys, 'extrapolation_signed'].mean(), group=lab)
+        add('typical error without MLE vs extrapolation error', 'H', rho(a.loc[keys, 'extrapolation_2'], others.loc[keys]), group=lab)
+        add('typical error of the four LLMs vs extrapolation error', 'H', rho(a.loc[keys, 'extrapolation_2'], llms.loc[keys]), group=lab)
+        for m in MAIN: add('mean signed error (pp)', 'H', signed.loc[keys, ('H', m)].mean(), m, lab)
+        for arm in ARMS: add('mean typical error (pp)', arm, typical.loc[keys, arm].mean(), group=lab)
+    add('change from a network to its twin: typical error vs extrapolation error', 'H', rho(change(a.extrapolation_2), change(typical['H'])), group='real and twins')
+    add('change from a network to its twin: typical error without MLE vs extrapolation error', 'H', rho(change(a.extrapolation_2), change(others)), group='real and twins')
+    below = a.extrapolation_2 <= a.extrapolation_2.median()
+    add('median extrapolation error (pp)', 'H', a.extrapolation_2.median(), group='all 32')
+    add('mean typical error where the extrapolation error is at most its median (pp)', 'H', typical.loc[a.index[below], 'H'].mean(), group='all 32')
+    add('mean typical error where the extrapolation error is above its median (pp)', 'H', typical.loc[a.index[~below], 'H'].mean(), group='all 32')
+    # B: the error grows with persistence only up to about 45 %.
+    b, low = typical.loc[a.index, 'B'], a.rho2 < 45
+    add(f'typical error vs true rho_2 on the {int(low.sum())} networks with true rho_2 below 45 %', 'B', rho(a.rho2[low], b[low]), group='all 32')
+    add(f'typical error vs true rho_2 on the {int((~low).sum())} networks with true rho_2 of 45 % or more', 'B', rho(a.rho2[~low], b[~low]), group='all 32')
+    for label, part in (('below 20 %', a.rho2 < 20), ('from 20 to 45 %', (a.rho2 >= 20) & low), ('of 45 % or more', ~low)):
+        add(f'median typical error on the {int(part.sum())} networks with true rho_2 {label} (pp)', 'B', b[part].median(), group='all 32')
+    for lab, keys in groups.items(): add('networks with true rho_2 of 45 % or more', 'B', int((~low).loc[keys].sum()), group=lab)
     for lab, keys in groups.items():
         for col, label in (('events_per_pair', 'events per pair'), ('bursty_pairs', 'bursty pairs (%)'), ('rho2', 'true rho_2 (%)')):
             add(f'median {label}', '', a.loc[keys, col].median(), group=lab)
@@ -741,8 +810,6 @@ def write_relations(perall, f, pred):
         for part in ('network', 'method', 'both'): add(f'share of the differences in error: {part} (%)', arm, 100*s[part])
     for part, value in main_effect_shares(perall, ['mle', 'et', 'gpt_6_sol']).items():
         add(f'MLE, ExtraTrees, GPT across samplers: share of the differences in error that goes with the {part} (%)', '', 100*value)
-    b = per[per.arm == 'B'].pivot(index='source', columns='method', values='MAE_2').loc[f.index]
-    for m in ('mle', 'et', 'gpt_6_sol'): add('error vs true rho_2', 'B', rho(f.rho2, b[m]), m)
     low = f.index[f.rho2 < .2]
     for arm in 'HB':
         e = per[per.arm == arm].pivot(index='source', columns='method', values='MAE_2')*100
@@ -899,64 +966,132 @@ def fig_method_networks(plt, per, f):
     save(fig, 'fig7b_method_networks')
 
 
-# Fig. 8b: typical error against the number of pairs that carry the events, per arm.
-def fig_structure(plt, perall, f):
-    t = typical_error(perall).loc[f.index]
-    fig, axes = plt.subplots(1, 4, figsize=(14, 2.9), sharey=True)
-    for ax, arm in zip(axes, ARMS):
-        ax.scatter(f.effective_pairs, t[arm], s=40, color='#333333', zorder=3)
-        two_tone(ax, f.loc['sp_malawi', 'effective_pairs'], t.loc['sp_malawi', arm], 'Malawi', '55 pairs carry them', ax.transData,
-                 ha='left', size=8.5, small=8, dx=3, dy=9)
-        ticks = [100, 1000, 10000, 100000]
-        ax.set_xscale('log'); ax.set_xticks(ticks, [f'{x:,}' for x in ticks]); ax.minorticks_off()
-        ax.set_xlabel('pairs that carry the events', fontsize=9.5); ax.set_ylim(0, 36); ax.set_yticks([0, 10, 20, 30])
-        ax.spines['left'].set_visible(True); ax.set_title(ARMS[arm])
-        correlation_label(ax, f.effective_pairs.corr(t[arm], method='spearman'), right=True, y=.8)   # clear of the Malawi label
-    axes[0].set_ylabel('typical error (pp)')
-    note(fig, '12 real networks · typical error = median of six methods'
-         ' · pairs that carry the events = effective number of pairs (see definitions)', -.12)
-    save(fig, 'fig8b_pairs')
-
-
 def all_features():
-    """Size, events per pair, bursty pairs and true rho_2 of all 32 networks (real, time-shuffled twins, synthetic)."""
-    cols = ['nodes', 'pairs', 'events', 'events_per_pair', 'rho2', 'effective_pairs', 'share_one_window_several']
+    """Properties of all 32 networks (real, time-shuffled twins, synthetic): size, events per pair, effective pairs,
+    bursty pairs, the true rho_2 ... rho_5 (%) and, per level, how far the extrapolation of sampler H is off on the
+    complete network (pp, absolute; see extrapolation_error)."""
+    cols = ['nodes', 'pairs', 'events', 'events_per_pair', 'effective_pairs', 'share_one_event', 'share_one_window_several']
+    cols += [f'extrapolation_error_{k}' for k in range(2, 6)]
     a = pd.concat([pd.read_csv(DATA/f'{name}_features.csv', index_col=0)[cols] for name in ('network', 'twin', 'synthetic')])
+    truth = json.loads((FINAL/'TRUTH.json').read_text())
     a['bursty_pairs'] = 100*a.share_one_window_several   # pairs with several events, all in one window (% of pairs)
-    a['rho2'] *= 100
+    a['extrapolation_signed'] = 100*a.extrapolation_error_2
+    for k in range(2, 6):
+        a[f'rho{k}'] = [100*truth[s][k - 2] for s in a.index]
+        a[f'extrapolation_{k}'] = 100*a.pop(f'extrapolation_error_{k}').abs()
     return a
 
 
-def correlation_label(ax, r, right=False, y=.95):
-    """The rank correlation of a panel, small and grey in its upper corner."""
-    ax.text(.97 if right else .03, y, f'rank correlation {r:+.2f}'.replace('-', '−'), transform=ax.transAxes, va='top',
-            ha='right' if right else 'left', fontsize=9, color=SPEC)
+def correlation_labels(ax, values, x, y, right=False, lines=()):
+    """The rank correlations of a panel, one short line per group of networks, small and grey: at the top in the
+    preferred corner if nothing lies under the label, otherwise shifted along the top or further down.
+    x, y: the points of the panel; lines: pairs of points joined by a line (both in data coordinates)."""
+    number = lambda r: '0.00' if abs(r) < .005 else f'{r:+.2f}'
+    text = '\n'.join((lab if r is None else f'{lab} {number(r)}'.strip()).replace('-', '−') for lab, r in values.items())
+    shown = lambda px, py: ax.transData.transform(np.column_stack([np.asarray(px, float), np.asarray(py, float)]))
+    dots = shown(x, y)
+    strokes = np.vstack([np.linspace(*shown(*zip(*ends)), 40) for ends in lines]) if lines else np.empty((0, 2))
+    label = ax.text(0, 0, text, transform=ax.transAxes, va='top', fontsize=9, color=SPEC, linespacing=1.35)
+    renderer = ax.figure.canvas.get_renderer()
+    across = [('right', .97), ('right', .87), ('center', .62), ('center', .5), ('center', .38), ('left', .13), ('left', .03)]
+    best = None
+    for top in (.96, .72, .48):
+        for ha, at in (across if right else across[::-1]):
+            label.set_position((at, top)); label.set_ha(ha)
+            box = label.get_window_extent(renderer).expanded(1.1, 1.25)
+            inside = lambda m: int(((m[:, 0] > box.x0) & (m[:, 0] < box.x1) & (m[:, 1] > box.y0) & (m[:, 1] < box.y1)).sum())
+            covered = 10*inside(dots) + inside(strokes)          # a covered point is worse than a crossed line
+            if best is None or covered < best[0]: best = (covered, ha, at, top)
+    label.set_position(best[2:]); label.set_ha(best[1])
 
 
-# What makes a network hard: (column of all_features, axis label, ticks of a log axis or None), per sampler.
-HARD_PROPERTY = {'R': ('nodes', 'nodes in the network', [100, 1000, 10000]), 'S': ('events_per_pair', 'events per pair', [1, 10, 100]),
-                 'H': ('bursty_pairs', 'bursty pairs (%)', None), 'B': ('rho2', 'true ρ₂ (%)', None)}
-EFFECTIVE_PAIRS = {arm: ('effective_pairs', 'pairs that carry the events', [100, 1000, 10000, 100000]) for arm in ARMS}
+# What makes a network hard: (column of all_features, axis label, ticks of a log axis or None, axis limits), per sampler.
+# The property of H and B belongs to the level of the profile: its level-2 version is the one drawn.
+HARD_PROPERTY = {'R': ('nodes', 'nodes in the network', [100, 1000, 10000], (50, 50000)),
+                 'S': ('events_per_pair', 'events per pair', [1, 10, 100], (.7, 450)),
+                 'H': ('extrapolation_2', 'extrapolation error (pp)', None, (-.8, 21)),
+                 'B': ('rho2', 'true ρ₂ (%)', None, (-3, 90))}
+EFFECTIVE_PAIRS = {arm: ('effective_pairs', 'pairs that carry the events', [100, 1000, 10000, 100000], (35, 130000)) for arm in ARMS}
+NETWORK_COLOURS = ['#332288', '#0077bb', '#66bbdd', '#44aa99', '#117733', '#999933', '#ddbb44', '#ee7733', '#cc6677',
+                   '#882255', '#aa4499', '#666666']   # one colour per real network and its twin, in the order of table 1a
 
 
-# Fig. 8d, 9e: typical error against a network property per sampler, on the real networks or on all 32.
-def fig_property(plt, perall, name, properties, real_only):
+def property_at(arm, level):
+    """Column of all_features holding the property of a sampler for one level of the profile (2 ... 5)."""
+    col = HARD_PROPERTY[arm][0]
+    return {'extrapolation_2': f'extrapolation_{level}', 'rho2': f'rho{level}'}.get(col, col)
+
+
+def spread_too_small(values):
+    """A property that hardly differs between the networks cannot be tested (the synthetic networks all have ≈ 500 nodes)."""
+    return values.max() < 1.01*values.min()
+
+
+def property_axes(ax, arm, properties):
+    col, label, ticks, xlim = properties[arm]
+    if ticks: ax.set_xscale('log'); ax.minorticks_off(); ax.set_xticks(ticks, [f'{x:,}' for x in ticks])
+    ax.set_xlim(*xlim); ax.set_ylim(0, 36); ax.set_yticks([0, 10, 20, 30]); ax.set_title(ARMS[arm]); ax.set_xlabel(label, fontsize=9.5)
+    ax.spines['left'].set_visible(True)
+
+
+def label_right(col):
+    """Corner of the correlation label: where the points leave room (the error falls with these properties)."""
+    return col in ('effective_pairs', 'nodes')
+
+
+# Fig. 8c, 8d: typical error against a network property per sampler: every real network with its time-shuffled twin
+# in the same colour, joined by a line.
+def fig_property_twins(plt, perall, name, properties):
     a, t = all_features(), typical_error(perall)
-    keys = [s for s in t.index if s in NAMES] if real_only else list(t.index)
+    order = a.loc[list(NAMES)].sort_values('rho2', ascending=False).index
+    twins = [s + '__pwt' for s in order]
+    fig, axes = plt.subplots(1, 4, figsize=(14, 3.4), sharey=True)
+    for ax, arm in zip(axes, ARMS):
+        col = properties[arm][0]
+        for s, twin, c in zip(order, twins, NETWORK_COLOURS):
+            ax.plot([a.loc[s, col], a.loc[twin, col]], [t.loc[s, arm], t.loc[twin, arm]], color=c, lw=1.1, alpha=.55, zorder=2)
+            ax.scatter(a.loc[twin, col], t.loc[twin, arm], s=40, color='white', edgecolor=c, lw=1.4, zorder=3)
+            ax.scatter(a.loc[s, col], t.loc[s, arm], s=40, color=c, zorder=4)
+        property_axes(ax, arm, properties)
+        both = list(order) + twins
+        correlation_labels(ax, {'real': a.loc[order, col].corr(t.loc[order, arm], method='spearman'),
+                                'twins': a.loc[twins, col].corr(t.loc[twins, arm], method='spearman')},
+                           a.loc[both, col], t.loc[both, arm], label_right(col),
+                           [((a.loc[s, col], t.loc[s, arm]), (a.loc[w, col], t.loc[w, arm])) for s, w in zip(order, twins)])
+    axes[0].set_ylabel('typical error (pp)')
+    dot = lambda c, fill, lab: plt.Line2D([], [], marker='o', ls='', color=c, markerfacecolor=c if fill else 'white', markeredgewidth=1.4,
+                                          markersize=6.5, label=lab)
+    handles = [dot('#555555', True, 'real network'), dot('#555555', False, 'its time-shuffled twin')]
+    handles += [dot(c, True, short(s)) for s, c in zip(order, NETWORK_COLOURS)]
+    fig.legend(handles=handles, loc='lower center', ncol=7, frameon=False, bbox_to_anchor=(.5, .98), fontsize=9.5, columnspacing=1.6,
+               handletextpad=.3)
+    extra = (' · pairs that carry the events = effective number of pairs (see definitions)' if properties is EFFECTIVE_PAIRS else
+             ' · extrapolation error: see definitions')
+    note(fig, '12 real networks and their 12 time-shuffled twins · typical error = median of six methods · numbers: rank correlation'
+         + extra, -.1)
+    save(fig, name)
+
+
+# Fig. 9e (folded): the same two figures for the eight synthetic networks, on the same axes.
+def fig_property_synthetic(plt, perall, name, properties):
+    a, t = all_features(), typical_error(perall)
+    keys = [f'{v}_r{i}' for v, _ in VARIANTS for i in (1, 2)]
+    memory = [s for s in keys if s.startswith(('dar_a08', 'ad_memory_'))]
     fig, axes = plt.subplots(1, 4, figsize=(14, 3.3), sharey=True)
     for ax, arm in zip(axes, ARMS):
-        col, label, ticks = properties[arm]
-        for lab, group, style in network_groups(keys): ax.scatter(a.loc[group, col], t.loc[group, arm], s=34, zorder=3, label=lab, **style)
-        if ticks: ax.set_xscale('log'); ax.minorticks_off(); ax.set_xticks(ticks, [f'{x:,}' for x in ticks])
-        ax.set_ylim(0, 36); ax.set_title(ARMS[arm]); ax.set_xlabel(label); ax.spines['left'].set_visible(True)
-        correlation_label(ax, a.loc[keys, col].corr(t.loc[keys, arm], method='spearman'), right=col == 'effective_pairs')
+        col = properties[arm][0]
+        for group, style, lab in (([s for s in keys if s not in memory], dict(color='white', edgecolor='#333333', lw=1.3), 'without memory'),
+                                  (memory, dict(color='#333333'), 'with memory')):
+            ax.scatter(a.loc[group, col], t.loc[group, arm], s=40, marker='s', zorder=3, label=lab, **style)
+        property_axes(ax, arm, properties)
+        label = ({'all ≈ 500 nodes: no test': None} if spread_too_small(a.loc[keys, col]) else
+                 {'synthetic': a.loc[keys, col].corr(t.loc[keys, arm], method='spearman')})
+        correlation_labels(ax, label, a.loc[keys, col], t.loc[keys, arm], label_right(col))
     axes[0].set_ylabel('typical error (pp)')
-    if not real_only:
-        h, l = axes[0].get_legend_handles_labels()
-        fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .98))
-    bursty = ' · bursty pairs = pairs with several events, all in one time window' if properties is HARD_PROPERTY else ''
-    note(fig, ('12 real networks' if real_only else '32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic')
-         + ' · typical error = median of six methods' + bursty, -.08)
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc='lower center', ncol=2, frameon=False, bbox_to_anchor=(.5, .98))
+    note(fig, '8 synthetic networks: 2 generators × with / without memory × 2 instances · same axes as for the real networks'
+         ' · typical error = median of six methods · numbers: rank correlation', -.1)
     save(fig, name)
 
 
@@ -967,29 +1102,32 @@ def network_groups(sources, c='#333333'):
             ('synthetic', [s for s in sources if s not in NAMES and not s.endswith('__pwt')], dict(color=c, marker='s')))
 
 
-# Fig. 9: every main method (rows) in every sampler (columns): error against true rho_2, all 32 networks.
-def fig_all_networks(plt, perall):
-    truth = json.loads((FINAL/'TRUTH.json').read_text())
-    e = perall.pivot_table(index='source', columns=['arm', 'method'], values='MAE_2')*100
-    rho = pd.Series({s: 100*truth[s][0] for s in e.index})
-    fig, axes = plt.subplots(len(MAIN), 4, figsize=(13, 13.5), sharex=True, sharey=True, gridspec_kw=dict(hspace=.16, wspace=.08))
+# Fig. 9f: every main method (rows) in every sampler (columns): its error against the property of that sampler, all 32 networks.
+def fig_methods(plt, perall):
+    a = all_features()
+    e = perall.pivot_table(index='source', columns=['arm', 'method'], values='MAE_2').loc[a.index]*100
+    fig, axes = plt.subplots(len(MAIN), 4, figsize=(13, 13.5), sharex='col', sharey=True, gridspec_kw=dict(hspace=.16, wspace=.08))
     for row, m in zip(axes, MAIN):
         for ax, arm in zip(row, ARMS):
+            col, label, ticks, xlim = HARD_PROPERTY[arm]
             for lab, keys, style in network_groups(e.index, colour(m)):
-                ax.scatter(rho[keys], e.loc[keys, (arm, m)], s=22, zorder=3, **style)
+                ax.scatter(a.loc[keys, col], e.loc[keys, (arm, m)], s=22, zorder=3, **style)
             ax.axhline(10, color='#bbbbbb', lw=.8, ls=(0, (4, 2)), zorder=1)
-            ax.set_xlim(0, 90); ax.set_ylim(0, 56); ax.spines['left'].set_visible(True)
+            if ticks: ax.set_xscale('log'); ax.minorticks_off(); ax.set_xticks(ticks, [f'{x:,}' for x in ticks])
+            ax.set_xlim(*xlim); ax.set_ylim(0, 56); ax.spines['left'].set_visible(True)
+            correlation_labels(ax, {'': a[col].corr(e[(arm, m)], method='spearman')}, a[col], e[(arm, m)], label_right(col))
         row[0].set_ylabel(METHODS[m], fontsize=11.5, fontweight='bold', color=colour(m))
     for ax, arm in zip(axes[0], ARMS): ax.set_title(ARMS[arm])
-    for ax in axes[-1]: ax.set_xlabel('true ρ₂ (%)')
+    for ax, arm in zip(axes[-1], ARMS): ax.set_xlabel(HARD_PROPERTY[arm][1], fontsize=9.5)
     h = [plt.Line2D([], [], marker=mk, ls='', color='#555555', markerfacecolor=fc, markersize=6)
          for mk, fc in (('o', '#555555'), ('o', 'white'), ('s', '#555555'))]
     fig.legend(h, ['real', 'time-shuffled twin', 'synthetic'], loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.5, .9))
-    note(fig, 'y-axis: error (pp) · 32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic · dashed: 10 pp', .075)
-    save(fig, 'fig9_all_networks')
+    note(fig, 'y-axis: error (pp) · 32 networks: 12 real, their 12 time-shuffled twins, 8 synthetic · dashed: 10 pp'
+         ' · numbers: rank correlation over the 32 networks', .07)
+    save(fig, 'fig9f_methods')
 
 
-# Fig. 9b: the same for the higher levels of the profile: typical error of rho_3, rho_4, rho_5 against their true values.
+# Fig. 9b: the higher levels of the profile on all 32 networks: typical error of rho_3, rho_4, rho_5 against their true values.
 def fig_persistence_levels(plt, pred):
     truth = json.loads((FINAL/'TRUTH.json').read_text())
     e = level_errors(pred)
@@ -1385,11 +1523,11 @@ def draw():
     fig_correction(plt, pred); fig_correction_networks(plt, pred, f)
     fig_stability(plt, pred); fig_noise_by_graph(plt, pred, f); fig_averaging(plt, pred)
     fig_python(plt, summary, pred); fig_python_networks(plt, per, f); fig_python_groups(plt)
-    fig_agreement(plt, per, f); fig_method_networks(plt, per, f); fig_structure(plt, perall, f)
-    fig_property(plt, perall, 'fig8d_hard_networks', HARD_PROPERTY, True); fig_cards(plt, perall, f); fig_networks(plt, per, f)
+    fig_agreement(plt, per, f); fig_method_networks(plt, per, f); fig_cards(plt, perall, f); fig_networks(plt, per, f)
+    fig_property_twins(plt, perall, 'fig8c_pairs', EFFECTIVE_PAIRS); fig_property_twins(plt, perall, 'fig8d_hard_networks', HARD_PROPERTY)
     fig_twins(plt, pred); fig_twin_error(plt, perall, f)
-    fig_memory(plt, perall); fig_property(plt, perall, 'fig9e_hard_networks', HARD_PROPERTY, False)
-    fig_property(plt, perall, 'fig9e_pairs', EFFECTIVE_PAIRS, False); fig_all_networks(plt, perall)
+    fig_memory(plt, perall); fig_property_synthetic(plt, perall, 'fig9e_pairs', EFFECTIVE_PAIRS)
+    fig_property_synthetic(plt, perall, 'fig9e_hard_networks', HARD_PROPERTY); fig_methods(plt, perall)
     fig_persistence_levels(plt, pred); fig_windows(plt)
     gif_dar(plt); gif_activity(plt)
     from analysis_tables import write_tables
