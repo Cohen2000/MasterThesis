@@ -124,7 +124,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ### 3a · Mean error: no LLM consistently beats MLE in S/H/B
 
-![Mean absolute error by method and sampler](figures/fig2_ranking.png)
+![Mean absolute error by method and sampler, with the answer-repeat spread in grey](figures/fig2_ranking.png)
 
 - GPT is the strongest LLM: its answers match the formulas most often ([4a](#formula)) and scatter least ([6b](#answer-noise)).
 - **R:** nothing to correct; random nodes cause no selection bias. MLE's model fit costs 1 pp.
@@ -377,7 +377,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ### Twins: mean error by method and sampler
 
-![Mean error and between-network SD of each method on the twelve time-shuffled twins](figures/fig2_twins_ranking.png)
+![Mean error of each method on the twelve time-shuffled twins, with the answer-repeat spread in grey](figures/fig2_twins_ranking.png)
 
 - vs [real networks (3a)](#ranking-real): R/S unchanged. **H:** MLE moves ahead of the naive share. **B:** most errors rise; ExtraTrees, GPT (with or without Python) and MLE stay ahead, within 1.5 pp.
 
@@ -421,7 +421,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 ### Synthetic networks: mean error by method and sampler
 
-![Mean error and between-network SD of each method on the eight synthetic networks](figures/fig2_synthetic_ranking.png)
+![Mean error of each method on the eight synthetic networks, with the answer-repeat spread in grey](figures/fig2_synthetic_ranking.png)
 
 - vs [real networks (3a)](#ranking-real): same leaders (ExtraTrees, MLE, GPT). **H:** all three, and DeepSeek, now beat the naive share (9.5 pp). **B:** ExtraTrees clearly first (3.6 vs MLE 7.5 pp); it was trained on graphs from the same two generators.
 - Why S and H are easier than on real networks: [9e](#hard-all).

@@ -464,7 +464,21 @@ def fig_sample(plt, summary, per):
 
 
 # Fig. 2: error per arm, methods sorted from best to worst; the naive share is the grey row.
-def fig_ranking(plt, summary, spread, name='fig2_ranking', label='12 real networks'):
+def repeat_spread(group):
+    """How much a method's answer to the same sample changes when it is asked again (median SD of rho_2, pp), from the
+    frozen variability tables: 3 answers of a language model, 11 training fits of ExtraTrees. The naive share, the
+    training median and MLE always give the same answer."""
+    llm = pd.read_csv(FINAL/'VARIABILITY_RESPONSE.csv').query('group == @group').set_index(['arm', 'method'])
+    et = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query('group == @group').set_index('arm')
+    spread = (100*llm.median_observation_SD_rho2).to_dict()
+    for arm in ARMS:
+        spread[(arm, 'et')] = 100*et.loc[arm, 'median_observation_SD_rho2']
+        for m in ('plugin', 'median', 'mle'): spread[(arm, m)] = 0.
+    return spread
+
+
+def fig_ranking(plt, summary, group='real', name='fig2_ranking', label='12 real networks'):
+    spread = repeat_spread(group)
     methods = ['plugin', 'median', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking', 'qwen_nonthinking']
     fig, axes = plt.subplots(2, 2, figsize=(10.5, 7.4))
     xmax = 100*summary.MAE_2.max() + 16
@@ -476,14 +490,15 @@ def fig_ranking(plt, summary, spread, name='fig2_ranking', label='12 real networ
         for yi, vi, m in zip(y, v, ranked):
             mean = ax.annotate(f'{vi:.1f}', (vi, yi), xytext=(3, 0), textcoords='offset points', va='center',
                                fontsize=10, fontweight='bold' if m == 'plugin' else 'normal')
-            ax.annotate(f"± {spread.loc[(arm, m), 'sd']:.1f}", (1, .5), xycoords=mean, xytext=(3, 0),
+            ax.annotate(f'± {spread[(arm, m)]:.1f}', (1, .5), xycoords=mean, xytext=(3, 0),
                         textcoords='offset points', va='center', fontsize=8, color=SPEC)
         ax.set_yticks(y, [METHODS[m] for m in ranked])
         for lab, m in zip(ax.get_yticklabels(), ranked):
             if m == 'plugin': lab.set_fontweight('bold')
         ax.set_xlim(0, xmax); ax.set_xticks([]); ax.spines['bottom'].set_visible(False); ax.set_title(ARMS[arm])
     fig.subplots_adjust(wspace=.62, hspace=.28)
-    note(fig, 'mean error (pp) · grey: ± SD across ' + label, .04)
+    note(fig, 'mean error (pp) on ' + label + ' · grey: ± how much the answer to the same sample changes when asked again (SD)\n'
+         'LLMs: 3 answers · ExtraTrees: 11 retrainings · naive share, training median and MLE: always the same answer', .05)
     save(fig, name)
 
 
@@ -1362,11 +1377,10 @@ def draw():
     types = pd.read_csv(DATA/'answer_types.csv')
     write_relations(perall, f, pred)
     fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per)
-    fig_ranking(plt, summary, spread.loc['real']); fig_levels(plt, pred); fig_amount(plt, pred)
+    fig_ranking(plt, summary); fig_levels(plt, pred); fig_amount(plt, pred)
     for group, name, label in [('surrogate', 'fig2_twins_ranking', '12 time-shuffled twins'),
                                ('synthetic', 'fig2_synthetic_ranking', '8 synthetic networks')]:
-        fig_ranking(plt, summaries[summaries.group.eq(group)].set_index(['arm','method']),
-                    spread.loc[group], name, label)
+        fig_ranking(plt, summaries[summaries.group.eq(group)].set_index(['arm','method']), group, name, label)
     fig_textbook(plt, types); fig_textbook_networks(plt, pred, f)
     fig_correction(plt, pred); fig_correction_networks(plt, pred, f)
     fig_stability(plt, pred); fig_noise_by_graph(plt, pred, f); fig_averaging(plt, pred)
