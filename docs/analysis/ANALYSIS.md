@@ -130,6 +130,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 ![Mean absolute error by method and sampler, with the answer-repeat spread in grey](figures/fig2_ranking.png)
 
 - GPT is the strongest LLM: its answers match the formulas most often ([4a](#formula)) and scatter least ([6b](#answer-noise)).
+- **Room above MLE:** ExtraTrees reads the same sample and is ahead of MLE in S and H (5.0 vs 6.9; 3.9 vs 7.1 pp), so there the sample holds more than MLE uses. GPT uses that room in R and, on average, in H (2.7 vs 3.7; 5.4 vs 7.1). In B no method gets below MLE.
 - **R:** nothing to correct; random nodes cause no selection bias. MLE's model fit costs 1 pp.
 - **H:** only ExtraTrees is well below the naive share (3.9 vs 6.4 pp). **Why:** the time cut hides returns but also whole pairs; the two partly cancel, so the sample is already close.
 - **B:** hardest overall ([per network → 8b](#network-difficulty)). **Why:** two opposite effects. Pairs with few events vanish, so the pairs still seen are the persistent ones (35 → 64 %); then their returns vanish too (64 → 19 %).
@@ -535,7 +536,8 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 4. **Where a formula exists (R, S), the best LLM's answers match it** and come close to the conventional methods (S: GPT 8.4, MLE 6.9, ExtraTrees 5.0 pp).
 5. **Where none exists (H, B), only GPT keeps up**: best where little needs correcting, behind ExtraTrees and MLE where much does. In B much of its extra error is answer noise. DeepSeek and Qwen fall behind. Longer reasoning or Python brings no gain.
-6. **In short:** the best LLM gets close to the conventional methods, but it is noisier and never clearly better than the best of them. The other LLMs fall behind.
+6. **An LLM could beat MLE in R, S and H, and GPT does in R and, on average, in H.** There ExtraTrees shows that the sample holds more than MLE uses (2.8, 5.0, 3.9 vs 3.7, 6.9, 7.1 pp). In B no method gets below MLE on the real networks (7.6 pp).
+7. **In short:** the best LLM gets close to the conventional methods, but it is noisier and never clearly better than the best of them. The other LLMs fall behind.
 
 <details>
 <summary>Evidence behind the why-statements</summary>
@@ -544,6 +546,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 |---|---|---|
 | 0b · Order of the networks | Rank correlation of the naive share with the truth, 12 real networks: R 0.98, S 0.95, H 0.97, B 0.97. MLE, ExtraTrees, GPT: 0.86–0.98, no better | [relations.csv](data/relations.csv) |
 | 3a · GPT is the strongest LLM | Answers within 0.5 pp of the formula: 100 % (R) and 90 % (S); lowest answer SD of all LLMs (mean SD: H 3.0, B 9.0 pp) | [answer_types.csv](data/answer_types.csv), [PREDICTIONS.csv](../results/final/PREDICTIONS.csv) |
+| 3a · Room above MLE | ExtraTrees vs MLE, R / S / H / B: real 2.8 / 5.0 / 3.9 / 7.9 vs 3.7 / 6.9 / 7.1 / 7.6 pp; twins 1.7 / 6.2 / 4.3 / 11.9 vs 3.6 / 8.6 / 4.9 / 13.2; synthetic 2.3 / 1.8 / 2.9 / 3.6 vs 2.2 / 2.5 / 3.7 / 7.5 (trained on graphs from the same generators). GPT on real networks: 2.7 / 8.4 / 5.4 / 10.8; better than MLE on 10 of 12 networks in R and on 6 of 12 in H | [SUMMARY.csv](../results/final/SUMMARY.csv), [paired_comparisons.csv](data/paired_comparisons.csv) |
 | 3a · H: hidden returns and hidden pairs partly cancel | 51 % of returning pairs look non-returning; 40 % of all pairs are hidden; the naive share ends only 5 pp too low | [HISTORY.md](../results/final/HISTORY.md) |
 | 3a · B: two opposite effects | Mean over the 12 real networks, ratios of expected counts: true ρ₂ 34.9 %; true ρ₂ of the pairs still seen 64.3 %; ρ₂ seen 18.6 %. Same direction in all 12. Keep rate p: 0.1 % (Malawi) to 9.9 % (Digg) | [event_loss_split.csv](data/event_loss_split.csv), [network_features.csv](data/network_features.csv) |
 | 3b · H beyond ρ₂ | ρ₄: naive 10.3, training median 8.7, MLE 3.7, ExtraTrees 2.7, GPT 2.6 pp. ρ₃: naive 6.7, GPT 3.3 | [PREDICTIONS.csv](../results/final/PREDICTIONS.csv) |
