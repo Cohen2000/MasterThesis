@@ -31,12 +31,30 @@
 
 ![Each returning pair counts once; the four samples produce different persistence shares](figures/fig0_toy.png)
 
-| Sampler | Real-world case | What it shows | What can go wrong |
+| Sampler | Bias | Real-world case | What it shows |
 |---|---|---|---|
-| **R · random nodes** | A study panel: only some people take part, e.g. wear a sensor | Full histories between sampled nodes | Equal pair inclusion, but samples vary |
-| **S · random walk** | Crawling a platform from contact to contact (snowball) | Full histories of visited pairs; visit weights | Busy pairs are overrepresented |
-| **H · late time** | Recording starts late, or old logs were deleted | Sampled nodes; windows 3–5 only | Early returns are hidden |
-| **B · event loss** | Lossy recording: sensors miss contacts, or only a share of messages is stored | Each event retained with probability p | Returns—and whole pairs—disappear |
+| **R · random nodes** | **None** · every pair is equally likely to be seen; samples only vary | A study panel: only some people take part, e.g. wear a sensor | Full histories between sampled nodes |
+| **S · random walk** | **Selection** · busy pairs are overrepresented | Following contacts from person to person: a crawler on a platform, or a survey that recruits through contacts | Full histories of visited pairs; visit weights |
+| **H · late time** | **History loss** · early activity is hidden | Recording starts late, or old logs were deleted | Sampled nodes; windows 3–5 only |
+| **B · event loss** | **Both** · pairs with few events vanish, and the rest lose returns | Sampled recording: a platform releases 1 % of all posts, or a router logs 1 in 1,000 packets | Each event retained with probability p |
+
+<details>
+<summary>0a detail · How realistic are the four samplers?</summary>
+
+### All four occur in practice; the study samples more sparsely than most real cases
+
+| Sampler | In practice | In this study |
+|---|---|---|
+| **R** | Sensor studies reach most of a group: 86 % of the students in the High school network ([Mastrandrea et al.](https://arxiv.org/abs/1506.03645)); who is missing is commonly modelled as random ([Génois et al.](https://arxiv.org/abs/1503.04066)) | ≈ 32 % of the nodes, so 10 % of the pairs |
+| **S** | Random-walk crawls of platforms ([Gjoka et al.](https://arxiv.org/abs/0906.0060)); respondent-driven sampling in health surveys, corrected with inverse weights (Volz & Heckathorn) | One walk that sees 2–10 % of the pairs; its weights are known exactly |
+| **H** | A platform returns only recent history, e.g. a user's latest [3,200 posts](https://docs.x.com/x-api/posts/timelines/migrate/standard-to-twitter-api-v2); operators delete call records after 6–24 months, depending on the country | The first 40 % of the time span is hidden |
+| **B** | Sampled streams with a known rate: [1 %](https://developer.twitter.com/en/docs/twitter-api/tweets/sample-stream) or 10 % of all posts; routers log [1 in 100 to 1 in 4,000 packets](https://developers.cloudflare.com/magic-network-monitoring/routers/recommended-sampling-rate/) | 0.1–9.9 % of the events are kept; the rate is known |
+
+- **Sparser than most real cases:** every sampler is set to show about 10 % of the active pair–window cells, so that the four are comparable. A sensor study rarely misses two thirds of its group.
+- **B is not sensor failure.** Wearable sensors miss roughly 20–35 % of contacts ([Khaliq et al.](https://eprints.whiterose.ac.uk/202290)), at an unknown rate. B keeps 0.1–10 % at a known rate, as a sampled stream does.
+- **S is kinder than a real crawl,** which rarely starts at a random node or knows its weights exactly.
+
+</details>
 
 ### 0b · Real samples: walks overstate persistence; missing time and events usually understate it
 
