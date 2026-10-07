@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from analysis_metrics import (primary_predictions, correction_residuals, noise_cases, noise_components, performance_spread,
-                              paired_comparisons, answer_averaging, variance_shares, main_effect_shares)
+                              paired_comparisons, answer_averaging, variance_shares, main_effect_shares, repeat_spread)
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'src'))
@@ -477,21 +477,18 @@ def fig_sample(plt, summary, per):
 
 
 # Fig. 2: error per arm, methods sorted from best to worst; the naive share is the grey row.
-def repeat_spread(group):
-    """How much a method's answer to the same sample changes when it is asked again (median SD of rho_2, pp), from the
-    frozen variability tables: 3 answers of a language model, 11 training fits of ExtraTrees. The naive share, the
-    training median and MLE always give the same answer."""
-    llm = pd.read_csv(FINAL/'VARIABILITY_RESPONSE.csv').query('group == @group').set_index(['arm', 'method'])
-    et = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query('group == @group').set_index('arm')
-    spread = (100*llm.median_observation_SD_rho2).to_dict()
+def ranking_spread(pred, group):
+    """How much a method's answer to the same sample changes when it is asked again (mean SD of rho_2, pp): 3 answers
+    of a language model, 11 training fits of ExtraTrees. The naive share, the training median and MLE always give
+    the same answer."""
+    spread = repeat_spread(pred, group).to_dict()
     for arm in ARMS:
-        spread[(arm, 'et')] = 100*et.loc[arm, 'median_observation_SD_rho2']
         for m in ('plugin', 'median', 'mle'): spread[(arm, m)] = 0.
     return spread
 
 
-def fig_ranking(plt, summary, group='real', name='fig2_ranking', label='12 real networks'):
-    spread = repeat_spread(group)
+def fig_ranking(plt, summary, pred, group='real', name='fig2_ranking', label='12 real networks'):
+    spread = ranking_spread(pred, group)
     methods = ['plugin', 'median', 'mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking', 'qwen_nonthinking']
     fig, axes = plt.subplots(2, 2, figsize=(10.5, 7.4))
     xmax = 100*summary.MAE_2.max() + 16
@@ -510,7 +507,7 @@ def fig_ranking(plt, summary, group='real', name='fig2_ranking', label='12 real 
             if m == 'plugin': lab.set_fontweight('bold')
         ax.set_xlim(0, xmax); ax.set_xticks([]); ax.spines['bottom'].set_visible(False); ax.set_title(ARMS[arm])
     fig.subplots_adjust(wspace=.62, hspace=.28)
-    note(fig, 'mean error (pp) on ' + label + ' · grey: ± how much the answer to the same sample changes when asked again (SD)\n'
+    note(fig, 'mean error (pp) on ' + label + ' · grey: ± how much the answer to the same sample changes when asked again (mean SD)\n'
          'LLMs: 3 answers · ExtraTrees: 11 retrainings · naive share, training median and MLE: always the same answer', .05)
     save(fig, name)
 
@@ -660,31 +657,20 @@ def noise_bars(plt, values, name, title, footer, methods, xmax, labels=METHODS):
     save(fig, name)
 
 
-def answer_spread(pred):
-    """Median SD of the three answers to the same sample (pp), per arm and language model; complete repeats only."""
-    p = primary_predictions(pred)
-    a = p[p.method.isin(LLMS)].groupby(['arm', 'method', 'observation_id']).rho2.agg(['count', 'std'])
-    return a[a['count'].eq(3)].groupby(['arm', 'method'])['std'].median()
-
-
 def fig_stability(plt, pred):
     """Two controlled contrasts, directly measured, with one fixed ExtraTrees fit."""
     cases = noise_cases(pred)
     cases.to_csv(DATA/'noise_by_network.csv', index=False, float_format='%.8g')
     noise_components(cases).to_csv(DATA/'noise_components.csv', index=False, float_format='%.8g')
     c = cases[cases.target.eq(2)]
-    # Match the frozen variability report: median of per-network between-sample
-    # SDs, and median of per-observation answer SDs (complete repeats only).
-    between = c.groupby(['arm', 'method']).between_sd.median()
-    response = answer_spread(pred)
+    # Means, like the error: per network first, then over networks (the frozen variability report gives medians).
+    between = c.groupby(['arm', 'method']).between_sd.mean()
+    response = repeat_spread(pred)   # language models: 3 answers; ExtraTrees: a new training fit on the same sample
     noise_bars(plt, between, 'fig5_sample_variation', 'Sample-redraw noise · 3 draws · MLE / ExtraTrees',
-               'median across 12 networks · fixed estimators · LLMs left out: their redraws also contain answer noise',
+               'mean across 12 networks · fixed estimators · LLMs left out: their redraws also contain answer noise',
                ('mle', 'et'), 5)
-    # ExtraTrees gives one answer per sample; its counterpart is a new training fit on the same sample.
-    training = pd.read_csv(FINAL/'VARIABILITY_TRAINING.csv').query("group == 'real'").set_index('arm')
-    for arm in ARMS: response[(arm, 'et')] = 100*training.loc[arm, 'median_observation_SD_rho2']
     noise_bars(plt, response, 'fig5_stability', 'Answer-repeat noise · 3 LLM answers to the same sample',
-               'median SD across samples · LLMs: 3 valid answers · ExtraTrees: 11 training fits instead', LLMS + ['et'], 25,
+               'mean SD, each network counts equally · LLMs: 3 valid answers · ExtraTrees: 11 training fits instead', LLMS + ['et'], 25,
                {**METHODS, 'et': 'ExtraTrees, retrained'})
 
 
@@ -886,7 +872,7 @@ def fig_noise_by_graph(plt, pred, f):
         ax.set_title(ARMS[arm], pad=12)
     h, l = axes[0].get_legend_handles_labels()
     fig.legend(h, l, loc='lower center', ncol=3, frameon=False, bbox_to_anchor=(.6, .97))
-    note(fig, 'networks sorted by true ρ₂ · SD of 3 answers to the same sample, median over samples · R/S: almost none', -.04)
+    note(fig, 'networks sorted by true ρ₂ · SD of 3 answers to the same sample, mean over the 3 samples · R/S: almost none', -.04)
     save(fig, 'fig5_answers_networks')
 
     # The same numbers as H against B: a stable pattern would put the networks on the diagonal.
@@ -913,11 +899,11 @@ def python_bars(ax, summary, title):
 # Fig. 6: GPT with and without Python: error per arm; in grey how much the three answers to a sample differ.
 def fig_python(plt, summary, pred):
     pair = ('gpt_6_sol', 'gpt_6_sol_tools')
-    spread = answer_spread(pred)
+    spread = repeat_spread(pred)
     fig, ax = plt.subplots(figsize=(7.5, 3.4))
     pair_bars(ax, *([100*summary.loc[(a, m), 'MAE_2'] for a in ARMS] for m in pair), [METHODS[m] for m in pair],
               [colour(m) for m in pair], 'Error (pp)', 21, spreads=[[spread[(a, m)] for a in ARMS] for m in pair])
-    note(fig, REAL_NOTE + ' × 3 answers · grey: ± spread of the 3 answers to a sample (SD)', -.1)
+    note(fig, REAL_NOTE + ' × 3 answers · grey: ± spread of the 3 answers to a sample (mean SD)', -.1)
     save(fig, 'fig6_python')
 
 
@@ -1522,10 +1508,10 @@ def draw():
     types = pd.read_csv(DATA/'answer_types.csv')
     write_relations(perall, f, pred)
     fig_toy(plt); fig_actives(plt, f); fig_sample(plt, summary, per)
-    fig_ranking(plt, summary); fig_levels(plt, pred); fig_amount(plt, pred)
+    fig_ranking(plt, summary, pred); fig_levels(plt, pred); fig_amount(plt, pred)
     for group, name, label in [('surrogate', 'fig2_twins_ranking', '12 time-shuffled twins'),
                                ('synthetic', 'fig2_synthetic_ranking', '8 synthetic networks')]:
-        fig_ranking(plt, summaries[summaries.group.eq(group)].set_index(['arm','method']), group, name, label)
+        fig_ranking(plt, summaries[summaries.group.eq(group)].set_index(['arm','method']), pred, group, name, label)
     fig_textbook(plt, types); fig_textbook_networks(plt, pred, f)
     fig_correction(plt, pred); fig_correction_networks(plt, pred, f)
     fig_stability(plt, pred); fig_noise_by_graph(plt, pred, f); fig_averaging(plt, pred)

@@ -218,7 +218,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 ![Sample-redraw noise for MLE and fixed-fit ExtraTrees across the four samplers](figures/fig5_sample_variation.png)
 
 - **Why S:** a walk keeps revisiting busy pairs; it sees about 40 % fewer different pairs than random nodes.
-- **H/B:** MLE's redraw SD is ≈ 1 pp, its error 7–8 pp: mostly bias, not sample noise.
+- **H/B:** MLE's redraw SD is ≈ 2 pp, its error 7–8 pp: mostly bias, not sample noise.
 
 <details>
 <summary>6a detail · Which networks generate redraw noise?</summary>
@@ -244,11 +244,11 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 <details>
 <summary>6b detail · Which networks generate answer noise?</summary>
 
-### Answer noise per network: no stable pattern; it changes with sampler and LLM
+### Answer noise per network: stable across H and B only for GPT
 
 ![Answer-repeat SD of each real network in H against B, for GPT, DeepSeek and Qwen thinking](figures/fig5_answers_h_vs_b.png)
 
-- A stable pattern would put the networks on the line. Instead, the networks that are noisy in H are mostly not the ones that are noisy in B.
+- A stable pattern would put the networks on the line. GPT comes close: the networks that are noisy in H are mostly the noisy ones in B (rank correlation 0.71). For DeepSeek and Qwen thinking they are not (0.30, −0.20).
 - GPT shows a trend in both samplers (more noise on more persistent networks), DeepSeek only in B.
 
 ![Answer-repeat SD per network for GPT, DeepSeek and Qwen thinking in H and B](figures/fig5_answers_networks.png)
@@ -276,7 +276,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 ![Mean error of GPT with and without Python on the real networks, with the spread of the three answers in grey](figures/fig6_python.png)
 
 - **B:** worse with Python on **8 of 12** networks. R/S change little.
-- **Likely why:** R/S need only arithmetic, which GPT does without Python. In B, GPT uses Python to fit models of its own, and its answers scatter twice as much.
+- **Likely why:** R/S need only arithmetic, which GPT does without Python. In B, GPT uses Python to fit models of its own, and its answers scatter more.
 - Cost: **3.4×**.
 
 <details>
@@ -543,7 +543,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 | Statement | Evidence | Data |
 |---|---|---|
 | 0b · Order of the networks | Rank correlation of the naive share with the truth, 12 real networks: R 0.98, S 0.95, H 0.97, B 0.97. MLE, ExtraTrees, GPT: 0.86–0.98, no better | [relations.csv](data/relations.csv) |
-| 3a · GPT is the strongest LLM | Answers within 0.5 pp of the formula: 100 % (R) and 90 % (S); lowest answer SD of all LLMs (H 1.7, B 5.1 pp) | [answer_types.csv](data/answer_types.csv), [VARIABILITY.md](../results/final/VARIABILITY.md) |
+| 3a · GPT is the strongest LLM | Answers within 0.5 pp of the formula: 100 % (R) and 90 % (S); lowest answer SD of all LLMs (mean SD: H 3.0, B 9.0 pp) | [answer_types.csv](data/answer_types.csv), [PREDICTIONS.csv](../results/final/PREDICTIONS.csv) |
 | 3a · H: hidden returns and hidden pairs partly cancel | 51 % of returning pairs look non-returning; 40 % of all pairs are hidden; the naive share ends only 5 pp too low | [HISTORY.md](../results/final/HISTORY.md) |
 | 3a · B: two opposite effects | Mean over the 12 real networks, ratios of expected counts: true ρ₂ 34.9 %; true ρ₂ of the pairs still seen 64.3 %; ρ₂ seen 18.6 %. Same direction in all 12. Keep rate p: 0.1 % (Malawi) to 9.9 % (Digg) | [event_loss_split.csv](data/event_loss_split.csv), [network_features.csv](data/network_features.csv) |
 | 3b · H beyond ρ₂ | ρ₄: naive 10.3, training median 8.7, MLE 3.7, ExtraTrees 2.7, GPT 2.6 pp. ρ₃: naive 6.7, GPT 3.3 | [PREDICTIONS.csv](../results/final/PREDICTIONS.csv) |
@@ -552,13 +552,13 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 | 3c · S ends above truth | Signed error of the six methods: Malawi +14 to +37 pp, Hospital +14 to +24 (a walk sees ≈ 20 and ≈ 80 pairs). Without the two, the mean is −0.5 to +1.0 pp (Qwen thinking: +11) | [PER_SOURCE.csv](../results/final/PER_SOURCE.csv), [WALK.md](../results/final/WALK.md) |
 | 4a detail · Small networks are harder | Share of S answers using the weights vs pairs in the network, Spearman: GPT 0.71, DeepSeek 0.53, Qwen thinking 0.51 | [relations.csv](data/relations.csv) |
 | 4a · Qwen thinking in S | 34 % of its S answers equal the naive share (34 pp off); its other answers: 9 pp | [answer_types.csv](data/answer_types.csv) |
-| 4b · Qwen thinking, DeepSeek in H/B | Qwen repeats the naive share in 70 % (H) and 35 % (B) of answers; its other H answers are 39 pp off. DeepSeek answer SD: 10–12 pp | [answer_types.csv](data/answer_types.csv), [VARIABILITY.md](../results/final/VARIABILITY.md) |
+| 4b · Qwen thinking, DeepSeek in H/B | Qwen repeats the naive share in 70 % (H) and 35 % (B) of answers; its other H answers are 39 pp off. DeepSeek answer SD: 11 pp (H), 16 pp (B) | [answer_types.csv](data/answer_types.csv), [PREDICTIONS.csv](../results/final/PREDICTIONS.csv) |
 | 5a · Tokens follow difficulty | Median tokens rise from R to B in every LLM (table in 5a). Within a sample (H and B, all 32 networks; GPT, GPT + Python, DeepSeek) the longest-reasoning answer is the best of three in 38 % and the worst in 35 % | [under_the_hood.csv](data/under_the_hood.csv), [reasoning_within_sample.csv](data/reasoning_within_sample.csv) |
 | 6a · S is the noisiest sample | 17–89 % of walk steps revisit a pair; a walk sees 40 % fewer pairs than random nodes (median) | [WALK.md](../results/final/WALK.md), [relations.csv](data/relations.csv) |
 | 6a detail · Small networks are noisy | Redraw SD vs pairs in the sample, Spearman: R −0.67, S −0.55, H −0.83, B −0.90 | [relations.csv](data/relations.csv) |
 | 6b · Answer noise in B | GPT: single answers 10.8 pp, mean of 3 answers to a sample 8.2; MLE 7.6, ExtraTrees 7.9. With all estimates of a network averaged: GPT 7.0, MLE 7.5, ExtraTrees 7.7 (finite averages, not a full split into bias and noise) | [answer_averaging.csv](data/answer_averaging.csv), [relations.csv](data/relations.csv) |
-| 6b detail · No stable pattern | Same networks noisy in H and B? Spearman: GPT 0.55, DeepSeek 0.29, Qwen thinking −0.03. GPT's noise vs ρ₂: 0.73 (H), 0.66 (B) | [relations.csv](data/relations.csv) |
-| 7a · Python | 8.3 code runs per B answer (R: 0.9); 92 % of B answers call a numerical optimiser; answer SD 5.1 → 12.2 pp; averaged over 3 answers the penalty shrinks from 4.4 to 2.4 pp; cost USD 94.50 vs 27.59 | [under_the_hood.csv](data/under_the_hood.csv), [answer_averaging.csv](data/answer_averaging.csv) |
+| 6b detail · Stable only for GPT | Same networks noisy in H and B? Spearman: GPT 0.71, DeepSeek 0.30, Qwen thinking −0.20. GPT's noise vs ρ₂: 0.80 (H), 0.73 (B) | [relations.csv](data/relations.csv) |
+| 7a · Python | 8.3 code runs per B answer (R: 0.9); 92 % of B answers call a numerical optimiser; answer SD 9.0 → 12.7 pp; averaged over 3 answers the penalty shrinks from 4.4 to 2.4 pp; cost USD 94.50 vs 27.59 | [under_the_hood.csv](data/under_the_hood.csv), [answer_averaging.csv](data/answer_averaging.csv) |
 | 8a · Network in R/S, method in H/B | Mean rank agreement of the six methods on which networks are hard: R 0.93, S 0.89, H 0.42, B 0.38. Shares of the differences in error: table in 8a detail; MLE, ExtraTrees and GPT across samplers: network 42 %, sampler 12 %, method 2 % | [relations.csv](data/relations.csv) |
 | 8a detail · Where GPT wins | Mean error on the 4 real networks with ρ₂ < 20 % and on the other 8 (naive share: H 1.2 and 9.0, B 4.3 and 22.5 pp) | [relations.csv](data/relations.csv) |
 | 8a detail · MLE in H | MLE adds 12.1 pp, needed 5.3 (twins: 10.8 vs 9.3) | [SUMMARY.csv](../results/final/SUMMARY.csv) |
@@ -582,7 +582,7 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 
 - Design, method settings and literature: [DESIGN.md](../DESIGN.md).
 - Scores: [MAIN_RESULTS.md](../results/final/MAIN_RESULTS.md), [all network/method errors](figures/fig_networks_detail.png), [PREDICTIONS.csv](../results/final/PREDICTIONS.csv), [between-network error SDs](data/performance_spread.csv), [method-vs-method counts and sign-flip tests (descriptive)](data/paired_comparisons.csv).
-- Noise: [VARIABILITY.md](../results/final/VARIABILITY.md), [per-network SDs and persistence profile](data/noise_by_network.csv), [estimated variance components](data/noise_components.csv), [averaged answers](data/answer_averaging.csv).
+- Noise: [VARIABILITY.md](../results/final/VARIABILITY.md) (medians over samples; the figures here show means, each network counting equally), [per-network SDs and persistence profile](data/noise_by_network.csv), [estimated variance components](data/noise_components.csv), [averaged answers](data/answer_averaging.csv).
 - Correction: [mean residuals and absolute errors](data/correction_reliability.csv), [time cut in H](../results/final/HISTORY.md).
 - LLMs: [reasoning tokens and Python code runs](data/under_the_hood.csv), [answers matching a formula](data/answer_types.csv).
 - Controls: [twin activity](figures/fig10b_twin_active.png), [twin errors](figures/fig10c_twin_error.png), [Python on controls](figures/fig6c_python_groups.png), [higher persistence levels](figures/fig9b_levels.png), [twin features](data/twin_features.csv).

@@ -11,17 +11,17 @@ typical error vs effective pairs,real,,H,-0.57
 six methods agree on which networks are hard (mean pairwise rank correlation),real,,B,0.38
 typical error vs effective pairs,real,,B,-0.61
 "redraw SD (MLE, ExtraTrees) vs pairs in the sample",real,,B,-0.90
-answer SD vs true rho_2,real,gpt_6_sol,H,0.73
-answer SD vs true rho_2,real,gpt_6_sol,B,0.66
-answer SD: same networks noisy in H and B,real,gpt_6_sol,H/B,0.55
+answer SD vs true rho_2,real,gpt_6_sol,H,0.80
+answer SD vs true rho_2,real,gpt_6_sol,B,0.73
+answer SD: same networks noisy in H and B,real,gpt_6_sol,H/B,0.71
 share of S answers using the weights vs pairs in the network,real,gpt_6_sol,S,0.71
 answer SD vs true rho_2,real,deepseek_flash,H,0.17
-answer SD vs true rho_2,real,deepseek_flash,B,0.71
-answer SD: same networks noisy in H and B,real,deepseek_flash,H/B,0.29
+answer SD vs true rho_2,real,deepseek_flash,B,0.64
+answer SD: same networks noisy in H and B,real,deepseek_flash,H/B,0.30
 share of S answers using the weights vs pairs in the network,real,deepseek_flash,S,0.53
-answer SD vs true rho_2,real,qwen_thinking,H,-0.04
-answer SD vs true rho_2,real,qwen_thinking,B,0.29
-answer SD: same networks noisy in H and B,real,qwen_thinking,H/B,-0.03
+answer SD vs true rho_2,real,qwen_thinking,H,-0.06
+answer SD vs true rho_2,real,qwen_thinking,B,0.13
+answer SD: same networks noisy in H and B,real,qwen_thinking,H/B,-0.20
 share of S answers using the weights vs pairs in the network,real,qwen_thinking,S,0.51
 pairs seen by a walk relative to random nodes (median ratio),real,,S,0.60
 true rho_2 vs keep rate p,real,,B,-0.76

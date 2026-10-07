@@ -97,6 +97,18 @@ def answer_averaging(pred, group='real'):
     return out
 
 
+def repeat_spread(pred, group='real'):
+    """Mean SD (pp) of a method's rho_2 for the same sample when it is asked again: the three answers of a
+    language model, the eleven training fits of ExtraTrees. Averaged like the error: per network first, then
+    over networks. Language models: only samples with three valid answers. (The frozen variability report
+    gives the median over samples instead.)"""
+    p = pred[(pred.group == group) & pred.valid & pred.prediction.notna() & pred.method.isin(LLMS + ['et'])].copy()
+    p['rho2'] = 100*p.prediction.map(lambda v: json.loads(v)[0])
+    a = p.groupby(['arm', 'method', 'source', 'observation_id']).rho2.agg(['count', 'std']).reset_index()
+    a = a[a.method.eq('et') | a['count'].eq(3)]
+    return a.groupby(['arm', 'method', 'source'])['std'].mean().groupby(['arm', 'method']).mean()
+
+
 def noise_cases(pred):
     """Per network, sampler, method and target: controlled contrasts.
 
@@ -114,7 +126,7 @@ def noise_cases(pred):
             stochastic = method in LLMS
             full = obs['count'].eq(3 if stochastic else 1)
             answer_var = obs.loc[full, 'var'].mean() if stochastic else 0.
-            answer_sd = np.sqrt(obs.loc[full, 'var']).median() if stochastic else 0.
+            answer_sd = np.sqrt(obs.loc[full, 'var']).mean() if stochastic else 0.
             # Require the complete 3 x 3 design for variance attribution.
             complete = len(obs) == 3 and full.all()
             between_var = obs['mean'].var() if len(obs) >= 2 else np.nan
