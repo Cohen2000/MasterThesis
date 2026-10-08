@@ -142,6 +142,95 @@ Task: estimate the full graph's ρ₂ … ρ₅.
 - **`0 0 0 0 1`:** 12 pairs were active in window 5 only; together they had 86 events.
 - **`0 1 1 1 0`:** 5 pairs were each active in windows 2, 3 and 4; together they had 283 events.
 
+<details>
+<summary>2a detail · What does the complete prompt look like?</summary>
+
+### Complete prompt: one system message, one user message
+
+- The same two messages go to every LLM; the example above is a shortened view of the user message.
+- The prompt says dyad for pair, vertex for node and arm for sampler. Line breaks are added in the long paragraphs.
+
+**System message**
+
+```text
+You estimate properties of a partially observed temporal network. Use the supplied observation and sampling
+rule. Return your final answer as one JSON object with exactly the keys rho_2, rho_3, rho_4, rho_5 and numeric
+values. Do not include explanations, additional keys, or Markdown in the final answer.
+```
+
+**User message**
+
+```text
+Target: The full archive has a known horizon normalized to [0,1], split into W=5 equal windows in
+chronological order: [0,0.2), [0.2,0.4), [0.4,0.6), [0.6,0.8), [0.8,1]. A dyad is an unordered pair of
+distinct vertices. E_full contains all dyads with at least one event anywhere in the full archive; it does not
+contain never-active pairs. V_full is the set of endpoints of these dyads. For e in E_full, K_e is its number
+of active windows; these need not be consecutive. Estimate rho_k = |{e in E_full: K_e >= k}| / |E_full|, for
+k=2,3,4,5. Give point estimates on [0,1], satisfying rho_2 >= rho_3 >= rho_4 >= rho_5.
+The full numbers of vertices, dyads, and events are unknown. Dyads with no observed event are absent from the
+table but may belong to E_full. The observation need not uniquely identify the full profile; still provide
+your best point estimates.
+Data definitions: N_obs counts distinct endpoints of observed events; D_obs counts distinct observed dyads;
+M_obs counts observed event records, with a retrieved record counted once even after repeated traversal.
+Events_per_window has five entries. NA means outside the accessible time interval, not zero activity.
+Temporal_access indicates temporal accessibility only; it does not imply complete observation unless the
+sampling rule states so.
+The table groups dyads by their observed activity pattern across windows 1..5: 1 = at least one observed event
+in the window, 0 = no observed event in an accessible window, ? = temporally inaccessible window. Whether an
+observed 0 implies true inactivity depends on the sampling rule. The dyads column counts distinct observed
+dyads with that pattern. The events column sums their observed event records, counting each record once even
+after repeated traversal. These are observed counts, not unknown full counts. All permitted patterns with at
+least one observed event are listed, including rows with dyads=0 and events=0. Dyads without any observed
+event are omitted, so the all-zero pattern is not listed. The dyads and events columns sum to D_obs and M_obs,
+respectively.
+Sampling rule: Uniform node-panel sampling is used. Only dyads whose endpoints are in the released panel are
+observed; complete histories of those dyads are retrieved. The sampled panel size n_panel is released. Full
+vertex count and panel sampling fraction are unknown. Accessible zeros indicate true inactivity.
+W=5
+Arm=R
+Temporal_access=1,1,1,1,1
+N_obs=24
+D_obs=132
+M_obs=3172
+Events_per_window=371,1183,792,571,255
+n_panel=24
+pattern,dyads,events
+00001,12,86
+00010,7,75
+00011,7,106
+00100,23,332
+00101,5,63
+00110,10,291
+00111,1,7
+01000,24,436
+01001,1,2
+01010,1,44
+01011,1,8
+01100,6,53
+01101,1,9
+01110,5,283
+01111,1,70
+10000,10,29
+10001,0,0
+10010,2,144
+10011,0,0
+10100,3,97
+10101,1,48
+10110,0,0
+10111,0,0
+11000,5,415
+11001,2,84
+11010,0,0
+11011,0,0
+11100,4,490
+11101,0,0
+11110,0,0
+11111,0,0
+Return the four full-archive estimates in the specified JSON format.
+```
+
+</details>
+
 ## 3 · Estimation: correction helps in S and B; in H mainly beyond ρ₂
 
 <a id="ranking-real"></a>
