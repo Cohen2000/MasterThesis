@@ -139,6 +139,11 @@ pattern (windows 1–5)   pairs   events
 Task: estimate the full graph's ρ₂ … ρ₅.
 ```
 
+- **Reading a row:** 1 = the pair had at least one event in that window, 0 = none. Each pair is in exactly one row; which pairs they are is not shown.
+- **`0 0 0 0 1`:** 12 pairs were active in window 5 only; together they had 86 events.
+- **`0 1 1 1 0`:** 5 pairs were each active in windows 2, 3 and 4; together they had 283 events.
+- **Persistence:** only the number of 1s counts. The 12 pairs do not return; the 5 pairs count for ρ₂ and ρ₃, not for ρ₄.
+
 ## 3 · Estimation: correction helps in S and B; in H mainly beyond ρ₂
 
 <a id="ranking-real"></a>
