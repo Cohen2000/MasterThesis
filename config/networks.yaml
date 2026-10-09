@@ -1,0 +1,131 @@
+# The 19 real networks: 16 training networks (nine of them are also test networks) and 3 further test networks.
+# file: name in data/raw/; sha256: fingerprint of that file; url: where it comes from.
+# columns: position of node, node and time in a row (counted from 0); sep: column separator (default: blanks).
+# skip: header rows; two_kinds: the two columns name different kinds of nodes (users and items);
+# proximity: sensor data, where a repeated identical row is the same contact and counts once;
+# zip: file inside the archive; no_device: rows without a second device (negative id) are skipped.
+
+sp_hospital:
+  file: hospital_lyon_contacts.dat.gz
+  sha256: 12124ddc438300bcaea0022d4937e0e566679e1fd8f11f16a62214fbebc2b012
+  url: https://sociopatterns.org/datasets/hospital-ward-dynamic-contact-network/
+  columns: [1, 2, 0]
+  proximity: true
+sp_primaryschool:
+  file: primaryschool.csv.gz
+  sha256: 5c93d9f5a61ad44b3c90fb5146d42345ae86dd44d77bc5da2461989d3d547fc9
+  url: https://sociopatterns.org/datasets/primary-school-temporal-network-data/
+  columns: [1, 2, 0]
+  proximity: true
+sp_highschool2013:
+  file: HighSchool2013_proximity_net.csv.gz
+  sha256: ecf4a90312c8d72057f72e936c366b470e63876da7db846300044795f045e2ea
+  url: https://sociopatterns.org/datasets/high-school-contact-and-friendship-networks/
+  columns: [1, 2, 0]
+  proximity: true
+sp_workplace:
+  file: workplace_InVS15_tij.dat.gz
+  sha256: 339eb090d506d750f38a2c1ac6aca76c00c55b462f9dea325933d8b7bc260871
+  url: https://sociopatterns.org/datasets/test/
+  columns: [1, 2, 0]
+  proximity: true
+sp_hypertext2009:
+  file: ht2009_contact_list.dat.gz
+  sha256: 43014e65bb8f6aa7d75d36a8ab61279b617bee88197e04a330c4386305ae1738
+  url: https://sociopatterns.org/datasets/hypertext-2009-dynamic-contact-network/
+  columns: [1, 2, 0]
+  proximity: true
+snap_collegemsg:
+  file: CollegeMsg.txt.gz
+  sha256: 50ae2d98ed3bad9ddb18dbd495a89e5e10cfb8f7e86932827db29fc41b41f9fa
+  url: https://snap.stanford.edu/data/CollegeMsg.html
+  columns: [0, 1, 2]
+snap_email_eu:
+  file: email-Eu-core-temporal.txt.gz
+  sha256: f6cc93249978e59d1aba111b55ea10ec553917419a3be1210012b5db3580efa6
+  url: https://snap.stanford.edu/data/email-Eu-core-temporal.html
+  columns: [0, 1, 2]
+snap_mathoverflow:
+  file: sx-mathoverflow.txt.gz
+  sha256: cdc635fda76dab06ab02ca242563fa333bb83d096571342ef0326d85ff0c04da
+  url: https://snap.stanford.edu/data/sx-mathoverflow.html
+  columns: [0, 1, 2]
+snap_bitcoin_otc:
+  file: soc-sign-bitcoinotc.csv.gz
+  sha256: 6424ac981dad3a019f697fc1b9fcd85c19d8d9f039797758e9ffb6fea100c373
+  url: https://snap.stanford.edu/data/soc-sign-bitcoin-otc.html
+  columns: [0, 1, 3]
+  sep: ","
+nr_radoslaw_email:
+  file: ia-radoslaw-email.edges
+  sha256: 8c943071aa102bc14c14cb8f135308b499dd7f2c518c4d2b127fab614942dd1e
+  url: https://networkrepository.com/ia-radoslaw-email.php
+  columns: [0, 1, 3]
+nr_digg_reply:
+  file: ia-digg-reply.edges
+  sha256: dfecbc74d71465d011286daaf8a777a0349f70bb0cef3f8d8dc69041710e4344
+  url: https://networkrepository.com/ia-digg-reply.php
+  columns: [0, 1, 3]
+jodie_wikipedia:
+  file: wikipedia.csv
+  sha256: afe829cf615097e1d40488ed2e0e7cd8cdaf854c477fd00fb4073e988612b958
+  url: https://snap.stanford.edu/jodie/
+  columns: [0, 1, 2]
+  sep: ","
+  skip: 1
+  two_kinds: true
+jodie_reddit:
+  file: reddit.csv
+  sha256: 7f638610d147130f91d546b14913cf41227d8b6105a9cdcd437c05a589f76756
+  url: https://snap.stanford.edu/jodie/
+  columns: [0, 1, 2]
+  sep: ","
+  skip: 1
+  two_kinds: true
+jodie_lastfm:
+  file: lastfm.csv
+  sha256: ffe3b3d0aa60c3c9460f6b896802ce54210058005f122b37a58d62e4803b20e1
+  url: https://snap.stanford.edu/jodie/
+  columns: [0, 1, 2]
+  sep: ","
+  skip: 1
+  two_kinds: true
+jodie_mooc:
+  file: mooc.csv
+  sha256: 295e4496e1fb5c0a12ef5951478e1d86e3db9e942b14bbde5a58f2e0dd9b401b
+  url: https://snap.stanford.edu/jodie/
+  columns: [0, 1, 2]
+  sep: ","
+  skip: 1
+  two_kinds: true
+copenhagen_bluetooth:
+  file: bt_symmetric.csv
+  sha256: 1c620f0f0f25d59730dc3427b051d5ab9e7c0b70173d9f92c04cf7c2d8b97e44
+  url: https://doi.org/10.6084/m9.figshare.7267433
+  columns: [1, 2, 0]
+  sep: ","
+  no_device: true
+  proximity: true
+reality_mining:
+  file: reality_mining.csv.zip
+  sha256: 62f3871000573ae0899479fbf3a558ccc66aae20bd48e36f0791e1c81a0581cb
+  url: https://networks.skewed.de/net/reality_mining/files/reality_mining.csv.zip
+  columns: [0, 1, 3]
+  sep: ","
+  zip: "edges.csv"
+  proximity: true
+lkml_reply:
+  file: lkml_reply.csv.zip
+  sha256: af63ed1de6a9900ee3c93405fe54e7511c9251e7ae83a24352cad1fe287c7b30
+  url: https://networks.skewed.de/net/lkml_reply/files/lkml_reply.csv.zip
+  columns: [0, 1, 3]
+  sep: ","
+  zip: "edges.csv"
+sp_malawi:
+  file: tnet_malawi_pilot.csv.gz
+  sha256: ea2d54884d9b1c19cfbff50955a004b0652b09a6c3002b362c343926f2ec23c2
+  url: https://www.sociopatterns.org/assets/data/tnet_malawi_pilot.csv.gz
+  columns: [3, 4, 1]
+  sep: ","
+  skip: 1
+  proximity: true

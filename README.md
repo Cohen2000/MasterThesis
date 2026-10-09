@@ -1,45 +1,70 @@
-# Network persistence from partial temporal observations
+# Persistence under sampling bias
 
-Many networks change over time: people meet, email or reply to each other on some days and not on others. This study measures how well different methods can tell, from a small sample of such a network, how persistent its connections are. The target, `rho_2`, is the share of interacting pairs that are active in at least two of five equal time windows.
+**How does sampling bias affect persistence estimates in temporal networks, and how do large language models compare with conventional methods?**
 
-The comparison covers 12 real networks, a time-shuffled copy of each, and 8 synthetic networks with known answers. Each network is sampled in four ways (sampling arms): R takes random nodes, S follows a random walk along interactions, H takes random nodes but sees only the last 60% of the time span, and B keeps each interaction with a fixed probability. Every network has three samples per arm, 384 samples in total. Four methods without a language model and five language-model configurations estimate `rho_2` from exactly the same samples. The [study design](docs/DESIGN.md) explains every method and term in plain words.
+A temporal network is a list of events "node A with node B at time t". Its persistence `rho_2` is the share of interacting pairs that are active in at least two of five equal time windows. The study estimates `rho_2` from a small sample of a network. It uses 12 real networks, a time-shuffled twin of each and 8 synthetic networks; each is sampled three times in four ways (384 samples), and nine methods get exactly the same samples.
 
-## Main result
+| Sampler | How the sample is taken |
+|---|---|
+| R | random nodes |
+| S | a random walk along the events |
+| H | random nodes, but only the last 60% of the time span |
+| B | every event is kept with a fixed probability |
 
-Average error in `rho_2` (MAE_2, lower is better) over the 12 real networks; 0.03 means the estimate is off by 3 percentage points on average. The observed share is the standard method for arm R, the statistical model for S, H and B.
+## Results
 
-| Arm | Observed share (plug-in) | Training median | Statistical model (MLE) | ExtraTrees | Qwen, thinking | Qwen, no thinking | DeepSeek Flash | GPT-6 Sol | GPT-6 Sol + Python |
+Mean error of `rho_2` on the 12 real networks (0.03 = 3 percentage points; lower is better):
+
+| Sampler | Observed share | Training median | MLE | ExtraTrees | Qwen, thinking | Qwen, no thinking | DeepSeek Flash | GPT-6 Sol | GPT-6 Sol + Python |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | R | 0.027 | 0.232 | 0.037 | 0.028 | 0.027 | 0.411 | 0.027 | 0.027 | 0.027 |
 | S | 0.301 | 0.232 | 0.069 | 0.050 | 0.181 | 0.475 | 0.090 | 0.084 | 0.081 |
 | H | 0.064 | 0.232 | 0.071 | 0.039 | 0.160 | 0.252 | 0.133 | 0.054 | 0.061 |
 | B | 0.164 | 0.232 | 0.076 | 0.079 | 0.220 | 0.527 | 0.172 | 0.108 | 0.151 |
 
-Every language model answered each sample three times; only answers in the required format are scored. ExtraTrees output is limited to valid values (between 0 and 1, never increasing), which changes no `rho_2` value. Recorded API spend: DeepSeek Flash USD 26.51, GPT-6 Sol USD 27.59, GPT-6 Sol + Python USD 94.50. All tables, validity counts, variability and checks are in [docs/results/final](docs/results/final/REPORT.md). The [written analysis](docs/analysis/ANALYSIS.md) explains the results with figures.
+![Mean absolute error by method and sampler](docs/analysis/figures/fig2_ranking.png)
 
-## Repository layout
+Key findings of the [analysis](docs/analysis/ANALYSIS.md):
+
+1. **The bias depends on what the sampler hides.** Random nodes: no selection bias. Walks overstate persistence (+28 pp). Missing time and missing events understate it (−5 and −16 pp).
+2. **What is hidden decides how well it can be corrected.** Walk weights are known, so a formula removes most of the bias (30 → 5–9 pp). Hidden time and lost events must be modelled; 4–8 pp remain even for the best method.
+3. **What makes a network hard depends on the sampler:** few nodes (R), many events per pair (S), early windows unlike the late ones (H), high persistence (B).
+4. **Where a formula exists (R, S), the best LLM's answers match it** and come close to the conventional methods.
+5. **Where none exists (H, B), only GPT keeps up.** DeepSeek and Qwen fall behind. Longer reasoning or Python brings no gain.
+6. **In short:** the best LLM gets close to the conventional methods, but it is noisier and never clearly better than the best of them.
+
+All tables: [docs/results/final](docs/results/final/MAIN_RESULTS.md). Method, glossary and sources: [docs/DESIGN.md](docs/DESIGN.md).
+
+Every language model answered each sample three times (1,152 answers per configuration). Only answers in the required format are scored: all were valid except 1 (Qwen, thinking), 2 (Qwen, no thinking) and 1 (DeepSeek). API cost: DeepSeek USD 26.51, GPT USD 27.59, GPT + Python USD 94.50.
+
+## Repository
 
 | Path | Contents |
 |---|---|
-| `docs/` | [Study design](docs/DESIGN.md) with glossary and sources, the [final results](docs/results/final/REPORT.md) and the [written analysis](docs/analysis/ANALYSIS.md) |
-| `src/study/` | The method: networks (`data.py`, `surrogates.py`, `synthetic.py`), sampling arms (`sampling.py`, `walk.py`), the sample text every method sees (`observation.py`), estimators (`estimators.py`, `mle.py`, `thinning_model.py`), the training networks of ExtraTrees (`training_pool.py`), the answer check (`answer_format.py`) and the result tables (`tables.py`) |
-| `scripts/` | What can be run again: the result tables (`evaluate.py`, `window_sensitivity.py`) and the figures and tables of the analysis (`analysis_figures.py`) |
-| `production/` | Record of the runs on the computing cluster and against the paid APIs that produced the frozen predictions ([overview](production/README.md)) |
-| `config/` | Prompts and data sources |
-| `tests/` | Automatic tests |
+| `src/study/` | The method: networks (`data.py`, `synthetic.py`), samplers (`sampling.py`, `walk.py`), sample text and prompt (`sample.py`), estimators (`estimators.py`, `extratrees.py`), answer check (`answers.py`), tables (`tables.py`) |
+| `scripts/` | The steps below |
+| `config/` | The prompts and the list of real networks with their sources |
+| `docs/` | Design, result tables, written analysis |
+| `tests/` | Tests (`python -m pytest -q`) |
 
-## Reproduce the results
-
-Every estimate of the study is frozen in [`PREDICTIONS.csv`](docs/results/final/PREDICTIONS.csv). The tables and the analysis are rebuilt from it:
+## Steps
 
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                            # tests
-python scripts/evaluate.py                     # all tables in docs/results/final
-python scripts/window_sensitivity.py           # the tables on the number of time windows
-python scripts/analysis_figures.py --inputs    # data, figures and tables in docs/analysis
+python scripts/samples.py                    # the 384 samples from the raw networks
+python scripts/estimates.py --fits 11        # observed share, training median, MLE, ExtraTrees
+python scripts/qwen.py ...                   # Qwen answers (GPU)
+python scripts/api.py ...                    # DeepSeek and GPT answers (paid)
+python scripts/checks.py                     # checks of the random walk and of the time cut
+python scripts/evaluate.py                   # all result tables
+python scripts/window_sensitivity.py         # tables on the number of time windows
+python scripts/analysis_figures.py --inputs  # data, figures and tables of the analysis
 ```
 
-The evaluation first checks the frozen predictions: every API answer is scored again from its raw text, and every stored error is recomputed from the truth. It calls no model. Without `--inputs`, the last command only redraws the figures and needs nothing outside the repository.
+Every estimate of the study is frozen in [`PREDICTIONS.csv`](docs/results/final/PREDICTIONS.csv), because the answers of the language models cannot be repeated. What a new run gives:
 
-Not in the repository: the raw networks (`data/raw/`, sources in [third-party material](docs/THIRD_PARTY.md)) and the frozen samples and answers of the language models (`~/.local/share/masterthesis`). Their hashes are in [`CHECKSUMS.json`](docs/results/final/CHECKSUMS.json); the evaluation stops if a sample or an answer file differs.
+- **Samples, observed share, training median:** exactly the frozen values. The samples are checked against [`CHECKSUMS.json`](docs/results/final/CHECKSUMS.json).
+- **MLE and ExtraTrees:** the frozen values up to small numerical differences between machines. The MLE is fitted by a numerical optimiser and differs by at most 0.0002. ExtraTrees starts from the MLE; from the same start values it reproduces the frozen fit exactly.
+- **Tables and analysis:** exactly the files in `docs/`. The evaluation first scores every language-model answer again from its raw text and stops if a row of `PREDICTIONS.csv` differs.
+
+Not in the repository: the raw networks (`data/raw/`; files, sources and fingerprints in [`config/networks.yaml`](config/networks.yaml)) and the raw answers of the language models (`~/.local/share/masterthesis`). Their rights remain with the providers.

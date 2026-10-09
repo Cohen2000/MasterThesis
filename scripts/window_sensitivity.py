@@ -21,9 +21,8 @@ from scipy.stats import spearmanr
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
-from study.common import STAGE1_REAL, write_csv  # noqa: E402
-from study.data import EXTRA_SOURCES, real_network  # noqa: E402
-from study.surrogates import shuffle  # noqa: E402
+from study.common import REAL, TWIN, write_csv  # noqa: E402
+from study.data import network, twin  # noqa: E402
 
 GRID = (2, 3, 4, 5, 6, 8, 10, 12, 15, 20)
 SHARE = 0.4                                   # fixed-share reading: k = ceil(0.4 W)
@@ -31,11 +30,8 @@ SHARE = 0.4                                   # fixed-share reading: k = ceil(0.
 
 def networks():
     """The 24 networks exactly as the study builds them (checked against TRUTH.json)."""
-    graphs = {key: real_network(key) for key in (*STAGE1_REAL, 'nr_radoslaw_email')}
-    for key in EXTRA_SOURCES:
-        if key not in graphs: graphs[key] = real_network(key)
-    for key in list(graphs):
-        graphs[key + '__pwt'] = shuffle(graphs[key])
+    graphs = {key: network(key) for key in REAL}
+    for key in REAL: graphs[key + TWIN] = twin(graphs[key])
     return graphs
 
 

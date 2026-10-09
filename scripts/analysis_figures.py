@@ -8,10 +8,10 @@ Two steps:
   python scripts/analysis_figures.py            redraw figures and marked tables in ANALYSIS.md
   python scripts/analysis_figures.py --pdf      the same, plus a vector PDF of every figure
 
-The --inputs step needs files that are not in the repository: the raw networks in
-data/raw, and the frozen samples and the answers of the language models (default location
-~/.local/share/masterthesis: api_observations, api_runs, qwen_runs). Its small output tables
-are kept in the repository, so the figures can be redrawn without them.
+The --inputs step needs files that are not in the repository: the raw networks in data/raw,
+the samples (results/samples, written by scripts/samples.py) and the answers of the language
+models (~/.local/share/masterthesis: api_runs, qwen_runs). Its small output tables are kept in
+the repository, so the figures can be redrawn without them.
 """
 import argparse
 import json
@@ -70,11 +70,10 @@ def early_late_mismatch(g):
     of the complete network, keep only its last three windows, guess the two early windows from them with the MLE's
     model (early windows behave like the late ones) and compare the resulting profile with the truth.
     Signed error of rho_2 ... rho_5."""
-    from study.mle import fit_profile_from_counts
+    from study.estimators import mle_counts
     late = (g.counts[:, 2:] > 0).sum(axis=1)
-    fit = fit_profile_from_counts([0.] + [float(np.sum(late == j)) for j in (1, 2, 3)], 3)
-    if fit.fallback_used: raise ValueError(f'{g.key}: the fit to the late windows did not converge')
-    return {f'early_late_mismatch_{k}': fit.rho[k - 2] - g.truth[k - 2] for k in range(2, 6)}
+    fit = mle_counts([0.] + [float(np.sum(late == j)) for j in (1, 2, 3)], 3)
+    return {f'early_late_mismatch_{k}': fit[k - 2] - g.truth[k - 2] for k in range(2, 6)}
 
 
 def graph_features(g):
@@ -101,18 +100,17 @@ def event_loss_split(g, p):
 
 def build_inputs(external):
     """Network features and answer types, as small CSV tables."""
-    from study.data import real_network
-    from study.observation import parse
-    from study.estimators import design_estimate
-    from study.surrogates import shuffle
+    from study.data import network, twin as shuffle
+    from study.sample import parse
+    from study.estimators import ratio as design_estimate
     DATA.mkdir(parents=True, exist_ok=True)
     truth = json.loads((FINAL/'TRUTH.json').read_text())
-    obs = {p.stem: json.loads(p.read_text()) for p in sorted((external/'api_observations').glob('*.json'))}
+    obs = {p.stem: json.loads(p.read_text()) for p in sorted((ROOT/'results/samples').glob('*.json'))}
 
     # Network features from the raw data; the rebuilt truth must equal TRUTH.json exactly.
     rows, activity, twins, split = [], [], [], []
     for key in NAMES:
-        g = real_network(key)
+        g = network(key)
         if abs(g.truth[0] - truth[key][0]) > 1e-12: raise ValueError(f'{key}: rebuilt truth differs from TRUTH.json')
         twin = shuffle(g)   # the time-shuffled twin, rebuilt from its fixed seed
         if abs(twin.truth[0] - truth[twin.key][0]) > 1e-12: raise ValueError(f'{twin.key}: rebuilt truth differs from TRUTH.json')
@@ -143,14 +141,11 @@ def build_inputs(external):
     pd.DataFrame(split).set_index('source').to_csv(DATA/'event_loss_split.csv', float_format='%.6g')
 
     # Synthetic test networks: regenerated from their fixed seeds; the truth must equal TRUTH.json.
-    from study.synthetic import generate_pair
+    from study.synthetic import test_networks
     syn = []
-    for family in ('dar', 'ad'):
-        for replicate in (1, 2):
-            for g, _, _ in generate_pair(family, replicate):
-                if abs(g.truth[0] - truth[g.key][0]) > 1e-12: raise ValueError(f'{g.key}: truth differs')
-                activity += activity_rows(g)
-                syn.append(graph_features(g))
+    for g in test_networks():
+        activity += activity_rows(g)
+        syn.append(graph_features(g))
     pd.DataFrame(syn).set_index('source').to_csv(DATA/'synthetic_features.csv', float_format='%.6g')
     # Per-window activity of the 12 real networks, their 12 twins and the 8 synthetic networks.
     pd.DataFrame(activity).to_csv(DATA/'window_activity.csv', index=False, float_format='%.6g')
@@ -1465,6 +1460,84 @@ def gif_activity(plt):
     gif([ad_frame(plt, runs, s) for s in range(12)], [3500] + [2000]*10 + [6500], 'gif_activity')
 
 
+# ---------------------------------------------------------------- tables in ANALYSIS.md
+def table(headers, rows, left=1):
+    return '\n'.join(['| ' + ' | '.join(headers) + ' |',
+                      '| ' + ' | '.join(['---']*left + ['---:']*(len(headers)-left)) + ' |']
+                     + ['| ' + ' | '.join(map(str, row)) + ' |' for row in rows])
+
+
+def write_tables(pred, features):
+    LABELS = METHODS
+    doc = ROOT/'docs/analysis/ANALYSIS.md'
+    text = doc.read_text()
+    order = features.sort_values('rho2', ascending=False).index
+    settings = {'copenhagen_bluetooth': 'Phone proximity', 'reality_mining': 'Phone proximity',
+                'lkml_reply': 'Email replies', 'nr_radoslaw_email': 'Email', 'snap_email_eu': 'Email',
+                'nr_digg_reply': 'Online replies', 'snap_collegemsg': 'Messages', 'snap_mathoverflow': 'Online replies',
+                'sp_highschool2013': 'Face-to-face', 'sp_hospital': 'Face-to-face', 'sp_malawi': 'Face-to-face',
+                'sp_workplace': 'Face-to-face'}
+    fmt = lambda v: f'{v:.1f}'
+    percent = lambda v: f'{100*v:.1f} %'
+    blocks = {}
+    blocks['network_specs'] = table(['Network', 'Interactions', 'Nodes', 'Pairs', 'Events', 'Events/pair', 'True ρ₂'],
+        [[short(s), settings[s], *[f'{features.loc[s, c]:,.0f}' for c in ('nodes', 'pairs', 'events')],
+          fmt(features.loc[s, 'events_per_pair']), percent(features.loc[s, 'rho2'])] for s in order], left=2)
+
+    tokens = pd.read_csv(DATA/'under_the_hood.csv').set_index(['method', 'arm']).median_reasoning_tokens
+    errors = pd.read_csv(FINAL/'SUMMARY.csv').query("group == 'real'").set_index(['method', 'arm']).MAE_2*100
+    # One row per model, with the four samplers nested under one shared header.
+    rows = []
+    for m in ['gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking']:
+        cells = [f'{int(tokens[(m, a)] + .5):,} / {fmt(errors[(m, a)])}' for a in ARMS]
+        rows.append('<tr><th scope="row">' + LABELS[m] + '</th>' +
+                    ''.join('<td>' + cell + '</td>' for cell in cells) + '</tr>')
+    blocks['reasoning'] = '\n'.join([
+        '<table>', '<thead>',
+        '<tr><th rowspan="2" scope="col">LLM</th><th colspan="4" scope="colgroup">Median reasoning tokens / error (pp)</th></tr>',
+        '<tr>' + ''.join(f'<th scope="col">{a}</th>' for a in ARMS) + '</tr>',
+        '</thead>', '<tbody>', *rows, '</tbody>', '</table>'])
+
+    shares = variance_shares(pd.read_csv(FINAL/'PER_SOURCE.csv'), ['mle', 'et', 'gpt_6_sol', 'gpt_6_sol_tools', 'deepseek_flash', 'qwen_thinking'])
+    blocks['network_or_method'] = table(['Sampler', 'Network', 'Method', 'Both together'],
+        [[f'**{ARMS[a]}**', *[f'{100*shares.loc[a, part]:.0f} %' for part in ('network', 'method', 'both')]] for a in ARMS])
+
+    # What makes a network hard: rank correlations of the typical error with a network property, from relations.csv.
+    rel = pd.read_csv(DATA/'relations.csv').fillna('').set_index(['relation', 'group', 'method', 'arm']).value
+    def signed(relation, group, arm):
+        """A rank correlation with its sign; '–' where the property hardly differs between the networks."""
+        if (relation, group, '', arm) not in rel.index: return '–'
+        value = rel[(relation, group, '', arm)]
+        return '0.00' if abs(value) < .005 else f'{value:+.2f}'.replace('-', '−')
+    own = {'R': 'nodes', 'S': 'events per pair', 'H': 'early-late mismatch', 'B': 'true rho_2'}
+    shown = {'nodes': 'Nodes', 'events per pair': 'Events per pair', 'early-late mismatch': 'Early–late mismatch', 'true rho_2': 'True ρ₂'}
+    sets = ('real', 'time-shuffled twin', 'synthetic', 'all 32')
+    blocks['hard_properties'] = table(['Property', 'Sampler', 'Real', 'Twins', 'Synthetic', 'All 32'],
+        [['Effective pairs', a, *[signed('typical error vs effective pairs', g, a) for g in sets]] for a in ARMS]
+        + [[f'**{shown[own[a]]}**', f'**{a}**', *[signed(f'typical error vs {own[a]}', g, a) for g in sets]] for a in ARMS], left=2)
+    at_level = {'R': lambda k: 'nodes', 'S': lambda k: 'events per pair', 'H': lambda k: f'early-late mismatch of rho_{k}',
+                'B': lambda k: f'true rho_{k}'}
+    words = {'R': 'nodes', 'S': 'events per pair', 'H': 'early–late mismatch of that level', 'B': 'true share of that level'}
+    blocks['levels'] = table(['Sampler', 'Property', 'ρ₂', 'ρ₃', 'ρ₄', 'ρ₅'],
+        [[f'**{a}**', words[a], *[' / '.join(signed(f'typical error of rho_{k} vs {at_level[a](k)}', g, a) for g in sets[:2])
+                                 for k in range(2, 6)]] for a in ARMS], left=2)
+
+    cases = noise_cases(pred)
+    cases.to_csv(DATA/'noise_by_network.csv', index=False, float_format='%.8g')
+    components = noise_components(cases)
+    components.to_csv(DATA/'noise_components.csv', index=False, float_format='%.8g')
+
+    for key, value in blocks.items():
+        pattern = re.compile(rf'(<!-- table:{key} -->\n).*?(<!-- /table:{key} -->)', re.S)
+        text, n = pattern.subn(lambda m: m[1] + value + '\n' + m[2], text)
+        if n != 1: raise ValueError(f'expected one Markdown placeholder for {key}, found {n}')
+    doc.write_text(text)
+
+
+if __name__ == '__main__':
+    write_tables(pd.read_csv(FINAL/'PREDICTIONS.csv'), pd.read_csv(DATA/'network_features.csv', index_col=0))
+
+
 def draw():
     plt = setup()
     for old in FIGS.glob('*'): old.unlink()
@@ -1496,14 +1569,13 @@ def draw():
     fig_memory(plt, perall); fig_methods(plt, perall)
     fig_persistence_levels(plt, pred); fig_windows(plt)
     gif_dar(plt); gif_activity(plt)
-    from analysis_tables import write_tables
     write_tables(pred, f)
 
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--inputs', action='store_true', help='rebuild docs/analysis/data (needs data outside the repo)')
-    ap.add_argument('--external', type=Path, default=EXTERNAL, help='folder with api_observations, api_runs and qwen_runs')
+    ap.add_argument('--external', type=Path, default=EXTERNAL, help='folder with api_runs and qwen_runs')
     ap.add_argument('--pdf', action='store_true', help='also write every figure as PDF')
     a = ap.parse_args()
     PDF = a.pdf

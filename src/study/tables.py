@@ -1,14 +1,9 @@
-"""The result tables: scores, comparisons and variability from the table of all predictions.
+"""The result tables: scores, comparisons and variability, from the table of all predictions.
 
-In plain words: everything here is a pure function of the rows of PREDICTIONS.csv (one row per
-sample, method and answer). scripts/evaluate.py calls these functions to write every table in
-docs/results/final; the cluster report (production/pipeline/report.py) used the same functions.
-
-Four estimators per sampler (plugin, median, MLE, ExtraTrees) plus the LLMs. The reference
-is plugin for R and the MLE otherwise. Real sources are the main analysis (all twelve,
-equally weighted); surrogates and synthetic graphs are separate blocks; original-surrogate
-contrasts are paired by source family. A method missing any source of a block is marked
-pending.
+Everything here is a plain function of the rows of PREDICTIONS.csv (one row per sample, method and
+answer). Errors are averaged per network first and then over networks, so every network counts
+equally. The 12 real networks, their twins and the synthetic networks are scored separately. The
+standard method (reference) of an arm is the observed share for R and the MLE for S, H and B.
 """
 import csv
 import itertools
@@ -16,17 +11,9 @@ import math
 from collections import defaultdict
 from statistics import median
 import numpy as np
-from .common import read_json
-from .observation import parse
-from .estimators import design_estimate
-
-REPORTED_ARMS = ('R', 'S', 'H', 'B')                 # reported arms; S_obs is drawn for reproducibility only
-
-
-# Source family: a surrogate 'x__pwt' belongs to family 'x'.
-def family(key):
-    return key[:-5] if key.endswith('__pwt') else key
-
+from .common import ARMS
+from .estimators import ratio
+from .sample import parse
 
 OFFLINE = ('plugin', 'median', 'mle', 'et')
 QWEN = ('qwen_thinking', 'qwen_nonthinking')
@@ -71,7 +58,7 @@ def summary(rows):
     sources = {g: sorted({r['source'] for r in rows if r['group'] == g}) for g in GROUPS}
     table = []
     for g in GROUPS:
-        for arm in REPORTED_ARMS:
+        for arm in ARMS:
             for m in METHODS:
                 sel = [r for r in rows if r['group'] == g and r['arm'] == arm and r['method'] == m]
                 ae = by_source(sel)
@@ -103,7 +90,7 @@ def paired_methods(rows):
     """Within a block: first minus second source-level MAE_2 (both complete on the same sources)."""
     out = []
     for g in ('real', 'surrogate'):
-        for arm in REPORTED_ARMS:
+        for arm in ARMS:
             ref = REFERENCE[arm]
             for first, second in dict.fromkeys([('et', ref), ('qwen_thinking', ref), (ref, 'plugin'),
                                                 ('et', 'plugin'), ('qwen_thinking', 'plugin')]):
@@ -122,7 +109,7 @@ def paired_methods(rows):
 def paired_families(rows):
     """Original minus surrogate source-level MAE_2, one pair per source family."""
     out = []
-    for arm in REPORTED_ARMS:
+    for arm in ARMS:
         for m in OFFLINE+QWEN:
             real = by_source([r for r in rows if r['group'] == 'real' and r['arm'] == arm and r['method'] == m])
             sur = by_source([r for r in rows if r['group'] == 'surrogate' and r['arm'] == arm and r['method'] == m])
@@ -166,7 +153,7 @@ def variability(rows, replicates):
     training, sampling, response = [], [], []
     for g in GROUPS:
         n_graphs = len({r['source'] for r in rows if r['group'] == g})
-        for arm in REPORTED_ARMS:
+        for arm in ARMS:
             et = [r for r in rows if r['group'] == g and r['arm'] == arm and r['method'] == 'et']
             maes = [float(np.mean(list(by_source([r for r in et if r['replicate'] == k]).values())))
                     for k in range(replicates+1)]
@@ -198,7 +185,7 @@ def fixed_input_variability(rows):
     """Median observation SD at fixed input, with ET fit count matched to LLM repeats."""
     rng = np.random.default_rng(20260928)
     out = []
-    for arm in REPORTED_ARMS:
+    for arm in ARMS:
         for method in ('mle', 'et', 'qwen_thinking', 'deepseek_flash', 'gpt_6_sol', 'gpt_6_sol_tools'):
             cells = defaultdict(list)
             for r in rows:
@@ -217,14 +204,9 @@ def fixed_input_variability(rows):
 
 
 # S_DESIGN_APPENDIX.csv: the walk's inverse-event ratio estimate, for reference only (not a reported method).
-def s_design_appendix(block_paths, rows):
-    """Descriptive S ratio from the released traversal weights and frozen answers."""
-    design = {}
-    for path in block_paths:
-        item = read_json(path)
-        if item['arm'] == 'S':
-            design[item['id']] = design_estimate(item if 'table' in item else parse(item['block']))
-    if len(design) != 96: raise ValueError(f'expected 96 frozen S observations, got {len(design)}')
+def s_design_appendix(samples, rows):
+    """The re-weighted share of arm S, and how often LLM answers lie near it, the observed share or the MLE."""
+    design = {s['id']: ratio(parse(s['block'])) for s in samples if s['arm'] == 'S'}
     srows = [r for r in rows if r['arm'] == 'S' and r['observation_id'] in design]
     out = []
     for group in GROUPS:
@@ -341,7 +323,7 @@ def main_markdown(table, infer, fam, per_src, s_design=None):
     reals = sorted({r['source'] for r in per_src if r['group'] == 'real'})
     lines += ['## Error per real network (MAE_2)', '']
     lines += md_table(['Network', 'Sampling arm', *(LABEL[m] for m in OFFLINE+QWEN)],
-                      [[s, arm, *(fmt(index.get((s, arm, m))) for m in OFFLINE+QWEN)] for s in reals for arm in REPORTED_ARMS])
+                      [[s, arm, *(fmt(index.get((s, arm, m))) for m in OFFLINE+QWEN)] for s in reals for arm in ARMS])
     lines += ['', 'All networks, the API models and all measures: `PER_SOURCE.csv`.', '']
     if s_design is not None:
         lines += ['## Appendix: re-weighted walk estimate (arm S)', '',

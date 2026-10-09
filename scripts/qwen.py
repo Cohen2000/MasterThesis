@@ -1,36 +1,67 @@
 #!/usr/bin/env python3
-"""Qwen production runner (vLLM offline engine), executed on the cluster per shard.
+"""Qwen answers for the 384 samples, on one GPU with the vLLM engine (run on the computing cluster).
 
-One attempt per request. Admission is persisted before enqueue; interrupted
-admissions are never automatically regenerated. Completed records and the
-whole runner configuration are bound to immutable hashes.
+Every sample is answered three times with a thinking phase and three times without. A request is
+tried once: a finished answer is skipped when the job is restarted, a started one is never asked again.
+
+  python scripts/qwen.py --samples results/samples --out results/qwen --model <folder of Qwen3.6-35B-A3B>
 """
 import argparse, hashlib, json, os, sys, time
 from collections import deque
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from study.common import read_json, DESIGN_VERSION, digest, sha, write_json
+from study.common import LABEL, REPEATS, digest, read_json, seed, sha, write_json
 
-# presence_penalty is 1.5 for thinking (discourages loop-y reasoning) and 0 for
-# non-thinking: for a short numeric JSON answer, a presence penalty is a decoding
-# artifact with no loop to suppress, so it is disabled there.
+MODEL = 'Qwen/Qwen3.6-35B-A3B'        # revision 995ad96eacd98c81ed38be0c5b274b04031597b0
+VERSIONS = {'vllm': '0.29.0', 'transformers': '5.17.0', 'torch': '2.13.0+cu130'}
+# Fixed labels that are part of the request IDs and seeds (R, H, B and S were frozen on different days).
+VERSION = {'R': 'panel888-access-v9-20260922', 'H': 'panel888-access-v9-20260922', 'B': 'panel888-access-v9-20260922',
+           'S': 'panel888-access-v10-20260923'}
+# Sampling settings of the model card. The presence penalty discourages loops while thinking
+# and is off without thinking, where the answer is one short JSON object.
 MODES = {
     'thinking':    dict(temperature=1.0, top_p=0.95, presence_penalty=1.5, enable_thinking=True,  config_id='qwen_thinking'),
     'nonthinking': dict(temperature=0.7, top_p=0.80, presence_penalty=0.0, enable_thinking=False, config_id='qwen_nonthinking'),
 }
 TOP_K = 20
 GENERATION_CONFIG = {
-    'modes': MODES, 'top_k': TOP_K,
-    'min_p': 0.0, 'repetition_penalty': 1.0,
     'max_tokens': 258048, 'max_model_len': 262144, 'context_margin': 8,
-    'seed_rule': 'request_seed % 2**31', 'skip_special_tokens': False,
     'dtype': 'bfloat16', 'tensor_parallel_size': 1, 'gpu_memory_utilization': 0.90,
     'limit_mm_per_prompt': {'image': 0, 'video': 0}, 'enforce_eager': False,
     'engine_seed': 20260921,
     'structured_output': {'json_object': True, 'reasoning_parser': 'qwen3'},
-    'chat_template': 'tokenizer.apply_chat_template(add_generation_prompt=True, enable_thinking=mode)',
 }
+
+
+def payload(mode, messages, request_seed, version):
+    """What one request asks for; its fingerprint is stored with the answer."""
+    thinking = MODES[mode]['enable_thinking']
+    return {'model': MODEL, 'messages': messages, 'max_tokens': 258048,
+            'temperature': 1. if thinking else .7, 'top_p': .95 if thinking else .80,
+            'top_k': 20, 'min_p': 0., 'presence_penalty': 1.5 if thinking else 0., 'repetition_penalty': 1.,
+            'chat_template_kwargs': {'enable_thinking': thinking}, 'seed': request_seed,
+            'structured_output': {'json_object': True, 'reasoning_parser': 'qwen3', 'applies': 'after reasoning end'},
+            'design_version': version,
+            'executed_transport': 'vllm offline engine (LLM.enqueue + LLMEngine.step)', 'executed_streaming': False}
+
+
+def requests(samples, passes=None):
+    """One request per sample, mode and repeat, each with its own seed."""
+    out = []
+    for s in samples:
+        version = VERSION[s['arm']]
+        for mode, cfg in MODES.items():
+            for repeat in range(1, REPEATS+1):
+                if passes and (mode, repeat) not in passes: continue
+                config = cfg['config_id']
+                request_seed = seed('llm', s['graph_id'], LABEL[s['arm']], s['sample_index'], repeat, config+':'+version)
+                out.append({'id': f"{s['id']}__{config}__r{repeat}__{version}", 'observation_id': s['id'],
+                            'graph_id': s['graph_id'], 'arm': s['arm'], 'sample_index': s['sample_index'],
+                            'repeat_index': repeat, 'config_id': config, 'mode': mode, 'seed': request_seed,
+                            'messages': s['messages'], 'prompt_sha256': s['prompt_sha256'],
+                            'payload_sha256': digest(payload(mode, s['messages'], request_seed, version))})
+    return sorted(out, key=lambda r: r['id'])
 
 
 def split_reasoning(text, thinking):
@@ -45,31 +76,6 @@ def split_reasoning(text, thinking):
     if thinking:
         return text.strip(), '', False
     return '', text.strip(), True
-
-
-def load_requests(run, passes, arms, shard_index, shard_count):
-    from model_requests import validate_request
-    rows = [json.loads(l) for l in (run / 'requests.jsonl').read_text().splitlines()]
-    wanted = {(MODES[m]['config_id'], rep): m for m, rep in passes}
-    obs = {}
-    out = []
-    for r in rows:
-        key = (r['config_id'], r['repeat_index'])
-        if key not in wanted or (arms and r['arm'] not in arms):
-            continue
-        if r['status'] == 'skipped_empty':
-            continue
-        validate_request(r)
-        oid = r['observation_id']
-        if oid not in obs:
-            obs[oid] = read_json(run / 'observations' / 'sample' / f'{oid}.json')
-        if digest(obs[oid]['messages']) != r['prompt_sha256']:
-            raise ValueError(f'prompt hash mismatch for {r["id"]}')
-        out.append({**r, 'mode': wanted[key], 'messages': obs[oid]['messages']})
-    out.sort(key=lambda r: r['id'])
-    if shard_count > 1:
-        out = [r for i, r in enumerate(out) if i % shard_count == shard_index]
-    return out
 
 
 def result_path(out, r):
@@ -111,71 +117,44 @@ def write_result(out, r, payload):
     tmp.replace(p)
 
 
-def parse_passes(text):
-    passes = []
-    for item in text.split(','):
-        mode, rep = item.split(':')
-        if mode not in MODES: raise ValueError(mode)
-        passes.append((mode, int(rep)))
-    return passes
-
-
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--run', required=True)
+    ap.add_argument('--samples', required=True)
     ap.add_argument('--out', required=True)
     ap.add_argument('--model', required=True)
     ap.add_argument('--passes', default='thinking:1,thinking:2,thinking:3,nonthinking:1,nonthinking:2,nonthinking:3')
-    ap.add_argument('--arms', default='', help='comma-separated arm filter, e.g. H')
-    ap.add_argument('--shard-index', type=int, default=0)
+    ap.add_argument('--shard-index', type=int, default=0, help='this job of --shard-count parallel jobs')
     ap.add_argument('--shard-count', type=int, default=1)
     ap.add_argument('--max-num-seqs', type=int, default=16)
-    ap.add_argument('--admit-seconds', type=float, default=0.0,
-                    help='admit no new request after this many seconds (0: no limit)')
-    ap.add_argument('--stop-seconds', type=float, default=0.0,
-                    help='stop stepping after this many seconds (0: no limit)')
+    ap.add_argument('--admit-seconds', type=float, default=0.0, help='start no new request after this many seconds (0: no limit)')
+    ap.add_argument('--stop-seconds', type=float, default=0.0, help='stop after this many seconds (0: no limit)')
     ap.add_argument('--limit', type=int, default=0)
     a = ap.parse_args()
 
     started = time.time()
-    run = Path(a.run); out = Path(a.out)
-    if a.shard_count<1 or not 0<=a.shard_index<a.shard_count: raise ValueError('invalid shard')
-    from run_guards import bind
-    out.mkdir(parents=True,exist_ok=True)
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
     import fcntl
-    lock=open(out/f'shard_{a.shard_index}.lock','a')
-    fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-    model=Path(a.model)
-    model_files=sorted(model.glob('*.json'))+sorted(model.glob('*.safetensors'))
-    if not model_files: raise ValueError('local pinned model artifacts missing')
-    # Content hashes, not a mutable directory name. Computed once per invocation.
-    model_hashes={p.name:sha(p) for p in model_files}
-    with open(out/'binding.lock','a') as binding_lock:
-        fcntl.flock(binding_lock,fcntl.LOCK_EX)
-        bind(out/'engine_inputs.json',{'runner_sha256':sha(__file__),
-             'requests_sha256':sha(run/'requests.jsonl'),'generation':GENERATION_CONFIG,
-             'model_files':model_hashes,
-             'max_num_seqs':a.max_num_seqs,'shard_count':a.shard_count})
-    passes = parse_passes(a.passes)
-    arms = set(filter(None, a.arms.split(',')))
-    requests = load_requests(run, passes, arms, a.shard_index, a.shard_count)
-    done, todo = pending(out, requests)
+    lock = open(out/f'shard_{a.shard_index}.lock', 'a')
+    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)        # two jobs never write the same answers
+    passes = {(mode, int(repeat)) for mode, repeat in (x.split(':') for x in a.passes.split(','))}
+    todo = requests([read_json(p) for p in sorted(Path(a.samples).glob('*.json'))], passes)
+    todo = [r for i, r in enumerate(todo) if i % a.shard_count == a.shard_index]
+    planned = todo
+    done, todo = pending(out, todo)
     if a.limit:
         todo = todo[:a.limit]
-    print(f'shard {a.shard_index}/{a.shard_count} passes={a.passes} arms={sorted(arms) or "all"}: '
-          f'{len(requests)} planned, {len(done)} already done, {len(todo)} to run', flush=True)
+    print(f'{len(planned)} requests, {len(done)} done, {len(todo)} to run', flush=True)
     if not todo:
-        print('NOTHING_TO_DO', flush=True)
         return
+    requests_all = planned
 
     from vllm import LLM, SamplingParams
     from vllm.sampling_params import StructuredOutputsParams
     from transformers import AutoTokenizer
     import vllm, inspect, transformers, torch
-    from model_requests import EXECUTION_POLICY
-    for module,name in ((vllm,'vllm'),(transformers,'transformers'),(torch,'torch')):
-        if module.__version__!=EXECUTION_POLICY['qwen'][name+'_version']:
-            raise ValueError(f'unpinned {name} version: {module.__version__}')
+    for module, name in ((vllm, 'vllm'), (transformers, 'transformers'), (torch, 'torch')):
+        if module.__version__ != VERSIONS[name]: raise ValueError(f'{name} {module.__version__} is not the version of the study')
     runner_sha = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     tok = AutoTokenizer.from_pretrained(a.model)
     g = GENERATION_CONFIG
@@ -257,9 +236,9 @@ def main():
                 'input_tokens': n_in, 'output_tokens': n_out, 'max_tokens': mt,
                 'seconds': time.time() - t0, 'model': a.model,
                 'mode': r['mode'], 'repeat_index': r['repeat_index'],
-                'runner': 'run_qwen_engine.py', 'runner_sha256': runner_sha,
+                'runner': 'qwen.py', 'runner_sha256': runner_sha,
                 'structured_output': g['structured_output'],
-                'design_version': DESIGN_VERSION,
+                'design_version': VERSION['S'],
                 'vllm_version': vllm.__version__, 'max_num_seqs': a.max_num_seqs})
             written += 1; out_tokens += n_out
         if time.time() - last_report > 120:
@@ -272,9 +251,8 @@ def main():
                            'end_state':'job_deadline','seconds':time.time()-t0})
     if inflight:
         print(f'ABANDONED_IN_FLIGHT {len(inflight)}: {sorted(inflight)[:5]}', flush=True)
-    present = sum(result_path(out, r).exists() for r in requests)
-    print(f'SHARD_DONE written={written} admitted={admitted} out_tokens={out_tokens} '
-          f'{present} of {len(requests)} results present', flush=True)
+    present = sum(result_path(out, r).exists() for r in requests_all)
+    print(f'{written} answers written, {present} of {len(requests_all)} present', flush=True)
 
 
 if __name__ == '__main__':

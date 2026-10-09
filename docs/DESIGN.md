@@ -10,7 +10,7 @@ The time span of each network is cut into five equal *windows*. For every pair o
 
 ## Networks
 
-- **12 real networks** (face-to-face contact, phone proximity, email, message and reply networks from public sources, listed in `config/datasets.yaml` and `config/pipeline.yaml`). They are the main analysis and count equally.
+- **12 real networks** (face-to-face contact, phone proximity, email, message and reply networks from public sources, listed with their sources in `config/networks.yaml`). They are the main analysis and count equally.
 - **12 time-shuffled copies** (*surrogates*), one per real network: the same pairs with the same number of interactions, but the time stamps are shuffled at random. They show how much a method relies on the real timing.
 - **8 synthetic networks** from two random generators with known persistence (*DAR* and *activity-driven*), each with and without memory.
 
@@ -47,16 +47,15 @@ Five language-model configurations receive the identical prompt: the sample as a
 
 ## How the results were computed
 
-1. **Preparation** (computing cluster): networks, time-shuffled copies, sampling budgets, samples and prompts; the synthetic training networks; ExtraTrees; the Qwen answers (`production/prepare_study.py`, `production/build_training_pool.py`, `production/extratrees.py`, `production/run_qwen_engine.py`).
-2. **Pipeline** (computing cluster): the remaining real networks and their copies, ExtraTrees for all networks, the checks of the random walk and of the time cut in arm H, the frozen samples for the API models, and the table of all predictions (`production/run_pipeline.py`, `production/pipeline/`).
-3. **API models** (laptop): DeepSeek and GPT answers for the 384 frozen samples (`production/api_runner.py`, `production/api_cycle.sh`).
-4. **Evaluation** (laptop): the checks and all final tables (`scripts/evaluate.py`).
+1. **Samples** (`scripts/samples.py`): the 32 networks, the size of each sampling arm and the 384 samples with their prompts.
+2. **Estimates** (`scripts/estimates.py`): observed share, training median, MLE and the eleven ExtraTrees fits.
+3. **Language models** (`scripts/qwen.py` on a GPU of the computing cluster; `scripts/api.py` for DeepSeek and GPT): three answers per sample and configuration.
+4. **Checks** (`scripts/checks.py`): the random walk of arm S and the time cut of arm H on the complete networks.
+5. **Tables** (`scripts/evaluate.py`): every table in [results/final](results/final/MAIN_RESULTS.md) from `PREDICTIONS.csv`, the table of all estimates.
 
-Steps 1 to 3 were run once and are kept as a [record](../production/README.md); their output is the frozen table of all predictions. Step 4 and the written analysis can be repeated from the frozen data at any time and give the same files.
+Every random number comes from one master seed combined with fixed text labels, for example the names of the arms. These labels are data: changing their text would change the samples, so they are kept exactly as they were.
 
-Every random number comes from one master seed combined with fixed text labels, for example the arm identities. These labels are data: changing their text would change the samples, so they are kept exactly as recorded.
-
-The [final results](results/final/REPORT.md) contain all tables, the checks and the checksums of the raw data, the samples and the answers.
+The answers of the language models cannot be repeated (the models sample at random), so all estimates are frozen in `PREDICTIONS.csv`. The samples are reproduced exactly. The MLE is fitted by a numerical optimiser and differs slightly between machines (see the README); ExtraTrees starts from the MLE.
 
 ## Sources
 
