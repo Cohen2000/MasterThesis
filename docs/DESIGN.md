@@ -55,7 +55,7 @@ Five language-model configurations receive the identical prompt: the sample as a
 
 Every random number comes from one master seed combined with fixed text labels, for example the names of the arms. These labels are data: changing their text would change the samples, so they are kept exactly as they were.
 
-The answers of the language models cannot be repeated (the models sample at random), so all estimates are frozen in `PREDICTIONS.csv`. The samples are reproduced exactly. The MLE is fitted by a numerical optimiser and differs slightly between machines (see the README); ExtraTrees starts from the MLE.
+The answers of the language models cannot be repeated (the models sample at random), so all estimates are frozen in `PREDICTIONS.csv`. The samples are reproduced exactly. The MLE and ExtraTrees differ slightly between machines for numerical reasons (see the README).
 
 ## Sources
 
