@@ -64,7 +64,7 @@ python scripts/analysis_figures.py --inputs  # data, figures and tables of the a
 Every estimate of the study is frozen in [`PREDICTIONS.csv`](docs/results/final/PREDICTIONS.csv), because the answers of the language models cannot be repeated. What a new run gives:
 
 - **Samples, observed share, training median:** exactly the frozen values. The samples are checked against [`CHECKSUMS.json`](docs/results/final/CHECKSUMS.json).
-- **MLE and ExtraTrees:** the frozen values up to small numerical differences between machines. The MLE is fitted by a numerical optimiser and differs by at most 0.0002. ExtraTrees starts from the MLE; from the same start values it reproduces the frozen fit exactly.
+- **MLE and ExtraTrees:** the frozen values up to small numerical differences between machines. The MLE is fitted by a numerical optimiser and differs by at most 0.0002. ExtraTrees starts from the MLE; from the same start values it reproduces the frozen fit exactly, and a complete new fit differs by at most 0.004 (mean errors per sampler change by at most 0.0001).
 - **Tables and analysis:** exactly the files in `docs/`. The evaluation first scores every language-model answer again from its raw text and stops if a row of `PREDICTIONS.csv` differs.
 
 Not in the repository: the raw networks (`data/raw/`; files, sources and fingerprints in [`config/networks.yaml`](config/networks.yaml)) and the raw answers of the language models (`~/.local/share/masterthesis`). Their rights remain with the providers.
