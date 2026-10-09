@@ -9,7 +9,7 @@ from study.common import digest, seed
 from study.data import Graph, prepare_real
 from study.observation import features, make, messages, parse, serialize, validate
 from study.estimators import design_estimate, plugin
-from study.model_requests import payload, protocol_version
+from model_requests import payload, protocol_version
 from study.sampling import calibrate, draw
 from study.mle import fit
 from study.walk import Walk

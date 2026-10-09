@@ -15,32 +15,31 @@ Average error in `rho_2` (MAE_2, lower is better) over the 12 real networks; 0.0
 | H | 0.064 | 0.232 | 0.071 | 0.039 | 0.160 | 0.252 | 0.133 | 0.054 | 0.061 |
 | B | 0.164 | 0.232 | 0.076 | 0.079 | 0.220 | 0.527 | 0.172 | 0.108 | 0.151 |
 
-Every language model answered each sample three times; only answers in the required format are scored. ExtraTrees output is limited to valid values (between 0 and 1, never increasing), which changes no `rho_2` value. Recorded API spend: DeepSeek Flash USD 26.51, GPT-6 Sol USD 27.59, GPT-6 Sol + Python USD 94.50. All tables, validity counts, variability and checks are in [docs/results/final](docs/results/final/REPORT.md).
+Every language model answered each sample three times; only answers in the required format are scored. ExtraTrees output is limited to valid values (between 0 and 1, never increasing), which changes no `rho_2` value. Recorded API spend: DeepSeek Flash USD 26.51, GPT-6 Sol USD 27.59, GPT-6 Sol + Python USD 94.50. All tables, validity counts, variability and checks are in [docs/results/final](docs/results/final/REPORT.md). The [written analysis](docs/analysis/ANALYSIS.md) explains the results with figures.
 
 ## Repository layout
 
 | Path | Contents |
 |---|---|
-| `src/study/` | Building blocks: networks (`data.py`), sampling arms (`sampling.py`, `walk.py`), the sample text every method sees (`observation.py`), estimators (`estimators.py`, `mle.py`, `thinning_model.py`), the answer check (`answer_format.py`), synthetic networks and time-shuffled copies |
-| `src/pipeline/` | Cluster pipeline: the task plan (`task_graph.py`), real networks (`real_networks.py`), ExtraTrees (`training_draws.py`, `extratrees_fits.py`), time-shuffled copies and checks, Qwen, and the result tables (`report.py`) |
-| `src/dataset_*.py` | Survey of candidate datasets and the audited file readers |
-| `scripts/` | Programs to run: preparation, ExtraTrees, the pipeline, the API models (`api_runner.py`), evaluation (`evaluate_api.py`) |
-| `cluster/` | Job scripts for the computing cluster (SLURM) |
-| `config/` | Prompts, data sources and settings |
+| `docs/` | [Study design](docs/DESIGN.md) with glossary and sources, the [final results](docs/results/final/REPORT.md) and the [written analysis](docs/analysis/ANALYSIS.md) |
+| `src/study/` | The method: networks (`data.py`, `surrogates.py`, `synthetic.py`), sampling arms (`sampling.py`, `walk.py`), the sample text every method sees (`observation.py`), estimators (`estimators.py`, `mle.py`, `thinning_model.py`), the training networks of ExtraTrees (`training_pool.py`), the answer check (`answer_format.py`) and the result tables (`tables.py`) |
+| `scripts/` | What can be run again: the result tables (`evaluate.py`, `window_sensitivity.py`) and the figures and tables of the analysis (`analysis_figures.py`) |
+| `production/` | Record of the runs on the computing cluster and against the paid APIs that produced the frozen predictions ([overview](production/README.md)) |
+| `config/` | Prompts and data sources |
 | `tests/` | Automatic tests |
-| `docs/` | Study design, glossary, sources and final results |
 
-## Reproduce the evaluation
+## Reproduce the results
 
-Install the Python requirements, provide the raw data (`data/raw/`) and the frozen observation and answer directories, and run:
+Every estimate of the study is frozen in [`PREDICTIONS.csv`](docs/results/final/PREDICTIONS.csv). The tables and the analysis are rebuilt from it:
 
 ```bash
-PYTHONPATH=src .venv/bin/pytest -q
-M=~/.local/share/masterthesis
-.venv/bin/python scripts/evaluate_api.py --observations $M/api_observations \
-  --deepseek $M/api_runs/deepseek --openai $M/api_runs/openai --openai-tools $M/api_runs/openai_tools \
-  --out results/api_evaluation
-PYTHONPATH=src .venv/bin/python -c "from pipeline.report import finalize; finalize('docs/results/final', 'results/api_evaluation')"
+pip install -r requirements.txt
+python -m pytest -q                            # tests
+python scripts/evaluate.py                     # all tables in docs/results/final
+python scripts/window_sensitivity.py           # the tables on the number of time windows
+python scripts/analysis_figures.py --inputs    # data, figures and tables in docs/analysis
 ```
 
-The evaluation reads the frozen predictions and answers; it does not regenerate observations or model predictions. Raw data and provider answers stay outside Git; their hashes are in [`CHECKSUMS.json`](docs/results/final/CHECKSUMS.json). See [third-party material](docs/THIRD_PARTY.md) for data sources.
+The evaluation first checks the frozen predictions: every API answer is scored again from its raw text, and every stored error is recomputed from the truth. It calls no model. Without `--inputs`, the last command only redraws the figures and needs nothing outside the repository.
+
+Not in the repository: the raw networks (`data/raw/`, sources in [third-party material](docs/THIRD_PARTY.md)) and the frozen samples and answers of the language models (`~/.local/share/masterthesis`). Their hashes are in [`CHECKSUMS.json`](docs/results/final/CHECKSUMS.json); the evaluation stops if a sample or an answer file differs.

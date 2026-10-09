@@ -24,7 +24,6 @@ MASTER_SEED = 20260921
 RESULTS = ROOT/'results/panel888_v10'
 PREPARED = RESULTS/'prepared'         # graphs, calibration, observations, requests
 REFERENCES = RESULTS/'references'     # training pool, ExtraTrees folds, baseline predictions
-QWEN = RESULTS/'qwen'                 # collected Qwen answers and their evaluation
 BUILD = RESULTS/'build'               # compiled walk kernel (not an artifact)
 
 # ---------------------------------------------------------------- panel
@@ -218,6 +217,5 @@ def code_hashes():
     """Hashes of the scientific modules, recorded in every stage's inputs."""
     folder = ROOT/'src/study'
     files = sorted([*folder.glob('*.py'), *folder.glob('*.cpp'), *(ROOT/'config/prompts').glob('*.txt'),
-                    ROOT/'config/study.yaml', ROOT/'config/datasets.yaml',
-                    ROOT/'src/dataset_survey.py', ROOT/'src/dataset_audit.py'])
+                    ROOT/'config/datasets.yaml'])
     return {str(p.relative_to(ROOT)): sha(p) for p in files}

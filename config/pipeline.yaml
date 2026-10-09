@@ -26,7 +26,7 @@ stream_domains:
   et_nested: v10_et_nested_r{k}
   et_final: v10_et_final_r{k}
 
-# Only pool_train observations enter ET training (scripts/extratrees.py); pool_dev is not redrawn.
+# Only pool_train observations enter ET training (production/extratrees.py); pool_dev is not redrawn.
 pool_partition: train
 pool_chunk: 20
 

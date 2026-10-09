@@ -47,10 +47,12 @@ Five language-model configurations receive the identical prompt: the sample as a
 
 ## How the results were computed
 
-1. **Preparation** (computing cluster): networks, time-shuffled copies, sampling budgets, samples and prompts; the synthetic training networks; ExtraTrees; the Qwen answers (`scripts/prepare_study.py`, `scripts/build_training_pool.py`, `scripts/extratrees.py`, `cluster/`).
-2. **Pipeline** (computing cluster): the remaining real networks and their copies, ExtraTrees for all networks, the checks of the random walk and of the time cut in arm H, the frozen samples for the API models, and the result table (`scripts/run_pipeline.py`, `src/pipeline/`).
-3. **API models** (laptop): DeepSeek and GPT answers for the 384 frozen samples (`scripts/api_runner.py`, `scripts/api_cycle.sh`).
-4. **Evaluation** (laptop): scoring and all final tables (`scripts/evaluate_api.py`, `pipeline.report.finalize`).
+1. **Preparation** (computing cluster): networks, time-shuffled copies, sampling budgets, samples and prompts; the synthetic training networks; ExtraTrees; the Qwen answers (`production/prepare_study.py`, `production/build_training_pool.py`, `production/extratrees.py`, `production/run_qwen_engine.py`).
+2. **Pipeline** (computing cluster): the remaining real networks and their copies, ExtraTrees for all networks, the checks of the random walk and of the time cut in arm H, the frozen samples for the API models, and the table of all predictions (`production/run_pipeline.py`, `production/pipeline/`).
+3. **API models** (laptop): DeepSeek and GPT answers for the 384 frozen samples (`production/api_runner.py`, `production/api_cycle.sh`).
+4. **Evaluation** (laptop): the checks and all final tables (`scripts/evaluate.py`).
+
+Steps 1 to 3 were run once and are kept as a [record](../production/README.md); their output is the frozen table of all predictions. Step 4 and the written analysis can be repeated from the frozen data at any time and give the same files.
 
 Every random number comes from one master seed combined with fixed text labels, for example the arm identities. These labels are data: changing their text would change the samples, so they are kept exactly as recorded.
 

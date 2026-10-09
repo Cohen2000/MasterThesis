@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 from study.common import digest
 from study.answer_format import parse_final
-from scripts.api_runner import (API_GRAPHS, API_MAIN_ARMS, GENERATION_CAP, ProviderRejected, collect_openai,
+from api_runner import (API_GRAPHS, API_MAIN_ARMS, GENERATION_CAP, ProviderRejected, collect_openai,
                                 deepseek_progress, deepseek_window, estimate,
                                 execute_deepseek, execute_openai, execute_openai_technical, guard, main,
                                 manifest, observations, openai_progress, openai_record, payload, provider_id,
@@ -127,8 +127,8 @@ class APIPreparation(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'run'
             with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.require_deepseek_offpeak'), \
-                 patch('scripts.api_runner.request', return_value=answer) as provider, \
+                 patch('api_runner.require_deepseek_offpeak'), \
+                 patch('api_runner.request', return_value=answer) as provider, \
                  redirect_stdout(StringIO()):
                 with self.assertRaisesRegex(ValueError, 'completed training smoke'):
                     execute_deepseek(rows, path, 2)
@@ -152,8 +152,8 @@ class APIPreparation(unittest.TestCase):
                                'finish_reason': 'length'}]}
         with tempfile.TemporaryDirectory() as directory:
             with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.require_deepseek_offpeak'), \
-                 patch('scripts.api_runner.request', return_value=answer), \
+                 patch('api_runner.require_deepseek_offpeak'), \
+                 patch('api_runner.request', return_value=answer), \
                  redirect_stdout(StringIO()):
                 execute_deepseek([], Path(directory), 1, smoke)
             record = json.loads((Path(directory) / 'responses.jsonl').read_text())
@@ -175,7 +175,7 @@ class APIPreparation(unittest.TestCase):
             def provider(url, *_args):
                 return {'id': 'file-1'} if url.endswith('/files') else {'id': 'batch-1'}
             with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.request', side_effect=provider) as network, \
+                 patch('api_runner.request', side_effect=provider) as network, \
                  redirect_stdout(StringIO()):
                 execute_openai(rows, path, 2)
                 with self.assertRaisesRegex(ValueError, 'collect the previous'):
@@ -191,16 +191,16 @@ class APIPreparation(unittest.TestCase):
                                  'text': '{"rho_2":0.8,"rho_3":0.6,"rho_4":0.4,"rho_5":0.2}'}]}]}
             raw = ''.join(json.dumps({'custom_id': r['custom_id'], 'response': {'body': result}}) + '\n'
                           for r in first).encode()
-            with patch('scripts.api_runner.download_openai_file', return_value=raw), redirect_stdout(StringIO()):
+            with patch('api_runner.download_openai_file', return_value=raw), redirect_stdout(StringIO()):
                 collect_openai(path, {'id': 'batch-1', 'status': 'completed', 'output_file_id': 'output-1'}, 'fake')
                 collect_openai(path, {'id': 'batch-1', 'status': 'completed', 'output_file_id': 'output-1'}, 'fake')
             self.assertEqual(len((path / 'responses.jsonl').read_text().splitlines()), 2)
             with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.request', side_effect=AssertionError('provider called')):
+                 patch('api_runner.request', side_effect=AssertionError('provider called')):
                 with self.assertRaisesRegex(ValueError, 'user budget'):
                     execute_openai(rows, path, 2, budget=.001)
             with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.request', side_effect=provider), \
+                 patch('api_runner.request', side_effect=provider), \
                  redirect_stdout(StringIO()):
                 execute_openai(rows, path, 2)
             second = [json.loads(line) for line in (path / 'chunk_002.input.jsonl').read_text().splitlines()]
@@ -227,14 +227,14 @@ class APIPreparation(unittest.TestCase):
                         '--observations', directory, '--repeats', '1',
                         '--budget-usd', budget, '--output', str(output)]
                 with patch.object(sys, 'argv', argv), \
-                     patch('scripts.api_runner.request', side_effect=AssertionError('provider called')):
+                     patch('api_runner.request', side_effect=AssertionError('provider called')):
                     with redirect_stdout(StringIO()):
                         main()
             self.assertFalse(output.exists())
             for command in ('status', 'collect'):
                 argv = ['api_runner.py', command, '--provider', 'openai', '--output', str(output)]
                 with patch.object(sys, 'argv', argv), \
-                     patch('scripts.api_runner.request', side_effect=AssertionError('provider called')):
+                     patch('api_runner.request', side_effect=AssertionError('provider called')):
                     with redirect_stdout(StringIO()):
                         main()
 
@@ -343,8 +343,8 @@ class APIPreparation(unittest.TestCase):
             (deep / 'responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in deep_records))
             output = StringIO()
             with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.require_deepseek_offpeak'), \
-                 patch('scripts.api_runner.request', side_effect=AssertionError('provider called')), \
+                 patch('api_runner.require_deepseek_offpeak'), \
+                 patch('api_runner.request', side_effect=AssertionError('provider called')), \
                  redirect_stdout(output):
                 # Pilot spend ~USD 0.61; one more 384k worst case (~USD 0.24) does not fit USD 0.7.
                 execute_deepseek(manifest(samples, 'deepseek'), deep, 8, budget=0.7)
@@ -358,7 +358,7 @@ class APIPreparation(unittest.TestCase):
                             for i in range(8)]
             (gpt / 'technical_responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in gpt_records))
             with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.request', side_effect=AssertionError('provider called')):
+                 patch('api_runner.request', side_effect=AssertionError('provider called')):
                 with self.assertRaisesRegex(ValueError, 'conservative projected total'):
                     execute_openai(manifest(samples, 'openai'), gpt, 96)
 
@@ -372,15 +372,15 @@ class APIPreparation(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
             with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.require_deepseek_offpeak'), \
-                 patch('scripts.api_runner.request', side_effect=ProviderRejected(400, 'bad parameter')), \
+                 patch('api_runner.require_deepseek_offpeak'), \
+                 patch('api_runner.request', side_effect=ProviderRejected(400, 'bad parameter')), \
                  redirect_stdout(StringIO()):
                 with self.assertRaises(RuntimeError):
                     execute_deepseek([], path, 1, smoke)
             self.assertEqual(deepseek_progress([], path)[0], {})
             with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.require_deepseek_offpeak'), \
-                 patch('scripts.api_runner.request', return_value=answer), \
+                 patch('api_runner.require_deepseek_offpeak'), \
+                 patch('api_runner.request', return_value=answer), \
                  redirect_stdout(StringIO()):
                 execute_deepseek([], path, 1, smoke)
             self.assertEqual(set(deepseek_progress([], path)[0]), {smoke['id']})
@@ -399,8 +399,8 @@ class APIPreparation(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
             with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.require_deepseek_offpeak'), \
-                 patch('scripts.api_runner.request', side_effect=[TimeoutError('lost'), answer]) as send, \
+                 patch('api_runner.require_deepseek_offpeak'), \
+                 patch('api_runner.request', side_effect=[TimeoutError('lost'), answer]) as send, \
                  redirect_stdout(StringIO()):
                 execute_deepseek([], path, 1, smoke)
             self.assertEqual(send.call_count, 2)
@@ -426,7 +426,7 @@ class APIPreparation(unittest.TestCase):
                     return {'id': 'resp_1', 'status': 'queued'}
                 raise ConnectionError('laptop offline')
             with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.request', side_effect=crash_while_polling), \
+                 patch('api_runner.request', side_effect=crash_while_polling), \
                  redirect_stdout(StringIO()):
                 with self.assertRaises(ConnectionError):
                     execute_openai_technical([smoke], path)
@@ -439,7 +439,7 @@ class APIPreparation(unittest.TestCase):
                 calls.append((url, method))
                 return done
             with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.request', side_effect=poll), \
+                 patch('api_runner.request', side_effect=poll), \
                  redirect_stdout(StringIO()):
                 execute_openai_technical([smoke], path)
             self.assertEqual(calls, [('https://api.openai.com/v1/responses/resp_1', 'GET')])
@@ -463,21 +463,21 @@ class APIPreparation(unittest.TestCase):
             (path / 'technical_responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in technical))
             provider = lambda url, *_args: {'id': 'file-1'} if url.endswith('/files') else {'id': 'batch-1'}
             with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.request', side_effect=provider), redirect_stdout(StringIO()):
+                 patch('api_runner.request', side_effect=provider), redirect_stdout(StringIO()):
                 execute_openai(rows, path, 2)
             first = [json.loads(line)['custom_id'] for line in (path / 'chunk_001.input.jsonl').read_text().splitlines()]
             output = json.dumps({'custom_id': first[0], 'response': {'status_code': 200, 'body': result}}) + '\n'
             errors = json.dumps({'custom_id': first[1], 'response': None,
                                  'error': {'code': 'batch_expired', 'message': 'expired'}}) + '\n'
             files = {'output-1': output.encode(), 'error-1': errors.encode()}
-            with patch('scripts.api_runner.download_openai_file', side_effect=lambda file_id, key: files[file_id]), \
+            with patch('api_runner.download_openai_file', side_effect=lambda file_id, key: files[file_id]), \
                  redirect_stdout(StringIO()):
                 collect_openai(path, {'id': 'batch-1', 'status': 'expired', 'output_file_id': 'output-1',
                                       'error_file_id': 'error-1'}, 'fake')
             technical_records, collected = openai_progress(rows, path)
             self.assertEqual([r['id'] for r in collected], [rows[0]['id']])
             with patch.dict(os.environ, {'OPENAI_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.request', side_effect=provider), redirect_stdout(StringIO()):
+                 patch('api_runner.request', side_effect=provider), redirect_stdout(StringIO()):
                 execute_openai(rows, path, 2)
             second = [json.loads(line)['custom_id'] for line in (path / 'chunk_002.input.jsonl').read_text().splitlines()]
             self.assertEqual(second, [first[1]])
@@ -508,8 +508,8 @@ class APIPreparation(unittest.TestCase):
             (path / 'responses.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in records))
             (path / 'attempts.jsonl').write_text(''.join(json.dumps({'id': r['id']}) + '\n' for r in records))
             with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'fake'}), \
-                 patch('scripts.api_runner.require_deepseek_offpeak'), \
-                 patch('scripts.api_runner.request', side_effect=provider), \
+                 patch('api_runner.require_deepseek_offpeak'), \
+                 patch('api_runner.request', side_effect=provider), \
                  redirect_stdout(StringIO()):
                 # Room for two 384k worst cases (~USD 0.236 each), not three.
                 execute_deepseek(rows, path, 16, budget=0.5)
@@ -519,7 +519,7 @@ class APIPreparation(unittest.TestCase):
 
 
     def test_tool_variant_payload_record_and_shared_budget(self):
-        from scripts.api_runner import CONTAINER_USD, actual_usd, shared_spend
+        from api_runner import CONTAINER_USD, actual_usd, shared_spend
         row = {'id': 'x__openai_tools__r1', 'messages': [{'role': 'user', 'content': 'small'}], 'tools': True}
         body = payload('openai', row)
         self.assertEqual(body['tools'], [{'type': 'code_interpreter', 'container': {'type': 'auto'}}])

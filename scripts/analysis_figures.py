@@ -6,6 +6,7 @@ docs/results/final. Nothing in docs/results/final is changed.
 Two steps:
   python scripts/analysis_figures.py --inputs   rebuild docs/analysis/data/*.csv
   python scripts/analysis_figures.py            redraw figures and marked tables in ANALYSIS.md
+  python scripts/analysis_figures.py --pdf      the same, plus a vector PDF of every figure
 
 The --inputs step needs files that are not in the repository: the raw networks in
 data/raw, and the frozen samples and the answers of the language models (default location
@@ -16,7 +17,6 @@ import argparse
 import json
 import re
 import sys
-import tempfile
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -28,6 +28,7 @@ sys.path.insert(0, str(ROOT/'src'))
 FINAL = ROOT/'docs/results/final'
 OUT = ROOT/'docs/analysis'
 DATA, FIGS = OUT/'data', OUT/'figures'
+PDF = False                 # --pdf also writes every figure as a vector PDF (not kept in the repository)
 EXTERNAL = Path.home()/'.local/share/masterthesis'
 
 ARMS = {'R': 'R · random nodes', 'S': 'S · random walk', 'H': 'H · late time only', 'B': 'B · event loss'}
@@ -100,26 +101,18 @@ def event_loss_split(g, p):
 
 def build_inputs(external):
     """Network features and answer types, as small CSV tables."""
-    from study.data import prepare_real
+    from study.data import real_network
     from study.observation import parse
     from study.estimators import design_estimate
     from study.surrogates import shuffle
-    from pipeline.core import CFG
-    from pipeline.real_networks import load_raw, checked_graph
     DATA.mkdir(parents=True, exist_ok=True)
-    build_formula_references(external)
     truth = json.loads((FINAL/'TRUTH.json').read_text())
     obs = {p.stem: json.loads(p.read_text()) for p in sorted((external/'api_observations').glob('*.json'))}
 
     # Network features from the raw data; the rebuilt truth must equal TRUTH.json exactly.
     rows, activity, twins, split = [], [], [], []
-    tmp = tempfile.TemporaryDirectory()
     for key in NAMES:
-        spec = CFG['stage2_sources'].get(key, {})
-        if 'file' in spec:
-            g = checked_graph(key, load_raw(key, spec, ROOT/'data/raw')[0], spec['proximity'])[0]
-        else:
-            g = prepare_real(key, ROOT/'data/raw', Path(tmp.name)/key)
+        g = real_network(key)
         if abs(g.truth[0] - truth[key][0]) > 1e-12: raise ValueError(f'{key}: rebuilt truth differs from TRUTH.json')
         twin = shuffle(g)   # the time-shuffled twin, rebuilt from its fixed seed
         if abs(twin.truth[0] - truth[twin.key][0]) > 1e-12: raise ValueError(f'{twin.key}: rebuilt truth differs from TRUTH.json')
@@ -236,21 +229,6 @@ OPTIMISER = (r'scipy\.optimize|minimize\(|least_squares\(|curve_fit\(|fsolve\(|b
              r'nnls\(|lsq_linear|linprog')
 
 
-def build_formula_references(external):
-    """Freeze the R/S formula values, so MLE comparisons redraw without raw inputs."""
-    from study.estimators import plugin, design_estimate
-    from study.observation import parse
-    rows = []
-    for path in sorted((external/'api_observations').glob('*.json')):
-        o = json.loads(path.read_text())
-        if o['stratum'] != 'real' or o['arm'] not in 'RS': continue
-        b = parse(o['block'])
-        value = plugin(b)[0] if o['arm'] == 'R' else design_estimate(b)[0]
-        rows.append({'observation_id': path.stem, 'reference': 100*value})
-    if len(rows) != 72: raise ValueError(f'expected 72 real R/S samples, got {len(rows)}')
-    pd.DataFrame(rows).to_csv(DATA/'formula_references.csv', index=False, float_format='%.12g')
-
-
 # ---------------------------------------------------------------- figures
 def setup():
     import matplotlib
@@ -267,9 +245,8 @@ def setup():
 def save(fig, name):
     import matplotlib.pyplot as plt
     FIGS.mkdir(parents=True, exist_ok=True)
-    for ext in ('png', 'pdf'):
-        kw = {'metadata': {'CreationDate': None, 'ModDate': None}} if ext == 'pdf' else {}
-        fig.savefig(FIGS/f'{name}.{ext}', **kw)
+    fig.savefig(FIGS/f'{name}.png')
+    if PDF: fig.savefig(FIGS/f'{name}.pdf', metadata={'CreationDate': None, 'ModDate': None})
     plt.close(fig)
 
 
@@ -378,11 +355,6 @@ def pair_spec(s, f):
 def twin_spec(s, f):
     """The same for a time-shuffled twin: its persistence next to the real network's."""
     return f"ρ₂ {pct(f.loc[s, 'rho2'])[:-2]} → {pct(f.loc[s, 'rho2_shuffled'])}"
-
-
-def full_spec(row):
-    """All central numbers of a network (overview figures only)."""
-    return f"{num(row['nodes'])} nodes · {num(row['pairs'])} pairs · {num(row['events'])} events · ρ₂ {pct(row['rho2'])}"
 
 
 def two_tone(ax, x, y, name, spec, transform, ha='right', size=10, small=8.5, weight='normal', dx=0, dy=-3.5):
@@ -1532,6 +1504,8 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--inputs', action='store_true', help='rebuild docs/analysis/data (needs data outside the repo)')
     ap.add_argument('--external', type=Path, default=EXTERNAL, help='folder with api_observations, api_runs and qwen_runs')
+    ap.add_argument('--pdf', action='store_true', help='also write every figure as PDF')
     a = ap.parse_args()
+    PDF = a.pdf
     if a.inputs: build_inputs(a.external)
     draw()

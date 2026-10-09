@@ -1,7 +1,6 @@
-# Dataset registry for the persistence census.
-# Download each file manually into --data-dir (default: ./data/), keep the
-# filename given under "file". URLs are page links; exact filenames can change,
-# so run `python dataset_survey.py --peek <key>` after download to verify column layout.
+# The 16 real training networks (nine of them are also test networks) and how their raw files are read.
+# Download each file into data/raw/ under the name given as "file"; "page_url" is the source page.
+# The three test networks that are not training networks are described in config/pipeline.yaml.
 #
 # format fields:
 #   delimiter: "whitespace" or ","
@@ -147,22 +146,7 @@ datasets:
     format: {delimiter: ",", columns: {u: 0, v: 1, t: 3}, comment: "#%", skiprows: 0}
     notes: "SOURCE,TARGET,RATING,TIME. ~5 years."
 
-  snap_wikitalk:
-    census_audit:
-      expected_fields: 3
-      originally_directed: "yes"
-      timestamp_unit: seconds
-      metadata_source: "registry_page"
-      time_unit_evidence: "Registered provider page documents seconds."
-      parser_note: "Local full-file widths and timestamp field agree with the registered provider format."
-    label: "wiki-talk-temporal (SNAP)"
-    domain: web
-    page_url: "https://snap.stanford.edu/data/wiki-talk-temporal.html"
-    file: "wiki-talk-temporal.txt.gz"
-    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 2}, comment: "#%", skiprows: 0}
-    notes: "Large (~7.8M events). Run last; needs a few GB RAM."
-
-  # ---------- Network Repository (zips; '%' header lines; check cols via --peek) ----------
+  # ---------- Network Repository ('%' header lines) ----------
   nr_radoslaw_email:
     census_audit:
       expected_fields: 4
@@ -179,22 +163,6 @@ datasets:
     format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 3}, comment: "%#", skiprows: 0}
     notes: "Rows: u v w t. Manufacturing company email, ~9 months."
 
-  nr_enron_employees:
-    census_audit:
-      expected_fields: 4
-      originally_directed: "unknown"
-      timestamp_unit: unknown
-      metadata_source: "registry_page"
-      time_unit_evidence: "Physical unit remains unknown."
-      parser_note: "Local full-file audit: u v weight timestamp; weight is 1 throughout; timestamp is column 3 (zero-based)."
-      warnings: "Physical unit not explicitly established for this local export; epoch-sized numbers alone are insufficient. Original direction is not established by the headerless export/provider landing page. Ambiguous duplicates: about 48% of retained events repeat an earlier same-dyad same-timestamp row; kept as events (no deduplication), which inflates m_e-based columns and count bounds but not K or rho."
-    label: "ia-enron-employees (NetRepo)"
-    domain: email
-    page_url: "https://networkrepository.com/ia-enron-employees.php"
-    file: "ia-enron-employees.edges"
-    format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 3}, comment: "%#", skiprows: 0}
-    notes: "Rows: u v w t."
-
   nr_digg_reply:
     census_audit:
       expected_fields: 4
@@ -209,7 +177,7 @@ datasets:
     page_url: "https://networkrepository.com/ia-digg-reply.php"
     file: "ia-digg-reply.edges"
     format: {delimiter: whitespace, columns: {u: 0, v: 1, t: 3}, comment: "%#", skiprows: 0}
-    notes: "Rows: u v t (check with --peek; some NR files carry a weight column)."
+    notes: "Rows: u v t."
 
   # ---------- JODIE / standard TG-learning benchmarks (snap.stanford.edu/jodie) ----------
   # Bipartite user-item interactions; the bipartite flag keeps id spaces apart.

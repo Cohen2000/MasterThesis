@@ -1,13 +1,11 @@
 """Scientific checks for the derived analysis, separate from frozen results."""
 import json
 from pathlib import Path
-import sys
 
 import numpy as np
 import pandas as pd
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
 from analysis_metrics import (answer_averaging, correction_residuals, noise_cases, noise_components, paired_comparisons,
                               performance_spread, variance_shares)
 

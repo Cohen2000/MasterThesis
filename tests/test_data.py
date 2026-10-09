@@ -1,8 +1,11 @@
 """Canonical graphs, synthetic generators, P[w,t] surrogates and the study config."""
+from pathlib import Path
+import tempfile
 import unittest
 import numpy as np
 from helpers import graph, tiny
 from study.common import (SURROGATES, fold_for, parent_source)
+from study.data import parse_audited
 from study.surrogates import audit, collisions, shuffle
 from study.synthetic import generate_pair
 
@@ -73,6 +76,22 @@ class SurrogateTests(unittest.TestCase):
         self.assertEqual(fold_for('dar_a0_r1'), 'synthetic')
 
 
+class RawFileTests(unittest.TestCase):
+    def test_parser_counts_bad_rows_and_checks_the_header(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "toy.csv"
+            path.write_text("user_id,item_id,timestamp\n#comment\n0,0,0\n"
+                            "0,0,10\n0,1,nan\n0,1,inf\n0,1,no\n,1,3\nshort\n")
+            fmt = {"columns": {"u": 0, "v": 1, "t": 2}, "delimiter": ",",
+                   "skiprows": 1, "bipartite": True}
+            reviewed = {"expected_fields": 3, "expected_header": "user_id,item_id,timestamp"}
+            raw, quality = parse_audited(path, fmt, reviewed)
+            self.assertEqual(quality["invalid_rows_removed"], 5)
+            self.assertEqual(quality["data_rows"], 7)
+            self.assertEqual((raw.iloc[0].u, raw.iloc[0].v), ("u:0", "i:0"))
+            self.assertEqual(len(raw), 2)
+            with self.assertRaises(ValueError):
+                parse_audited(path, fmt, dict(reviewed, expected_header="wrong"))
 
 
 if __name__ == '__main__':

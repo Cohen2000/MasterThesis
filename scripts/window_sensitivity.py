@@ -13,22 +13,17 @@ usage: python scripts/window_sensitivity.py [--out docs/results/final]   (needs 
 import argparse
 import json
 import math
-import os
 import sys
-import tempfile
 from pathlib import Path
 
 import numpy as np
 from scipy.stats import spearmanr
 
 ROOT = Path(__file__).resolve().parents[1]
-os.environ.setdefault('PIPELINE_RAW', str(ROOT / 'data/raw'))
 sys.path.insert(0, str(ROOT / 'src'))
 from study.common import STAGE1_REAL, write_csv  # noqa: E402
-from study.data import prepare_real  # noqa: E402
+from study.data import EXTRA_SOURCES, real_network  # noqa: E402
 from study.surrogates import shuffle  # noqa: E402
-from pipeline.core import CFG  # noqa: E402
-from pipeline.real_networks import checked_graph, load_raw  # noqa: E402
 
 GRID = (2, 3, 4, 5, 6, 8, 10, 12, 15, 20)
 SHARE = 0.4                                   # fixed-share reading: k = ceil(0.4 W)
@@ -36,12 +31,9 @@ SHARE = 0.4                                   # fixed-share reading: k = ceil(0.
 
 def networks():
     """The 24 networks exactly as the study builds them (checked against TRUTH.json)."""
-    graphs, tmp = {}, Path(tempfile.mkdtemp())
-    for key in (*STAGE1_REAL, 'nr_radoslaw_email'):
-        graphs[key] = prepare_real(key, ROOT / 'data/raw', tmp / key)
-    for key, spec in CFG['stage2_sources'].items():
-        if not spec.get('reuse_stage1_graph'):
-            graphs[key] = checked_graph(key, load_raw(key, spec)[0], spec['proximity'])[0]
+    graphs = {key: real_network(key) for key in (*STAGE1_REAL, 'nr_radoslaw_email')}
+    for key in EXTRA_SOURCES:
+        if key not in graphs: graphs[key] = real_network(key)
     for key in list(graphs):
         graphs[key + '__pwt'] = shuffle(graphs[key])
     return graphs

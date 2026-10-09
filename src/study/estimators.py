@@ -11,7 +11,7 @@ from .observation import validate
 # - design_estimate: the walk (S) visits busy pairs more often; re-weighting each pair by
 #   1/(its number of events) undoes that preference (a ratio estimator).
 # - h_extrapolator / corrector: simple working models for H and B.
-# The MLE lives in mle.py; ExtraTrees in the scripts.
+# The MLE lives in mle.py; ExtraTrees in production/extratrees.py.
 #
 # Starting point ('anchor') for ExtraTrees: the forest learns a correction to this value.
 def anchor_profile(o):

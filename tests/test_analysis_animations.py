@@ -1,10 +1,6 @@
 """Animation examples must follow the study's actual generator rules."""
-from pathlib import Path
-import sys
-
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
 from analysis_figures import AD_ACTIVITY, ad_example, dar_example, TOY_EDGES, TOY_NODES, TOY_PANELS
 from study.synthetic import ad_rows, dar_rows
 
