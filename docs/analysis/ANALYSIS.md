@@ -271,6 +271,8 @@ Return the four full-archive estimates in the specified JSON format.
 - **S:** the formula alone gives 8.8 pp (GPT: 8.4). MLE (6.9) reweights before fitting; ExtraTrees (5.0) starts from the MLE.
 - **Why Qwen thinking trails (18 pp):** a third of its S answers equal the unweighted naive share.
 
+- **Without the walk weights:** on the same S samples, GPT's mean error rises from **8.4 to 10.7 pp** on real networks; on twins it changes from 9.2 to 9.5 pp and on synthetic networks from 2.9 to 3.0 pp. This ablation removes the three walk-log columns while retaining the sampling rule, full histories of visited pairs and walk length L ([setup and results](../results/final/ABLATION_S.md)).
+
 <details>
 <summary>4a detail · On which networks do the answers match the weighting formula?</summary>
 

@@ -35,6 +35,8 @@ Key findings of the [analysis](docs/analysis/ANALYSIS.md):
 
 All tables: [docs/results/final](docs/results/final/MAIN_RESULTS.md). Method, glossary and sources: [docs/DESIGN.md](docs/DESIGN.md).
 
+[S ablation without walk weights](docs/results/final/ABLATION_S.md): GPT's mean error on real networks rises from 8.4 to 10.7 pp when the walk log is withheld; the same 96 S samples receive three new answers each.
+
 Every language model answered each sample three times (1,152 answers per configuration). Only answers in the required format are scored: all were valid except 1 (Qwen, thinking), 2 (Qwen, no thinking) and 1 (DeepSeek). API cost: DeepSeek USD 26.51, GPT USD 27.59, GPT + Python USD 94.50.
 
 ## Repository
