@@ -37,7 +37,7 @@ all matching). The script stops with an error if one differs.
 | Table 5.3 (lost history) | `thesis/tables/history.csv` |
 | Tables 5.4 to 5.6 (robustness) | `thesis/tables/windows.csv`, `thresholds.csv`, `copies.csv` |
 | Appendix B (per network) | `thesis/tables/per_network.csv` |
-| Figures 5.1 to 5.5 | `thesis/figures/*.png` |
+| Figures 1.1 and 5.1 to 5.5 | `thesis/figures/*.png` |
 
 ## What is in the repository
 

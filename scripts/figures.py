@@ -3,8 +3,8 @@
 
   python scripts/figures.py
 
-Writes thesis/figures/*.png. Calls no model and needs no raw data. Figure 1.1 is a drawn toy
-example; all other figures plot data/predictions.csv, data/networks.csv and the samples.
+Writes thesis/figures/*.png. Calls no model and needs no raw data. Figure 1.1 is a drawn overview
+of the study; all other figures plot data/predictions.csv, data/networks.csv and the samples.
 Labels are English, as the captions of the thesis.
 """
 import sys
@@ -14,6 +14,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FuncFormatter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -59,6 +60,37 @@ def clean(ax, grid='x'):
 def save(fig, name):
     fig.savefig(OUT/name, bbox_inches='tight', facecolor='white')
     plt.close(fig)
+
+
+# ---------------------------------------------------------------- Figure 1.1: the pipeline of the study
+def figure_pipeline():
+    """Five boxes from left to right, and the true persistence that every estimate is compared with."""
+    steps = [('Full record', '12 temporal\ngraphs, true\npersistence known'),
+             ('Sampler', 'node sampling\nrandom walk\ntime truncation\nevent sampling'),
+             ('Sample', 'summary table\n+ description\nof the sampler'),
+             ('Method', '3 LLMs,\nstatistical model,\nlearned reference'),
+             ('Estimate', 'persistence of\nthe whole graph')]
+    fig, ax = plt.subplots(figsize=(15.8*CM, 4.6*CM))
+    w, h, gap, y = 2.75, 1.55, 0.45, 0.9
+    xs = [k*(w+gap) for k in range(len(steps))]
+    for k, (x, (title, body)) in enumerate(zip(xs, steps)):
+        accent = k == 3
+        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle='round,pad=0.02,rounding_size=0.12', lw=0.9,
+                                    facecolor='#eaf2fc' if accent else '#f4f3ef',
+                                    edgecolor=COLOR['statistical_model'] if accent else '#b9b7b0'))
+        ax.text(x+w/2, y+h-0.27, title, ha='center', va='center', fontsize=8, weight='bold')
+        ax.text(x+w/2, y+h/2-0.17, body, ha='center', va='center', fontsize=6.3, linespacing=1.25)
+        if k:
+            ax.annotate('', xy=(x-0.05, y+h/2), xytext=(x-gap+0.05, y+h/2),
+                        arrowprops=dict(arrowstyle='-|>', lw=1.0, color='#4a4945', mutation_scale=9))
+    # the comparison with the truth
+    x0, x1 = xs[0]+w/2, xs[-1]+w/2
+    ax.plot([x0, x0, x1], [y, 0.3, 0.3], color=GRAY, lw=0.9, ls=(0, (3, 2)))
+    ax.annotate('', xy=(x1, y-0.03), xytext=(x1, 0.3), arrowprops=dict(arrowstyle='-|>', lw=0.9, color=GRAY, mutation_scale=9))
+    ax.text((x0+x1)/2, 0.12, 'compare with the true persistence: error in percentage points (pp)', ha='center', va='center',
+            fontsize=7, color='#4a4945', bbox=dict(facecolor='white', edgecolor='none', pad=1.5))
+    ax.set_xlim(-0.1, xs[-1]+w+0.1); ax.set_ylim(-0.1, y+h+0.1); ax.axis('off')
+    save(fig, 'fig1_1_pipeline.png')
 
 
 # ---------------------------------------------------------------- Figure 5.2: mean error by method and sampler
@@ -199,6 +231,7 @@ def figure_hard(pred, nets):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     pred, nets, samples = T.load()
+    figure_pipeline()
     figure_overview(pred)
     figure_networks(pred, nets)
     figure_textbook(pred, samples)
