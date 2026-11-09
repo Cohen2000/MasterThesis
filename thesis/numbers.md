@@ -6,9 +6,9 @@ Written by `scripts/thesis.py` from `data/`. "Thesis" is the number as printed i
 |---|---|---|---|---|
 | Abstract | GPT-6 Sol answers that match the textbook correction (random walk) | 97 von 108 | 97 von 108 | yes |
 | Abstract | random walk: error of the observed persistence and of GPT-6 Sol (pp) | 30,1 und 8,4 | 30,1 und 8,4 | yes |
-| 1.4 | GPT-6 Sol answers that match the textbook correction (random walk) | 97 von 108 | 97 von 108 | yes |
-| 1.4 | random walk: error of the observed persistence and of GPT-6 Sol (pp) | 30,1 und 8,4 | 30,1 und 8,4 | yes |
-| 1.4 | node sampling, observed persistence vs. best method under any other sampler (pp) | 2,7 vs. 3,9 | 2,7 vs. 3,9 | yes |
+| 1.5 | GPT-6 Sol answers that match the textbook correction (random walk) | 97 von 108 | 97 von 108 | yes |
+| 1.5 | random walk: error of the observed persistence and of GPT-6 Sol (pp) | 30,1 und 8,4 | 30,1 und 8,4 | yes |
+| 1.5 | node sampling, observed persistence vs. best method under any other sampler (pp) | 2,7 vs. 3,9 | 2,7 vs. 3,9 | yes |
 | 1.1, 2.1 | repeat ratio of Wikipedia and Reddit (Yi et al., 2025, Table 5: 88.41 % and 88.32 %) | etwa 88 % | etwa 88 % | yes |
 | 3.1 | pairs that interact only once: online platforms | 38 bis 99 % | 38 bis 99 % | yes |
 | 3.1 | pairs that interact only once: other networks | 14 bis 33 % | 14 bis 33 % | yes |

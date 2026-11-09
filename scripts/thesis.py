@@ -298,12 +298,12 @@ def main():
     gpt_n, total = matches(walk, 'gpt_6_sol', design)
 
     # Abstract and Section 1.4
-    for where in ('Abstract', '1.4'):
+    for where in ('Abstract', '1.5'):
         check(where, 'GPT-6 Sol answers that match the textbook correction (random walk)', '97 von 108', f'{gpt_n} von {total}')
         check(where, 'random walk: error of the observed persistence and of GPT-6 Sol (pp)', '30,1 und 8,4',
               f'{de(obs["walk"])} und {de(m["gpt_6_sol", "walk"])}')
     others = min(m[k, a] for k in MAIN for a in ('walk', 'truncation', 'event'))
-    check('1.4', 'node sampling, observed persistence vs. best method under any other sampler (pp)', '2,7 vs. 3,9',
+    check('1.5', 'node sampling, observed persistence vs. best method under any other sampler (pp)', '2,7 vs. 3,9',
           f'{de(obs["node"])} vs. {de(others)}')
     check('1.1, 2.1', 'repeat ratio of Wikipedia and Reddit (Yi et al., 2025, Table 5: 88.41 % and 88.32 %)', 'etwa 88 %', 'etwa 88 %')
 
