@@ -1,4 +1,4 @@
-"""Networks: raw event files, the clean graph with five time windows, and time-shuffled twins.
+"""Networks: raw event files, the clean graph with five time windows, and time-shuffled copies.
 
 A network is a list of events "node u with node v at time t". Pairs are undirected, events of a
 node with itself are dropped, and the time span is cut into five equal windows. K is the number
@@ -105,7 +105,7 @@ def network(key, raw=RAW):
 
 
 def twin(g):
-    """The time-shuffled twin: the same pairs with the same number of events, but the time stamps
+    """The time-shuffled copy: the same pairs with the same number of events, but the time stamps
     are shuffled over all events (shuffle P[w,t] of Gauvin et al. 2022)."""
     t = rng('pwt_productive', g.key).permutation(g.t)
     w = window_of(t, g.horizon)

@@ -1,0 +1,15 @@
+Netzwerk,Art,Knoten,Paare,Interaktionen je Paar,Fenster,Einmal-Paare,Persistenz
+## Übrige Netzwerke
+Reality Mining,Bluetooth,96,2.539,"92,5","46,5 Tage",18 %,"60,7 %"
+Radoslaw,E-Mail,167,3.250,"25,5","54,2 Tage",15 %,"55,1 %"
+Village,Kontaktsensor,86,347,"294,8","2,7 Tage",15 %,"50,7 %"
+Email EU,E-Mail,986,16.064,"20,7",5 Monate,26 %,"50,6 %"
+High school,Kontaktsensor,327,5.818,"32,4",20 Std.,31 %,"48,6 %"
+Copenhagen,Bluetooth,692,79.530,"30,5","5,6 Tage",26 %,"44,7 %"
+Hospital,Kontaktsensor,75,1.139,"28,5",19 Std.,14 %,"44,5 %"
+Workplace,Kontaktsensor,217,4.274,"18,3","2,3 Tage",33 %,"29,0 %"
+## Online-Plattformen
+Linux mailing list,"Online, Antworten",26.885,159.996,"6,4",19 Monate,42 %,"15,3 %"
+CollegeMsg,"Online, Nachrichten",1.899,13.838,"4,3","38,7 Tage",38 %,"10,3 %"
+MathOverflow,"Online, Antworten",24.759,187.986,"2,1",15 Monate,60 %,"8,4 %"
+Digg,"Online, Antworten",30.360,85.155,"1,0","3,0 Tage",99 %,"0,3 %"

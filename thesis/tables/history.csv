@@ -1,0 +1,11 @@
+Verfahren,Zeitschnitt: Fehler,Zeitschnitt: mit Vorzeichen,Ereignisstichprobe: Fehler,Ereignisstichprobe: mit Vorzeichen
+Beobachtete Persistenz,"6,4","−5,3","16,4","−16,4"
+Statistisches Modell,"7,1","+6,8","7,6","−0,9"
+GPT-6 Sol,"5,4","+3,1","10,8","+0,5"
+"GPT-6 Sol, Mittel aus drei Antworten","4,6","+3,1","8,2","+0,5"
+GPT-6 Sol mit Python,"6,1","+4,0","15,1","+6,4"
+DeepSeek V4.1,"13,3","+9,5","17,2","−2,6"
+"DeepSeek V4.1, Mittel aus drei Antworten","11,0","+9,5","10,9","−2,6"
+Qwen3.6,"16,0","+5,7","22,0","−1,5"
+"Qwen3.6, Mittel aus drei Antworten","11,3","+5,7","14,4","−1,5"
+*Gelernte Referenz*,"*3,9*","*+1,5*","*7,9*","*+2,3*"

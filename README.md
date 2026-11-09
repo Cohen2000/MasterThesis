@@ -1,72 +1,105 @@
-# Persistence under sampling bias
+# Persistence under sampling: code and data of the Master's thesis
 
-**How does sampling bias affect persistence estimates in temporal networks, and how do large language models compare with conventional methods?**
+Code and frozen results of the Master's thesis *Evaluating Large Language Models for Edge Persistence
+Estimation in Temporal Graphs under Partial Observation* (Albert Borchardt, University of Tübingen, 2026).
 
-A temporal network is a list of events "node A with node B at time t". Its persistence `rho_2` is the share of interacting pairs that are active in at least two of five equal time windows. The study estimates `rho_2` from a small sample of a network. It uses 12 real networks, a time-shuffled twin of each and 8 synthetic networks; each is sampled three times in four ways (384 samples), and nine methods get exactly the same samples.
+**Question.** How many pairs of users that interacted once interact again later? The thesis calls this
+*persistence*: the share of interacting pairs that are active in at least two of five equal time windows.
+Outsiders rarely see a whole platform, only a sample. The study draws samples from 12 fully recorded
+networks with four samplers of equal budget and asks three LLMs, a statistical model and a learned
+reference to estimate the persistence of the whole network.
 
-| Sampler | How the sample is taken |
-|---|---|
-| R | random nodes |
-| S | a random walk along the events |
-| H | random nodes, but only the last 60% of the time span |
-| B | every event is kept with a fixed probability |
+| Sampler | Like | Problem it causes |
+|---|---|---|
+| node sampling (`R`) | a user panel | none (control) |
+| random walk (`S`) | a crawler | sampling bias: busy pairs are seen more often |
+| time truncation (`H`) | a search API for recent posts | lost history: windows 1 and 2 are hidden |
+| event sampling (`B`) | a 1 % stream | both |
 
-## Results
-
-Mean error of `rho_2` on the 12 real networks (0.03 = 3 percentage points; lower is better):
-
-| Sampler | Observed share | Training median | MLE | ExtraTrees | Qwen, thinking | Qwen, no thinking | DeepSeek Flash | GPT-6 Sol | GPT-6 Sol + Python |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| R | 0.027 | 0.232 | 0.037 | 0.028 | 0.027 | 0.411 | 0.027 | 0.027 | 0.027 |
-| S | 0.301 | 0.232 | 0.069 | 0.050 | 0.181 | 0.475 | 0.090 | 0.084 | 0.081 |
-| H | 0.064 | 0.232 | 0.071 | 0.039 | 0.160 | 0.252 | 0.133 | 0.054 | 0.061 |
-| B | 0.164 | 0.232 | 0.076 | 0.079 | 0.220 | 0.527 | 0.172 | 0.108 | 0.151 |
-
-![Mean absolute error by method and sampler](docs/analysis/figures/fig2_ranking.png)
-
-Key findings of the [analysis](docs/analysis/ANALYSIS.md):
-
-1. **The bias depends on what the sampler hides.** Random nodes: no selection bias. Walks overstate persistence (+28 pp). Missing time and missing events understate it (−5 and −16 pp).
-2. **What is hidden decides how well it can be corrected.** Walk weights are known, so a formula removes most of the bias (30 → 5–9 pp). Hidden time and lost events must be modelled; 4–8 pp remain even for the best method.
-3. **What makes a network hard depends on the sampler:** few nodes (R), many events per pair (S), early windows unlike the late ones (H), high persistence (B).
-4. **Where a formula exists (R, S), the best LLM's answers match it** and come close to the conventional methods.
-5. **Where none exists (H, B), only GPT keeps up.** DeepSeek and Qwen fall behind. Longer reasoning or Python brings no gain.
-6. **In short:** the best LLM gets close to the conventional methods, but it is noisier and never clearly better than the best of them.
-
-All tables: [docs/results/final](docs/results/final/MAIN_RESULTS.md). Method, glossary and sources: [docs/DESIGN.md](docs/DESIGN.md).
-
-[S ablation without walk weights](docs/results/final/ABLATION_S.md): GPT's mean error on real networks rises from 8.4 to 10.7 pp when the walk log is withheld; the same 96 S samples receive three new answers each.
-
-Every language model answered each sample three times (1,152 answers per configuration). Only answers in the required format are scored: all were valid except 1 (Qwen, thinking), 2 (Qwen, no thinking) and 1 (DeepSeek). API cost: DeepSeek USD 26.51, GPT USD 27.59, GPT + Python USD 94.50.
-
-## Repository
-
-| Path | Contents |
-|---|---|
-| `src/study/` | The method: networks (`data.py`, `synthetic.py`), samplers (`sampling.py`, `walk.py`), sample text and prompt (`sample.py`), estimators (`estimators.py`, `extratrees.py`), answer check (`answers.py`), tables (`tables.py`) |
-| `scripts/` | The steps below |
-| `config/` | The prompts and the list of real networks with their sources |
-| `docs/` | Design, result tables, written analysis |
-| `tests/` | Tests (`python -m pytest -q`) |
-
-## Steps
+## Check every number of the thesis (one command, no raw data, no model)
 
 ```bash
 pip install -r requirements.txt
-python scripts/samples.py                    # the 384 samples from the raw networks
-python scripts/estimates.py --fits 11        # observed share, training median, MLE, ExtraTrees
-python scripts/qwen.py ...                   # Qwen answers (GPU)
-python scripts/api.py ...                    # DeepSeek and GPT answers (paid)
-python scripts/checks.py                     # checks of the random walk and of the time cut
-python scripts/evaluate.py                   # all result tables
-python scripts/window_sensitivity.py         # tables on the number of time windows
-python scripts/analysis_figures.py --inputs  # data, figures and tables of the analysis
+python scripts/thesis.py       # every number and table of the thesis, from data/ -> thesis/numbers.md, thesis/tables/
+python scripts/figures.py      # every figure of the thesis -> thesis/figures/
+python -m pytest -q            # quick checks (samples, prompts, estimators, all numbers)
 ```
 
-Every estimate of the study is frozen in [`PREDICTIONS.csv`](docs/results/final/PREDICTIONS.csv), because the answers of the language models cannot be repeated. What a new run gives:
+`thesis/numbers.md` lists each number of the thesis next to the value recomputed from `data/` (83 numbers,
+all matching). The script stops with an error if one differs.
 
-- **Samples, observed share, training median:** exactly the frozen values. The samples are checked against [`CHECKSUMS.json`](docs/results/final/CHECKSUMS.json).
-- **MLE and ExtraTrees:** the frozen values up to small numerical differences between machines: the MLE is fitted by a numerical optimiser, and the last digit of a logarithm in the ExtraTrees features depends on the processor. On a laptop the MLE differed by at most 0.0002 and the reported ExtraTrees fit by at most 0.004; no mean error per sampler changed by more than 0.0001.
-- **Tables and analysis:** exactly the files in `docs/`. The evaluation first scores every language-model answer again from its raw text and stops if a row of `PREDICTIONS.csv` differs.
+| In the thesis | File |
+|---|---|
+| Table 3.1 (networks) | `thesis/tables/networks.csv` |
+| Table 3.3 (the hospital sample), Appendix A (full prompt) | `data/samples/sp_hospital__R-...__s1.json` |
+| Table 5.1 (all methods) | `thesis/tables/results.csv` |
+| Table 5.2 (random walk) | `thesis/tables/walk.csv` |
+| Table 5.3 (lost history) | `thesis/tables/history.csv` |
+| Tables 5.4 to 5.6 (robustness) | `thesis/tables/windows.csv`, `thresholds.csv`, `copies.csv` |
+| Appendix B (per network) | `thesis/tables/per_network.csv` |
+| Figures 1.1 and 5.1 to 5.5 | `thesis/figures/*.png` |
 
-Not in the repository: the raw networks (`data/raw/`; files, sources and fingerprints in [`config/networks.yaml`](config/networks.yaml)) and the raw answers of the language models (`~/.local/share/masterthesis`). Their rights remain with the providers.
+## What is in the repository
+
+| Path | Contents |
+|---|---|
+| `data/samples/` | the 288 samples (12 networks and their 12 time-shuffled copies, 4 samplers, 3 draws), each with the exact prompt the LLMs received |
+| `data/predictions.csv` | every estimate of the study (4,536 rows): method, sample, the four estimates `rho_2 ... rho_5`, valid or not |
+| `data/truth.json` | the true persistence of every network and copy |
+| `data/networks.csv` | facts per network (size, window length, one-off pairs, what the samplers hide) |
+| `data/network_properties.csv`, `data/sample_properties.csv` | the 99 properties of Section 5.6 |
+| `data/window_sensitivity.csv` | the true persistence for 2 to 20 windows (Section 5.7) |
+| `data/checksums.json` | fingerprints of the 288 sample files |
+| `src/study/` | the method: networks (`data.py`, `synthetic.py`), samplers (`sampling.py`, `walk.py`, `walk.cpp`), sample text and prompt (`sample.py`), estimators (`estimators.py`, `extratrees.py`), answer check (`answers.py`) |
+| `config/` | the prompts (`prompts/`) and the raw networks with source and fingerprint (`networks.yaml`) |
+| `scripts/` | the steps below |
+| `tests/` | the quick checks |
+
+The method names in `data/predictions.csv`:
+
+| Name | In the thesis |
+|---|---|
+| `observed` | observed persistence (Section 4.1) |
+| `statistical_model` | statistical model, beta-binomial (Section 4.3) |
+| `learned_reference` | learned reference, ExtraTrees (Section 4.5) |
+| `gpt_6_sol`, `deepseek_v4_1_flash`, `qwen3_6` | the three LLMs (Section 4.4) |
+| `gpt_6_sol_python` | GPT-6 Sol with a Python interpreter |
+| `gpt_6_sol_no_walk_log` | GPT-6 Sol under the random walk without the walk's log |
+
+The textbook correction of the random walk (Section 4.2) is not a row of its own; `scripts/thesis.py`
+computes it from each walk sample (`study.estimators.ratio`).
+
+## How data/ was made
+
+The LLM answers cannot be repeated exactly, so all estimates are frozen in `data/predictions.csv`.
+These steps made `data/`. All except the LLM steps run on a laptop.
+
+```bash
+python scripts/samples.py                 # the 288 samples from the raw networks (needs data/raw)
+python scripts/estimates.py [--learned]   # observed persistence, statistical model [, learned reference]
+python scripts/api.py deepseek|openai ... # GPT-6 Sol and DeepSeek V4.1 Flash (paid APIs; dry run without --execute)
+python scripts/qwen.py ...                # Qwen3.6-35B-A3B on one GPU (vLLM 0.29.0)
+python scripts/ablation_walk_log.py       # GPT-6 Sol without the walk's log
+python scripts/score.py                   # raw answers -> rows of data/predictions.csv
+python scripts/networks.py                # data/networks.csv
+python scripts/properties.py              # data/network_properties.csv, data/sample_properties.csv
+python scripts/window_sensitivity.py      # data/window_sensitivity.csv
+```
+
+Each script writes to `results/` and compares its output with the frozen file in `data/`. A new run gives
+the same samples byte for byte and the same observed persistence exactly. The statistical model and the
+learned reference agree up to small numerical differences between machines, because both are fitted
+numerically.
+
+**Models.** GPT-6 Sol (`gpt-6-sol`, OpenAI API, reasoning effort high) and DeepSeek V4.1 Flash
+(`deepseek-flash`, DeepSeek API, high effort). All main answers were collected by 29 September 2026,
+before DeepSeek moved `deepseek-flash` to a new version on 17 October 2026. The run without the walk's
+log took place on 21 October 2026. Qwen3.6-35B-A3B ran locally with thinking on (vLLM 0.29.0).
+
+**Not in the repository:** the raw networks (`data/raw/`; files, sources and fingerprints in
+`config/networks.yaml`; the rights stay with the providers) and the raw LLM answers (only their scores
+are in `data/predictions.csv`).
+
+## License
+
+MIT, see `LICENSE`. The data sets keep the licenses of their providers.

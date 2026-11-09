@@ -1,1 +1,1 @@
-"""Frozen main experiment. Offline preparation has no inference transport."""
+"""Persistence under sampling: networks, samplers, sample text, estimators."""

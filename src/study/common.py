@@ -1,4 +1,4 @@
-"""Shared settings: networks, sampling arms, seeds and small file helpers."""
+"""Shared settings: networks, samplers, seeds and small file helpers."""
 from pathlib import Path
 import csv
 import hashlib
@@ -7,26 +7,29 @@ import os
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-RAW = ROOT/'data/raw'                               # raw networks (not in the repository)
-EXTERNAL = Path.home()/'.local/share/masterthesis'  # answers of the language models (not in the repository)
-OUT = ROOT/'results'                                # what the scripts recompute (not in the repository)
-FINAL = ROOT/'docs/results/final'                   # the result tables
+RAW = ROOT/'data/raw'           # raw networks (download them, see config/networks.yaml)
+DATA = ROOT/'data'              # frozen inputs and outputs of the study: samples, predictions, truth
+OUT = ROOT/'results'            # what the scripts recompute (not in the repository)
 
 W = 5                # time windows
-BUDGET = 0.10        # every arm sees, on average, 10% of the active (pair, window) cells
-H_WINDOWS = 3        # arm H sees the last 60% of the time span: the last three windows
-DRAWS = 3            # samples per test network and arm
-TRAIN_DRAWS = 5      # samples per training network and arm
+BUDGET = 0.10        # every sampler sees, on average, 10% of the active (pair, window) cells
+H_WINDOWS = 3        # time truncation sees the last three of the five windows
+DRAWS = 3            # samples per network and sampler
+TRAIN_DRAWS = 5      # samples per training network and sampler (learned reference)
 REPEATS = 3          # answers of a language model per sample
-ARMS = ('R', 'S', 'H', 'B')
 
-# The 16 real training networks of ExtraTrees. Nine of them are also test networks.
+# The four samplers. Inside the code and in the prompts they keep their short letters.
+ARMS = ('R', 'S', 'H', 'B')
+SAMPLER = {'R': 'node sampling', 'S': 'random walk', 'H': 'time truncation', 'B': 'event sampling'}
+
+# The 16 real training networks of the learned reference (ExtraTrees). Nine of them are also test networks.
 TRAIN = ('sp_hospital', 'sp_primaryschool', 'sp_highschool2013', 'sp_workplace', 'sp_hypertext2009', 'snap_collegemsg',
          'snap_email_eu', 'snap_mathoverflow', 'snap_bitcoin_otc', 'nr_radoslaw_email', 'nr_digg_reply', 'jodie_wikipedia',
          'jodie_reddit', 'jodie_lastfm', 'jodie_mooc', 'copenhagen_bluetooth')
-# The 12 real test networks. Each also has a time-shuffled twin, named with the suffix __pwt.
+# The 12 test networks of the thesis. Each also has a time-shuffled copy, named with the suffix __pwt.
 REAL = ('sp_hospital', 'sp_highschool2013', 'copenhagen_bluetooth', 'sp_workplace', 'snap_email_eu', 'snap_collegemsg',
         'snap_mathoverflow', 'nr_digg_reply', 'reality_mining', 'lkml_reply', 'sp_malawi', 'nr_radoslaw_email')
+ONLINE = ('lkml_reply', 'snap_collegemsg', 'snap_mathoverflow', 'nr_digg_reply')
 TWIN = '__pwt'
 
 # Fixed text labels. They are part of every random seed and of every sample ID, so they must
@@ -38,16 +41,17 @@ ID_LABEL = {**LABEL, 'R': LABEL['R']+'-panel-release', 'H': LABEL['H']+'-panel-r
 
 
 def family(key):
-    """A twin belongs to the family of its original network."""
+    """A time-shuffled copy belongs to the family of its original network."""
     return key.removesuffix(TWIN)
 
 
 def group(key):
+    """'real' for the 12 networks, 'surrogate' for their time-shuffled copies, 'synthetic' for training networks."""
     return 'surrogate' if key.endswith(TWIN) else 'real' if key in REAL else 'synthetic'
 
 
 def fold(key):
-    """Which ExtraTrees model predicts a network: a training network and its twin get the model
+    """Which learned-reference model predicts a network: a training network and its copy get the model
     trained without that network; every other network gets the model trained on all 16."""
     return family(key) if family(key) in TRAIN else 'synthetic'
 

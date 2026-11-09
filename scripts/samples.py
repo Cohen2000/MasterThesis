@@ -1,27 +1,28 @@
 #!/usr/bin/env python3
-"""Draw the 384 samples: 32 networks x 4 sampling arms x 3 draws, with the prompt of each.
+"""Draw the 288 samples: 24 networks (12 real, 12 time-shuffled copies) x 4 samplers x 3 draws.
 
-Writes results/samples/ and checks every file against the fingerprints in CHECKSUMS.json, so the
-samples are exactly those the language models answered. Needs the raw networks in data/raw.
+Every sample is written with the exact prompt the language models received. The script then checks
+every file against data/checksums.json and the true persistence against data/truth.json, so the
+samples are exactly those of the thesis. Needs the raw networks in data/raw (see config/networks.yaml).
+
+  python scripts/samples.py            writes results/samples/
 """
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'src'))
-from study.common import ARMS, DRAWS, FINAL, OUT, REAL, digest, group, read_json, sample_id, sha, write_json  # noqa: E402
+from study.common import ARMS, DATA, DRAWS, OUT, REAL, digest, group, read_json, sample_id, sha, write_json  # noqa: E402
 from study.data import network, twin  # noqa: E402
 from study.sample import prompt, text  # noqa: E402
 from study.sampling import draw, sizes  # noqa: E402
-from study.synthetic import test_networks  # noqa: E402
 from study.walk import Walk  # noqa: E402
 
 
 def networks():
-    """The 32 test networks: 12 real, their 12 time-shuffled twins and 8 synthetic."""
+    """The 12 real networks and their time-shuffled copies."""
     for key in REAL:
         g = network(key)
         yield g
         yield twin(g)
-    yield from test_networks()
 
 
 def main():
@@ -38,10 +39,11 @@ def main():
                 write_json(OUT/'samples'/f'{name}.json', {
                     'id': name, 'graph_id': g.key, 'stratum': group(g.key), 'arm': arm, 'sample_index': index,
                     'block': block, 'block_sha256': digest(block), 'messages': messages, 'prompt_sha256': digest(messages)})
-    frozen = read_json(FINAL/'CHECKSUMS.json')['observations']['files']
-    if {p.name: sha(p) for p in (OUT/'samples').glob('*.json')} != frozen or truth != read_json(FINAL/'TRUTH.json'):
+        print(g.key, 'done', flush=True)
+    frozen = read_json(DATA/'checksums.json')
+    if {p.name: sha(p) for p in (OUT/'samples').glob('*.json')} != frozen or truth != read_json(DATA/'truth.json'):
         raise SystemExit('the samples or the true values differ from the frozen ones')
-    print(f'{len(frozen)} samples written; identical to the frozen samples')
+    print(f'{len(frozen)} samples written to results/samples; identical to data/samples')
 
 
 if __name__ == '__main__':

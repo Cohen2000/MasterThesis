@@ -28,6 +28,9 @@ CLAUDE.local.md
 /literature/
 /results/
 /archive/
+/AI/
+/*.docx
+/*.bundle
 
 # Transient files
 *.log

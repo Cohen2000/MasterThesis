@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""DeepSeek and GPT answers for the 384 samples, three per sample (paid APIs).
+"""GPT-6 Sol and DeepSeek V4.1 Flash answers for the 288 samples, three per sample (paid APIs).
 
   python scripts/api.py deepseek --out DIR             one request per answer, eight at a time
   python scripts/api.py openai --out DIR [--tools]     GPT through the Batch API, 96 requests per batch;
-                                                       with --tools GPT may run Python code
+                                                       with --tools GPT may run Python code (ablation)
 
 Every model gets the same prompt, with reasoning set to high and a JSON answer. Without --execute
 nothing is sent; the script only says how many answers are missing. A stored answer is never asked
@@ -25,7 +25,7 @@ from pathlib import Path
 from threading import Lock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'src'))
 from study.answers import parse_final  # noqa: E402
-from study.common import OUT, REPEATS, digest, read_json  # noqa: E402
+from study.common import DATA, REPEATS, digest, read_json  # noqa: E402
 
 MODEL = {'deepseek': 'deepseek-flash', 'openai': 'gpt-6-sol'}
 PYTHON_TOOL = {'type': 'code_interpreter', 'container': {'type': 'auto'}}     # the hosted Python tool of GPT
@@ -133,7 +133,7 @@ def run_openai(todo, out, tools):
         chunk = todo[first:first+96]
         for row in chunk: append(out/'attempts.jsonl', {'id': row['id']})
         lines = b''.join(_json(batch_line(r, tools))+b'\n' for r in chunk)
-        mark = 'masterthesis'+hashlib.sha256(lines).hexdigest()[:24]
+        mark = 'boundary'+hashlib.sha256(lines).hexdigest()[:24]
         form = (f'--{mark}\r\nContent-Disposition: form-data; name="purpose"\r\n\r\nbatch\r\n--{mark}\r\nContent-Disposition: form-data; '
                 f'name="file"; filename="batch.jsonl"\r\nContent-Type: application/jsonl\r\n\r\n').encode()+lines+f'\r\n--{mark}--\r\n'.encode()
         uploaded = call('https://api.openai.com/v1/files', key, form, f'multipart/form-data; boundary={mark}')
@@ -157,7 +157,7 @@ def main():
     ap.add_argument('--execute', action='store_true', help='send the requests')
     ap.add_argument('--retry', action='store_true', help='also send requests again that were sent but brought no answer')
     a = ap.parse_args()
-    samples = [read_json(p) for p in sorted((OUT/'samples').glob('*.json'))]
+    samples = [read_json(p) for p in sorted((DATA/'samples').glob('*.json'))]
     todo = planned(samples, a.provider+('_tools' if a.tools else ''))
     lines = lambda name: [json.loads(x) for x in (a.out/name).read_text().splitlines()] if (a.out/name).exists() else []
     done = {r['id'] for r in lines('responses.jsonl')}

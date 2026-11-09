@@ -1,0 +1,20 @@
+{
+  "arm": "H",
+  "block": "W=5\nArm=H\nTemporal_access=0,0,1,1,1\nN_obs=278\nD_obs=11752\nM_obs=248751\nEvents_per_window=NA,NA,93011,64503,91237\nn_panel=281\npattern,dyads,events\n??001,1453,1792\n??010,965,1092\n??011,636,2076\n??100,1463,1776\n??101,1083,4142\n??110,610,1902\n??111,5542,235971",
+  "block_sha256": "461cc4af08993a0693bbfccebff29a91fbf6d88c54e19b62879c52265c3c8411",
+  "graph_id": "copenhagen_bluetooth__pwt",
+  "id": "copenhagen_bluetooth__pwt__H-p888-access-v9-20260922-panel-release__s3",
+  "messages": [
+    {
+      "content": "You estimate properties of a partially observed temporal network. Use the supplied observation and sampling rule. Return your final answer as one JSON object with exactly the keys rho_2, rho_3, rho_4, rho_5 and numeric values. Do not include explanations, additional keys, or Markdown in the final answer.",
+      "role": "system"
+    },
+    {
+      "content": "Target: The full archive has a known horizon normalized to [0,1], split into W=5 equal windows in chronological order: [0,0.2), [0.2,0.4), [0.4,0.6), [0.6,0.8), [0.8,1]. A dyad is an unordered pair of distinct vertices. E_full contains all dyads with at least one event anywhere in the full archive; it does not contain never-active pairs. V_full is the set of endpoints of these dyads. For e in E_full, K_e is its number of active windows; these need not be consecutive. Estimate rho_k = |{e in E_full: K_e >= k}| / |E_full|, for k=2,3,4,5. Give point estimates on [0,1], satisfying rho_2 >= rho_3 >= rho_4 >= rho_5.\nThe full numbers of vertices, dyads, and events are unknown. Dyads with no observed event are absent from the table but may belong to E_full. The observation need not uniquely identify the full profile; still provide your best point estimates.\nData definitions: N_obs counts distinct endpoints of observed events; D_obs counts distinct observed dyads; M_obs counts observed event records, with a retrieved record counted once even after repeated traversal. Events_per_window has five entries. NA means outside the accessible time interval, not zero activity. Temporal_access indicates temporal accessibility only; it does not imply complete observation unless the sampling rule states so.\nThe table groups dyads by their observed activity pattern across windows 1..5: 1 = at least one observed event in the window, 0 = no observed event in an accessible window, ? = temporally inaccessible window. Whether an observed 0 implies true inactivity depends on the sampling rule. The dyads column counts distinct observed dyads with that pattern. The events column sums their observed event records, counting each record once even after repeated traversal. These are observed counts, not unknown full counts. All permitted patterns with at least one observed event are listed, including rows with dyads=0 and events=0. Dyads without any observed event are omitted, so the all-zero pattern is not listed. The dyads and events columns sum to D_obs and M_obs, respectively.\nSampling rule: History-limited uniform node-panel sampling is used. Only dyads whose endpoints are in the released panel can be retrieved. Only the temporally accessible history is available. The sampled panel size n_panel is released. Full vertex count and panel sampling fraction are unknown. Temporal_access indicates the accessible windows. Inaccessible windows are marked ? and NA; accessible zeros indicate true inactivity. Only dyads with at least one retrieved event are listed.\nW=5\nArm=H\nTemporal_access=0,0,1,1,1\nN_obs=278\nD_obs=11752\nM_obs=248751\nEvents_per_window=NA,NA,93011,64503,91237\nn_panel=281\npattern,dyads,events\n??001,1453,1792\n??010,965,1092\n??011,636,2076\n??100,1463,1776\n??101,1083,4142\n??110,610,1902\n??111,5542,235971\nReturn the four full-archive estimates in the specified JSON format.",
+      "role": "user"
+    }
+  ],
+  "prompt_sha256": "7cc8f0846753e0fcc99296d12e2190325d3dedc48dec7c586a8105203cd6a7ac",
+  "sample_index": 3,
+  "stratum": "surrogate"
+}

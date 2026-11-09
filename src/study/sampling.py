@@ -1,13 +1,13 @@
-"""The four sampling arms: how a sample of a network is taken, and how large it is.
+"""The four samplers: how a sample of a network is taken, and how large it is.
 
-  R  random nodes; every pair of two sampled nodes is seen completely.
-  S  a random walk; every pair it passes is seen completely.
-  H  random nodes, but only events in the last 60% of the time span are seen.
-  B  every event is kept with probability p, independently.
+  R  node sampling: random users; every pair of two sampled users is seen with its full history.
+  S  random walk: every pair the walk passes is seen with its full history.
+  H  time truncation: random users, but only events in the last three of the five windows are seen.
+  B  event sampling: every event is kept with probability p, independently.
 
-The size of each arm (nodes, steps or p) is set per network so that the arm sees, on average,
+The size of each sampler (users, steps or p) is set per network so that it sees, on average,
 10% of the active (pair, window) cells. Node, time and event sampling: Rocha, Masuda & Holme (2017).
-A twin uses the random numbers of its original network, so the two differ only in their timing.
+A time-shuffled copy uses the random numbers of its original network, so the two differ only in their timing.
 """
 import numpy as np
 from .common import BUDGET, H_WINDOWS, LABEL, W, family, rng, seed

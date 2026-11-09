@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "If you use this software or its experimental design, please cite it using the metadata below."
-title: "Temporal Network Persistence from Partial Observations"
+message: "If you use this code or data, please cite it using the metadata below."
+title: "Evaluating Large Language Models for Edge Persistence Estimation in Temporal Graphs under Partial Observation: code and data"
 type: software
 authors:
   - family-names: "Borchardt"
@@ -8,12 +8,13 @@ authors:
 repository-code: "https://github.com/Cohen2000/MasterThesis"
 license: MIT
 abstract: >-
-  Research software for estimating full-network temporal persistence from
-  partial and potentially biased network observations using analytical
-  estimators, supervised baselines, and language models.
+  Code and frozen results of a Master's thesis. Twelve fully recorded temporal networks are
+  sampled with four samplers of equal budget (node sampling, random walk, time truncation,
+  event sampling); three large language models, a beta-binomial model and a learned reference
+  estimate the share of pairs that interact in at least two of five time windows.
 keywords:
   - temporal networks
   - graph sampling
   - random walks
-  - persistence estimation
-  - language models
+  - persistence
+  - large language models

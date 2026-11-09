@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Qwen answers for the 384 samples, on one GPU with the vLLM engine (run on the computing cluster).
+"""Qwen3.6-35B-A3B answers for the 288 samples, on one GPU with the vLLM engine (run on a computing cluster).
 
-Every sample is answered three times with a thinking phase and three times without. A request is
-tried once: a finished answer is skipped when the job is restarted, a started one is never asked again.
+Every sample is answered three times, with thinking. A request is tried once: a finished answer is
+skipped when the job is restarted, a started one is never asked again.
 
-  python scripts/qwen.py --samples results/samples --out results/qwen --model <folder of Qwen3.6-35B-A3B>
+  python scripts/qwen.py --samples data/samples --out results/qwen --model <folder of Qwen3.6-35B-A3B>
 """
 import argparse, hashlib, json, os, sys, time
 from collections import deque
@@ -18,11 +18,9 @@ VERSIONS = {'vllm': '0.29.0', 'transformers': '5.17.0', 'torch': '2.13.0+cu130'}
 # Fixed labels that are part of the request IDs and seeds (R, H, B and S were frozen on different days).
 VERSION = {'R': 'panel888-access-v9-20260922', 'H': 'panel888-access-v9-20260922', 'B': 'panel888-access-v9-20260922',
            'S': 'panel888-access-v10-20260923'}
-# Sampling settings of the model card. The presence penalty discourages loops while thinking
-# and is off without thinking, where the answer is one short JSON object.
+# Sampling settings of the model card for thinking; the presence penalty discourages loops while thinking.
 MODES = {
-    'thinking':    dict(temperature=1.0, top_p=0.95, presence_penalty=1.5, enable_thinking=True,  config_id='qwen_thinking'),
-    'nonthinking': dict(temperature=0.7, top_p=0.80, presence_penalty=0.0, enable_thinking=False, config_id='qwen_nonthinking'),
+    'thinking': dict(temperature=1.0, top_p=0.95, presence_penalty=1.5, enable_thinking=True, config_id='qwen_thinking'),
 }
 TOP_K = 20
 GENERATION_CONFIG = {
@@ -122,7 +120,7 @@ def main():
     ap.add_argument('--samples', required=True)
     ap.add_argument('--out', required=True)
     ap.add_argument('--model', required=True)
-    ap.add_argument('--passes', default='thinking:1,thinking:2,thinking:3,nonthinking:1,nonthinking:2,nonthinking:3')
+    ap.add_argument('--passes', default='thinking:1,thinking:2,thinking:3')
     ap.add_argument('--shard-index', type=int, default=0, help='this job of --shard-count parallel jobs')
     ap.add_argument('--shard-count', type=int, default=1)
     ap.add_argument('--max-num-seqs', type=int, default=16)

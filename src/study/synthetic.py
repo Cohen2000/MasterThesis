@@ -1,4 +1,4 @@
-"""Synthetic networks with known persistence: two generators, the 8 test networks, the 400 training networks.
+"""The 400 synthetic training networks of the learned reference (ExtraTrees), from two generators.
 
 DAR switches every pair of a fixed backbone on or off per window; with probability alpha a pair
 copies its previous state (memory). Activity-driven (AD): in each round an active node contacts one
@@ -9,9 +9,7 @@ import pandas as pd
 from .common import rng
 from .data import graph
 
-DAR = dict(N=500, E=5000, chi=.2, nu=1.)                            # settings of the test networks
-AD = dict(N=500, tail=1.8, eps=.01, eta=1., rounds=1000, c=1.)       # tail = exponent of the activity distribution - 1
-TEST = ('dar_a0_r1', 'dar_a08_r1', 'dar_a0_r2', 'dar_a08_r2', 'ad_memoryless_r1', 'ad_memory_r1', 'ad_memoryless_r2', 'ad_memory_r2')
+AD = dict(c=1.)                         # default memory constant of an AD network
 POOL = 'pool-v3-panel888-20260921'      # fixed label of the training networks (part of their seeds)
 
 
@@ -71,19 +69,8 @@ def _graph(key, rows):
     return graph(key, pd.DataFrame(rows, columns=['u', 'v', 't']), horizon=(0, 1))
 
 
-def test_networks():
-    """The 8 synthetic test networks: two runs per generator, each without and with memory on the
-    same random numbers (common random numbers, Glasserman & Yao 1992)."""
-    for run in (1, 2):
-        L = dar_latents(rng('graph', f'dar_pair_r{run}'), **DAR)
-        for mode, alpha in (('a0', 0.), ('a08', .8)): yield _graph(f'dar_{mode}_r{run}', dar_rows(L, alpha)[0])
-    for run in (1, 2):
-        L = ad_latents(rng('graph', f'ad_pair_r{run}'), **{k: AD[k] for k in ('N', 'tail', 'eps', 'eta', 'rounds')})
-        for mode in ('memoryless', 'memory'): yield _graph(f'ad_{mode}_r{run}', ad_rows(L, mode, AD['c'])[0])
-
-
 def training_specs():
-    """Settings of the 400 synthetic training networks of ExtraTrees: 200 DAR and 200 AD networks,
+    """Settings of the 400 synthetic training networks of the learned reference: 200 DAR and 200 AD networks,
     spread evenly over size, activity and memory. The ranges were fixed before any result."""
     r = rng('pool_definition', POOL+':train')
     sizes = [200, 300, 500, 800, 1200]
