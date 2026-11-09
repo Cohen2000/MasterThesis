@@ -25,13 +25,13 @@ python scripts/figures.py      # every figure of the thesis -> thesis/figures/
 python -m pytest -q            # quick checks (samples, prompts, estimators, all numbers)
 ```
 
-`thesis/numbers.md` lists each number of the thesis next to the value recomputed from `data/` (83 numbers,
+`thesis/numbers.md` lists each number of the thesis next to the value recomputed from `data/` (79 numbers,
 all matching). The script stops with an error if one differs.
 
 | In the thesis | File |
 |---|---|
 | Table 3.1 (networks) | `thesis/tables/networks.csv` |
-| Table 3.3 (the hospital sample), Appendix A (full prompt) | `data/samples/sp_hospital__R-...__s1.json` |
+| Section 3.5 (the hospital sample), Appendix A (full prompt) | `data/samples/sp_hospital__R-...__s1.json` |
 | Table 5.1 (all methods) | `thesis/tables/results.csv` |
 | Table 5.2 (random walk) | `thesis/tables/walk.csv` |
 | Table 5.3 (lost history) | `thesis/tables/history.csv` |

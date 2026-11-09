@@ -192,8 +192,7 @@ def table_results(real):
     m, s = mae(real), spread(real)
     mo, so = mae(real, ONLINE), spread(real, ONLINE)
     no_train = [k for k in MAIN if k != 'learned_reference']
-    rows = [['## Twelve networks']]+block(m, s, MAIN, no_train)
-    rows += [['## Four online platforms']]+block(mo, so, MAIN, no_train)
+    rows = block(m, s, MAIN, no_train)
     write_table('results', ['Method']+[SAMPLER_EN[a] for a in SAMPLERS], rows)
     return m, s, mo, so
 
@@ -205,7 +204,6 @@ def table_walk(real, design):
     tb_abs = (100*(tb.est-tb.truth_2)).abs().groupby(tb.network).mean().mean()
     tb_sign = (100*(tb.est-tb.truth_2)).groupby(tb.network).mean().mean()
     rows = [[NAME_EN['observed'], en(m['observed', 'walk']), en(sg['observed', 'walk'], sign=True), '–'],
-            ['Textbook correction', en(tb_abs), en(tb_sign, sign=True), '–'],
             [NAME_EN['statistical_model'], en(m['statistical_model', 'walk']), en(sg['statistical_model', 'walk'], sign=True), '–']]
     for k in ['gpt_6_sol', 'gpt_6_sol_python', 'gpt_6_sol_no_walk_log', 'deepseek_v4_1_flash', 'qwen3_6']:
         n, total = matches(walk, k, design)
@@ -325,9 +323,9 @@ def main():
           f'{hours.min():.0f} Stunden, {months.max():.0f} Monate', hours.idxmin() == 'sp_hospital' and months.idxmax() == 'lkml_reply'
           and round(hours.min()) == 19 and round(months.max()) == 19)
     w = ws[ws.W.between(3, 20) & (ws.W != 5)]
-    check('3.2, 5.7', 'with 3 to 20 windows: largest mean change of persistence (pp)', 'höchstens 6',
+    check('3.2, 5.6', 'with 3 to 20 windows: largest mean change of persistence (pp)', 'höchstens 6',
           de(100*w.mean_absolute_change_vs_W5.max()), round(100*w.mean_absolute_change_vs_W5.max()) <= 6)
-    check('5.7', 'with 3 to 20 windows: smallest rank correlation with W = 5', 'mindestens 0,97',
+    check('5.6', 'with 3 to 20 windows: smallest rank correlation with W = 5', 'mindestens 0,97',
           de(w.spearman_vs_W5.min(), 3), w.spearman_vs_W5.min() >= .97)
     # Section 3.3
     smp = pd.read_csv(DATA/'sample_properties.csv')
@@ -348,26 +346,26 @@ def main():
     o = parse(hospital[0]['block'])
     persistent = sum(r[1] for r in o['table'] if r[0].count('1') >= 2)
     rows = {r[0]: (r[1], r[2]) for r in o['table']}
-    check('Table 3.3', 'hospital sample: nodes, pairs, interactions, per window', '24, 132, 3,172, 371/1,183/792/571/255',
-          f"{o['n_panel']}, {o['D_obs']}, {thousands_en(o['M_obs'])}, {'/'.join(thousands_en(x) for x in o['Events_per_window'])}")
-    check('Table 3.3', 'rows 00001, 01000, 01110, 11100 (pairs/interactions)', '12/86, 24/436, 5/283, 4/490',
-          ', '.join(f'{rows[p][0]}/{rows[p][1]}' for p in ('00001', '01000', '01110', '11100')))
-    check('Table 3.3', 'persistent pairs, observed persistence, truth', '56 of the 132, 42%, 45%',
-          f"{persistent} of the {o['D_obs']}, {100*persistent/o['D_obs']:.0f}%, {100*nr.rho_2['sp_hospital']:.0f}%")
+    check('3.5', 'hospital sample: nodes, pairs, interactions, per window', '24, 132, 3.172, 371,1183,792,571,255',
+          f"{o['n_panel']}, {o['D_obs']}, {thousands(o['M_obs'])}, {','.join(str(x) for x in o['Events_per_window'])}")
+    check('3.5', 'rows 00001, 00010, 01110, 11100 (pairs,interactions)', '12,86, 7,75, 5,283, 4,490',
+          ', '.join(f'{rows[p][0]},{rows[p][1]}' for p in ('00001', '00010', '01110', '11100')))
+    check('3.5', 'persistent pairs, observed persistence, truth', '56 von 132, 42 %, 45 %',
+          f"{persistent} von {o['D_obs']}, {100*persistent/o['D_obs']:.0f} %, {100*nr.rho_2['sp_hospital']:.0f} %")
     # Section 4.4 to 4.6
-    check('4.4', 'estimates in the study, invalid answers', '4.536, 2', f'{thousands(len(pred))}, {int((~pred.valid).sum())}')
-    check('4.4', 'samplers of the invalid answers', 'beide beim Zufallsweg',
+    check('4.3', 'estimates in the study, invalid answers', '4.536, 2', f'{thousands(len(pred))}, {int((~pred.valid).sum())}')
+    check('4.3', 'samplers of the invalid answers', 'beide beim Zufallsweg',
           'beide beim Zufallsweg' if set(pred[~pred.valid].sampler) == {'walk'} else 'nein')
     from study.common import REAL  # noqa: E402
-    check('4.5', 'real training networks, of them test networks', '16, neun', f"{len(TRAIN)}, {'neun' if len(set(TRAIN) & set(REAL)) == 9 else len(set(TRAIN) & set(REAL))}")
-    check('4.5', 'training samples per sampler of the learned reference', 'etwa 2.000',
+    check('4.4', 'real training networks, of them test networks', '16, neun', f"{len(TRAIN)}, {'neun' if len(set(TRAIN) & set(REAL)) == 9 else len(set(TRAIN) & set(REAL))}")
+    check('4.4', 'training samples per sampler of the learned reference', 'etwa 2.000',
           thousands((len(TRAIN)+400)*TRAIN_DRAWS), abs((len(TRAIN)+400)*TRAIN_DRAWS-2000) < 200)
     se = per_network(real).groupby(['method', 'sampler']).std(ddof=1)/math.sqrt(12)
     se = se[se.index.get_level_values('method').isin(MAIN)]
-    check('4.6', 'largest standard error of a mean error over networks (pp)', 'bis zu 4', de(se.max()), se.max() <= 4.05)
+    check('4.5', 'largest standard error of a mean error over networks (pp)', 'bis zu 4', de(se.max()), se.max() <= 4.05)
 
     # Section 5.1
-    check('5.1, 5.8', 'mean signed error of the observed persistence: node, walk, truncation, event (pp)',
+    check('5.1, 5.7', 'mean signed error of the observed persistence: node, walk, truncation, event (pp)',
           '−0,9, +28,4, −5,3, −16,4', ', '.join(de(sg['observed', a], sign=True) for a in SAMPLERS))
     walk_obs = per_network(real, 'err')['observed', 'walk']
     check('5.1', 'random walk: networks where the observed persistence is too high by more than 5 pp', '10 von 12',
@@ -419,7 +417,7 @@ def main():
     nolog = m['gpt_6_sol_no_walk_log', 'walk']
     check('5.3', 'random walk without the walk log: GPT-6 Sol (pp)', '10,7', de(nolog))
     gain = (obs['walk']-nolog)/(obs['walk']-m['gpt_6_sol', 'walk'])
-    check('5.3, 5.8', 'share of the gain that needs only the description of the walk', '90 %', f'{100*gain:.0f} %')
+    check('5.3, 5.7', 'share of the gain that needs only the description of the walk', '90 %', f'{100*gain:.0f} %')
     # the statistical model without the walk's log: unweighted, and with weights a person built from the table alone
     # (each pattern weighted by dyads^2 / events, the inverse of its mean events per pair, times its dyads)
     rows = []
@@ -471,23 +469,16 @@ def main():
     lk = per_network(real, 'err').loc['statistical_model', :, 'lkml_reply']
     check('5.5', 'statistical model overshoots on the Linux mailing list (pp, sampler)', '11 (Zeitschnitt)',
           f'{lk.max():.0f} ({SAMPLER[lk.idxmax()]})')
-    check('5.5', 'online, random walk: GPT-6 Sol vs. statistical model (pp)', '2,9 gegenüber 3,1',
-          f'{de(mo["gpt_6_sol", "walk"])} gegenüber {de(mo["statistical_model", "walk"])}')
     lower = all(mo['gpt_6_sol', a] < mo['statistical_model', a] for a in SAMPLERS)
-    check('5.5', 'online: GPT-6 Sol errs less than the model under every sampler (mean over platforms)', 'ja', 'ja' if lower else 'nein')
     on = list(ONLINE)
     combos = sum(int((pn['gpt_6_sol', a][on] < pn['statistical_model', a][on]).sum()) for a in SAMPLERS)
     check('5.5', 'online: platform-sampler combinations where GPT-6 Sol errs less than the model', '12 von 16', f'{combos} von 16')
     diff = sorted(pn['gpt_6_sol', a][n]-pn['statistical_model', a][n] for a in SAMPLERS for n in on
                   if not pn['gpt_6_sol', a][n] < pn['statistical_model', a][n])
-    check('5.5', 'online: of the other four combinations, near ties (largest difference, pp)', 'drei, höchstens 0,3',
-          f'{sum(d <= .3 for d in diff)}, höchstens {de(max(d for d in diff if d <= .3))}', sum(d <= .3 for d in diff) == 3)
     gaps = {k: max(mo[k, a]-min(mo[x, a] for x in MAIN) for a in SAMPLERS) for k in MAIN}
     arg = {k: max(SAMPLERS, key=lambda a: mo[k, a]-min(mo[x, a] for x in MAIN)) for k in MAIN}
-    check('5.5, Abstract', 'online: largest gap of GPT-6 Sol to the best method under any sampler (pp)', 'höchstens 0,7',
+    check('5.5', 'online: largest gap of GPT-6 Sol to the best method under any sampler (pp)', 'höchstens 0,7',
           de(gaps['gpt_6_sol']), gaps['gpt_6_sol'] <= .75)
-    check('5.5', 'online: largest gap of the others (pp, sampler)', '10,7 (Zufallsweg), 5,5 (Zeitschnitt), 4,1 (Ereignisstichprobe)',
-          ', '.join(f'{de(gaps[k])} ({SAMPLER[arg[k]]})' for k in ('observed', 'statistical_model', 'learned_reference')))
     check('5.5', 'online: every method other than GPT-6 Sol misses the best by at least 4 pp under some sampler', 'ja',
           'ja' if all(gaps[k] >= 4 for k in MAIN if k != 'gpt_6_sol') else 'nein')
     # Section 5.6
@@ -506,20 +497,20 @@ def main():
                 x = smp2.loc[sh].xs(a, level='sampler')[col].reindex(med[sh].index)
                 if x.notna().sum() >= 12 and x.nunique() >= 3: props.add(col)
     props |= {'observed_bias_signed', 'observed_bias_abs'}
-    check('5.6', 'properties tested', '99', str(len(props)))
+    check('5.5', 'properties tested', '99', str(len(props)))
     for a, prop, text in (('walk', 'events_per_pair', '+0,77'), ('truncation', 'abs_early_late_mismatch_2', '+0,78'),
                           ('event', 'rho2', '+0,85')):
         x, y = net.loc[0][prop].reindex(med[0].index), med[0][a]
         r = spearman(x, y)
         loo = min(abs(spearman(x.drop(n), y.drop(n))) for n in x.index)
-        check('5.6', f'{SAMPLER[a]}: Spearman of the median error with {prop}', text, de(r, 2, sign=True))
-        check('5.6', f'{SAMPLER[a]}: smallest |r| when one network is left out', 'über 0,7', de(loo, 2), loo > .695)
+        check('5.5', f'{SAMPLER[a]}: Spearman of the median error with {prop}', text, de(r, 2, sign=True))
+        check('5.5', f'{SAMPLER[a]}: smallest |r| when one network is left out', 'über 0,7', de(loo, 2), loo > .695)
     cm = pn.loc['statistical_model', :, 'snap_collegemsg']
-    check('5.6', 'CollegeMsg, statistical model: node, walk, event below 1 pp; truncation (pp)', 'unter 1; 11,0',
+    check('5.5', 'CollegeMsg, statistical model: node, walk, event below 1 pp; truncation (pp)', 'unter 1; 11,0',
           f'{de(max(cm[a] for a in ("node", "walk", "event")))}; {de(cm["truncation"])}',
           max(cm[a] for a in ('node', 'walk', 'event')) < 1 and de(cm['truncation']) == '11,0')
     # Section 5.7
-    check('5.7', 'time-shuffled copies: signed error of the observed persistence under event sampling (pp)', '−32,5',
+    check('5.6', 'time-shuffled copies: signed error of the observed persistence under event sampling (pp)', '−32,5',
           de(sg_s['observed', 'event'], sign=True))
     th = {}
     for a in ('walk', 'truncation', 'event'):
@@ -528,9 +519,9 @@ def main():
             th[k, a] = [sub.assign(x=sub[f'err_{j}'].abs()).groupby('network').x.mean().mean() for j in (3, 4, 5)]
     ok = all(th['gpt_6_sol', a][i] <= th['statistical_model', a][i]+.25 for a in ('walk', 'truncation') for i in range(3)) and \
         all(th['gpt_6_sol', 'event'][i] > th['statistical_model', 'event'][i] for i in range(3))
-    check('5.7', 'stricter thresholds: GPT-6 Sol level with or ahead of the model (walk, truncation), behind under event sampling',
+    check('5.6', 'stricter thresholds: GPT-6 Sol level with or ahead of the model (walk, truncation), behind under event sampling',
           'ja', 'ja' if ok else 'nein')
-    check('5.7', 'with 2 windows: mean change (pp), rank correlation', '10,4, 0,88',
+    check('5.6', 'with 2 windows: mean change (pp), rank correlation', '10,4, 0,88',
           f'{de(100*ws[ws.W == 2].mean_absolute_change_vs_W5.iloc[0])}, {de(ws[ws.W == 2].spearman_vs_W5.iloc[0], 2)}')
 
     lines = ['# The numbers of the thesis', '',

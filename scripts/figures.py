@@ -24,6 +24,7 @@ from study.sample import parse  # noqa: E402
 
 OUT = ROOT/'thesis/figures'
 CM = 1/2.54
+GRAY = '#6b6a66'
 INK, MUTED, GRID = '#0b0b0b', '#52514e', '#e4e3de'
 COLOR = {'observed': '#6b6a66', 'statistical_model': '#2a78d6', 'gpt_6_sol': '#eb6834',
          'learned_reference': '#1baf7a', 'deepseek_v4_1_flash': '#6250d6', 'qwen3_6': '#e87ba4'}
@@ -60,65 +61,48 @@ def save(fig, name):
     plt.close(fig)
 
 
-# ---------------------------------------------------------------- Figure 1.1: toy example of the four samplers
-TOY = {'A': [9, 7, 8, 6, 9], 'B': [3, 0, 2, 0, 1], 'C': [0, 0, 0, 1, 0], 'D': [2, 0, 0, 0, 0],
-       'E': [1, 0, 1, 0, 0], 'F': [0, 0, 4, 5, 0], 'G': [0, 1, 0, 0, 0], 'H': [0, 0, 0, 0, 1]}
-NODE_PAIRS = ('A', 'C', 'D', 'E')                      # the pairs among the randomly drawn users
-WALK = {'A': 4, 'B': 1, 'C': 1, 'F': 2}                # how often the walk passed each pair
-EVENT = {'A': [3, 2, 2, 1, 3], 'B': [1, 0, 0, 0, 0], 'D': [1, 0, 0, 0, 0], 'F': [0, 0, 0, 2, 0]}
-
-
-def toy_panels():
-    full = {k: v for k, v in TOY.items()}
-    node = {k: (TOY[k] if k in NODE_PAIRS else None) for k in TOY}
-    walk = {k: (TOY[k] if k in WALK else None) for k in TOY}
-    trunc = {}
-    for k in TOY:
-        if k in NODE_PAIRS and sum(TOY[k][2:]) > 0: trunc[k] = [None, None]+TOY[k][2:]
-        else: trunc[k] = None
-    event = {k: EVENT.get(k) for k in TOY}
-    return [('Full\nrecord', full), ('Node\nsampling', node), ('Random\nwalk', walk),
-            ('Time\ntruncation', trunc), ('Event\nsampling', event)]
-
-
-def persistence(panel):
-    seen = [v for v in panel.values() if v is not None]
-    return sum(sum(1 for x in v if x) >= 2 for v in seen)/len(seen)
+# ---------------------------------------------------------------- Figure 1.1: the two problems on a toy example
+TOY = {'A': [1, 1, 1, 1, 1], 'B': [0, 1, 0, 1, 0], 'C': [1, 0, 0, 0, 0], 'D': [0, 0, 0, 0, 1]}   # active windows
 
 
 def figure_samplers():
-    panels = toy_panels()
-    fig, axes = plt.subplots(1, 5, figsize=(16*CM, 6.2*CM), sharey=True)
-    blue = '#2a78d6'
-    for ax, (title, panel) in zip(axes, panels):
-        for i, k in enumerate(TOY):
-            y = len(TOY)-1-i
-            row = panel[k]
+    """Full record, a crawler that meets busy pair A three times, and a search that reaches back three windows."""
+    panels = [('Full record\n(no problem)', {k: (v, 1) for k, v in TOY.items()}, set()),
+              ('Crawler\n(sampling bias)', {'A': (TOY['A'], 3), 'B': (TOY['B'], 1), 'C': (TOY['C'], 1)}, set()),
+              ('Recent-only search\n(lost history)', {k: (v, 1) for k, v in TOY.items()}, {0, 1})]
+    fig, axes = plt.subplots(1, 3, figsize=(15.5*CM, 6.2*CM), sharey=True)
+    for ax, (title, seen, hidden) in zip(axes, panels):
+        n_seen = n_pers = 0
+        for r, pair in enumerate(TOY):
+            y = len(TOY)-1-r
             for w in range(5):
-                if row is None:
-                    ax.add_patch(Rectangle((w, y), .9, .8, fc='#f4f3ef', ec='none'))
+                if w in hidden:
+                    ax.add_patch(plt.Rectangle((w, y), 0.92, 0.82, facecolor='white', edgecolor=GRAY, hatch='////', lw=0.4))
                     continue
-                x = row[w]
-                if x is None:
-                    ax.add_patch(Rectangle((w, y), .9, .8, fc='white', ec='#b9b8b3', hatch='////', lw=0))
-                elif x > 0:
-                    shade = min(1, .35+.07*x)
-                    ax.add_patch(Rectangle((w, y), .9, .8, fc=blue, alpha=shade, ec='none'))
-                    ax.text(w+.45, y+.4, str(x), ha='center', va='center', fontsize=6, color='white')
+                on = pair in seen and seen[pair][0][w]
+                ax.add_patch(plt.Rectangle((w, y), 0.92, 0.82, facecolor=COLOR['statistical_model'] if on else '#f1f0ec',
+                                           edgecolor='none'))
+            if pair in seen:
+                active = sum(a for k, a in enumerate(seen[pair][0]) if k not in hidden)
+                if active:
+                    times = seen[pair][1]
+                    n_seen += times
+                    n_pers += times*(active >= 2)
+                    if times > 1: ax.text(5.15, y+0.41, f'×{times}', va='center', fontsize=8)
                 else:
-                    ax.add_patch(Rectangle((w, y), .9, .8, fc='white', ec='#d6d5d0', lw=.5))
-            if title.startswith('Random') and k in WALK:
-                ax.text(5.05, y+.4, f'{WALK[k]}×', va='center', fontsize=6, color=MUTED)
-        ax.set_xlim(-.1, 5.6); ax.set_ylim(-.3, len(TOY)+.1)
-        ax.set_xticks([w+.45 for w in range(5)]); ax.set_xticklabels([str(w+1) for w in range(5)], fontsize=6.5)
+                    ax.add_patch(plt.Rectangle((0, y), 4.92, 0.82, facecolor='white', alpha=0.7, edgecolor='none'))
+            else:
+                ax.add_patch(plt.Rectangle((0, y), 4.92, 0.82, facecolor='white', alpha=0.7, edgecolor='none'))
+        ax.set_xlim(-0.1, 5.7); ax.set_ylim(-0.3, len(TOY)+0.1)
+        ax.set_xticks([k+0.46 for k in range(5)], [str(k+1) for k in range(5)], fontsize=7)
+        ax.set_yticks([len(TOY)-1-r+0.41 for r in range(len(TOY))], list(TOY))
         ax.tick_params(length=0)
-        for s in ax.spines.values(): s.set_visible(False)
-        ax.set_title(title, fontsize=7.5)
-        ax.text(2.25, -1.25, f'ρ = {100*persistence(panel):.0f}%', ha='center', fontsize=7.5, color=INK, fontweight='bold')
-    axes[0].set_yticks([len(TOY)-1-i+.4 for i in range(len(TOY))]); axes[0].set_yticklabels(list(TOY), fontsize=6.5)
+        for side in ax.spines.values(): side.set_visible(False)
+        ax.set_title(title, fontsize=9)
+        ax.set_xlabel('Window', fontsize=7, color=GRAY, labelpad=1)
+        ax.text(2.46, -1.25, f'Persistence {100*n_pers/n_seen:.0f}%', ha='center', va='top', fontsize=9, weight='bold')
     axes[0].set_ylabel('Pair')
-    fig.text(.5, -.06, 'Time windows 1–5', ha='center', fontsize=7, color=MUTED)
-    fig.subplots_adjust(wspace=.08)
+    fig.subplots_adjust(bottom=0.28, top=0.83, wspace=0.12)
     save(fig, 'fig1_1_samplers.png')
 
 
