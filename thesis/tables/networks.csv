@@ -1,5 +1,5 @@
-Network,Kind,Nodes,Pairs,Interactions per pair,Window,One-off pairs,Persistence
-## Other networks
+Graph,Kind,Nodes,Pairs,Interactions per pair,Window,One-off pairs,Persistence
+## Other graphs
 Reality Mining,Bluetooth,96,"2,539",92.5,46.5 days,18%,60.7%
 Radoslaw,Email,167,"3,250",25.5,54.2 days,15%,55.1%
 Village,Contact sensor,86,347,294.8,2.7 days,15%,50.7%

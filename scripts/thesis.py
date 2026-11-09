@@ -161,14 +161,14 @@ def window_text(days):
 def table_networks(nets):
     r = nets[nets.shuffled == 0].copy()
     rows = []
-    for online, title in ((0, '## Other networks'), (1, '## Online platforms')):
+    for online, title in ((0, '## Other graphs'), (1, '## Online platforms')):
         rows.append([title])
         for _, x in r[r.online == online].sort_values('rho_2', ascending=False).iterrows():
             kind = ONLINE_KIND_EN[x.network] if online else KIND_EN[x.kind]
             rho = f'{en(100*x.rho_2)}%'
             rows.append([x['name'], kind, thousands_en(x.nodes), thousands_en(x.pairs), en(x.interactions_per_pair),
                          window_text(x.window_days), f'{100*x.share_one_interaction:.0f}%', rho])
-    write_table('networks', ['Network', 'Kind', 'Nodes', 'Pairs', 'Interactions per pair', 'Window', 'One-off pairs',
+    write_table('networks', ['Graph', 'Kind', 'Nodes', 'Pairs', 'Interactions per pair', 'Window', 'One-off pairs',
                              'Persistence'], rows)
 
 
@@ -272,7 +272,7 @@ def table_per_network(real, nets):
         rows.append([f'## {SAMPLER_EN[a]}'])
         for n in order:
             rows.append([names.name[n]]+[en(per[k, a, n]) for k in MAIN])
-    write_table('per_network', ['Network', 'Observed', 'Model', 'GPT-6 Sol', 'DeepSeek', 'Qwen', 'Learned'], rows)
+    write_table('per_network', ['Graph', 'Observed', 'Model', 'GPT-6 Sol', 'DeepSeek', 'Qwen', 'Learned'], rows)
 
 
 # ---------------------------------------------------------------- the checks

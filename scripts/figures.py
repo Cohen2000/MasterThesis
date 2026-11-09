@@ -61,51 +61,6 @@ def save(fig, name):
     plt.close(fig)
 
 
-# ---------------------------------------------------------------- Figure 1.1: the two problems on a toy example
-TOY = {'A': [1, 1, 1, 1, 1], 'B': [0, 1, 0, 1, 0], 'C': [1, 0, 0, 0, 0], 'D': [0, 0, 0, 0, 1]}   # active windows
-
-
-def figure_samplers():
-    """Full record, a crawler that meets busy pair A three times, and a search that reaches back three windows."""
-    panels = [('Full record\n(no problem)', {k: (v, 1) for k, v in TOY.items()}, set()),
-              ('Crawler\n(sampling bias)', {'A': (TOY['A'], 3), 'B': (TOY['B'], 1), 'C': (TOY['C'], 1)}, set()),
-              ('Recent-only search\n(lost history)', {k: (v, 1) for k, v in TOY.items()}, {0, 1})]
-    fig, axes = plt.subplots(1, 3, figsize=(15.5*CM, 6.2*CM), sharey=True)
-    for ax, (title, seen, hidden) in zip(axes, panels):
-        n_seen = n_pers = 0
-        for r, pair in enumerate(TOY):
-            y = len(TOY)-1-r
-            for w in range(5):
-                if w in hidden:
-                    ax.add_patch(plt.Rectangle((w, y), 0.92, 0.82, facecolor='white', edgecolor=GRAY, hatch='////', lw=0.4))
-                    continue
-                on = pair in seen and seen[pair][0][w]
-                ax.add_patch(plt.Rectangle((w, y), 0.92, 0.82, facecolor=COLOR['statistical_model'] if on else '#f1f0ec',
-                                           edgecolor='none'))
-            if pair in seen:
-                active = sum(a for k, a in enumerate(seen[pair][0]) if k not in hidden)
-                if active:
-                    times = seen[pair][1]
-                    n_seen += times
-                    n_pers += times*(active >= 2)
-                    if times > 1: ax.text(5.15, y+0.41, f'×{times}', va='center', fontsize=8)
-                else:
-                    ax.add_patch(plt.Rectangle((0, y), 4.92, 0.82, facecolor='white', alpha=0.7, edgecolor='none'))
-            else:
-                ax.add_patch(plt.Rectangle((0, y), 4.92, 0.82, facecolor='white', alpha=0.7, edgecolor='none'))
-        ax.set_xlim(-0.1, 5.7); ax.set_ylim(-0.3, len(TOY)+0.1)
-        ax.set_xticks([k+0.46 for k in range(5)], [str(k+1) for k in range(5)], fontsize=7)
-        ax.set_yticks([len(TOY)-1-r+0.41 for r in range(len(TOY))], list(TOY))
-        ax.tick_params(length=0)
-        for side in ax.spines.values(): side.set_visible(False)
-        ax.set_title(title, fontsize=9)
-        ax.set_xlabel('Window', fontsize=7, color=GRAY, labelpad=1)
-        ax.text(2.46, -1.25, f'Persistence {100*n_pers/n_seen:.0f}%', ha='center', va='top', fontsize=9, weight='bold')
-    axes[0].set_ylabel('Pair')
-    fig.subplots_adjust(bottom=0.28, top=0.83, wspace=0.12)
-    save(fig, 'fig1_1_samplers.png')
-
-
 # ---------------------------------------------------------------- Figure 5.2: mean error by method and sampler
 def figure_overview(pred):
     real = pred[pred.shuffled == 0]
@@ -226,7 +181,7 @@ def figure_hard(pred, nets):
         x, y = net[prop].reindex(med.index), med[arm]
         r = T.spearman(x, y)
         online = x.index.isin(ONLINE)
-        ax.scatter(x[~online], y[~online], s=16, color='#2a78d6', edgecolors='white', linewidths=.5, zorder=3, label='Other networks')
+        ax.scatter(x[~online], y[~online], s=16, color='#2a78d6', edgecolors='white', linewidths=.5, zorder=3, label='Other graphs')
         ax.scatter(x[online], y[online], s=16, color='#eb6834', edgecolors='white', linewidths=.5, zorder=3, label='Online platforms')
         if log:
             ax.set_xscale('log'); ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f'{v:g}'))
@@ -244,7 +199,6 @@ def figure_hard(pred, nets):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     pred, nets, samples = T.load()
-    figure_samplers()
     figure_overview(pred)
     figure_networks(pred, nets)
     figure_textbook(pred, samples)
