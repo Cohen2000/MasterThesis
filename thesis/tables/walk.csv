@@ -1,10 +1,10 @@
-Verfahren,Fehler (pp),Mit Vorzeichen (pp),Trifft Lehrbuchkorrektur
-Beobachtete Persistenz,"30,1","+28,4",–
-Lehrbuchkorrektur,"8,8","+4,5",–
-Statistisches Modell,"6,9","+4,3",–
-GPT-6 Sol,"8,4","+4,1",97 von 108
-GPT-6 Sol mit Python,"8,1","+3,8",100 von 108
-GPT-6 Sol ohne Protokoll,"10,7","+7,9",26 von 108
-DeepSeek V4.1,"9,0","+4,1",73 von 108
-Qwen3.6,"18,1","+14,2",22 von 108
-*Gelernte Referenz*,"*5,0*","*+2,3*",–
+Method,Error (pp),Signed error (pp),Matches textbook correction
+Observed persistence,30.1,+28.4,–
+Textbook correction,8.8,+4.5,–
+Statistical model,6.9,+4.3,–
+GPT-6 Sol,8.4,+4.1,97 of 108
+GPT-6 Sol with Python,8.1,+3.8,100 of 108
+GPT-6 Sol without walk log,10.7,+7.9,26 of 108
+DeepSeek V4.1,9.0,+4.1,73 of 108
+Qwen3.6,18.1,+14.2,22 of 108
+*Learned reference*,*5.0*,*+2.3*,–

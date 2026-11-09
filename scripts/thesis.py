@@ -11,7 +11,8 @@ was made). The figures are drawn by scripts/figures.py.
 Conventions (Section 4.6 of the thesis): the error is estimate minus true persistence rho_2, in
 percentage points (pp). A mean error is averaged over the samples and answers of a network first and
 then over networks, so every network counts equally. Invalid answers (2 of 4,536) are left out.
-Numbers are printed as in the thesis: German decimal comma, dot as thousands separator.
+Numbers are printed as in the thesis: German decimal comma in the (German) text, decimal point in the
+(English) tables and figures.
 """
 import csv
 import json
@@ -37,6 +38,13 @@ LLMS = ['gpt_6_sol', 'deepseek_v4_1_flash', 'qwen3_6']
 KIND = {'face-to-face': 'Kontaktsensor', 'Bluetooth': 'Bluetooth', 'email': 'E-Mail'}
 ONLINE_KIND = {'lkml_reply': 'Online, Antworten', 'snap_collegemsg': 'Online, Nachrichten',
                'snap_mathoverflow': 'Online, Antworten', 'nr_digg_reply': 'Online, Antworten'}
+NAME_EN = {'observed': 'Observed persistence', 'statistical_model': 'Statistical model', 'gpt_6_sol': 'GPT-6 Sol',
+           'deepseek_v4_1_flash': 'DeepSeek V4.1', 'qwen3_6': 'Qwen3.6', 'learned_reference': 'Learned reference',
+           'gpt_6_sol_python': 'GPT-6 Sol with Python', 'gpt_6_sol_no_walk_log': 'GPT-6 Sol without walk log'}
+SAMPLER_EN = {'node': 'Node sampling', 'walk': 'Random walk', 'truncation': 'Time truncation', 'event': 'Event sampling'}
+KIND_EN = {'face-to-face': 'Contact sensor', 'Bluetooth': 'Bluetooth', 'email': 'Email'}
+ONLINE_KIND_EN = {'lkml_reply': 'Online, replies', 'snap_collegemsg': 'Online, messages',
+                  'snap_mathoverflow': 'Online, replies', 'nr_digg_reply': 'Online, replies'}
 CHECKS = []
 
 
@@ -50,6 +58,17 @@ def de(x, digits=1, sign=False):
 
 def thousands(n):
     return f'{int(n):,}'.replace(',', '.')
+
+
+def en(x, digits=1, sign=False):
+    """A number as printed in the tables of the thesis (English: decimal point, minus sign)."""
+    s = f'{x:+.{digits}f}' if sign else f'{x:.{digits}f}'
+    if s in ('-0.0', '+-0.0'): s = '0.0'
+    return s.replace('-', '−')
+
+
+def thousands_en(n):
+    return f'{int(n):,}'
 
 
 def check(where, claim, thesis, value, ok=None):
@@ -134,23 +153,23 @@ def write_table(name, header, rows):
 
 
 def window_text(days):
-    if days < 1: return f'{24*days:.0f} Std.'
-    if days < 60: return f'{de(days)} Tage'
-    return f'{days/30.44:.0f} Monate'
+    if days < 1: return f'{24*days:.0f} hours'
+    if days < 60: return f'{en(days)} days'
+    return f'{days/30.44:.0f} months'
 
 
 def table_networks(nets):
     r = nets[nets.shuffled == 0].copy()
     rows = []
-    for online, title in ((0, '## Übrige Netzwerke'), (1, '## Online-Plattformen')):
+    for online, title in ((0, '## Other networks'), (1, '## Online platforms')):
         rows.append([title])
         for _, x in r[r.online == online].sort_values('rho_2', ascending=False).iterrows():
-            kind = ONLINE_KIND[x.network] if online else KIND[x.kind]
-            rho = f'{de(100*x.rho_2)} %'
-            rows.append([x['name'], kind, thousands(x.nodes), thousands(x.pairs), de(x.interactions_per_pair),
-                         window_text(x.window_days), f'{100*x.share_one_interaction:.0f} %', rho])
-    write_table('networks', ['Netzwerk', 'Art', 'Knoten', 'Paare', 'Interaktionen je Paar', 'Fenster', 'Einmal-Paare',
-                             'Persistenz'], rows)
+            kind = ONLINE_KIND_EN[x.network] if online else KIND_EN[x.kind]
+            rho = f'{en(100*x.rho_2)}%'
+            rows.append([x['name'], kind, thousands_en(x.nodes), thousands_en(x.pairs), en(x.interactions_per_pair),
+                         window_text(x.window_days), f'{100*x.share_one_interaction:.0f}%', rho])
+    write_table('networks', ['Network', 'Kind', 'Nodes', 'Pairs', 'Interactions per pair', 'Window', 'One-off pairs',
+                             'Persistence'], rows)
 
 
 def block(m, s, keys, bold_from):
@@ -160,12 +179,12 @@ def block(m, s, keys, bold_from):
     for k in keys:
         cells = []
         for a in SAMPLERS:
-            text = de(m[k, a])+(f' ({de(s[k, a])})' if s is not None else '')
+            text = en(m[k, a])+(f' ({en(s[k, a])})' if s is not None else '')
             if k == 'learned_reference': text = f'*{text}*'
             elif abs(round(m[k, a], 1)-best[a]) < 1e-9:
-                text = f'**{de(m[k, a])}**'+(f' ({de(s[k, a])})' if s is not None else '')
+                text = f'**{en(m[k, a])}**'+(f' ({en(s[k, a])})' if s is not None else '')
             cells.append(text)
-        rows.append([f'*{NAME[k]}*' if k == 'learned_reference' else NAME[k]]+cells)
+        rows.append([f'*{NAME_EN[k]}*' if k == 'learned_reference' else NAME_EN[k]]+cells)
     return rows
 
 
@@ -173,9 +192,9 @@ def table_results(real):
     m, s = mae(real), spread(real)
     mo, so = mae(real, ONLINE), spread(real, ONLINE)
     no_train = [k for k in MAIN if k != 'learned_reference']
-    rows = [['## Zwölf Netzwerke']]+block(m, s, MAIN, no_train)
-    rows += [['## Vier Online-Plattformen']]+block(mo, so, MAIN, no_train)
-    write_table('results', ['Verfahren']+[SAMPLER[a] for a in SAMPLERS], rows)
+    rows = [['## Twelve networks']]+block(m, s, MAIN, no_train)
+    rows += [['## Four online platforms']]+block(mo, so, MAIN, no_train)
+    write_table('results', ['Method']+[SAMPLER_EN[a] for a in SAMPLERS], rows)
     return m, s, mo, so
 
 
@@ -185,15 +204,15 @@ def table_walk(real, design):
     tb = walk[walk.method == 'observed'].assign(est=lambda d: d.sample_id.map(design))
     tb_abs = (100*(tb.est-tb.truth_2)).abs().groupby(tb.network).mean().mean()
     tb_sign = (100*(tb.est-tb.truth_2)).groupby(tb.network).mean().mean()
-    rows = [[NAME['observed'], de(m['observed', 'walk']), de(sg['observed', 'walk'], sign=True), '–'],
-            ['Lehrbuchkorrektur', de(tb_abs), de(tb_sign, sign=True), '–'],
-            [NAME['statistical_model'], de(m['statistical_model', 'walk']), de(sg['statistical_model', 'walk'], sign=True), '–']]
+    rows = [[NAME_EN['observed'], en(m['observed', 'walk']), en(sg['observed', 'walk'], sign=True), '–'],
+            ['Textbook correction', en(tb_abs), en(tb_sign, sign=True), '–'],
+            [NAME_EN['statistical_model'], en(m['statistical_model', 'walk']), en(sg['statistical_model', 'walk'], sign=True), '–']]
     for k in ['gpt_6_sol', 'gpt_6_sol_python', 'gpt_6_sol_no_walk_log', 'deepseek_v4_1_flash', 'qwen3_6']:
         n, total = matches(walk, k, design)
-        rows.append([NAME[k], de(m[k, 'walk']), de(sg[k, 'walk'], sign=True), f'{n} von {total}'])
-    rows.append([f"*{NAME['learned_reference']}*", f"*{de(m['learned_reference', 'walk'])}*",
-                 f"*{de(sg['learned_reference', 'walk'], sign=True)}*", '–'])
-    write_table('walk', ['Verfahren', 'Fehler (pp)', 'Mit Vorzeichen (pp)', 'Trifft Lehrbuchkorrektur'], rows)
+        rows.append([NAME_EN[k], en(m[k, 'walk']), en(sg[k, 'walk'], sign=True), f'{n} of {total}'])
+    rows.append([f"*{NAME_EN['learned_reference']}*", f"*{en(m['learned_reference', 'walk'])}*",
+                 f"*{en(sg['learned_reference', 'walk'], sign=True)}*", '–'])
+    write_table('walk', ['Method', 'Error (pp)', 'Signed error (pp)', 'Matches textbook correction'], rows)
     return tb_abs
 
 
@@ -205,24 +224,24 @@ def table_history(real):
         if k in ('gpt3', 'ds3', 'qw3'):
             base = {'gpt3': 'gpt_6_sol', 'ds3': 'deepseek_v4_1_flash', 'qw3': 'qwen3_6'}[k]
             a, s = mean_of_three(real, base), mean_of_three(real, base, 'err')
-            label = f'{NAME[base]}, Mittel aus drei Antworten'
-            cells = [de(a['truncation']), de(s['truncation'], sign=True), de(a['event']), de(s['event'], sign=True)]
+            label = f'{NAME_EN[base]}, mean of three answers'
+            cells = [en(a['truncation']), en(s['truncation'], sign=True), en(a['event']), en(s['event'], sign=True)]
         else:
-            label = NAME[k]
-            cells = [de(m[k, 'truncation']), de(sg[k, 'truncation'], sign=True), de(m[k, 'event']), de(sg[k, 'event'], sign=True)]
+            label = NAME_EN[k]
+            cells = [en(m[k, 'truncation']), en(sg[k, 'truncation'], sign=True), en(m[k, 'event']), en(sg[k, 'event'], sign=True)]
         if k == 'learned_reference':
             label, cells = f'*{label}*', [f'*{c}*' for c in cells]
         rows.append([label]+cells)
-    write_table('history', ['Verfahren', 'Zeitschnitt: Fehler', 'Zeitschnitt: mit Vorzeichen', 'Ereignisstichprobe: Fehler',
-                            'Ereignisstichprobe: mit Vorzeichen'], rows)
+    write_table('history', ['Method', 'Time truncation: error', 'Time truncation: signed', 'Event sampling: error',
+                            'Event sampling: signed'], rows)
 
 
 def table_windows():
     ws = pd.read_csv(DATA/'window_sensitivity.csv')
     ws = ws[ws.shuffled == 0]
-    rows = [[str(int(x.W)), f'{de(100*x.mean_rho_2)} %', de(100*x.mean_absolute_change_vs_W5), de(x.spearman_vs_W5, 2)]
+    rows = [[str(int(x.W)), f'{en(100*x.mean_rho_2)}%', en(100*x.mean_absolute_change_vs_W5), en(x.spearman_vs_W5, 2)]
             for _, x in ws.iterrows()]
-    write_table('windows', ['Zahl der Fenster', 'Mittlere Persistenz', 'Änderung (pp)', 'Rangkorrelation'], rows)
+    write_table('windows', ['Windows', 'Mean persistence', 'Change (pp)', 'Rank correlation'], rows)
     return ws
 
 
@@ -233,16 +252,16 @@ def table_thresholds(real):
         for a in SAMPLERS:
             sub = real[(real.sampler == a) & (real.method == k) & real.valid]
             vals = [sub.assign(x=sub[f'err_{j}'].abs()).groupby('network').x.mean().mean() for j in (3, 4, 5)]
-            cells.append(' / '.join(de(v) for v in vals))
-        name = f'*{NAME[k]}*' if k == 'learned_reference' else NAME[k]
+            cells.append(' / '.join(en(v) for v in vals))
+        name = f'*{NAME_EN[k]}*' if k == 'learned_reference' else NAME_EN[k]
         rows.append([name]+([f'*{c}*' for c in cells] if k == 'learned_reference' else cells))
-    write_table('thresholds', ['Verfahren']+[f'{SAMPLER[a]}: ρ₃ / ρ₄ / ρ₅' for a in SAMPLERS], rows)
+    write_table('thresholds', ['Method']+[f'{SAMPLER_EN[a]}: ρ₃ / ρ₄ / ρ₅' for a in SAMPLERS], rows)
 
 
 def table_copies(shuf):
     ms = mae(shuf)
     no_train = [k for k in MAIN if k != 'learned_reference']
-    write_table('copies', ['Verfahren']+[SAMPLER[a] for a in SAMPLERS], block(ms, None, MAIN, no_train))
+    write_table('copies', ['Method']+[SAMPLER_EN[a] for a in SAMPLERS], block(ms, None, MAIN, no_train))
     return ms
 
 
@@ -252,10 +271,10 @@ def table_per_network(real, nets):
     order = list(names.rho_2.sort_values(ascending=False).index)
     rows = []
     for a in SAMPLERS:
-        rows.append([f'## {SAMPLER[a]}'])
+        rows.append([f'## {SAMPLER_EN[a]}'])
         for n in order:
-            rows.append([names.name[n]]+[de(per[k, a, n]) for k in MAIN])
-    write_table('per_network', ['Netzwerk', 'Beobachtet', 'Modell', 'GPT-6 Sol', 'DeepSeek', 'Qwen', 'Gelernt'], rows)
+            rows.append([names.name[n]]+[en(per[k, a, n]) for k in MAIN])
+    write_table('per_network', ['Network', 'Observed', 'Model', 'GPT-6 Sol', 'DeepSeek', 'Qwen', 'Learned'], rows)
 
 
 # ---------------------------------------------------------------- the checks
@@ -329,12 +348,12 @@ def main():
     o = parse(hospital[0]['block'])
     persistent = sum(r[1] for r in o['table'] if r[0].count('1') >= 2)
     rows = {r[0]: (r[1], r[2]) for r in o['table']}
-    check('Table 3.3', 'hospital sample: users, pairs, interactions, per window', '24, 132, 3.172, 371/1.183/792/571/255',
-          f"{o['n_panel']}, {o['D_obs']}, {thousands(o['M_obs'])}, {'/'.join(thousands(x) for x in o['Events_per_window'])}")
+    check('Table 3.3', 'hospital sample: nodes, pairs, interactions, per window', '24, 132, 3,172, 371/1,183/792/571/255',
+          f"{o['n_panel']}, {o['D_obs']}, {thousands_en(o['M_obs'])}, {'/'.join(thousands_en(x) for x in o['Events_per_window'])}")
     check('Table 3.3', 'rows 00001, 01000, 01110, 11100 (pairs/interactions)', '12/86, 24/436, 5/283, 4/490',
           ', '.join(f'{rows[p][0]}/{rows[p][1]}' for p in ('00001', '01000', '01110', '11100')))
-    check('Table 3.3', 'persistent pairs, observed persistence, truth', '56 von 132, 42 %, 45 %',
-          f"{persistent} von {o['D_obs']}, {100*persistent/o['D_obs']:.0f} %, {100*nr.rho_2['sp_hospital']:.0f} %")
+    check('Table 3.3', 'persistent pairs, observed persistence, truth', '56 of the 132, 42%, 45%',
+          f"{persistent} of the {o['D_obs']}, {100*persistent/o['D_obs']:.0f}%, {100*nr.rho_2['sp_hospital']:.0f}%")
     # Section 4.4 to 4.6
     check('4.4', 'estimates in the study, invalid answers', '4.536, 2', f'{thousands(len(pred))}, {int((~pred.valid).sum())}')
     check('4.4', 'samplers of the invalid answers', 'beide beim Zufallsweg',

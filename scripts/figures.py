@@ -5,7 +5,7 @@
 
 Writes thesis/figures/*.png. Calls no model and needs no raw data. Figure 1.1 is a drawn toy
 example; all other figures plot data/predictions.csv, data/networks.csv and the samples.
-Labels are German, as in the thesis.
+Labels are English, as the captions of the thesis.
 """
 import sys
 from pathlib import Path
@@ -29,11 +29,10 @@ COLOR = {'observed': '#6b6a66', 'statistical_model': '#2a78d6', 'gpt_6_sol': '#e
          'learned_reference': '#1baf7a', 'deepseek_v4_1_flash': '#6250d6', 'qwen3_6': '#e87ba4'}
 MARKER = {'observed': 'o', 'statistical_model': 's', 'gpt_6_sol': 'o', 'learned_reference': 'D',
           'deepseek_v4_1_flash': '^', 'qwen3_6': 'v'}
-LABEL = {'observed': 'Beobachtete Persistenz', 'statistical_model': 'Statistisches Modell', 'gpt_6_sol': 'GPT-6 Sol',
-         'deepseek_v4_1_flash': 'DeepSeek V4.1', 'qwen3_6': 'Qwen3.6', 'learned_reference': 'Gelernte Referenz'}
-SAMPLER = {'node': 'Knotenstichprobe', 'walk': 'Zufallsweg', 'truncation': 'Zeitschnitt', 'event': 'Ereignisstichprobe'}
-SUB = {'node': 'keine Verzerrung', 'walk': 'Stichprobenverzerrung', 'truncation': 'verlorene Historie',
-       'event': 'beides'}
+LABEL = {'observed': 'Observed persistence', 'statistical_model': 'Statistical model', 'gpt_6_sol': 'GPT-6 Sol',
+         'deepseek_v4_1_flash': 'DeepSeek V4.1', 'qwen3_6': 'Qwen3.6', 'learned_reference': 'Learned reference'}
+SAMPLER = {'node': 'Node sampling', 'walk': 'Random walk', 'truncation': 'Time truncation', 'event': 'Event sampling'}
+SUB = {'node': 'no bias', 'walk': 'sampling bias', 'truncation': 'lost history', 'event': 'both'}
 
 plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 8, 'axes.edgecolor': MUTED, 'axes.labelcolor': INK,
                      'xtick.color': MUTED, 'ytick.color': MUTED, 'axes.linewidth': .6, 'xtick.major.width': .6,
@@ -42,11 +41,11 @@ plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 8, 'axes.edgecol
 
 
 def de(x, digits=1):
-    """A number with a German decimal comma."""
-    return f'{x:.{digits}f}'.replace('.', ',').replace('-', '−')
+    """A number as printed in the figures (decimal point, minus sign)."""
+    return f'{x:.{digits}f}'.replace('-', '−')
 
 
-COMMA = FuncFormatter(lambda v, _: f'{v:g}'.replace('.', ',').replace('-', '−'))
+COMMA = FuncFormatter(lambda v, _: f'{v:g}'.replace('-', '−'))
 
 
 def clean(ax, grid='x'):
@@ -78,8 +77,8 @@ def toy_panels():
         if k in NODE_PAIRS and sum(TOY[k][2:]) > 0: trunc[k] = [None, None]+TOY[k][2:]
         else: trunc[k] = None
     event = {k: EVENT.get(k) for k in TOY}
-    return [('Vollständig\n', full), ('Knoten-\nstichprobe', node), ('Zufallsweg\n', walk),
-            ('Zeitschnitt\n', trunc), ('Ereignis-\nstichprobe', event)]
+    return [('Full\nrecord', full), ('Node\nsampling', node), ('Random\nwalk', walk),
+            ('Time\ntruncation', trunc), ('Event\nsampling', event)]
 
 
 def persistence(panel):
@@ -108,17 +107,17 @@ def figure_samplers():
                     ax.text(w+.45, y+.4, str(x), ha='center', va='center', fontsize=6, color='white')
                 else:
                     ax.add_patch(Rectangle((w, y), .9, .8, fc='white', ec='#d6d5d0', lw=.5))
-            if title.startswith('Zufallsweg') and k in WALK:
+            if title.startswith('Random') and k in WALK:
                 ax.text(5.05, y+.4, f'{WALK[k]}×', va='center', fontsize=6, color=MUTED)
         ax.set_xlim(-.1, 5.6); ax.set_ylim(-.3, len(TOY)+.1)
         ax.set_xticks([w+.45 for w in range(5)]); ax.set_xticklabels([str(w+1) for w in range(5)], fontsize=6.5)
         ax.tick_params(length=0)
         for s in ax.spines.values(): s.set_visible(False)
         ax.set_title(title, fontsize=7.5)
-        ax.text(2.25, -1.25, f'ρ = {100*persistence(panel):.0f} %', ha='center', fontsize=7.5, color=INK, fontweight='bold')
+        ax.text(2.25, -1.25, f'ρ = {100*persistence(panel):.0f}%', ha='center', fontsize=7.5, color=INK, fontweight='bold')
     axes[0].set_yticks([len(TOY)-1-i+.4 for i in range(len(TOY))]); axes[0].set_yticklabels(list(TOY), fontsize=6.5)
-    axes[0].set_ylabel('Paar')
-    fig.text(.5, -.06, 'Zeitfenster 1–5', ha='center', fontsize=7, color=MUTED)
+    axes[0].set_ylabel('Pair')
+    fig.text(.5, -.06, 'Time windows 1–5', ha='center', fontsize=7, color=MUTED)
     fig.subplots_adjust(wspace=.08)
     save(fig, 'fig1_1_samplers.png')
 
@@ -140,7 +139,7 @@ def figure_overview(pred):
             ax.text(m+se+1, y, de(m), va='center', fontsize=6.5, color=MUTED)
         ax.set_title(SAMPLER[arm]); ax.set_xlim(0, 40); ax.set_xticks([0, 10, 20, 30, 40])
         clean(ax)
-        ax.set_xlabel('Fehler (pp)')
+        ax.set_xlabel('Error (pp)')
     axes[0].set_yticks(range(len(methods))); axes[0].set_yticklabels([LABEL[k] for k in reversed(methods)])
     axes[0].tick_params(axis='y', length=0)
     fig.subplots_adjust(wspace=.12)
@@ -174,13 +173,13 @@ def figure_networks(pred, nets):
         ax.text(0, 1.015, SUB[arm], transform=ax.transAxes, fontsize=7, color=MUTED, style='italic', va='bottom')
         clean(ax)
     axes[0].set_yticks(range(len(order)))
-    axes[0].set_yticklabels([f'{names.name[s]} · {100*names.rho_2[s]:.0f} %' if names.rho_2[s] >= .01
-                             else f'{names.name[s]} · {de(100*names.rho_2[s])} %' for s in order])
+    axes[0].set_yticklabels([f'{names.name[s]} · {100*names.rho_2[s]:.0f}%' if names.rho_2[s] >= .01
+                             else f'{names.name[s]} · {de(100*names.rho_2[s])}%' for s in order])
     axes[0].tick_params(axis='y', length=0)
-    fig.text(.5, .0, 'Schätzung minus wahre Persistenz (pp)', ha='center', fontsize=7.5, color=MUTED)
+    fig.text(.5, .0, 'Estimate minus true persistence (pp)', ha='center', fontsize=7.5, color=MUTED)
     handles = [plt.Line2D([], [], marker=MARKER[k], ls='', color=COLOR[k], mfc='white' if k == 'observed' else COLOR[k], ms=4.5)
                for k, _ in methods]+[plt.Line2D([], [], color=MUTED, lw=1, alpha=.6)]
-    fig.legend(handles, [LABEL[k] for k, _ in methods]+['Spanne über Stichproben und Antworten'], loc='lower center',
+    fig.legend(handles, [LABEL[k] for k, _ in methods]+['Range over samples and answers'], loc='lower center',
                ncol=4, bbox_to_anchor=(.5, -.07), fontsize=7)
     fig.subplots_adjust(wspace=.1, bottom=.13)
     save(fig, 'fig5_1_networks.png')
@@ -199,11 +198,11 @@ def figure_textbook(pred, samples):
         ax.plot([0, 100], [0, 100], color=GRID, lw=1, zorder=0)
         ax.scatter(x[~near], y[~near], s=12, facecolors='white', edgecolors=COLOR[key], linewidths=.9, zorder=2)
         ax.scatter(x[near], y[near], s=12, color=COLOR[key], edgecolors='white', linewidths=.4, zorder=3)
-        ax.set_title(f'{LABEL[key]}\n{int(near.sum())} von {n_all} gleich')
+        ax.set_title(f'{LABEL[key]}\n{int(near.sum())} of {n_all} match')
         ax.set_xlim(-2, 102); ax.set_ylim(-2, 102); ax.set_aspect('equal')
         clean(ax, grid=None)
-        ax.set_xlabel('Lehrbuchkorrektur (%)')
-    axes[0].set_ylabel('Antwort des LLM (%)')
+        ax.set_xlabel('Textbook correction (%)')
+    axes[0].set_ylabel('LLM answer (%)')
     fig.subplots_adjust(wspace=.15)
     save(fig, 'fig5_3_textbook.png')
 
@@ -222,7 +221,7 @@ def figure_answer_spread(pred):
         for xx, v in zip(xs, sd.values): ax.text(xx, v+.4, de(v), ha='center', fontsize=6.5, color=MUTED)
     clean(ax, grid='y')
     ax.set_xticks(range(4)); ax.set_xticklabels([SAMPLER[a] for a in T.SAMPLERS])
-    ax.set_ylabel('Streuung (pp)')
+    ax.set_ylabel('Answer spread (pp)')
     ax.legend(loc='upper left', fontsize=7)
     save(fig, 'fig5_4_answer_spread.png')
 
@@ -235,16 +234,16 @@ def figure_hard(pred, nets):
     real = pred[pred.shuffled == 0]
     e = T.per_network(real)
     med = e[e.index.get_level_values('method').isin(T.FIVE)].groupby(['sampler', 'network']).median().unstack('sampler')
-    panels = [('walk', 'events_per_pair', 'Interaktionen je Paar (log)', True),
-              ('truncation', 'abs_early_late_mismatch_2', 'Fehler einer Hochrechnung aus\nden späten Fenstern', False),
-              ('event', 'rho2', 'Wahre Persistenz', False)]
+    panels = [('walk', 'events_per_pair', 'Interactions per pair (log)', True),
+              ('truncation', 'abs_early_late_mismatch_2', 'Error of extrapolating from\nthe three late windows (pp)', False),
+              ('event', 'rho2', 'True persistence', False)]
     fig, axes = plt.subplots(1, 3, figsize=(16*CM, 5.8*CM))
     for ax, (arm, prop, xl, log) in zip(axes, panels):
         x, y = net[prop].reindex(med.index), med[arm]
         r = T.spearman(x, y)
         online = x.index.isin(ONLINE)
-        ax.scatter(x[~online], y[~online], s=16, color='#2a78d6', edgecolors='white', linewidths=.5, zorder=3, label='Andere Netzwerke')
-        ax.scatter(x[online], y[online], s=16, color='#eb6834', edgecolors='white', linewidths=.5, zorder=3, label='Online-Plattformen')
+        ax.scatter(x[~online], y[~online], s=16, color='#2a78d6', edgecolors='white', linewidths=.5, zorder=3, label='Other networks')
+        ax.scatter(x[online], y[online], s=16, color='#eb6834', edgecolors='white', linewidths=.5, zorder=3, label='Online platforms')
         if log:
             ax.set_xscale('log'); ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f'{v:g}'))
         ax.set_title(f'{SAMPLER[arm]}\nr = {de(r, 2) if r < 0 else "+"+de(r, 2)} (Spearman)')
@@ -252,7 +251,7 @@ def figure_hard(pred, nets):
         clean(ax, grid='y')
         top = y.sort_values().index[-2:]
         for s in top: ax.annotate(names.name[s], (x[s], y[s]), xytext=(-3, 3), textcoords='offset points', fontsize=6, color=MUTED, ha='right')
-    axes[0].set_ylabel('Median-Fehler der fünf Verfahren (pp)')
+    axes[0].set_ylabel('Median error of the five methods (pp)')
     axes[0].legend(loc='upper left', fontsize=6.5, handletextpad=.2)
     fig.subplots_adjust(wspace=.3)
     save(fig, 'fig5_5_hard.png')

@@ -22,9 +22,9 @@ Written by `scripts/thesis.py` from `data/`. "Thesis" is the number as printed i
 | 3.3 | samples of the twelve networks | 144 | 144 | yes |
 | 3.4 | mean persistence: networks, time-shuffled copies | 35 %, 61 % | 35 %, 61 % | yes |
 | 3.4 | samples in total | 288 | 288 | yes |
-| Table 3.3 | hospital sample: users, pairs, interactions, per window | 24, 132, 3.172, 371/1.183/792/571/255 | 24, 132, 3.172, 371/1.183/792/571/255 | yes |
+| Table 3.3 | hospital sample: nodes, pairs, interactions, per window | 24, 132, 3,172, 371/1,183/792/571/255 | 24, 132, 3,172, 371/1,183/792/571/255 | yes |
 | Table 3.3 | rows 00001, 01000, 01110, 11100 (pairs/interactions) | 12/86, 24/436, 5/283, 4/490 | 12/86, 24/436, 5/283, 4/490 | yes |
-| Table 3.3 | persistent pairs, observed persistence, truth | 56 von 132, 42 %, 45 % | 56 von 132, 42 %, 45 % | yes |
+| Table 3.3 | persistent pairs, observed persistence, truth | 56 of the 132, 42%, 45% | 56 of the 132, 42%, 45% | yes |
 | 4.4 | estimates in the study, invalid answers | 4.536, 2 | 4.536, 2 | yes |
 | 4.4 | samplers of the invalid answers | beide beim Zufallsweg | beide beim Zufallsweg | yes |
 | 4.5 | real training networks, of them test networks | 16, neun | 16, neun | yes |
