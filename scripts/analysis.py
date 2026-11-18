@@ -147,7 +147,7 @@ def table_networks(nets):
             rho = f'{en(100*x.rho_2)}%'
             rows.append([x['name'], kind, thousands_en(x.nodes), thousands_en(x.pairs), en(x.interactions_per_pair),
                          window_text(x.window_days), f'{100*x.share_one_interaction:.0f}%', rho])
-    write_table('networks', ['Graph', 'Kind', 'Nodes', 'Pairs', 'Interactions per pair', 'Window', 'One-off pairs',
+    write_table('networks', ['Graph', 'Kind', 'Nodes', 'Pairs', 'Events per pair', 'Window', 'One-off pairs',
                              'Persistence'], rows)
 
 
@@ -298,7 +298,7 @@ def main():
     smp = smp[smp.shuffled == 0].assign(share=lambda d: d.M_obs/d.network.map(nr.interactions))
     seen = 100*smp.groupby(['sampler', 'network']).share.mean().groupby('sampler').median()
     report("share of the pairs' active windows each sampler sees", f'{100*BUDGET:.0f}%')
-    report('share of all interactions seen, median over networks: walk, event sampling', f'{seen["S"]:.0f}%, about {seen["B"]:.0f}%')
+    report('share of all events seen, median over networks: walk, event sampling', f'{seen["S"]:.0f}%, about {seen["B"]:.0f}%')
     n_samples = real.drop_duplicates('sample_id').shape[0]
     report('samples of the twelve networks', str(n_samples))
     report('mean persistence: networks, time-shuffled copies', f'{100*nr.rho_2.mean():.0f}%, {100*nets[nets.shuffled == 1].rho_2.mean():.0f}%')
@@ -309,8 +309,8 @@ def main():
     o = parse(hospital[0]['block'])
     persistent = sum(r[1] for r in o['table'] if r[0].count('1') >= 2)
     rows = {r[0]: (r[1], r[2]) for r in o['table']}
-    report('hospital sample: nodes, pairs, interactions, per window', f"{o['n_panel']}, {o['D_obs']}, {thousands_en(o['M_obs'])}, {','.join(str(x) for x in o['Events_per_window'])}")
-    report('rows 00001, 00010, 01110, 11100 (pairs,interactions)', ', '.join(f'{rows[p][0]},{rows[p][1]}' for p in ('00001', '00010', '01110', '11100')))
+    report('hospital sample: nodes, pairs, events, per window', f"{o['n_panel']}, {o['D_obs']}, {thousands_en(o['M_obs'])}, {','.join(str(x) for x in o['Events_per_window'])}")
+    report('rows 00001, 00010, 01110, 11100 (pairs,events)', ', '.join(f'{rows[p][0]},{rows[p][1]}' for p in ('00001', '00010', '01110', '11100')))
     report('persistent pairs, observed persistence, truth', f"{persistent} of {o['D_obs']}, {100*persistent/o['D_obs']:.0f}%, {100*nr.rho_2['sp_hospital']:.0f}%")
     section('The methods')
     report('estimates in the study, invalid answers', f'{thousands_en(len(pred))}, {int((~pred.valid).sum())}')

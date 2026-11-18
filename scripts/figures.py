@@ -205,7 +205,7 @@ def figure_hard(pred, nets):
     real = pred[pred.shuffled == 0]
     e = T.per_network(real)
     med = e[e.index.get_level_values('method').isin(T.FIVE)].groupby(['sampler', 'network']).median().unstack('sampler')
-    panels = [('walk', 'events_per_pair', 'Interactions per pair (log)', True),
+    panels = [('walk', 'events_per_pair', 'Events per pair (log)', True),
               ('truncation', 'abs_early_late_mismatch_2', 'Error of extrapolating from\nthe three late windows (pp)', False),
               ('event', 'rho2', 'True persistence', False)]
     fig, axes = plt.subplots(1, 3, figsize=(16*CM, 5.8*CM))

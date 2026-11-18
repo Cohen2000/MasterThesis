@@ -1,4 +1,4 @@
-Graph,Kind,Nodes,Pairs,Interactions per pair,Window,One-off pairs,Persistence
+Graph,Kind,Nodes,Pairs,Events per pair,Window,One-off pairs,Persistence
 ## Other graphs
 Reality Mining,Bluetooth,96,"2,539",92.5,46.5 days,18%,60.7%
 Radoslaw,Email,167,"3,250",25.5,54.2 days,15%,55.1%
