@@ -210,7 +210,7 @@ def figure_hard(pred, nets):
               ('event', 'rho2', 'True persistence', False)]
     fig, axes = plt.subplots(1, 3, figsize=(16*CM, 5.8*CM))
     for ax, (arm, prop, xl, log) in zip(axes, panels):
-        x, y = net[prop].reindex(med.index), med[arm]
+        x, y = net[prop].reindex(med.index)*(100 if arm == 'truncation' else 1), med[arm]   # truncation: share -> pp
         r = T.spearman(x, y)
         online = x.index.isin(ONLINE)
         ax.scatter(x[~online], y[~online], s=16, color='#2a78d6', edgecolors='white', linewidths=.5, zorder=3, label='Other graphs')
