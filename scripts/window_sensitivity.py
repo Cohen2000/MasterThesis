@@ -5,7 +5,7 @@ The thesis cuts every network into W = 5 windows and calls a pair persistent if 
 least two of them. This script rebuilds the 12 networks and their time-shuffled copies, checks that
 W = 5 gives exactly data/truth.json, and recomputes the share of pairs active in at least two of W
 windows for W = 2 ... 20. Per W it reports the mean and largest change against W = 5 and the rank
-correlation of the networks with their W = 5 values (Sections 3.2 and 5.7 of the thesis).
+correlation of the networks with their W = 5 values (Sections 3.2 and 5.6 of the thesis).
 
   python scripts/window_sensitivity.py      writes results/window_sensitivity.csv (needs data/raw)
 """

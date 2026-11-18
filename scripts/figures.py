@@ -18,7 +18,7 @@ from matplotlib.patches import FancyBboxPatch
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FuncFormatter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import thesis as T  # noqa: E402  (data loading and error conventions)
+import analysis as T  # noqa: E402  (data loading and error conventions)
 from study.common import ONLINE, ROOT  # noqa: E402
 from study.estimators import ratio  # noqa: E402
 from study.sample import parse  # noqa: E402

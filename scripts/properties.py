@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""The 99 properties behind "What makes a network hard" (Section 5.6 of the thesis): 80 properties of each network
+"""The 99 properties behind "What makes a network hard" (Section 5.5 of the thesis): 80 properties of each network
 and its time-shuffled copy, computed from the raw data, and 17 properties of each sample, read from
-the sample text. scripts/thesis.py adds two more (the signed and absolute bias of the observed
+the sample text. scripts/analysis.py adds two more (the signed and absolute bias of the observed
 persistence) and correlates each property with the methods' median error.
 
   python scripts/properties.py          writes results/network_properties.csv and results/sample_properties.csv
