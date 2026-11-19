@@ -303,15 +303,17 @@ def main():
     report('samples of the twelve networks', str(n_samples))
     report('mean persistence: networks, time-shuffled copies', f'{100*nr.rho_2.mean():.0f}%, {100*nets[nets.shuffled == 1].rho_2.mean():.0f}%')
     report('samples in total', str(pred.drop_duplicates('sample_id').shape[0]))
-    # the hospital sample shown as the example prompt
-    hospital = [x for x in samples.values() if x['graph_id'] == 'sp_hospital' and x['arm'] == 'R'
-                and 'n_panel=24' in x['block'] and 'D_obs=132' in x['block']]
+    # the hospital sample under event sampling shown as the example prompt (Figure 3.2, Appendix A)
+    hospital = [x for x in samples.values() if x['graph_id'] == 'sp_hospital' and x['arm'] == 'B'
+                and x['sample_index'] == 1]
     o = parse(hospital[0]['block'])
     persistent = sum(r[1] for r in o['table'] if r[0].count('1') >= 2)
+    one_window = sum(r[1] for r in o['table'] if r[0].count('1') == 1)
     rows = {r[0]: (r[1], r[2]) for r in o['table']}
-    report('hospital sample: nodes, pairs, events, per window', f"{o['n_panel']}, {o['D_obs']}, {thousands_en(o['M_obs'])}, {','.join(str(x) for x in o['Events_per_window'])}")
-    report('rows 00001, 00010, 01110, 11100 (pairs,events)', ', '.join(f'{rows[p][0]},{rows[p][1]}' for p in ('00001', '00010', '01110', '11100')))
+    report('hospital sample: p, pairs, events, per window', f"{o['parameter']} (about {100*o['parameter']:.1f}%), {o['D_obs']}, {thousands_en(o['M_obs'])}, {','.join(str(x) for x in o['Events_per_window'])}")
+    report('row 01000 (pairs,events)', f"{rows['01000'][0]},{rows['01000'][1]}")
     report('persistent pairs, observed persistence, truth', f"{persistent} of {o['D_obs']}, {100*persistent/o['D_obs']:.0f}%, {100*nr.rho_2['sp_hospital']:.0f}%")
+    report('pairs with only one visible window', f"{one_window} of {o['D_obs']}")
     section('The methods')
     report('estimates in the study, invalid answers', f'{thousands_en(len(pred))}, {int((~pred.valid).sum())}')
     report('samplers of the invalid answers', 'both under the random walk' if set(pred[~pred.valid].sampler) == {'walk'} else 'no')

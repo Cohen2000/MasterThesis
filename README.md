@@ -27,7 +27,7 @@ python scripts/figures.py      # the figures of the thesis -> thesis/figures/
 | In the thesis | File |
 |---|---|
 | Table 3.1 (networks) | `thesis/tables/networks.csv` |
-| Section 3.4 (the hospital sample), Appendix A (full prompt) | `data/samples/sp_hospital__R-...__s1.json` |
+| Figure 3.2 (the hospital sample under event sampling), Appendix A (full prompt) | `data/samples/sp_hospital__B-...__s1.json` |
 | Table 5.1 (all methods) | `thesis/tables/results.csv` |
 | Table 5.2 (random walk) | `thesis/tables/walk.csv` |
 | Table 5.3 (lost history) | `thesis/tables/history.csv` |
